@@ -1,0 +1,137 @@
+---
+# PersistentVolumeClaim — Mistral model weights (~4 GB) persist across restarts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: kubewhisperer
+  labels:
+    app.kubernetes.io/name: ollama
+    app.kubernetes.io/component: model-storage
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+  # K3s default storage class; change to match your cluster.
+  storageClassName: local-path
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: kubewhisperer
+  labels:
+    app.kubernetes.io/name: ollama
+    app.kubernetes.io/component: llm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+        app.kubernetes.io/name: ollama
+    spec:
+      serviceAccountName: kubewhisperer
+      # GPU node selector — remove if running CPU-only
+      # nodeSelector:
+      #   kubernetes.io/accelerator: nvidia
+      # tolerations:
+      #   - key: nvidia.com/gpu
+      #     operator: Exists
+      #     effect: NoSchedule
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - name: http
+              containerPort: 11434
+              protocol: TCP
+          env:
+            - name: OLLAMA_MODELS
+              value: /root/.ollama/models
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama/models
+          resources:
+            requests:
+              cpu: "1"
+              memory: 4Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ollama-models
+
+---
+# Service — stable DNS for KubeWhisperer to reach Ollama.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: kubewhisperer
+  labels:
+    app.kubernetes.io/name: ollama
+    app.kubernetes.io/component: llm
+spec:
+  selector:
+    app: ollama
+  ports:
+    - name: http
+      port: 11434
+      targetPort: http
+      protocol: TCP
+  type: ClusterIP
+
+---
+# One-shot Job that pulls the Mistral model into the PVC.
+# Run once after the PVC is bound; safe to re-run (pull is idempotent).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ollama-pull-mistral
+  namespace: kubewhisperer
+  labels:
+    app.kubernetes.io/name: ollama
+    app.kubernetes.io/component: model-pull
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: ollama-pull
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: kubewhisperer
+      containers:
+        - name: pull
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Ollama to be ready…"
+              until curl -sf http://ollama:11434/; do sleep 3; done
+              echo "Pulling mistral…"
+              curl -sf -X POST http://ollama:11434/api/pull \
+                -d '{"name":"mistral","insecure":false}' \
+                --max-time 600
+              echo "Done."

@@ -1,0 +1,101 @@
+---
+# ServiceAccount used by both the Ollama pod and the KubeWhisperer Job
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubewhisperer
+  namespace: kubewhisperer
+  labels:
+    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/component: rbac
+
+---
+# ClusterRole — read-only access to all resources the collector needs.
+# Covers: core + apps + networking + batch + autoscaling + Helm CRDs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubewhisperer-reader
+  labels:
+    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/component: rbac
+rules:
+  # Core API group (v1)
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - nodes
+      - pods
+      - pods/log
+      - services
+      - endpoints
+      - configmaps
+      - secrets
+      - persistentvolumes
+      - persistentvolumeclaims
+      - serviceaccounts
+      - events
+      - replicationcontrollers
+    verbs: ["get", "list", "watch"]
+
+  # apps/v1
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - daemonsets
+      - replicasets
+      - statefulsets
+    verbs: ["get", "list", "watch"]
+
+  # batch/v1
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list", "watch"]
+
+  # networking.k8s.io
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+      - networkpolicies
+      - ingressclasses
+    verbs: ["get", "list", "watch"]
+
+  # autoscaling
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["get", "list", "watch"]
+
+  # policy
+  - apiGroups: ["policy"]
+    resources:
+      - poddisruptionbudgets
+    verbs: ["get", "list", "watch"]
+
+  # Helm CRDs (Flux / Rancher)
+  - apiGroups: ["helm.cattle.io", "helm.toolkit.fluxcd.io"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+
+  # API discovery — required for dynamic ontology
+  - nonResourceURLs: ["/api", "/api/*", "/apis", "/apis/*", "/version"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubewhisperer-reader
+  labels:
+    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubewhisperer-reader
+subjects:
+  - kind: ServiceAccount
+    name: kubewhisperer
+    namespace: kubewhisperer

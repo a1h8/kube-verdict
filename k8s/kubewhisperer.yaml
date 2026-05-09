@@ -1,0 +1,145 @@
+---
+# ConfigMap — all tunable parameters in one place.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubewhisperer-config
+  namespace: kubewhisperer
+  labels:
+    app.kubernetes.io/name: kubewhisperer
+data:
+  OLLAMA_URL: "http://ollama:11434"
+  OLLAMA_MODEL: "mistral"
+  OLLAMA_TIMEOUT: "180"
+  VECTOR_STORE_PATH: "/data/index.faiss"
+  EMBEDDING_MODEL: "all-MiniLM-L6-v2"
+  BFS_MAX_DEPTH: "3"
+  JACCARD_THRESHOLD: "0.7"
+  TFIDF_TOP_K: "20"
+  TFIDF_NGRAM_MAX: "3"
+  LOG_LEVEL: "INFO"
+  # Analyse all namespaces by default; set comma-separated list to restrict.
+  KUBE_NAMESPACES: ""
+  KUBE_SKIP_KINDS: "Event,Endpoints,EndpointSlice"
+
+---
+# PersistentVolumeClaim — FAISS index persisted between runs.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kubewhisperer-data
+  namespace: kubewhisperer
+  labels:
+    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/component: index-storage
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+
+---
+# CronJob — collect cluster state, build index, run RCA, print report.
+# Schedule: every hour.  Adjust QUERY to match your monitoring focus.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kubewhisperer
+  namespace: kubewhisperer
+  labels:
+    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/component: analyzer
+spec:
+  schedule: "0 * * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: kubewhisperer
+        spec:
+          serviceAccountName: kubewhisperer
+          restartPolicy: OnFailure
+          containers:
+            - name: kubewhisperer
+              # Replace with your registry / image tag after `docker build`
+              image: ghcr.io/your-org/kubewhisperer:latest
+              imagePullPolicy: IfNotPresent
+              args:
+                - "--query"
+                - "unhealthy pods, drift, crashloops, pending PVCs"
+              envFrom:
+                - configMapRef:
+                    name: kubewhisperer-config
+              # KUBECONFIG is not needed — the pod uses the in-cluster service account.
+              env:
+                - name: KUBE_CONTEXT
+                  value: ""
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: 512Mi
+                limits:
+                  cpu: "1"
+                  memory: 2Gi
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: kubewhisperer-data
+
+---
+# On-demand Job — trigger an ad-hoc analysis via:
+#   kubectl create job --from=cronjob/kubewhisperer kubewhisperer-manual -n kubewhisperer
+# Or use this standalone Job template for a one-shot run:
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubewhisperer-ondemand
+  namespace: kubewhisperer
+  labels:
+    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/component: analyzer-ondemand
+  annotations:
+    # Kept as reference; apply manually when needed.
+    note: "Delete or skip this Job in normal GitOps apply — it is a manual trigger template."
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: kubewhisperer-ondemand
+    spec:
+      serviceAccountName: kubewhisperer
+      restartPolicy: Never
+      containers:
+        - name: kubewhisperer
+          image: ghcr.io/your-org/kubewhisperer:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--query"
+            - "pods are crashlooping"
+            - "--stream"
+          envFrom:
+            - configMapRef:
+                name: kubewhisperer-config
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "200m"
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: kubewhisperer-data

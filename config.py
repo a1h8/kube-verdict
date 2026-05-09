@@ -1,0 +1,63 @@
+from __future__ import annotations
+import logging
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=False)
+
+
+def _list(key: str, default: str = "") -> list[str]:
+    raw = os.getenv(key, default)
+    return [v.strip() for v in raw.split(",") if v.strip()]
+
+
+def _int(key: str, default: int) -> int:
+    try:
+        return int(os.getenv(key, str(default)))
+    except ValueError:
+        return default
+
+
+def _float(key: str, default: float) -> float:
+    try:
+        return float(os.getenv(key, str(default)))
+    except ValueError:
+        return default
+
+
+# ── Kubernetes ─────────────────────────────────────────────────────────────────
+KUBECONFIG: str | None = os.getenv("KUBECONFIG") or None
+KUBE_CONTEXT: str | None = os.getenv("KUBE_CONTEXT") or None
+KUBE_NAMESPACES: list[str] = _list("KUBE_NAMESPACES")           # empty = all
+KUBE_SKIP_KINDS: set[str] = set(_list("KUBE_SKIP_KINDS", "Event,Endpoints,EndpointSlice"))
+
+# ── Helm ───────────────────────────────────────────────────────────────────────
+HELMFILE_PATH: str | None = os.getenv("HELMFILE_PATH") or None
+HELMFILE_ENVIRONMENT: str = os.getenv("HELMFILE_ENVIRONMENT", "default")
+HELMFILE_USE_CLI: bool = os.getenv("HELMFILE_USE_CLI", "false").lower() == "true"
+
+# ── Ollama / Mistral ────────────────────────────────────────────────────────────
+OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "mistral")
+OLLAMA_TIMEOUT: int = _int("OLLAMA_TIMEOUT", 120)
+
+# ── Vector store ───────────────────────────────────────────────────────────────
+VECTOR_STORE_TYPE: str = os.getenv("VECTOR_STORE_TYPE", "faiss")
+VECTOR_STORE_PATH: Path = Path(os.getenv("VECTOR_STORE_PATH", "./data/index.faiss"))
+EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+
+# ── Deduplication ──────────────────────────────────────────────────────────────
+BFS_MAX_DEPTH: int = _int("BFS_MAX_DEPTH", 3)
+JACCARD_THRESHOLD: float = _float("JACCARD_THRESHOLD", 0.7)
+TFIDF_TOP_K: int = _int("TFIDF_TOP_K", 20)
+TFIDF_NGRAM_MAX: int = _int("TFIDF_NGRAM_MAX", 3)   # (1, N) — 3 = trigrams
+
+# ── Runtime ────────────────────────────────────────────────────────────────────
+LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+)
