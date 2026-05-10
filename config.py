@@ -45,6 +45,22 @@ GITOPS_BRANCH: str = os.getenv("GITOPS_BRANCH", "main")
 GITOPS_CHARTS_PATH: str = os.getenv("GITOPS_CHARTS_PATH", "charts")
 GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN") or None
 
+# ── OpenTelemetry (traces) ─────────────────────────────────────────────────────
+OTEL_ENABLED: bool = os.getenv("OTEL_ENABLED", "false").lower() == "true"
+OTEL_BACKEND_TYPE: str = os.getenv("OTEL_BACKEND_TYPE", "tempo")   # tempo | jaeger
+OTEL_BACKEND_URL: str = os.getenv("OTEL_BACKEND_URL", "http://localhost:3100")
+OTEL_TOKEN: str | None = os.getenv("OTEL_TOKEN") or None
+OTEL_LOOKBACK_HOURS: int = _int("OTEL_LOOKBACK_HOURS", 1)
+OTEL_TIMEOUT: int = _int("OTEL_TIMEOUT", 30)
+
+# ── Loki (logs) ────────────────────────────────────────────────────────────────
+LOKI_ENABLED: bool = os.getenv("LOKI_ENABLED", "false").lower() == "true"
+LOKI_URL: str = os.getenv("LOKI_URL", "http://localhost:3100")
+LOKI_TOKEN: str | None = os.getenv("LOKI_TOKEN") or None
+LOKI_LOOKBACK_HOURS: int = _int("LOKI_LOOKBACK_HOURS", 1)
+LOKI_TIMEOUT: int = _int("LOKI_TIMEOUT", 30)
+LOKI_MAX_LOGS_PER_POD: int = _int("LOKI_MAX_LOGS_PER_POD", 20)
+
 # ── Prometheus ──────────────────────────────────────────────────────���──────────
 PROMETHEUS_ENABLED: bool = os.getenv("PROMETHEUS_ENABLED", "false").lower() == "true"
 PROMETHEUS_URL: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")

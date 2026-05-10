@@ -6,7 +6,7 @@ import config as cfg
 from dedup.bfs import expand_incident_context, find_unhealthy
 from dedup.jaccard import jaccard_deduplicate
 from dedup.tfidf import tfidf_rank
-from ontology.entities import K8sEntity, ResourceKind, PrometheusAlert
+from ontology.entities import K8sEntity, LokiLog, OtelTrace, PrometheusAlert, ResourceKind
 from ontology.graph import OntologyGraph
 from vectorstore.store import FAISSStore
 
@@ -23,6 +23,8 @@ class ContextWindow:
     seeds: list[str] = field(default_factory=list)          # unhealthy resources
     drift: list[str] = field(default_factory=list)           # declared ≠ observed
     alerts: list[str] = field(default_factory=list)          # firing Prometheus alerts
+    traces: list[str] = field(default_factory=list)          # OTel error traces
+    logs: list[str] = field(default_factory=list)            # Loki error/warn logs
     events: list[str] = field(default_factory=list)          # Warning K8s events
     helm: list[str] = field(default_factory=list)            # releases + charts
     related: list[str] = field(default_factory=list)         # BFS neighbourhood
@@ -33,6 +35,7 @@ class ContextWindow:
     @property
     def total_chunks(self) -> int:
         return (len(self.seeds) + len(self.drift) + len(self.alerts)
+                + len(self.traces) + len(self.logs)
                 + len(self.events) + len(self.helm) + len(self.related))
 
     def to_prompt_block(self) -> str:
@@ -49,6 +52,14 @@ class ContextWindow:
         if self.alerts:
             lines.append(f"\n### CRITICAL — Firing Prometheus alerts ({len(self.alerts)})")
             lines.extend(f"  - {t}" for t in self.alerts)
+
+        if self.traces:
+            lines.append(f"\n### TRACES — OpenTelemetry error traces ({len(self.traces)})")
+            lines.extend(f"  - {t}" for t in self.traces)
+
+        if self.logs:
+            lines.append(f"\n### LOGS — Recent error/warn log lines ({len(self.logs)})")
+            lines.extend(f"  - {t}" for t in self.logs)
 
         if self.events:
             lines.append(f"\n### WARNING — Kubernetes events ({len(self.events)})")
@@ -119,6 +130,22 @@ class ContextBuilder:
         ctx.alerts = [e.to_text() for e in alert_entities]
         alert_uids = {e.uid for e in alert_entities}
 
+        # --- Section 4a: OTel error traces ------------------------------------
+        trace_entities = [
+            e for e in self.graph.entities(ResourceKind.OTEL_TRACE)
+            if isinstance(e, OtelTrace) and e.status == "ERROR"
+        ]
+        ctx.traces = [e.to_text() for e in trace_entities[:20]]  # cap at 20
+        trace_uids = {e.uid for e in trace_entities[:20]}
+
+        # --- Section 4b: Loki error/warn logs ---------------------------------
+        log_entities = [
+            e for e in self.graph.entities(ResourceKind.LOKI_LOG)
+            if isinstance(e, LokiLog) and e.level in ("error", "warn")
+        ]
+        ctx.logs = [e.to_text() for e in log_entities[:20]]  # cap at 20
+        log_uids = {e.uid for e in log_entities[:20]}
+
         # --- Section 5: Warning events sorted by count desc ------------------
         events = sorted(
             [e for e in self.graph.entities(ResourceKind.EVENT) if e.is_warning],
@@ -140,7 +167,7 @@ class ContextBuilder:
         ctx.helm = helm_texts
 
         # --- Section 7: related context via FAISS + BFS + dedup + TF-IDF -----
-        already_covered = seed_uids | drift_uids | alert_uids | event_uids | helm_uids
+        already_covered = seed_uids | drift_uids | alert_uids | trace_uids | log_uids | event_uids | helm_uids
 
         faiss_hits = self.store.search(query, top_k=cfg.TFIDF_TOP_K * 3)
         faiss_uids = [h["uid"] for h in faiss_hits]
@@ -174,8 +201,10 @@ class ContextBuilder:
         ctx.related = [deduped[i] for i in top_idx]
 
         log.info(
-            "ContextWindow: %d seeds | %d drift | %d alerts | %d events | %d helm | %d related",
+            "ContextWindow: %d seeds | %d drift | %d alerts | %d traces | %d logs"
+            " | %d events | %d helm | %d related",
             len(ctx.seeds), len(ctx.drift), len(ctx.alerts),
+            len(ctx.traces), len(ctx.logs),
             len(ctx.events), len(ctx.helm), len(ctx.related),
         )
         return ctx
