@@ -38,6 +38,13 @@ HELMFILE_PATH: str | None = os.getenv("HELMFILE_PATH") or None
 HELMFILE_ENVIRONMENT: str = os.getenv("HELMFILE_ENVIRONMENT", "default")
 HELMFILE_USE_CLI: bool = os.getenv("HELMFILE_USE_CLI", "false").lower() == "true"
 
+# ── GitOps ─────────────────────────────────────────────────────────────────────
+GITOPS_ENABLED: bool = os.getenv("GITOPS_ENABLED", "false").lower() == "true"
+GITOPS_REPO_URL: str | None = os.getenv("GITOPS_REPO_URL") or None
+GITOPS_BRANCH: str = os.getenv("GITOPS_BRANCH", "main")
+GITOPS_CHARTS_PATH: str = os.getenv("GITOPS_CHARTS_PATH", "charts")
+GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN") or None
+
 # ── Ollama / Mistral ────────────────────────────────────────────────────────────
 OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "mistral")

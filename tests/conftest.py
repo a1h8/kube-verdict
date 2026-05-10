@@ -7,7 +7,8 @@ import pytest
 from ontology.entities import (
     Namespace, Node, Pod, Deployment, Service,
     ConfigMap, Secret, PersistentVolumeClaim, K8sEvent,
-    HelmRelease, HelmChart,
+    HelmRelease, HelmChart, ChartDependency,
+    HelmRepository, HelmfileEnvironment,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
@@ -49,7 +50,12 @@ def synthetic_graph() -> OntologyGraph:
     - secret 'api-secret'
     - pvc 'api-data' Pending (unhealthy)
     - Warning events for the failed pod and the pvc
-    - HelmRelease 'api' with drift annotations
+    - HelmRelease 'api' (source=helm) with drift annotations
+    - HelmRelease 'db'  (source=helmfile, environment=production) with value_files + needs
+    - HelmChart 'api' umbrella with postgresql@13.2.0 + redis@18.1.0 dependencies (condition, alias)
+    - Sub-charts 'postgresql' and 'redis' as standalone graph nodes with CHART_DEPENDENCY edges
+    - HelmRepository 'bitnami' with HOSTED_BY edges from sub-charts
+    - HelmfileEnvironment 'production' with value_files + kubeContext + DEPLOYS_IN edge
     """
     graph = OntologyGraph(server_version=KubeVersion(1, 28, "v1.28.3+k3s1"))
 
@@ -146,15 +152,76 @@ def synthetic_graph() -> OntologyGraph:
     )
     graph.add_entity(helm_rel)
 
-    # HelmChart (umbrella with postgresql dep)
+    # HelmChart — umbrella with real sub-chart dependencies
     helm_chart = HelmChart(
         uid="chart-api-1.2.3", name="api", namespace=None,
-        chart_version="1.2.3", description="API service chart", is_umbrella=False,
-        dependencies=[],
-        default_values={"replicaCount": 3, "image": {"tag": "latest"},
-                        "persistence": {"enabled": True, "size": "10Gi"}},
+        chart_version="1.2.3", description="API service umbrella chart",
+        is_umbrella=True,
+        dependencies=[
+            ChartDependency(
+                name="postgresql", version="13.2.0",
+                repository="https://charts.bitnami.com/bitnami",
+                alias="db", condition="postgresql.enabled",
+            ),
+            ChartDependency(
+                name="redis", version="18.1.0",
+                repository="https://charts.bitnami.com/bitnami",
+                condition="redis.enabled",
+            ),
+        ],
+        default_values={
+            "replicaCount": 3,
+            "image": {"tag": "latest"},
+            "persistence": {"enabled": True, "size": "10Gi"},
+            "postgresql": {"enabled": True},
+            "redis": {"enabled": False},
+        },
     )
     graph.add_entity(helm_chart)
+
+    # Sub-charts as standalone indexable HelmChart nodes
+    sub_pg = HelmChart(
+        uid="chart-postgresql-13.2.0", name="postgresql", namespace=None,
+        chart_version="13.2.0", description="PostgreSQL packaged by Bitnami",
+        is_umbrella=False, dependencies=[],
+        default_values={"primary": {"persistence": {"enabled": True, "size": "8Gi"}}},
+    )
+    sub_redis = HelmChart(
+        uid="chart-redis-18.1.0", name="redis", namespace=None,
+        chart_version="18.1.0", description="Redis packaged by Bitnami",
+        is_umbrella=False, dependencies=[],
+        default_values={"architecture": "standalone", "auth": {"enabled": True}},
+    )
+    graph.add_entity(sub_pg)
+    graph.add_entity(sub_redis)
+
+    # HelmRepository — bitnami registry
+    bitnami_repo = HelmRepository(
+        uid="helmrepo-bitnami", name="bitnami",
+        url="https://charts.bitnami.com/bitnami", repo_type="http",
+    )
+    graph.add_entity(bitnami_repo)
+
+    # HelmfileEnvironment — production
+    prod_env = HelmfileEnvironment(
+        uid="helmfile-env-production", name="production",
+        value_files=["values/common.yaml", "values/production.yaml"],
+        kube_context="k3s-production",
+        values={"global": {"imageRegistry": "registry.internal"}},
+    )
+    graph.add_entity(prod_env)
+
+    # HelmRelease deployed via Helmfile (second release for the database tier)
+    helm_rel_db = HelmRelease(
+        uid="helm-production-db", name="db", namespace="production",
+        chart="postgresql", chart_version="13.2.0", status="deployed",
+        source="helmfile", environment="production",
+        value_files=["values/common.yaml", "values/production.yaml"],
+        needs=["api"],
+        values={"primary": {"persistence": {"size": "20Gi"}},
+                "auth": {"username": "appuser", "database": "appdb"}},
+    )
+    graph.add_entity(helm_rel_db)
 
     # Edges
     graph.add_edge(Edge("pod-api-abc", "ns-production", RelationshipType.IN_NAMESPACE))
@@ -174,7 +241,13 @@ def synthetic_graph() -> OntologyGraph:
     graph.add_edge(Edge("pod-api-xyz", "helm-production-api", RelationshipType.DRIFTS_FROM))
     graph.add_edge(Edge("pvc-api-data","helm-production-api", RelationshipType.DRIFTS_FROM))
     graph.add_edge(Edge("deploy-api",  "helm-production-api", RelationshipType.DRIFTS_FROM))
-    graph.add_edge(Edge("helm-production-api", "chart-api-1.2.3", RelationshipType.DEPLOYED_FROM))
+    graph.add_edge(Edge("helm-production-api", "chart-api-1.2.3",     RelationshipType.DEPLOYED_FROM))
+    graph.add_edge(Edge("helm-production-db",  "chart-postgresql-13.2.0", RelationshipType.DEPLOYED_FROM))
+    graph.add_edge(Edge("chart-api-1.2.3",       "chart-postgresql-13.2.0",  RelationshipType.CHART_DEPENDENCY))
+    graph.add_edge(Edge("chart-api-1.2.3",       "chart-redis-18.1.0",       RelationshipType.CHART_DEPENDENCY))
+    graph.add_edge(Edge("chart-postgresql-13.2.0", "helmrepo-bitnami",        RelationshipType.HOSTED_BY))
+    graph.add_edge(Edge("chart-redis-18.1.0",    "helmrepo-bitnami",          RelationshipType.HOSTED_BY))
+    graph.add_edge(Edge("helm-production-db",    "helmfile-env-production",   RelationshipType.DEPLOYS_IN))
     graph.add_edge(Edge("pod-api-xyz", "ev-crashloop",  RelationshipType.HAS_EVENT))
     graph.add_edge(Edge("pvc-api-data","ev-pvc",        RelationshipType.HAS_EVENT))
 

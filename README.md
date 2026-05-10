@@ -7,7 +7,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-KubeWhisperer combines a typed Kubernetes ontology, a local FAISS vector store, and Mistral running on Ollama to diagnose cluster incidents — without sending any data to external services.
+KubeWhisperer combines a typed Kubernetes ontology, a GitOps drift engine, a local FAISS vector store (Weaviate-ready), and Mistral running on Ollama to diagnose cluster incidents — without sending any data to external services.
 
 ---
 
@@ -19,7 +19,13 @@ Helm releases   ──┼──► OntologyGraph ──► HelmDriftDetector
 Helmfile        ──┘         │                    │
                             │            drift annotations
                             ▼
-                      FAISSStore (all-MiniLM-L6-v2)
+              GitopsCollector (optional)
+              ├── git clone / GitHub API
+              ├── helm template → rendered manifests
+              └── ManifestDiffer → gitops.* annotations
+                            │
+                      FAISSStore  ←── or Weaviate (feat/weaviate-store)
+                      (all-MiniLM-L6-v2)
                             │
                    SignalAnalyzer (PatchTST)
                    ├── restart_count anomalies
@@ -65,10 +71,12 @@ Helmfile        ──┘         │                    │
 | **Air-gapped** | Works without internet once models and dependencies are pulled |
 | **Ontology-aware** | Typed entities (Pod, Deployment, HelmRelease, …) with directed relationship edges |
 | **Helm + Helmfile** | Correlates declared values with live runtime state; detects drift |
+| **GitOps diff** | Clones the chart repo (or uses GitHub API), runs `helm template`, diffs rendered vs observed |
 | **Dynamic discovery** | Queries `/apis` to index CRDs and operator resources automatically |
 | **Multi-version K8s** | Detects server version at startup; drives API choices for 1.16 → 1.30+ and K3s |
 | **Trigram TF-IDF** | K8s-aware tokenisation preserves `phase=Failed`, `apps/v1`, `v1.28.3+k3s1` |
 | **PatchTST signals** | Forecasting-based anomaly detection on restart counts, readiness ratios, event spikes |
+| **FAISS / Weaviate** | Default: FAISS (in-process, air-gapped). Switch to Weaviate for hybrid BM25+vector and persistent index |
 | **LangGraph workflow** | Stateful RCA graph with confidence-gated retry and human-in-the-loop approval interrupt |
 
 ---
@@ -170,7 +178,11 @@ kubewhisperer/
 │   ├── helm_collector.py      # helm get values / chart parsing
 │   ├── helm_drift.py          # Helm declared vs K8s observed
 │   ├── helmfile_collector.py  # Helmfile YAML parsing
-│   └── chart_parser.py        # Chart.yaml, umbrella deps, value hierarchy
+│   ├── chart_parser.py        # Chart.yaml, umbrella deps, value hierarchy
+│   ├── git_provider.py        # LocalGitProvider + GithubProvider (REST API)
+│   ├── manifest_renderer.py   # helm template → []dict
+│   ├── manifest_differ.py     # rendered vs observed drift detection
+│   └── gitops_collector.py    # GitopsCollector orchestrator
 │
 ├── dedup/                     # Context deduplication
 │   ├── bfs.py                 # Graph BFS from unhealthy seeds
@@ -233,7 +245,17 @@ No `create`, `update`, `patch`, or `delete` permissions are granted.
 
 ## Roadmap
 
-- [x] **LangGraph workflow** (`workflow/`) — stateful RCA graph with conditional retry on LOW confidence, human-in-the-loop interrupt before remediation, and resume via `Command(resume="approve"|"reject")`
+- [x] **LangGraph workflow** — stateful RCA graph with retry on LOW confidence, human-in-the-loop interrupt, and `Command(resume=…)` approval
+- [x] **GitOps diff** (`feat/gitops-collector`) — `helm template` rendered manifests vs live cluster state; `LocalGitProvider` + `GithubProvider`
+- [ ] **Weaviate vector store** (`feat/weaviate-store`) — replace FAISSStore with hybrid BM25+vector search, persistent index; same `index()` / `search()` interface
+
+  | | FAISS (current) | Weaviate (next) |
+  |---|---|---|
+  | Persistence | manual `.faiss` save/load | built-in |
+  | Search | pure vector (cosine) | BM25 + vector (hybrid) |
+  | Air-gap | yes | local container |
+  | Best for | single cluster, ephemeral runs | large clusters, persistent index |
+
 - [ ] Prometheus / Grafana alert correlation
 - [ ] Multi-cluster support
 - [ ] Slack / PagerDuty incident enrichment via webhook

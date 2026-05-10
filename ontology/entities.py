@@ -22,6 +22,8 @@ class ResourceKind(str, Enum):
     SERVICE_ACCOUNT = "ServiceAccount"
     HELM_RELEASE = "HelmRelease"
     HELM_CHART = "HelmChart"
+    HELM_REPOSITORY = "HelmRepository"
+    HELMFILE_ENV = "HelmfileEnvironment"
     EVENT = "Event"
 
 
@@ -364,7 +366,6 @@ class HelmChart(K8sEntity):
         self.namespace = None
 
     def to_text(self) -> str:
-        dep_names = " ".join(d.name for d in self.dependencies)
         flat_vals = " ".join(
             f"{k}={v}" for k, v in self.default_values.items()
             if not isinstance(v, (dict, list))
@@ -375,10 +376,72 @@ class HelmChart(K8sEntity):
         ]
         if self.description:
             parts.append(f"description={self.description}")
-        if dep_names:
-            parts.append(f"dependencies=[{dep_names}]")
+        if self.dependencies:
+            dep_tokens = []
+            for d in self.dependencies:
+                token = f"{d.name}@{d.version}"
+                if d.repository:
+                    token += f" repo={d.repository}"
+                if d.alias:
+                    token += f" alias={d.alias}"
+                if d.condition:
+                    token += f" condition={d.condition}"
+                dep_tokens.append(token)
+            parts.append(f"dependencies=[{' | '.join(dep_tokens)}]")
         if flat_vals:
             parts.append(f"defaultValues=[{flat_vals}]")
+        return " ".join(parts)
+
+
+@dataclass
+class HelmRepository(K8sEntity):
+    """
+    A Helm chart repository (e.g. bitnami, stable, custom OCI registry).
+    uid = "helmrepo-{name}"
+    """
+    url: str = ""
+    repo_type: str = "http"   # "http" | "oci" | "git"
+
+    def __post_init__(self):
+        self.kind = ResourceKind.HELM_REPOSITORY
+        self.namespace = None
+
+    def to_text(self) -> str:
+        parts = [f"kind=HelmRepository name={self.name}"]
+        if self.url:
+            parts.append(f"url={self.url}")
+        if self.repo_type != "http":
+            parts.append(f"type={self.repo_type}")
+        return " ".join(parts)
+
+
+@dataclass
+class HelmfileEnvironment(K8sEntity):
+    """
+    A Helmfile environment (production, staging, dev, …).
+    uid = "helmfile-env-{name}"
+    Captures environment-level values and kubeContext.
+    """
+    values: dict[str, Any] = field(default_factory=dict)
+    value_files: list[str] = field(default_factory=list)
+    kube_context: str = ""
+
+    def __post_init__(self):
+        self.kind = ResourceKind.HELMFILE_ENV
+        self.namespace = None
+
+    def to_text(self) -> str:
+        parts = [f"kind=HelmfileEnvironment name={self.name}"]
+        if self.kube_context:
+            parts.append(f"kubeContext={self.kube_context}")
+        if self.value_files:
+            parts.append(f"valueFiles=[{' '.join(self.value_files)}]")
+        flat = " ".join(
+            f"{k}={v}" for k, v in self.values.items()
+            if not isinstance(v, (dict, list))
+        )
+        if flat:
+            parts.append(f"values=[{flat}]")
         return " ".join(parts)
 
 

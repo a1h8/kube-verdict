@@ -21,6 +21,22 @@ KubeWhisperer is a local, air-gapped Kubernetes RCA tool. No cluster data ever l
 └─────────────────────────────┬─────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼─────────────────────────────────────────┐
+│  GitOps diff layer  (feat/gitops-collector)                           │
+│                                                                       │
+│  GitopsCollector                                                      │
+│  ├── GitProvider: LocalGitProvider (clone) or GithubProvider (API)    │
+│  ├── ManifestRenderer: helm template → []dict                         │
+│  └── ManifestDiffer: rendered vs observed → DriftItem list            │
+│      ├── MISSING   rendered resource absent from cluster  (critical)  │
+│      ├── ORPHANED  cluster resource not in rendered       (warning)   │
+│      ├── REPLICAS  spec.replicas mismatch                 (warning)   │
+│      ├── IMAGE     container image tag mismatch           (warning)   │
+│      └── ENV       sensitive env var mismatch             (info)      │
+│                                                                       │
+│  Results written as gitops.* annotations on entities                  │
+└─────────────────────────────┬─────────────────────────────────────────┘
+                              │
+┌─────────────────────────────▼─────────────────────────────────────────┐
 │  Vector store                                                         │
 │                                                                       │
 │  Embedder (all-MiniLM-L6-v2)  →  FAISSStore (IndexFlatIP, L2 norm)    │
@@ -60,15 +76,15 @@ KubeWhisperer is a local, air-gapped Kubernetes RCA tool. No cluster data ever l
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-## LangGraph workflow
-
-KubeWhisperer wraps the entire pipeline in a stateful LangGraph graph with a human-in-the-loop interrupt.
+## LangGraph workflow (with GitOps node)
 
 ```
 START
   │
 ingest          K8s API + Helm + Helmfile → OntologyGraph
   │
+gitops          GitopsCollector → ManifestRenderer → ManifestDiffer
+  │             (skipped when GITOPS_ENABLED=false or no GITOPS_REPO_URL)
 index           embed entities → FAISSStore
   │
 signal_analysis PatchTST anomaly detection → signal.* annotations
@@ -86,6 +102,14 @@ human_router
   ├─ "approve" ──► remediation ──► END
   └─ "reject"  ──────────────────► END
 ```
+
+The `gitops` node auto-detects provider from `GITOPS_REPO_URL`:
+- `https://github.com/…` → `GithubProvider` (REST API, no local clone, needs `GITHUB_TOKEN`)
+- any other URL or local path → `LocalGitProvider` (shallow clone, fast-forward pull)
+
+## LangGraph workflow (legacy diagram)
+
+KubeWhisperer wraps the entire pipeline in a stateful LangGraph graph with a human-in-the-loop interrupt. See the updated diagram in the section above; the canonical flow is now `ingest → gitops → index → signal_analysis → analyze → …`.
 
 Heavy objects (`OntologyGraph`, `FAISSStore`) are **never stored in LangGraph state** — they are injected via `config["configurable"]` to avoid msgpack serialisation failures with `MemorySaver`. Only JSON-serialisable primitives live in `RCAState`.
 
@@ -148,6 +172,10 @@ Results are written as `signal.<metric>` annotations on entities. The `SIGNAL=[.
 | `helm_drift.py` | Compares Helm-declared state vs live K8s state, writes `drift.*` annotations |
 | `helmfile_collector.py` | Pure YAML parsing (no Go template engine needed), env value merge |
 | `chart_parser.py` | Parses Chart.yaml, umbrella deps, value hierarchy, tgz support |
+| `git_provider.py` | `LocalGitProvider` (shallow clone) + `GithubProvider` (REST API, base64) |
+| `manifest_renderer.py` | `ManifestRenderer` — wraps `helm template --include-crds`, multi-doc YAML |
+| `manifest_differ.py` | `ManifestDiffer` — rendered vs observed drift (MISSING/ORPHAN/IMAGE/REPLICAS/ENV) |
+| `gitops_collector.py` | `GitopsCollector` — orchestrates provider → render → diff → annotate |
 
 ### Deduplication (`dedup/`)
 
@@ -163,6 +191,24 @@ Results are written as `signal.<metric>` annotations on entities. The `SIGNAL=[.
 |---|---|
 | `embedder.py` | `sentence-transformers/all-MiniLM-L6-v2`, L2 normalisation |
 | `store.py` | `FAISSStore` — `IndexFlatIP` (cosine via inner product on normalised vecs), save/load |
+
+#### FAISS vs Weaviate — design decision
+
+The current default is **FAISS** (in-process, zero-dependency, runs air-gapped):
+
+| | FAISS (default) | Weaviate (`feat/weaviate-store`) |
+|---|---|---|
+| **Deployment** | in-process, no service | separate container / Helm chart |
+| **Persistence** | manual `save/load` to `.faiss` files | built-in, survives restarts |
+| **Search** | pure vector (cosine) | hybrid: BM25 + vector (alpha-weighted) |
+| **BM25 benefit** | — | exact token matches win over semantic noise (e.g. `phase=Failed`, `CrashLoopBackOff`) |
+| **Scale** | single-node, ~1M vecs fine | distributed, multi-tenant |
+| **Air-gap** | yes — index rebuilt each run | needs Weaviate container (can be local) |
+| **When to switch** | — | large clusters (>5 k entities), persistent index, or when BM25 recall matters |
+
+FAISS is the right choice for the common case: a single cluster, ephemeral analysis runs, or fully air-gapped environments. Switch to Weaviate when you need index persistence across runs, want BM25 recall on exact K8s token matches, or are running at scale with many namespaces.
+
+The `feat/weaviate-store` branch will replace `FAISSStore` with a `WeaviateStore` that exposes the same `index(texts)` / `search(query, k)` interface — no changes required in `ContextBuilder` or upstream nodes.
 
 ### RCA (`rca/`)
 

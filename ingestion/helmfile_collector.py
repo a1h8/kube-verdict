@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 
 import config as cfg
-from ontology.entities import HelmRelease
+from ontology.entities import HelmRelease, HelmRepository, HelmfileEnvironment
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
 
@@ -71,6 +71,10 @@ class HelmfileCollector:
             len(releases), self.environment, self.path,
         )
 
+        # Index repositories and environments as proper graph nodes
+        repo_uid_map = self._index_repositories(graph, merged)
+        env_uid = self._index_environment(graph, merged)
+
         uid_map: dict[str, str] = {}  # "namespace/name" → entity uid
 
         for rel in releases:
@@ -79,6 +83,18 @@ class HelmfileCollector:
             uid_map[f"{entity.namespace}/{entity.name}"] = entity.uid
             uid_map[entity.name] = entity.uid  # allow bare-name references too
             self._link_managed_resources(graph, entity)
+
+            # Wire DEPLOYS_IN: release → environment
+            if env_uid:
+                graph.add_edge(Edge(entity.uid, env_uid, RelationshipType.DEPLOYS_IN))
+
+            # Wire HOSTED_BY: release → repository (via chart prefix "repo/chart")
+            chart_ref = rel.get("chart", "")
+            if "/" in chart_ref:
+                repo_name = chart_ref.split("/")[0]
+                repo_uid = repo_uid_map.get(repo_name)
+                if repo_uid:
+                    graph.add_edge(Edge(entity.uid, repo_uid, RelationshipType.HOSTED_BY))
 
         # Wire DEPENDS_ON edges from needs:
         for rel in releases:
@@ -138,6 +154,69 @@ class HelmfileCollector:
         except json.JSONDecodeError:
             log.warning("helmfile build returned invalid JSON — falling back to YAML parse")
             return []
+
+    # ------------------------------------------------------------------
+    # Ontology: HelmRepository + HelmfileEnvironment nodes
+    # ------------------------------------------------------------------
+
+    def _index_repositories(
+        self, graph: OntologyGraph, merged: dict
+    ) -> dict[str, str]:
+        """
+        Creates HelmRepository nodes from the repositories: block.
+        Returns a map of repo-name → entity uid.
+        """
+        uid_map: dict[str, str] = {}
+        for repo in merged.get("repositories") or []:
+            name = repo.get("name", "")
+            url = repo.get("url", "")
+            if not name:
+                continue
+            uid = f"helmrepo-{name}"
+            if not graph.get(uid):
+                repo_type = "oci" if url.startswith("oci://") else "http"
+                graph.add_entity(HelmRepository(
+                    uid=uid, name=name, url=url, repo_type=repo_type,
+                ))
+                log.debug("helmfile: indexed repository %s (%s)", name, url)
+            uid_map[name] = uid
+        return uid_map
+
+    def _index_environment(
+        self, graph: OntologyGraph, merged: dict
+    ) -> str | None:
+        """
+        Creates a HelmfileEnvironment node for the active environment.
+        Returns its uid, or None if the environment block is absent.
+        """
+        environments: dict = merged.get("environments") or {}
+        env_spec = environments.get(self.environment)
+        if env_spec is None:
+            return None
+
+        uid = f"helmfile-env-{self.environment}"
+        if graph.get(uid):
+            return uid
+
+        value_files = [
+            vf for vf in (env_spec.get("values") or []) if isinstance(vf, str)
+        ]
+        kube_context = env_spec.get("kubeContext", "")
+        inline_values = {
+            k: v for vf in (env_spec.get("values") or [])
+            if isinstance(vf, dict)
+            for k, v in vf.items()
+        }
+
+        graph.add_entity(HelmfileEnvironment(
+            uid=uid,
+            name=self.environment,
+            value_files=value_files,
+            kube_context=kube_context,
+            values=inline_values,
+        ))
+        log.debug("helmfile: indexed environment %s", self.environment)
+        return uid
 
     @staticmethod
     def _helmfile_available() -> bool:
