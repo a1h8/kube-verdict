@@ -153,6 +153,21 @@ class SignalAnalyzer:
                     metric_name="restart_count",
                     values=_restart_signal(pod.restart_count, self.history_length, rng),
                 ))
+            # Use real metrics-server readings when available
+            cpu_m = _annotation_float(pod, "metrics.cpu_m")
+            if cpu_m is not None:
+                segments.append(SignalSegment(
+                    entity_uid=pod.uid,
+                    metric_name="cpu_usage",
+                    values=_resource_signal(cpu_m, self.history_length, rng),
+                ))
+            memory_mi = _annotation_float(pod, "metrics.memory_mi")
+            if memory_mi is not None:
+                segments.append(SignalSegment(
+                    entity_uid=pod.uid,
+                    metric_name="memory_bytes",
+                    values=_resource_signal(memory_mi * 1024 * 1024, self.history_length, rng),
+                ))
 
         for dep in graph.entities(ResourceKind.DEPLOYMENT):
             if dep.replicas > 0:
@@ -189,7 +204,7 @@ class SignalAnalyzer:
     def _synthetic_pod_segments(self, pod):
         from signals.prometheus_source import HorizonSegment
         rng = np.random.default_rng(hash(pod.uid) & 0xFFFF)
-        return [HorizonSegment(
+        segments = [HorizonSegment(
             segment=SignalSegment(
                 entity_uid=pod.uid,
                 metric_name="restart_count",
@@ -197,6 +212,27 @@ class SignalAnalyzer:
             ),
             horizon="",
         )]
+        cpu_m = _annotation_float(pod, "metrics.cpu_m")
+        if cpu_m is not None:
+            segments.append(HorizonSegment(
+                segment=SignalSegment(
+                    entity_uid=pod.uid,
+                    metric_name="cpu_usage",
+                    values=_resource_signal(cpu_m, self.history_length, rng),
+                ),
+                horizon="",
+            ))
+        memory_mi = _annotation_float(pod, "metrics.memory_mi")
+        if memory_mi is not None:
+            segments.append(HorizonSegment(
+                segment=SignalSegment(
+                    entity_uid=pod.uid,
+                    metric_name="memory_bytes",
+                    values=_resource_signal(memory_mi * 1024 * 1024, self.history_length, rng),
+                ),
+                horizon="",
+            ))
+        return segments
 
     def _synthetic_deployment_segments(self, dep):
         from signals.prometheus_source import HorizonSegment
@@ -304,6 +340,41 @@ def _readiness_signal(
         signal[onset:] = np.linspace(1.0, current_ratio, length - onset)
     noise = rng.normal(0.0, 0.02, length).astype(np.float32)
     return np.clip(signal + noise, 0.0, 1.0)
+
+
+def _resource_signal(
+    current_value: float,
+    length: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """
+    Builds a resource usage signal (CPU / memory) anchored to the real
+    current reading from metrics-server.
+
+    The history is a stable baseline near current_value with small noise.
+    An anomalous recent spike is injected if current_value > 0, anchoring
+    PatchTST to real observed pressure rather than a fully invented series.
+    """
+    if current_value <= 0:
+        return np.zeros(length, dtype=np.float32)
+    baseline = current_value * 0.7
+    signal = np.full(length, baseline, dtype=np.float32)
+    # Last 20 % ramps toward the real current value
+    onset = int(length * 0.80)
+    signal[onset:] = np.linspace(baseline, current_value, length - onset)
+    noise = rng.normal(0.0, max(current_value * 0.03, 1e-6), length).astype(np.float32)
+    return np.clip(signal + noise, 0, None)
+
+
+def _annotation_float(entity, key: str) -> float | None:
+    """Return annotation value as float, or None if absent/unparseable."""
+    raw = entity.annotations.get(key)
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
 
 
 def _event_signal(

@@ -61,7 +61,10 @@ LOKI_LOOKBACK_HOURS: int = _int("LOKI_LOOKBACK_HOURS", 1)
 LOKI_TIMEOUT: int = _int("LOKI_TIMEOUT", 30)
 LOKI_MAX_LOGS_PER_POD: int = _int("LOKI_MAX_LOGS_PER_POD", 20)
 
-# ── Prometheus ──────────────────────────────────────────────────────���──────────
+# ── Metrics Server ─────────────────────────────────────────────────────────────
+METRICS_SERVER_ENABLED: bool = os.getenv("METRICS_SERVER_ENABLED", "false").lower() == "true"
+
+# ── Prometheus ─────────────────────────────────────────────────────────────────
 PROMETHEUS_ENABLED: bool = os.getenv("PROMETHEUS_ENABLED", "false").lower() == "true"
 PROMETHEUS_URL: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 PROMETHEUS_TOKEN: str | None = os.getenv("PROMETHEUS_TOKEN") or None

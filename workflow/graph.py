@@ -8,6 +8,8 @@ Graph topology
       │
     ingest          (K8s API + Helm + Helmfile → OntologyGraph)
       │
+    metrics         (metrics-server CPU/memory → pod annotations)
+      │
     prometheus      (alert correlation)
       │
     otel            (traces + logs enrichment)
@@ -67,6 +69,7 @@ from workflow.nodes import (
     human_router,
     index_node,
     ingest_node,
+    metrics_node,
     otel_node,
     prometheus_node,
     remediation_node,
@@ -103,6 +106,7 @@ def build_graph(checkpointer=None) -> StateGraph:
 
     # ── Nodes ────────────────────────────────────────────────────────────────
     builder.add_node("ingest",           ingest_node)
+    builder.add_node("metrics",          metrics_node)
     builder.add_node("prometheus",       prometheus_node)
     builder.add_node("otel",             otel_node)
     builder.add_node("gitops",           gitops_node)
@@ -115,7 +119,8 @@ def build_graph(checkpointer=None) -> StateGraph:
 
     # ── Edges: linear spine ─────────────────────────────────────────────────
     builder.add_edge(START,              "ingest")
-    builder.add_edge("ingest",           "prometheus")
+    builder.add_edge("ingest",           "metrics")
+    builder.add_edge("metrics",          "prometheus")
     builder.add_edge("prometheus",       "otel")
     builder.add_edge("otel",             "gitops")
     builder.add_edge("gitops",           "index")

@@ -127,6 +127,39 @@ def prometheus_node(state: RCAState, config: RunnableConfig) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Metrics-server (kubectl top)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def metrics_node(state: RCAState, config: RunnableConfig) -> dict:
+    """
+    Fetch live CPU/memory from metrics-server and annotate pod entities.
+    Skipped when METRICS_SERVER_ENABLED=false.
+    Fails silently — enrichment only, not a blocker.
+    """
+    if not cfg.METRICS_SERVER_ENABLED:
+        log.info("metrics-server: disabled — skipping")
+        return {}
+
+    graph, _ = _get_infra(config)
+    if graph is None:
+        log.info("metrics-server: no graph — skipping")
+        return {}
+
+    try:
+        from ingestion.metrics_server_collector import MetricsServerCollector
+        collector = MetricsServerCollector(
+            kubeconfig=state.get("kubeconfig") or cfg.KUBECONFIG,
+            context=state.get("kube_context") or cfg.KUBE_CONTEXT,
+        )
+        count = collector.collect(graph)
+        log.info("metrics-server: %d pod(s) annotated", count)
+    except Exception as exc:
+        log.warning("metrics-server node failed (%s) — continuing without metrics data", exc)
+
+    return {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # OpenTelemetry traces + Loki logs
 # ─────────────────────────────────────────────────────────────────────────────
 
