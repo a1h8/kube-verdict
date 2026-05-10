@@ -3,7 +3,7 @@
 > Automated Root Cause Analysis for Kubernetes — fully local, no data leaves your infrastructure.
 
 [![CI](https://github.com/your-org/kubewhisperer/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/kubewhisperer/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-%3E70%25-brightgreen)](#tests)
+[![Coverage](https://img.shields.io/badge/coverage-75%25-brightgreen)](#tests)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
@@ -146,7 +146,7 @@ pytest tests/unit/
 pytest tests/integration/
 ```
 
-Coverage is enforced at **>70%** in CI (`.github/workflows/ci.yml`).
+Coverage is enforced at **75%** in CI (`.github/workflows/ci.yml`).
 
 ---
 
