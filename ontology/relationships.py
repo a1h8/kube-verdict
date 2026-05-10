@@ -35,6 +35,8 @@ class RelationshipType(str, Enum):
 
     # Observability
     HAS_ALERT = "HAS_ALERT"           # K8s entity → PrometheusAlert
+    HAS_TRACE = "HAS_TRACE"           # K8s entity → OtelTrace
+    HAS_LOG   = "HAS_LOG"             # K8s entity → LokiLog
 
 
 @dataclass(frozen=True)

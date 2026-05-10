@@ -26,6 +26,8 @@ class ResourceKind(str, Enum):
     HELMFILE_ENV = "HelmfileEnvironment"
     EVENT = "Event"
     PROMETHEUS_ALERT = "PrometheusAlert"
+    OTEL_TRACE = "OtelTrace"
+    LOKI_LOG = "LokiLog"
 
 
 @dataclass
@@ -505,4 +507,75 @@ class PrometheusAlert(K8sEntity):
                 parts.append(f"{k}={v}")
         if self.started_at:
             parts.append(f"activeAt={self.started_at}")
+        return " ".join(parts)
+
+
+@dataclass
+class OtelTrace(K8sEntity):
+    """
+    An OpenTelemetry trace correlated to a K8s entity.
+    uid = "otel-trace-{trace_id}"
+    Contains error spans and root-cause information.
+    """
+    trace_id: str = ""
+    service_name: str = ""
+    status: str = ""          # OK | ERROR | UNSET
+    duration_ms: float = 0.0
+    span_count: int = 0
+    error_message: str = ""   # message from the root error span
+    root_span_name: str = ""  # operation name of the deepest error span
+    error_spans: list[dict] = field(default_factory=list)
+    started_at: str = ""
+
+    def __post_init__(self):
+        self.kind = ResourceKind.OTEL_TRACE
+
+    def to_text(self) -> str:
+        parts = [
+            f"kind=OtelTrace traceId={self.trace_id}",
+            f"service={self.service_name} status={self.status}",
+            f"duration={self.duration_ms:.0f}ms spans={self.span_count}",
+        ]
+        if self.namespace:
+            parts.append(f"namespace={self.namespace}")
+        if self.root_span_name:
+            parts.append(f"rootSpan={self.root_span_name!r}")
+        if self.error_message:
+            parts.append(f"error={self.error_message!r}")
+        for span in self.error_spans[:3]:   # cap at 3 for embedding size
+            op = span.get("name", "")
+            msg = span.get("error", "")
+            if op:
+                parts.append(f"errorSpan={op!r}" + (f":{msg!r}" if msg else ""))
+        return " ".join(parts)
+
+
+@dataclass
+class LokiLog(K8sEntity):
+    """
+    A log record from Loki correlated to a K8s entity.
+    uid = "loki-log-{pod}-{timestamp_ns}"
+    """
+    log_line: str = ""
+    level: str = ""           # error | warn | info | debug
+    trace_id: str = ""        # OTel trace_id if present
+    pod_name: str = ""
+    container: str = ""
+    timestamp_ns: int = 0
+
+    def __post_init__(self):
+        self.kind = ResourceKind.LOKI_LOG
+
+    def to_text(self) -> str:
+        parts = [f"kind=LokiLog level={self.level}"]
+        if self.namespace:
+            parts.append(f"namespace={self.namespace}")
+        if self.pod_name:
+            parts.append(f"pod={self.pod_name}")
+        if self.container:
+            parts.append(f"container={self.container}")
+        if self.trace_id:
+            parts.append(f"traceId={self.trace_id}")
+        if self.log_line:
+            parts.append(f"message={self.log_line[:200]!r}")
         return " ".join(parts)

@@ -127,6 +127,58 @@ def prometheus_node(state: RCAState, config: RunnableConfig) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# OpenTelemetry traces + Loki logs
+# ─────────────────────────────────────────────────────────────────────────────
+
+def otel_node(state: RCAState, config: RunnableConfig) -> dict:
+    """
+    Fetch OTel error traces (Tempo/Jaeger) and Loki logs for unhealthy entities.
+    Skipped when both OTEL_ENABLED and LOKI_ENABLED are false.
+    Fails silently — observability data is enrichment, not a blocker.
+    """
+    if not cfg.OTEL_ENABLED and not cfg.LOKI_ENABLED:
+        log.info("otel: disabled — skipping")
+        return {}
+
+    graph, _ = _get_infra(config)
+    if graph is None:
+        log.info("otel: no graph — skipping")
+        return {}
+
+    if cfg.OTEL_ENABLED:
+        try:
+            from ingestion.otel_backend import build_backend
+            from ingestion.otel_collector import OtelCollector
+            backend = build_backend(
+                cfg.OTEL_BACKEND_TYPE,
+                cfg.OTEL_BACKEND_URL,
+                cfg.OTEL_TOKEN,
+                cfg.OTEL_TIMEOUT,
+            )
+            count = OtelCollector(backend, lookback_hours=cfg.OTEL_LOOKBACK_HOURS).collect(graph)
+            log.info("otel: %d trace(s) ingested", count)
+        except Exception as exc:
+            log.warning("otel traces failed (%s) — continuing without trace data", exc)
+
+    if cfg.LOKI_ENABLED:
+        try:
+            from ingestion.loki_source import LokiSource
+            loki = LokiSource(
+                url=cfg.LOKI_URL,
+                token=cfg.LOKI_TOKEN,
+                timeout=cfg.LOKI_TIMEOUT,
+                lookback_hours=cfg.LOKI_LOOKBACK_HOURS,
+                max_logs_per_pod=cfg.LOKI_MAX_LOGS_PER_POD,
+            )
+            count = loki.collect(graph)
+            log.info("loki: %d log(s) ingested", count)
+        except Exception as exc:
+            log.warning("loki logs failed (%s) — continuing without log data", exc)
+
+    return {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # GitOps drift detection
 # ─────────────────────────────────────────────────────────────────────────────
 
