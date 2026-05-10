@@ -25,6 +25,7 @@ class ResourceKind(str, Enum):
     HELM_REPOSITORY = "HelmRepository"
     HELMFILE_ENV = "HelmfileEnvironment"
     EVENT = "Event"
+    PROMETHEUS_ALERT = "PrometheusAlert"
 
 
 @dataclass
@@ -60,10 +61,16 @@ class K8sEntity:
         drift_parts = [v for k, v in self.annotations.items() if k.startswith("drift.")]
         if drift_parts:
             parts.append("DRIFT=[" + " | ".join(drift_parts) + "]")
-        # Append PatchTST signal anomalies
         signal_parts = [v for k, v in self.annotations.items() if k.startswith("signal.")]
         if signal_parts:
             parts.append("SIGNAL=[" + " | ".join(signal_parts) + "]")
+        alert_parts = [
+            f"{k.split('.', 1)[1]}={v}"
+            for k, v in self.annotations.items()
+            if k.startswith("alert.") and k.endswith(".severity")
+        ]
+        if alert_parts:
+            parts.append("ALERTS=[" + " | ".join(alert_parts) + "]")
         return " ".join(parts)
 
 
@@ -463,3 +470,39 @@ class DriftItem:
             f"declared={self.declared} observed={self.observed} "
             f"severity={self.severity}"
         )
+
+
+@dataclass
+class PrometheusAlert(K8sEntity):
+    """
+    A firing Prometheus alert correlated to a K8s entity.
+    uid = "prom-alert-{alertname}-{namespace}"
+    """
+    alert_name: str = ""
+    severity: str = ""      # critical / warning / info
+    state: str = ""         # firing / pending
+    summary: str = ""
+    description: str = ""
+    alert_labels: dict[str, str] = field(default_factory=dict)
+    started_at: str = ""
+
+    def __post_init__(self):
+        self.kind = ResourceKind.PROMETHEUS_ALERT
+
+    def to_text(self) -> str:
+        parts = [
+            f"kind=PrometheusAlert name={self.alert_name}",
+            f"severity={self.severity} state={self.state}",
+        ]
+        if self.namespace:
+            parts.append(f"namespace={self.namespace}")
+        if self.summary:
+            parts.append(f"summary={self.summary!r}")
+        if self.description:
+            parts.append(f"description={self.description!r}")
+        for k, v in self.alert_labels.items():
+            if k not in ("alertname", "severity"):
+                parts.append(f"{k}={v}")
+        if self.started_at:
+            parts.append(f"activeAt={self.started_at}")
+        return " ".join(parts)

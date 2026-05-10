@@ -45,6 +45,12 @@ GITOPS_BRANCH: str = os.getenv("GITOPS_BRANCH", "main")
 GITOPS_CHARTS_PATH: str = os.getenv("GITOPS_CHARTS_PATH", "charts")
 GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN") or None
 
+# ── Prometheus ──────────────────────────────────────────────────────���──────────
+PROMETHEUS_ENABLED: bool = os.getenv("PROMETHEUS_ENABLED", "false").lower() == "true"
+PROMETHEUS_URL: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
+PROMETHEUS_TOKEN: str | None = os.getenv("PROMETHEUS_TOKEN") or None
+PROMETHEUS_TIMEOUT: int = _int("PROMETHEUS_TIMEOUT", 30)
+
 # ── Ollama / Mistral ────────────────────────────────────────────────────────────
 OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "mistral")

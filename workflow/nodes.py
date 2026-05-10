@@ -93,6 +93,40 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Prometheus alert correlation
+# ─────────────────────────────────────────────────────────────────────────────
+
+def prometheus_node(state: RCAState, config: RunnableConfig) -> dict:
+    """
+    Fetch firing Prometheus alerts and correlate with OntologyGraph entities.
+    Skipped when PROMETHEUS_ENABLED=false.
+    Fails silently — alert correlation is enrichment, not a blocker.
+    """
+    if not cfg.PROMETHEUS_ENABLED:
+        log.info("prometheus: disabled — skipping")
+        return {}
+
+    graph, _ = _get_infra(config)
+    if graph is None:
+        log.info("prometheus: no graph — skipping")
+        return {}
+
+    try:
+        from ingestion.prometheus_collector import PrometheusCollector
+        collector = PrometheusCollector(
+            url=cfg.PROMETHEUS_URL,
+            token=cfg.PROMETHEUS_TOKEN,
+            timeout=cfg.PROMETHEUS_TIMEOUT,
+        )
+        count = collector.collect(graph)
+        log.info("prometheus: %d alert(s) correlated", count)
+    except Exception as exc:
+        log.warning("prometheus node failed (%s) — continuing without alert data", exc)
+
+    return {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # GitOps drift detection
 # ─────────────────────────────────────────────────────────────────────────────
 

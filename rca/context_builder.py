@@ -6,7 +6,7 @@ import config as cfg
 from dedup.bfs import expand_incident_context, find_unhealthy
 from dedup.jaccard import jaccard_deduplicate
 from dedup.tfidf import tfidf_rank
-from ontology.entities import K8sEntity, ResourceKind
+from ontology.entities import K8sEntity, ResourceKind, PrometheusAlert
 from ontology.graph import OntologyGraph
 from vectorstore.store import FAISSStore
 
@@ -22,6 +22,7 @@ class ContextWindow:
     """
     seeds: list[str] = field(default_factory=list)          # unhealthy resources
     drift: list[str] = field(default_factory=list)           # declared ≠ observed
+    alerts: list[str] = field(default_factory=list)          # firing Prometheus alerts
     events: list[str] = field(default_factory=list)          # Warning K8s events
     helm: list[str] = field(default_factory=list)            # releases + charts
     related: list[str] = field(default_factory=list)         # BFS neighbourhood
@@ -31,8 +32,8 @@ class ContextWindow:
 
     @property
     def total_chunks(self) -> int:
-        return (len(self.seeds) + len(self.drift) + len(self.events)
-                + len(self.helm) + len(self.related))
+        return (len(self.seeds) + len(self.drift) + len(self.alerts)
+                + len(self.events) + len(self.helm) + len(self.related))
 
     def to_prompt_block(self) -> str:
         lines: list[str] = []
@@ -44,6 +45,10 @@ class ContextWindow:
         if self.drift:
             lines.append(f"\n### CRITICAL — Helm declared vs observed drift ({len(self.drift)})")
             lines.extend(f"  - {t}" for t in self.drift)
+
+        if self.alerts:
+            lines.append(f"\n### CRITICAL — Firing Prometheus alerts ({len(self.alerts)})")
+            lines.extend(f"  - {t}" for t in self.alerts)
 
         if self.events:
             lines.append(f"\n### WARNING — Kubernetes events ({len(self.events)})")
@@ -105,7 +110,16 @@ class ContextBuilder:
                     drift_texts.append(f"{header}: {d}")
         ctx.drift = drift_texts
 
-        # --- Section 3: Warning events sorted by count desc ------------------
+        # --- Section 3: Firing Prometheus alerts (critical first) -------------
+        alert_entities = [
+            e for e in self.graph.entities(ResourceKind.PROMETHEUS_ALERT)
+            if isinstance(e, PrometheusAlert) and e.state == "firing"
+        ]
+        alert_entities.sort(key=lambda a: (a.severity != "critical", a.severity != "warning"))
+        ctx.alerts = [e.to_text() for e in alert_entities]
+        alert_uids = {e.uid for e in alert_entities}
+
+        # --- Section 5: Warning events sorted by count desc ------------------
         events = sorted(
             [e for e in self.graph.entities(ResourceKind.EVENT) if e.is_warning],
             key=lambda e: e.count,
@@ -114,7 +128,7 @@ class ContextBuilder:
         ctx.events = [e.to_text() for e in events[:15]]  # cap at 15 most frequent
         event_uids = {e.uid for e in events[:15]}
 
-        # --- Section 4: Helm releases + charts --------------------------------
+        # --- Section 6: Helm releases + charts --------------------------------
         helm_texts: list[str] = []
         helm_uids: set[str] = set()
         for entity in self.graph.entities(ResourceKind.HELM_RELEASE):
@@ -125,8 +139,8 @@ class ContextBuilder:
             helm_uids.add(entity.uid)
         ctx.helm = helm_texts
 
-        # --- Section 5: related context via FAISS + BFS + dedup + TF-IDF -----
-        already_covered = seed_uids | drift_uids | event_uids | helm_uids
+        # --- Section 7: related context via FAISS + BFS + dedup + TF-IDF -----
+        already_covered = seed_uids | drift_uids | alert_uids | event_uids | helm_uids
 
         faiss_hits = self.store.search(query, top_k=cfg.TFIDF_TOP_K * 3)
         faiss_uids = [h["uid"] for h in faiss_hits]
@@ -160,8 +174,8 @@ class ContextBuilder:
         ctx.related = [deduped[i] for i in top_idx]
 
         log.info(
-            "ContextWindow: %d seeds | %d drift | %d events | %d helm | %d related",
-            len(ctx.seeds), len(ctx.drift), len(ctx.events),
-            len(ctx.helm), len(ctx.related),
+            "ContextWindow: %d seeds | %d drift | %d alerts | %d events | %d helm | %d related",
+            len(ctx.seeds), len(ctx.drift), len(ctx.alerts),
+            len(ctx.events), len(ctx.helm), len(ctx.related),
         )
         return ctx
