@@ -61,6 +61,7 @@ from workflow.nodes import (
     human_router,
     index_node,
     ingest_node,
+    prometheus_node,
     remediation_node,
     signal_analysis_node,
 )
@@ -95,6 +96,7 @@ def build_graph(checkpointer=None) -> StateGraph:
 
     # ── Nodes ────────────────────────────────────────────────────────────────
     builder.add_node("ingest",           ingest_node)
+    builder.add_node("prometheus",       prometheus_node)
     builder.add_node("gitops",           gitops_node)
     builder.add_node("index",            index_node)
     builder.add_node("signal_analysis",  signal_analysis_node)
@@ -105,7 +107,8 @@ def build_graph(checkpointer=None) -> StateGraph:
 
     # ── Edges: linear spine ─────────────────────────────────────────────────
     builder.add_edge(START,              "ingest")
-    builder.add_edge("ingest",           "gitops")
+    builder.add_edge("ingest",           "prometheus")
+    builder.add_edge("prometheus",       "gitops")
     builder.add_edge("gitops",           "index")
     builder.add_edge("index",            "signal_analysis")
     builder.add_edge("signal_analysis",  "analyze")

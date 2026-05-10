@@ -33,6 +33,9 @@ class RelationshipType(str, Enum):
     # Events
     HAS_EVENT = "HAS_EVENT"           # any resource → K8sEvent
 
+    # Observability
+    HAS_ALERT = "HAS_ALERT"           # K8s entity → PrometheusAlert
+
 
 @dataclass(frozen=True)
 class Edge:
