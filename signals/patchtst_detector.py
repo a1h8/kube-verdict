@@ -59,13 +59,15 @@ class AnomalyResult:
     score: float            # 0.0 = normal; >warning_threshold = anomalous
     n_points: int
     method: str             # "patchtst" | "zscore"
+    horizon: str = ""       # "short" | "medium" | "long" | "" (synthetic)
     forecast: np.ndarray = field(default_factory=lambda: np.empty(0))
     actual: np.ndarray = field(default_factory=lambda: np.empty(0))
 
     def to_text(self) -> str:
+        horizon_part = f" horizon={self.horizon}" if self.horizon else ""
         return (
-            f"signal metric={self.metric_name} entity={self.entity_uid} "
-            f"severity={self.severity} score={self.score:.3f} "
+            f"signal metric={self.metric_name} entity={self.entity_uid}"
+            f"{horizon_part} severity={self.severity} score={self.score:.3f} "
             f"method={self.method} n={self.n_points}"
         )
 
