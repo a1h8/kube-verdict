@@ -2,6 +2,7 @@ from pathlib import Path
 import yaml
 
 from ingestion.helmfile_collector import HelmfileCollector, _deep_merge, _set_nested
+from ontology.entities import HelmRelease
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +117,8 @@ class TestHelmfileCollector:
         hf = HelmfileCollector(helmfile_path=path)
         hf.collect(synthetic_graph)
         entity = next(
-            (e for e in synthetic_graph.entities() if e.name == "redis"), None
+            (e for e in synthetic_graph.entities()
+             if e.name == "redis" and isinstance(e, HelmRelease)), None
         )
         assert entity is not None
         assert entity.values.get("auth", {}).get("enabled") is False

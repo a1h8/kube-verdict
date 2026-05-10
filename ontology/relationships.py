@@ -26,6 +26,8 @@ class RelationshipType(str, Enum):
     OVERRIDES_VALUES = "OVERRIDES_VALUES"  # HelmRelease env-values → HelmRelease base
     DEPLOYED_FROM = "DEPLOYED_FROM"        # HelmRelease → HelmChart
     CHART_DEPENDENCY = "CHART_DEPENDENCY"  # HelmChart → HelmChart (umbrella sub-chart)
+    HOSTED_BY = "HOSTED_BY"               # HelmChart → HelmRepository
+    DEPLOYS_IN = "DEPLOYS_IN"             # HelmRelease → HelmfileEnvironment
     DRIFTS_FROM = "DRIFTS_FROM"           # K8s resource → HelmRelease (observed ≠ declared)
 
     # Events

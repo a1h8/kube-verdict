@@ -4,7 +4,7 @@ import logging
 import subprocess
 from typing import Any
 
-from ontology.entities import HelmRelease, HelmChart
+from ontology.entities import HelmRelease, HelmChart, HelmRepository
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
 from ingestion.chart_parser import ChartParser
@@ -31,6 +31,9 @@ class HelmCollector:
         log.info("Found %d Helm release(s) in cluster", len(releases))
         parser = ChartParser()
 
+        # Index known repos so chart entities can link to them
+        repo_uid_map = self._index_repos(graph)
+
         for rel in releases:
             namespace = rel.get("namespace", "")
             release_name = rel.get("name", "")
@@ -53,7 +56,7 @@ class HelmCollector:
                 chart_version=chart_version,
                 app_version=rel.get("app_version", ""),
                 status=rel.get("status", ""),
-                values=user_values,   # user-supplied only (cleaner for diff)
+                values=user_values,
                 source="helm",
                 raw=rel,
             )
@@ -68,10 +71,44 @@ class HelmCollector:
             if chart_entity:
                 graph.add_entity(chart_entity)
                 graph.add_edge(Edge(uid, chart_entity.uid, RelationshipType.DEPLOYED_FROM))
-                # Wire umbrella sub-chart dependency edges
                 self._wire_chart_deps(graph, chart_entity)
 
+                # Wire HOSTED_BY: chart → repo (repo/chart-version prefix in chart_str)
+                if "/" in chart_str:
+                    repo_name = chart_str.split("/")[0]
+                    repo_uid = repo_uid_map.get(repo_name)
+                    if repo_uid:
+                        graph.add_edge(Edge(
+                            chart_entity.uid, repo_uid, RelationshipType.HOSTED_BY,
+                        ))
+
         log.info("Helm collection done")
+
+    # ------------------------------------------------------------------
+    # Repository indexing
+    # ------------------------------------------------------------------
+
+    def _index_repos(self, graph: OntologyGraph) -> dict[str, str]:
+        """
+        Calls `helm repo list` to enumerate configured repos and creates
+        HelmRepository nodes. Returns a name→uid map for edge wiring.
+        Fails silently — repo info is enrichment, not critical.
+        """
+        uid_map: dict[str, str] = {}
+        repos = self._run_json(["helm", "repo", "list", "--output", "json"], "helm repo list")
+        if not isinstance(repos, list):
+            return uid_map
+        for repo in repos:
+            name = repo.get("name", "")
+            url = repo.get("url", "")
+            if not name:
+                continue
+            uid = f"helmrepo-{name}"
+            if not graph.get(uid):
+                repo_type = "oci" if url.startswith("oci://") else "http"
+                graph.add_entity(HelmRepository(uid=uid, name=name, url=url, repo_type=repo_type))
+            uid_map[name] = uid
+        return uid_map
 
     # ------------------------------------------------------------------
     # CLI wrappers

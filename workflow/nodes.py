@@ -93,6 +93,47 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# GitOps drift detection
+# ─────────────────────────────────────────────────────────────────────────────
+
+def gitops_node(state: RCAState, config: RunnableConfig) -> dict:
+    """
+    Run GitOps drift detection: fetch chart from Git, helm template, diff vs cluster.
+    Skipped when GITOPS_ENABLED=false or no GITOPS_REPO_URL is configured.
+    Fails silently — gitops drift is enrichment, not a blocker.
+    """
+    if not cfg.GITOPS_ENABLED or not cfg.GITOPS_REPO_URL:
+        log.info("gitops: disabled or no repo URL — skipping")
+        return {}
+
+    graph, _ = _get_infra(config)
+    if graph is None:
+        log.info("gitops: no graph — skipping")
+        return {}
+
+    try:
+        from ingestion.git_provider import GithubProvider, LocalGitProvider
+        from ingestion.gitops_collector import GitopsCollector
+
+        if cfg.GITOPS_REPO_URL.startswith(("https://github.com", "git@github.com")):
+            repo = cfg.GITOPS_REPO_URL.removeprefix("https://github.com/").removesuffix(".git")
+            provider = GithubProvider(repo=repo, ref=cfg.GITOPS_BRANCH, token=cfg.GITHUB_TOKEN)
+        else:
+            provider = LocalGitProvider(
+                repo_url=cfg.GITOPS_REPO_URL, branch=cfg.GITOPS_BRANCH,
+            )
+
+        collector = GitopsCollector(provider, charts_path=cfg.GITOPS_CHARTS_PATH)
+        drifts = collector.collect(graph)
+        critical = sum(1 for d in drifts if d.severity == "critical")
+        log.info("gitops: %d drift(s) found, %d critical", len(drifts), critical)
+    except Exception as exc:
+        log.warning("gitops node failed (%s) — continuing without gitops data", exc)
+
+    return {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Indexing
 # ─────────────────────────────────────────────────────────────────────────────
 
