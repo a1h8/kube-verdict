@@ -7,18 +7,16 @@ All tests are offline — no real git clone, no real helm, no cluster.
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-import yaml
 
 from ingestion.git_provider import GithubProvider, LocalGitProvider
 from ingestion.manifest_differ import ManifestDiffer, _find_entity
 from ingestion.manifest_renderer import ManifestRenderer
 from ingestion.gitops_collector import GitopsCollector
 from ontology.entities import (
-    Deployment, HelmRelease, Pod, Service, ResourceKind,
+    Deployment, HelmRelease, Service,
 )
 from ontology.graph import OntologyGraph
 

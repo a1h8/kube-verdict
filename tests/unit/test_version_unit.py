@@ -3,7 +3,6 @@ Unit tests for KubeVersion — detect_version and changelog_notes.
 """
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from ontology.version import KubeVersion, detect_version, _parse_int
 

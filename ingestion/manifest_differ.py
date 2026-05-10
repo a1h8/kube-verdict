@@ -15,9 +15,8 @@ as a flat list of DriftItem for upstream consumers.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-from ontology.entities import DriftItem, K8sEntity, ResourceKind
+from ontology.entities import DriftItem, K8sEntity
 from ontology.graph import OntologyGraph
 
 log = logging.getLogger(__name__)

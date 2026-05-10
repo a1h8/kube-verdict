@@ -3,11 +3,9 @@ Unit tests for the Helm/Helmfile ontology extensions:
 HelmRepository, HelmfileEnvironment, HOSTED_BY, DEPLOYS_IN.
 """
 import yaml
-import pytest
 
 from ontology.entities import (
-    HelmRepository, HelmfileEnvironment, HelmChart, HelmRelease, ChartDependency,
-    ResourceKind,
+    HelmRepository, HelmfileEnvironment, HelmChart, HelmRelease, ResourceKind,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType

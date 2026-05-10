@@ -2,11 +2,10 @@
 Unit tests for HelmDriftDetector — no cluster, no Helm CLI.
 All tests use synthetic OntologyGraph entities.
 """
-import pytest
 
 from ingestion.helm_drift import HelmDriftDetector, _first_int, _resolve_dot_path
 from ontology.entities import (
-    DaemonSet, Deployment, DriftItem, HelmChart, HelmRelease,
+    DaemonSet, Deployment, HelmChart, HelmRelease,
     PersistentVolumeClaim, Pod, StatefulSet, ChartDependency,
 )
 from ontology.graph import OntologyGraph
