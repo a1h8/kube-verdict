@@ -3,7 +3,6 @@ Unit tests for PrometheusCollector — all HTTP calls are mocked.
 """
 from unittest.mock import MagicMock, patch
 
-import pytest
 import requests
 
 from ingestion.prometheus_collector import PrometheusCollector, _find_entity
