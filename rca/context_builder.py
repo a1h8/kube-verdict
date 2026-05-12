@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import re
 from dataclasses import dataclass, field
@@ -21,27 +22,39 @@ class ContextWindow:
     Organized in priority order so the LLM sees the most critical
     information first — regardless of token budget.
     """
-    seeds: list[str] = field(default_factory=list)          # unhealthy resources
-    drift: list[str] = field(default_factory=list)           # declared ≠ observed
-    examples: list[str] = field(default_factory=list)        # similar resolved incidents
-    alerts: list[str] = field(default_factory=list)          # firing Prometheus alerts
-    traces: list[str] = field(default_factory=list)          # OTel error traces
-    logs: list[str] = field(default_factory=list)            # Loki error/warn logs
-    events: list[str] = field(default_factory=list)          # Warning K8s events
-    anchors: list[str] = field(default_factory=list)         # declared values + K8s schema
-    anchor_fixes: list[str] = field(default_factory=list)    # helm commands to restore declared values
-    helm: list[str] = field(default_factory=list)            # releases + charts
-    related: list[str] = field(default_factory=list)         # BFS neighbourhood
+
+    seeds: list[str] = field(default_factory=list)  # unhealthy resources
+    drift: list[str] = field(default_factory=list)  # declared ≠ observed
+    examples: list[str] = field(default_factory=list)  # similar resolved incidents
+    alerts: list[str] = field(default_factory=list)  # firing Prometheus alerts
+    traces: list[str] = field(default_factory=list)  # OTel error traces
+    logs: list[str] = field(default_factory=list)  # Loki error/warn logs
+    events: list[str] = field(default_factory=list)  # Warning K8s events
+    anchors: list[str] = field(default_factory=list)  # declared values + K8s schema
+    anchor_fixes: list[str] = field(
+        default_factory=list
+    )  # helm commands to restore declared values
+    helm: list[str] = field(default_factory=list)  # releases + charts
+    related: list[str] = field(default_factory=list)  # BFS neighbourhood
 
     # raw entity refs for metadata
     seed_entities: list[K8sEntity] = field(default_factory=list, repr=False)
 
     @property
     def total_chunks(self) -> int:
-        return (len(self.seeds) + len(self.drift) + len(self.examples)
-                + len(self.alerts) + len(self.traces) + len(self.logs)
-                + len(self.events) + len(self.anchors) + len(self.anchor_fixes)
-                + len(self.helm) + len(self.related))
+        return (
+            len(self.seeds)
+            + len(self.drift)
+            + len(self.examples)
+            + len(self.alerts)
+            + len(self.traces)
+            + len(self.logs)
+            + len(self.events)
+            + len(self.anchors)
+            + len(self.anchor_fixes)
+            + len(self.helm)
+            + len(self.related)
+        )
 
     def to_prompt_block(self) -> str:
         lines: list[str] = []
@@ -51,54 +64,66 @@ class ContextWindow:
             lines.extend(f"  - {t}" for t in self.seeds)
 
         if self.drift:
-            lines.append(f"\n### CRITICAL — Helm declared vs observed drift ({len(self.drift)})")
+            lines.append(
+                f"### CRITICAL — Helm declared vs observed drift ({len(self.drift)})"
+            )
             lines.extend(f"  - {t}" for t in self.drift)
 
         if self.examples:
-            lines.append(f"\n### SIMILAR PAST INCIDENTS — proven remediations ({len(self.examples)})")
+            lines.append(
+                f"### SIMILAR PAST INCIDENTS — proven remediations "
+                f"({len(self.examples)})"
+            )
             lines.extend(f"  - {t}" for t in self.examples)
 
         if self.anchor_fixes:
             lines.append(
-                f"\n### ANCHOR FIX SUGGESTIONS — helm commands to restore declared values"
-                f" ({len(self.anchor_fixes)})"
+                f"### ANCHOR FIX SUGGESTIONS — helm commands to restore "
+                f"declared values ({len(self.anchor_fixes)})"
             )
             lines.extend(f"  - {t}" for t in self.anchor_fixes)
 
         if self.alerts:
-            lines.append(f"\n### CRITICAL — Firing Prometheus alerts ({len(self.alerts)})")
+            lines.append(f"### CRITICAL — Firing Prometheus alerts ({len(self.alerts)})")
             lines.extend(f"  - {t}" for t in self.alerts)
 
         if self.traces:
-            lines.append(f"\n### TRACES — OpenTelemetry error traces ({len(self.traces)})")
+            lines.append(
+                f"### TRACES — OpenTelemetry error traces ({len(self.traces)})"
+            )
             lines.extend(f"  - {t}" for t in self.traces)
 
         if self.logs:
-            lines.append(f"\n### LOGS — Recent error/warn log lines ({len(self.logs)})")
+            lines.append(
+                f"### LOGS — Recent error/warn log lines ({len(self.logs)})"
+            )
             lines.extend(f"  - {t}" for t in self.logs)
 
         if self.events:
-            lines.append(f"\n### WARNING — Kubernetes events ({len(self.events)})")
+            lines.append(f"### WARNING — Kubernetes events ({len(self.events)})")
             lines.extend(f"  - {t}" for t in self.events)
 
         if self.anchors:
             lines.append(
-                f"\n### ANCHORS — Declared values & K8s schema ({len(self.anchors)})"
+                f"### ANCHORS — Declared values & K8s schema ({len(self.anchors)})"
             )
             lines.extend(f"  - {t}" for t in self.anchors)
 
         if self.helm:
-            lines.append(f"\n### Helm / Helmfile releases ({len(self.helm)})")
+            lines.append(f"### Helm / Helmfile releases ({len(self.helm)})")
             lines.extend(f"  - {t}" for t in self.helm)
 
         if self.related:
-            lines.append(f"\n### Related context ({len(self.related)} chunks after dedup)")
+            lines.append(
+                f"### Related context ({len(self.related)} chunks after dedup)"
+            )
             lines.extend(f"  - {t}" for t in self.related)
 
         return "\n".join(lines)
 
 
 # ── Anchor → Helm value mapping ───────────────────────────────────────────────
+
 
 def _field_path_to_helm_key(field_path: str) -> str:
     """Best-effort mapping from anchor field_path to Helm --set key."""
@@ -133,8 +158,10 @@ def anchor_fix_hints(graph: "OntologyGraph", seeds: list[K8sEntity]) -> list[str
         release_name_map[(hr.namespace or "", hr.name)] = hr.name
 
     for entity in seeds:
-        kind_str = entity.kind.value if hasattr(entity.kind, "value") else str(entity.kind)
-        ns   = entity.namespace or ""
+        kind_str = (
+            entity.kind.value if hasattr(entity.kind, "value") else str(entity.kind)
+        )
+        ns = entity.namespace or ""
         name = entity.name
         release = release_name_map.get((ns, name)) or name
 
@@ -147,11 +174,12 @@ def anchor_fix_hints(graph: "OntologyGraph", seeds: list[K8sEntity]) -> list[str
             if not m:
                 continue
             declared_val = m.group(1)
-            field_path   = ann_key[len("anchor."):]
-            helm_key     = _field_path_to_helm_key(field_path)
+            field_path = ann_key[len("anchor.") :]
+            helm_key = _field_path_to_helm_key(field_path)
             hints.append(
-                f"{kind_str}/{ns}/{name}  {field_path}={declared_val!r} (declared in chart)"
-                f"  →  helm upgrade {release} -n {ns} --set {helm_key}={declared_val}"
+                f"{kind_str}/{ns}/{name}  {field_path}={declared_val!r} "
+                f"(declared in chart)  →  helm upgrade {release} -n {ns} "
+                f"--set {helm_key}={declared_val}"
             )
 
     return hints[:12]
@@ -178,7 +206,9 @@ class ContextBuilder:
     ) -> None:
         self.graph = graph
         self.store = store
-        self._bfs_max_depth = bfs_max_depth if bfs_max_depth is not None else cfg.BFS_MAX_DEPTH
+        self._bfs_max_depth = (
+            bfs_max_depth if bfs_max_depth is not None else cfg.BFS_MAX_DEPTH
+        )
 
     def build(self, query: str) -> ContextWindow:
         ctx = ContextWindow()
@@ -196,10 +226,17 @@ class ContextBuilder:
         drift_texts: list[str] = []
         drift_uids: set[str] = set()
         for entity in self.graph.entities():
-            drifts = [v for k, v in entity.annotations.items() if k.startswith("drift.")]
+            drifts = [
+                v for k, v in entity.annotations.items()
+                if k.startswith("drift.")
+            ]
             if drifts:
                 drift_uids.add(entity.uid)
-                kind_str = entity.kind.value if hasattr(entity.kind, "value") else str(entity.kind)
+                kind_str = (
+                    entity.kind.value
+                    if hasattr(entity.kind, "value")
+                    else str(entity.kind)
+                )
                 header = f"{kind_str}/{entity.namespace}/{entity.name}"
                 for d in drifts:
                     drift_texts.append(f"{header}: {d}")
@@ -207,16 +244,20 @@ class ContextBuilder:
 
         # --- Section 3: Firing Prometheus alerts (critical first) -------------
         alert_entities = [
-            e for e in self.graph.entities(ResourceKind.PROMETHEUS_ALERT)
+            e
+            for e in self.graph.entities(ResourceKind.PROMETHEUS_ALERT)
             if isinstance(e, PrometheusAlert) and e.state == "firing"
         ]
-        alert_entities.sort(key=lambda a: (a.severity != "critical", a.severity != "warning"))
+        alert_entities.sort(
+            key=lambda a: (a.severity != "critical", a.severity != "warning")
+        )
         ctx.alerts = [e.to_text() for e in alert_entities]
         alert_uids = {e.uid for e in alert_entities}
 
         # --- Section 4a: OTel error traces ------------------------------------
         trace_entities = [
-            e for e in self.graph.entities(ResourceKind.OTEL_TRACE)
+            e
+            for e in self.graph.entities(ResourceKind.OTEL_TRACE)
             if isinstance(e, OtelTrace) and e.status == "ERROR"
         ]
         ctx.traces = [e.to_text() for e in trace_entities[:20]]  # cap at 20
@@ -224,7 +265,8 @@ class ContextBuilder:
 
         # --- Section 4b: Loki error/warn logs ---------------------------------
         log_entities = [
-            e for e in self.graph.entities(ResourceKind.LOKI_LOG)
+            e
+            for e in self.graph.entities(ResourceKind.LOKI_LOG)
             if isinstance(e, LokiLog) and e.level in ("error", "warn")
         ]
         ctx.logs = [e.to_text() for e in log_entities[:20]]  # cap at 20
@@ -267,13 +309,16 @@ class ContextBuilder:
         ctx.helm = helm_texts
 
         # --- Section 7: related context via FAISS + BFS + dedup + TF-IDF -----
-        already_covered = seed_uids | drift_uids | alert_uids | trace_uids | log_uids | event_uids | helm_uids
+        already_covered = (
+            seed_uids | drift_uids | alert_uids | trace_uids | log_uids
+            | event_uids | helm_uids
+        )
 
         faiss_hits = self.store.search(query, top_k=cfg.TFIDF_TOP_K * 3)
 
         # Split example hits (resolved incidents) from entity hits
         example_hits = [h for h in faiss_hits if h["uid"].startswith("example:")]
-        entity_hits  = [h for h in faiss_hits if not h["uid"].startswith("example:")]
+        entity_hits = [h for h in faiss_hits if not h["uid"].startswith("example:")]
         ctx.examples = [h["text"] for h in example_hits[:5]]
 
         faiss_uids = [h["uid"] for h in entity_hits]
@@ -310,10 +355,17 @@ class ContextBuilder:
             "ContextWindow: %d seeds | %d drift | %d examples | %d alerts"
             " | %d traces | %d logs | %d events | %d anchors | %d anchor_fixes"
             " | %d helm | %d related",
-            len(ctx.seeds), len(ctx.drift), len(ctx.examples), len(ctx.alerts),
-            len(ctx.traces), len(ctx.logs),
-            len(ctx.events), len(ctx.anchors), len(ctx.anchor_fixes),
-            len(ctx.helm), len(ctx.related),
+            len(ctx.seeds),
+            len(ctx.drift),
+            len(ctx.examples),
+            len(ctx.alerts),
+            len(ctx.traces),
+            len(ctx.logs),
+            len(ctx.events),
+            len(ctx.anchors),
+            len(ctx.anchor_fixes),
+            len(ctx.helm),
+            len(ctx.related),
         )
         return ctx
 
