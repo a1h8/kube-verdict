@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: analytics-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: analytics-worker
+    app.kubernetes.io/name: analytics-worker
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: analytics-worker-{{ .Chart.Version }}
+    tier: worker
+spec:
+  restartPolicy: Always
+  containers:
+  - name: worker
+    image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+    imagePullPolicy: {{ .Values.image.pullPolicy }}
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      python3 - <<'EOF'
+      import time, sys
+      print("[analytics-worker] Loading feature matrix...", flush=True)
+      blob = bytearray(200 * 1024 * 1024)
+      print(f"[analytics-worker] Allocated {len(blob)//1024//1024} MiB", flush=True)
+      time.sleep(300)
+      EOF
+    resources:
+      requests:
+        memory: {{ .Values.resources.requests.memory | quote }}
+        cpu: {{ .Values.resources.requests.cpu | quote }}
+      limits:
+        memory: {{ .Values.resources.limits.memory | quote }}
+        cpu: {{ .Values.resources.limits.cpu | quote }}

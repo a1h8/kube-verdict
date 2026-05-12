@@ -1,0 +1,36 @@
+# Scenario 2 — OOMKilled
+# analytics-worker allocates ~200 MiB but the memory limit is 50 MiB.
+# Expected: pod killed by the OOM killer, phase OOMKilled.
+# RCA should identify: memory limit too low, suggest raising limit or profiling.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: analytics-worker
+  namespace: kubewhisperer-demo
+  labels:
+    app: analytics-worker
+    app.kubernetes.io/name: analytics-worker
+    tier: worker
+spec:
+  restartPolicy: Always
+  containers:
+  - name: worker
+    image: python:3.11-slim
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      python3 - <<'EOF'
+      import time, sys
+      print("[analytics-worker] Loading feature matrix into memory...", flush=True)
+      # Allocate 200 MiB — will exceed the 50 MiB limit and trigger OOMKill
+      blob = bytearray(200 * 1024 * 1024)
+      print(f"[analytics-worker] Allocated {len(blob) // 1024 // 1024} MiB — processing", flush=True)
+      time.sleep(300)
+      EOF
+    resources:
+      requests:
+        memory: "32Mi"
+        cpu: "50m"
+      limits:
+        memory: "50Mi"   # intentionally too low
+        cpu: "200m"

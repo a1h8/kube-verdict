@@ -94,11 +94,12 @@ class ManifestDiffer:
         # Orphan detection: tracked kinds in cluster but not in rendered output
         if self.track_orphans:
             for entity in graph.entities():
-                if (entity.kind.value in _TRACKED_KINDS
+                kind_val = getattr(entity.kind, "value", entity.kind)
+                if (kind_val in _TRACKED_KINDS
                         and entity.uid not in matched_uids
                         and entity.labels.get("app.kubernetes.io/managed-by") == "Helm"):
                     item = DriftItem(
-                        field_path=f"{entity.kind.value}.{entity.namespace}.{entity.name}",
+                        field_path=f"{kind_val}.{entity.namespace}.{entity.name}",
                         declared="absent",
                         observed="present",
                         severity="warning",
@@ -160,12 +161,20 @@ def _diff_containers(pod_spec: dict, entity: K8sEntity) -> list[DriftItem]:
     drifts: list[DriftItem] = []
     containers: list[dict] = pod_spec.get("containers") or []
 
-    # Build map of running container state from entity annotations
+    # Build map of running container state.
+    # Pods: use container_statuses (image = currently running tag).
+    # Deployments/StatefulSets: use spec.container.<name>.image annotations
+    # written by K8sCollector from the live deployment spec.
     running: dict[str, dict] = {}
     if hasattr(entity, "container_statuses") and entity.container_statuses:
         for cs in entity.container_statuses:
             if isinstance(cs, dict):
                 running[cs.get("name", "")] = cs
+    for key, val in entity.annotations.items():
+        if key.startswith("spec.container.") and key.endswith(".image"):
+            cname = key[len("spec.container."):-len(".image")]
+            if cname not in running:
+                running[cname] = {"image": val}
 
     for c in containers:
         name = c.get("name", "")

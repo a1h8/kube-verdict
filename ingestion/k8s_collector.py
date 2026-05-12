@@ -252,12 +252,16 @@ class K8sCollector:
         ns_entity = self._find_by_name(graph, namespace, None, "Namespace")
         for item in items:
             s = item.status
+            ann = dict(item.metadata.annotations or {})
+            for c in (item.spec.template.spec.containers or []):
+                if c.image:
+                    ann[f"spec.container.{c.name}.image"] = c.image
             e = Deployment(
                 uid=item.metadata.uid,
                 name=item.metadata.name,
                 namespace=namespace,
                 labels=item.metadata.labels or {},
-                annotations=item.metadata.annotations or {},
+                annotations=ann,
                 created_at=_ts(item.metadata.creation_timestamp),
                 replicas=item.spec.replicas or 0,
                 ready_replicas=s.ready_replicas or 0,
@@ -277,9 +281,13 @@ class K8sCollector:
             log.warning("Cannot list statefulsets in %s: %s", namespace, exc)
             return
         for item in items:
+            sts_ann = dict(item.metadata.annotations or {})
+            for c in (item.spec.template.spec.containers or []):
+                if c.image:
+                    sts_ann[f"spec.container.{c.name}.image"] = c.image
             graph.add_entity(StatefulSet(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, annotations=sts_ann,
                 created_at=_ts(item.metadata.creation_timestamp),
                 replicas=item.spec.replicas or 0, ready_replicas=item.status.ready_replicas or 0,
                 selector=item.spec.selector.match_labels or {}, raw=item.to_dict(),

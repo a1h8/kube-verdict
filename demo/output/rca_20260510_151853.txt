@@ -1,0 +1,205 @@
+
+════════════════════════════════════════════════════════════════════
+  KubeWhisperer — Root Cause Analysis Demo
+════════════════════════════════════════════════════════════════════
+  Timestamp : 2026-05-10T15:18:53.944356+00:00
+  Namespace : kubewhisperer-demo
+  Model     : mistral @ http://localhost:11434
+  Query     : Multiple services are failing in the kubewhisperer-demo namespace. Identify every root cause, explain the chain of events, and provide precise remediation commands.
+
+────────────────────────────────────────────────────────────────────
+  1/5  Cluster state collection
+────────────────────────────────────────────────────────────────────
+  OntologyGraph [K8s v1.31.5+k3s1]: 419 nodes, 125 edges
+  APIService: 36
+  CSINode: 2
+  ClusterRole: 79
+  ClusterRoleBinding: 66
+  ClusterSecretStore: 1
+  ComponentStatus: 3
+  ConfigMap: 1
+  CustomResourceDefinition: 54
+  Deployment: 5
+  Event: 88
+  FlowSchema: 13
+  IngressClass: 1
+  Namespace: 15
+  Node: 2
+  NodeMetrics: 1
+  PersistentVolume: 2
+  Pod: 12
+  PodMetrics: 3
+  PriorityClass: 2
+  PriorityLevelConfiguration: 8
+  ReplicaSet: 6
+  RuntimeClass: 10
+  Secret: 5
+  Service: 1
+  ServiceAccount: 1
+  StorageClass: 1
+  ValidatingWebhookConfiguration: 1
+  Helm releases : 4
+    • analytics-worker  chart=analytics-worker@3.1.0  status=deployed
+    • ml-inference  chart=ml-inference@2.4.1  status=deployed
+    • notification-service  chart=notification-service@2.1.0  status=deployed
+    • payment-service  chart=payment-service@1.4.2  status=deployed
+
+────────────────────────────────────────────────────────────────────
+  2/5  GitOps drift detection
+────────────────────────────────────────────────────────────────────
+  GitOps unavailable: 'DriftItem' object has no attribute 'resource_kind'
+
+────────────────────────────────────────────────────────────────────
+  3/5  Unhealthy resources & Kubernetes events
+────────────────────────────────────────────────────────────────────
+  Unhealthy resources (9):
+    ✗ Pod/kubewhisperer-demo/analytics-worker  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/gpu-worker-54d97cd458-2gdxf  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/gpu-worker-54d97cd458-nxwfg  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/notification-service-5449998bb5-gw2m5  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/notification-service-5449998bb5-tnv4m  phase=Pending  restarts=0
+    ✗ Deployment/kubewhisperer-demo/gpu-worker  ready=0/2
+    ✗ Deployment/kubewhisperer-demo/notification-service  ready=0/2
+    ✗ Deployment/kubewhisperer-demo/payment-service  ready=0/3
+
+  Warning events (15):
+    [249×] BackOff  Pod/payment-service-58555ff9b6-nsdkp  — Back-off restarting failed container payment in pod payment-service-58555ff9b6-n
+    [246×] BackOff  Pod/payment-service-58555ff9b6-2qmrl  — Back-off restarting failed container payment in pod payment-service-58555ff9b6-2
+    [246×] BackOff  Pod/payment-service-58555ff9b6-5vxfv  — Back-off restarting failed container payment in pod payment-service-58555ff9b6-5
+    [ 12×] Failed  Pod/notification-service-5449998bb5-gw2m5  — Error: configmap "notification-config" not found
+    [ 12×] Failed  Pod/notification-service-5449998bb5-tnv4m  — Error: configmap "notification-config" not found
+    [  6×] Failed  Pod/ml-inference-6c7dbf6d5f-sbjw8  — Error: ImagePullBackOff
+    [  5×] Unhealthy  Pod/api-gateway-598dbb94db-55cwv  — Readiness probe failed: Get "http://10.42.1.152:80/": context deadline exceeded 
+    [  4×] Failed  Pod/ml-inference-6c7dbf6d5f-sbjw8  — Failed to pull image "myregistry.internal/ml-models/inference:v2.4.1-gpu": faile
+    [  4×] Failed  Pod/ml-inference-6c7dbf6d5f-sbjw8  — Error: ErrImagePull
+    [  3×] Unhealthy  Pod/api-gateway-598dbb94db-55cwv  — Liveness probe failed: Get "http://10.42.1.152:80/": context deadline exceeded (
+    [  3×] Unhealthy  Pod/api-gateway-598dbb94db-jhhbj  — Liveness probe failed: Get "http://10.42.1.153:80/": context deadline exceeded (
+    [  3×] Unhealthy  Pod/api-gateway-598dbb94db-jhhbj  — Readiness probe failed: Get "http://10.42.1.153:80/": context deadline exceeded 
+    [  1×] FailedScheduling  Pod/analytics-worker  — 0/2 nodes are available: 1 Insufficient cpu, 1 node(s) had untolerated taint {no
+    [  1×] FailedScheduling  Pod/analytics-worker  — 0/2 nodes are available: 1 Insufficient cpu, 1 node(s) had untolerated taint {no
+    [  1×] NodeNotReady  Pod/api-gateway-598dbb94db-55cwv  — Node is not ready
+
+────────────────────────────────────────────────────────────────────
+  4/5  Signal analysis (PatchTST)
+────────────────────────────────────────────────────────────────────
+  metrics-server: 3 pod(s) annotated
+  ⚠ kubewhisperer-demo/analytics-worker  restart_count  critical  score=7.487
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv  restart_count  critical  score=13.475
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv  cpu_usage  critical  score=66.294
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv  memory_bytes  critical  score=54.208
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj  restart_count  critical  score=71.379
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj  cpu_usage  critical  score=54.609
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj  memory_bytes  critical  score=38.246
+  ⚠ kubewhisperer-demo/gpu-worker-54d97cd458-2gdxf  restart_count  critical  score=5.115
+  ⚠ kubewhisperer-demo/gpu-worker-54d97cd458-nxwfg  restart_count  critical  score=7.967
+  ⚠ kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8  restart_count  critical  score=10.401
+  ⚠ kubewhisperer-demo/ml-inference-cc54c9c9d-kj2fv  restart_count  critical  score=11.083
+  ⚠ kubewhisperer-demo/ml-inference-cc54c9c9d-kj2fv  memory_bytes  critical  score=40.489
+  ⚠ kubewhisperer-demo/notification-service-5449998bb5-gw2m5  restart_count  critical  score=7.707
+  ⚠ kubewhisperer-demo/notification-service-5449998bb5-tnv4m  restart_count  critical  score=7.427
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-2qmrl  restart_count  critical  score=378.326
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-5vxfv  restart_count  critical  score=571.114
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-nsdkp  restart_count  critical  score=635.223
+  ⚠ kubewhisperer-demo/api-gateway  ready_ratio  critical  score=6.167
+  ⚠ kubewhisperer-demo/gpu-worker  ready_ratio  critical  score=711.278
+  ⚠ kubewhisperer-demo/ml-inference  ready_ratio  critical  score=4.210
+  ⚠ kubewhisperer-demo/notification-service  ready_ratio  critical  score=514.308
+  ⚠ kubewhisperer-demo/payment-service  ready_ratio  critical  score=312.524
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv.18ae3ab4784d590c  event_count  critical  score=43.702
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv.18ae3ab779cdfe18  event_count  critical  score=21.568
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj.18ae3ab475c77fa5  event_count  critical  score=22.036
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj.18ae3ab779e57183  event_count  critical  score=30.342
+  ⚠ kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8.18ae3a7c21d7caca  event_count  critical  score=47.225
+  ⚠ kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8.18ae3a7c21d940d0  event_count  critical  score=33.304
+  ⚠ kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8.18ae3a7c586e2f73  event_count  critical  score=52.561
+  ⚠ kubewhisperer-demo/notification-service-5449998bb5-gw2m5.18ae3a32fb2a4f2a  event_count  critical  score=118.374
+  ⚠ kubewhisperer-demo/notification-service-5449998bb5-tnv4m.18ae3a32fb1e10b9  event_count  critical  score=119.869
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-2qmrl.18ae3a21f08628d4  event_count  critical  score=3630.129
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-5vxfv.18ae3a21f21735c6  event_count  critical  score=7306.701
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-nsdkp.18ae3a21f1673b52  event_count  critical  score=1665.511
+
+────────────────────────────────────────────────────────────────────
+  5/5  LLM root-cause analysis (LangGraph workflow)
+────────────────────────────────────────────────────────────────────
+  Sending context to mistral...
+
+════════════════════════════════════════════════════════════════════
+  ANALYSIS REPORT
+════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────
+  Summary
+────────────────────────────────────────────────────────────────────
+Multiple services in the kubewhisperer-demo namespace are experiencing failures due to insufficient resources and image pull issues.
+
+###
+
+────────────────────────────────────────────────────────────────────
+  Root cause chain
+────────────────────────────────────────────────────────────────────
+The root causes are insufficient resources (CPU) on the nodes and image pull issues due to network connectivity or image availability problems.
+
+###
+
+────────────────────────────────────────────────────────────────────
+  Signal anomalies (PatchTST)
+────────────────────────────────────────────────────────────────────
+  ⚠ kubewhisperer-demo/analytics-worker  restart_count  critical  score=7.487
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv  restart_count  critical  score=13.475
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv  cpu_usage  critical  score=66.294
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv  memory_bytes  critical  score=54.208
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj  restart_count  critical  score=71.379
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj  cpu_usage  critical  score=54.609
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj  memory_bytes  critical  score=38.246
+  ⚠ kubewhisperer-demo/gpu-worker-54d97cd458-2gdxf  restart_count  critical  score=5.115
+  ⚠ kubewhisperer-demo/gpu-worker-54d97cd458-nxwfg  restart_count  critical  score=7.967
+  ⚠ kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8  restart_count  critical  score=10.401
+  ⚠ kubewhisperer-demo/ml-inference-cc54c9c9d-kj2fv  restart_count  critical  score=11.083
+  ⚠ kubewhisperer-demo/ml-inference-cc54c9c9d-kj2fv  memory_bytes  critical  score=40.489
+  ⚠ kubewhisperer-demo/notification-service-5449998bb5-gw2m5  restart_count  critical  score=7.707
+  ⚠ kubewhisperer-demo/notification-service-5449998bb5-tnv4m  restart_count  critical  score=7.427
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-2qmrl  restart_count  critical  score=378.326
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-5vxfv  restart_count  critical  score=571.114
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-nsdkp  restart_count  critical  score=635.223
+  ⚠ kubewhisperer-demo/api-gateway  ready_ratio  critical  score=6.167
+  ⚠ kubewhisperer-demo/gpu-worker  ready_ratio  critical  score=711.278
+  ⚠ kubewhisperer-demo/ml-inference  ready_ratio  critical  score=4.210
+  ⚠ kubewhisperer-demo/notification-service  ready_ratio  critical  score=514.308
+  ⚠ kubewhisperer-demo/payment-service  ready_ratio  critical  score=312.524
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv.18ae3ab4784d590c  event_count  critical  score=43.702
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-55cwv.18ae3ab779cdfe18  event_count  critical  score=21.568
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj.18ae3ab475c77fa5  event_count  critical  score=22.036
+  ⚠ kubewhisperer-demo/api-gateway-598dbb94db-jhhbj.18ae3ab779e57183  event_count  critical  score=30.342
+  ⚠ kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8.18ae3a7c21d7caca  event_count  critical  score=47.225
+  ⚠ kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8.18ae3a7c21d940d0  event_count  critical  score=33.304
+  ⚠ kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8.18ae3a7c586e2f73  event_count  critical  score=52.561
+  ⚠ kubewhisperer-demo/notification-service-5449998bb5-gw2m5.18ae3a32fb2a4f2a  event_count  critical  score=118.374
+  ⚠ kubewhisperer-demo/notification-service-5449998bb5-tnv4m.18ae3a32fb1e10b9  event_count  critical  score=119.869
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-2qmrl.18ae3a21f08628d4  event_count  critical  score=3630.129
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-5vxfv.18ae3a21f21735c6  event_count  critical  score=7306.701
+  ⚠ kubewhisperer-demo/payment-service-58555ff9b6-nsdkp.18ae3a21f1673b52  event_count  critical  score=1665.511
+
+────────────────────────────────────────────────────────────────────
+  Proposed remediation
+────────────────────────────────────────────────────────────────────
+   1. Scale down or delete unnecessary pods to free up resources on the nodes.
+   2. Check network connectivity between the nodes and the image registry to ensure images can be pulled successfully.
+   3. If necessary, update the image pull policy in the Helm charts to use a different strategy (e.g., `RegistryMirror`).
+   4. Ensure that the nodes have sufficient CPU resources allocated to them.
+   5. Check for any issues with the Kubernetes control plane or worker nodes that might be causing pods to be scheduled on unready nodes.
+
+────────────────────────────────────────────────────────────────────
+  Metadata
+────────────────────────────────────────────────────────────────────
+  Confidence  : MEDIUM
+  LLM time    : 64.5s
+
+  Human decision: approve
+  ✓ Remediation approved — commands above should be applied.
+
+────────────────────────────────────────────────────────────────────
+  Timings
+────────────────────────────────────────────────────────────────────
+  LLM time    : 64.5s
+  Total time  : 76.5s

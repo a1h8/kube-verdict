@@ -23,8 +23,23 @@ class RCAState(TypedDict, total=False):
     # ── Structured report (stored as plain dict for serialisability) ──────────
     report_dict: dict[str, Any]  # RCAReport.to_dict()
 
+    # ── Ingestion telemetry ───────────────────────────────────────────────────
+    ingestion_stats: dict[str, Any]  # per-step stats + fallbacks, written by nodes
+
+    # ── Multi-path reasoning ─────────────────────────────────────────────────
+    candidate_paths: list[str]    # remaining hypotheses to explore (popped FIFO)
+    current_hypothesis: str       # hypothesis under analysis ("" = use raw query)
+    reasoning_history: list[dict] # [{step, hypothesis, confidence, summary, report_dict, retry_count}]
+
+    # ── Dry-run validation ────────────────────────────────────────────────────
+    dry_run_results: list[dict]   # [{original_cmd, dry_cmd, output, exit_code}]
+
+    # ── Example matching ─────────────────────────────────────────────────────
+    example_match: bool          # True when example_lookup found a strong match
+    matched_example_id: str      # UID of matched example (e.g. "example:abc123")
+
     # ── Control flow ──────────────────────────────────────────────────────────
-    retry_count: int            # how many times analyze has been retried
+    retry_count: int            # how many times analyze has been retried on current path
     human_decision: str         # "approve" | "reject" | ""
     error: str
 

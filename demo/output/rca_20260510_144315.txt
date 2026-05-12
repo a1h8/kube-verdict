@@ -1,0 +1,196 @@
+
+════════════════════════════════════════════════════════════════════
+  KubeWhisperer — Root Cause Analysis Demo
+════════════════════════════════════════════════════════════════════
+  Timestamp : 2026-05-10T14:43:15.156857+00:00
+  Namespace : kubewhisperer-demo
+  Model     : mistral @ http://localhost:11434
+  Query     : Multiple services are failing in the kubewhisperer-demo namespace. Identify every root cause, explain the chain of events, and provide precise remediation commands.
+
+────────────────────────────────────────────────────────────────────
+  1/5  Cluster state collection
+────────────────────────────────────────────────────────────────────
+  OntologyGraph [K8s v1.31.5+k3s1]: 419 nodes, 125 edges
+  APIService: 36
+  CSINode: 2
+  ClusterRole: 79
+  ClusterRoleBinding: 66
+  ClusterSecretStore: 1
+  ComponentStatus: 3
+  ConfigMap: 1
+  CustomResourceDefinition: 54
+  Deployment: 5
+  Event: 88
+  FlowSchema: 13
+  IngressClass: 1
+  Namespace: 15
+  Node: 2
+  NodeMetrics: 1
+  PersistentVolume: 2
+  Pod: 12
+  PodMetrics: 3
+  PriorityClass: 2
+  PriorityLevelConfiguration: 8
+  ReplicaSet: 6
+  RuntimeClass: 10
+  Secret: 5
+  Service: 1
+  ServiceAccount: 1
+  StorageClass: 1
+  ValidatingWebhookConfiguration: 1
+  Helm releases : 4
+    • analytics-worker  chart=analytics-worker@3.1.0  status=deployed
+    • ml-inference  chart=ml-inference@2.4.1  status=deployed
+    • notification-service  chart=notification-service@2.1.0  status=deployed
+    • payment-service  chart=payment-service@1.4.2  status=deployed
+
+────────────────────────────────────────────────────────────────────
+  2/5  GitOps drift detection
+────────────────────────────────────────────────────────────────────
+  No drift detected.
+
+────────────────────────────────────────────────────────────────────
+  3/5  Unhealthy resources & Kubernetes events
+────────────────────────────────────────────────────────────────────
+  Unhealthy resources (9):
+    ✗ Pod/kubewhisperer-demo/analytics-worker  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/gpu-worker-54d97cd458-2gdxf  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/gpu-worker-54d97cd458-nxwfg  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/notification-service-5449998bb5-gw2m5  phase=Pending  restarts=0
+    ✗ Pod/kubewhisperer-demo/notification-service-5449998bb5-tnv4m  phase=Pending  restarts=0
+    ✗ Deployment/kubewhisperer-demo/gpu-worker  ready=0/2
+    ✗ Deployment/kubewhisperer-demo/notification-service  ready=0/2
+    ✗ Deployment/kubewhisperer-demo/payment-service  ready=0/3
+
+  Warning events (15):
+    [ 89×] BackOff  Pod/payment-service-58555ff9b6-2qmrl  — Back-off restarting failed container payment in pod payment-service-58555ff9b6-2
+    [ 89×] BackOff  Pod/payment-service-58555ff9b6-nsdkp  — Back-off restarting failed container payment in pod payment-service-58555ff9b6-n
+    [ 88×] BackOff  Pod/payment-service-58555ff9b6-5vxfv  — Back-off restarting failed container payment in pod payment-service-58555ff9b6-5
+    [ 12×] Failed  Pod/notification-service-5449998bb5-gw2m5  — Error: configmap "notification-config" not found
+    [ 12×] Failed  Pod/notification-service-5449998bb5-tnv4m  — Error: configmap "notification-config" not found
+    [  6×] Failed  Pod/ml-inference-6c7dbf6d5f-sbjw8  — Error: ImagePullBackOff
+    [  4×] Unhealthy  Pod/api-gateway-598dbb94db-55cwv  — Readiness probe failed: Get "http://10.42.1.152:80/": context deadline exceeded 
+    [  4×] Failed  Pod/ml-inference-6c7dbf6d5f-sbjw8  — Failed to pull image "myregistry.internal/ml-models/inference:v2.4.1-gpu": faile
+    [  4×] Failed  Pod/ml-inference-6c7dbf6d5f-sbjw8  — Error: ErrImagePull
+    [  3×] Unhealthy  Pod/api-gateway-598dbb94db-jhhbj  — Liveness probe failed: Get "http://10.42.1.153:80/": context deadline exceeded (
+    [  1×] FailedScheduling  Pod/analytics-worker  — 0/2 nodes are available: 1 Insufficient cpu, 1 node(s) had untolerated taint {no
+    [  1×] FailedScheduling  Pod/analytics-worker  — 0/2 nodes are available: 1 Insufficient cpu, 1 node(s) had untolerated taint {no
+    [  1×] Unhealthy  Pod/api-gateway-598dbb94db-55cwv  — Liveness probe failed: Get "http://10.42.1.152:80/": context deadline exceeded (
+    [  1×] NodeNotReady  Pod/api-gateway-598dbb94db-55cwv  — Node is not ready
+    [  1×] Unhealthy  Pod/api-gateway-598dbb94db-jhhbj  — Readiness probe failed: Get "http://10.42.1.153:80/": context deadline exceeded 
+
+────────────────────────────────────────────────────────────────────
+  4/5  Signal analysis (PatchTST)
+────────────────────────────────────────────────────────────────────
+  metrics-server: 3 pod(s) annotated
+  ⚠ 3cc7ba25-4078-4d79-8f26-86f3d9481cfc  restart_count  critical  score=7.162
+  ⚠ bfa71258-f3d3-44b3-a309-3fbd9c007f56  restart_count  critical  score=11.522
+  ⚠ bfa71258-f3d3-44b3-a309-3fbd9c007f56  cpu_usage  critical  score=58.799
+  ⚠ bfa71258-f3d3-44b3-a309-3fbd9c007f56  memory_bytes  critical  score=54.107
+  ⚠ 51e835fa-750d-46e9-9812-b2aaf1474add  restart_count  critical  score=75.258
+  ⚠ 51e835fa-750d-46e9-9812-b2aaf1474add  cpu_usage  critical  score=54.911
+  ⚠ 51e835fa-750d-46e9-9812-b2aaf1474add  memory_bytes  critical  score=35.807
+  ⚠ c6d7a862-6e0d-4782-b644-737a7e5a0a69  restart_count  critical  score=4.024
+  ⚠ cbad9faf-8317-4c72-9ae1-78e49735b0f9  restart_count  critical  score=9.728
+  ⚠ cb72b205-2cfa-4342-9337-5c2cb3a94215  restart_count  critical  score=12.179
+  ⚠ 89660bab-2685-4a92-a1a5-97f0d7a0269e  restart_count  critical  score=10.605
+  ⚠ 89660bab-2685-4a92-a1a5-97f0d7a0269e  memory_bytes  critical  score=49.882
+  ⚠ 93b14f10-f325-4158-b26f-c95ec5163d79  restart_count  critical  score=7.607
+  ⚠ 0f7968eb-36bd-4ae1-b9cf-db12fc0d83ac  restart_count  critical  score=6.129
+  ⚠ c739bf20-816c-43ef-a6c7-525b96a456f9  restart_count  critical  score=355.638
+  ⚠ 51b57579-a654-4717-8d4f-1ff86f89c584  restart_count  critical  score=502.063
+  ⚠ fc26cec2-7e17-4743-a971-1efceea83bda  restart_count  critical  score=579.682
+  ⚠ 0a4c85b6-61d1-477e-8627-5aa8b7a7f8e8  ready_ratio  critical  score=6.449
+  ⚠ 01994579-5eff-424d-b6bb-de69bf6cce85  ready_ratio  critical  score=1194.440
+  ⚠ fd0aeb2e-f7dd-4a50-b29d-e12e7c6cfd3d  ready_ratio  critical  score=3.936
+  ⚠ f983ad00-0d85-4992-933f-5d562384c2f7  ready_ratio  critical  score=517.632
+  ⚠ a1ba38ec-3acf-4ec5-b144-1b0e03f4d50f  ready_ratio  critical  score=320.177
+  ⚠ ee91e665-2665-49ec-9b72-b940274636da  event_count  critical  score=33.407
+  ⚠ a3060951-7ffc-43ea-b5ca-fbc02f230e9c  event_count  critical  score=22.610
+  ⚠ 95c0daf3-a425-4dc4-bee8-3802bcc353d7  event_count  critical  score=26.686
+  ⚠ 889d9ff9-1046-4c48-af24-eec80edd6808  event_count  critical  score=47.758
+  ⚠ 524c4ede-42d1-4cc5-b65e-b9b411413c06  event_count  critical  score=69.990
+  ⚠ 9ac46d43-1319-4732-b44b-581d853f03b4  event_count  critical  score=96.656
+  ⚠ bf3cbc0f-0c91-4fbf-b3cf-ee6f56503ae5  event_count  critical  score=99.655
+  ⚠ c578f532-6d03-4364-91b4-08412370ddc2  event_count  critical  score=784.686
+  ⚠ 12a81e37-50b2-43ce-ad95-205718a13de7  event_count  critical  score=858.642
+  ⚠ 72f9f1c8-fd32-460a-8165-066d8d50e943  event_count  critical  score=1121.964
+
+────────────────────────────────────────────────────────────────────
+  5/5  LLM root-cause analysis
+────────────────────────────────────────────────────────────────────
+  Sending context to mistral...
+
+════════════════════════════════════════════════════════════════════
+  ANALYSIS REPORT
+════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────
+  Summary
+────────────────────────────────────────────────────────────────────
+Multiple services in the kubewhisperer-demo namespace are experiencing issues due to a combination of image pull failures and node readiness problems.
+
+###
+
+────────────────────────────────────────────────────────────────────
+  Root cause chain
+────────────────────────────────────────────────────────────────────
+The root causes appear to be:
+1. Image pull failures for some services due to either missing images on the node or network connectivity issues.
+2. Node readiness problems, possibly related to insufficient resources or other system-level issues affecting the k3d-k0rdent-server-0 node.
+
+###
+
+────────────────────────────────────────────────────────────────────
+  Signal anomalies (PatchTST)
+────────────────────────────────────────────────────────────────────
+  ⚠ 3cc7ba25-4078-4d79-8f26-86f3d9481cfc  restart_count  critical  score=7.162
+  ⚠ bfa71258-f3d3-44b3-a309-3fbd9c007f56  restart_count  critical  score=11.522
+  ⚠ bfa71258-f3d3-44b3-a309-3fbd9c007f56  cpu_usage  critical  score=58.799
+  ⚠ bfa71258-f3d3-44b3-a309-3fbd9c007f56  memory_bytes  critical  score=54.107
+  ⚠ 51e835fa-750d-46e9-9812-b2aaf1474add  restart_count  critical  score=75.258
+  ⚠ 51e835fa-750d-46e9-9812-b2aaf1474add  cpu_usage  critical  score=54.911
+  ⚠ 51e835fa-750d-46e9-9812-b2aaf1474add  memory_bytes  critical  score=35.807
+  ⚠ c6d7a862-6e0d-4782-b644-737a7e5a0a69  restart_count  critical  score=4.024
+  ⚠ cbad9faf-8317-4c72-9ae1-78e49735b0f9  restart_count  critical  score=9.728
+  ⚠ cb72b205-2cfa-4342-9337-5c2cb3a94215  restart_count  critical  score=12.179
+  ⚠ 89660bab-2685-4a92-a1a5-97f0d7a0269e  restart_count  critical  score=10.605
+  ⚠ 89660bab-2685-4a92-a1a5-97f0d7a0269e  memory_bytes  critical  score=49.882
+  ⚠ 93b14f10-f325-4158-b26f-c95ec5163d79  restart_count  critical  score=7.607
+  ⚠ 0f7968eb-36bd-4ae1-b9cf-db12fc0d83ac  restart_count  critical  score=6.129
+  ⚠ c739bf20-816c-43ef-a6c7-525b96a456f9  restart_count  critical  score=355.638
+  ⚠ 51b57579-a654-4717-8d4f-1ff86f89c584  restart_count  critical  score=502.063
+  ⚠ fc26cec2-7e17-4743-a971-1efceea83bda  restart_count  critical  score=579.682
+  ⚠ 0a4c85b6-61d1-477e-8627-5aa8b7a7f8e8  ready_ratio  critical  score=6.449
+  ⚠ 01994579-5eff-424d-b6bb-de69bf6cce85  ready_ratio  critical  score=1194.440
+  ⚠ fd0aeb2e-f7dd-4a50-b29d-e12e7c6cfd3d  ready_ratio  critical  score=3.936
+  ⚠ f983ad00-0d85-4992-933f-5d562384c2f7  ready_ratio  critical  score=517.632
+  ⚠ a1ba38ec-3acf-4ec5-b144-1b0e03f4d50f  ready_ratio  critical  score=320.177
+  ⚠ ee91e665-2665-49ec-9b72-b940274636da  event_count  critical  score=33.407
+  ⚠ a3060951-7ffc-43ea-b5ca-fbc02f230e9c  event_count  critical  score=22.610
+  ⚠ 95c0daf3-a425-4dc4-bee8-3802bcc353d7  event_count  critical  score=26.686
+  ⚠ 889d9ff9-1046-4c48-af24-eec80edd6808  event_count  critical  score=47.758
+  ⚠ 524c4ede-42d1-4cc5-b65e-b9b411413c06  event_count  critical  score=69.990
+  ⚠ 9ac46d43-1319-4732-b44b-581d853f03b4  event_count  critical  score=96.656
+  ⚠ bf3cbc0f-0c91-4fbf-b3cf-ee6f56503ae5  event_count  critical  score=99.655
+  ⚠ c578f532-6d03-4364-91b4-08412370ddc2  event_count  critical  score=784.686
+  ⚠ 12a81e37-50b2-43ce-ad95-205718a13de7  event_count  critical  score=858.642
+  ⚠ 72f9f1c8-fd32-460a-8165-066d8d50e943  event_count  critical  score=1121.964
+
+────────────────────────────────────────────────────────────────────
+  Proposed changes
+────────────────────────────────────────────────────────────────────
+   1. Check network connectivity and ensure that all required images are available on the affected nodes.
+   2. Investigate node readiness problems on k3d-k0rdent-server-0, such as resource constraints or system-level issues.
+   3. If necessary, reschedule affected Pods to other ready nodes using `kubectl drain` and `kubectl create`.
+   4. Verify that all Helm releases are up-to-date using `helm upgrade --recreate-pods`.
+
+────────────────────────────────────────────────────────────────────
+  Metadata
+────────────────────────────────────────────────────────────────────
+  Confidence  : MEDIUM — The evidence suggests image pull failures and node readiness problems, but further investigation is needed to confirm the exact causes and potential underlying issues.
+  Kube version: v1.31.5+k3s1
+  Context chunks: 75
+  LLM time    : 60.9s
+  Total time  : 73.9s

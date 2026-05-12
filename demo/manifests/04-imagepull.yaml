@@ -1,0 +1,37 @@
+# Scenario 4 — ImagePullBackOff
+# ml-inference references a private/non-existent image.
+# Expected: pods in ImagePullBackOff / ErrImagePull.
+# RCA should identify: image pull failure, suggest checking registry
+# credentials or tag.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-inference
+  namespace: kubewhisperer-demo
+  labels:
+    app: ml-inference
+    app.kubernetes.io/name: ml-inference
+    tier: ml
+    version: "2.4.1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-inference
+  template:
+    metadata:
+      labels:
+        app: ml-inference
+        app.kubernetes.io/name: ml-inference
+        tier: ml
+    spec:
+      containers:
+      - name: model-server
+        image: myregistry.internal/ml-models/inference:v2.4.1-gpu  # non-existent
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

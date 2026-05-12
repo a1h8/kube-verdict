@@ -181,12 +181,18 @@ class RCAAnalyzer:
 
         analysis = self.llm.generate(prompt, system=_SYSTEM_PROMPT)
 
-        return RCAReport(
+        report = RCAReport(
             query=query,
             kube_version=kube_version,
             context=ctx,
             raw_analysis=analysis,
         )
+
+        # LOW confidence fallback — enrich remediation with rule-based hypotheses
+        if (report.confidence or "").upper().startswith("LOW"):
+            report = _apply_rule_fallback(report, self.graph)
+
+        return report
 
     def stream_analyze(self, query: str) -> Iterator[str | RCAReport]:
         """Yields str tokens, then a final RCAReport."""
@@ -282,3 +288,78 @@ def _extract_bullets(block: str) -> list[str]:
                 or re.match(r"^(kubectl|helm|helmfile|docker)\b", line)):
             lines.append(re.sub(r"^[-*•\d.]+\s*", "", line).strip())
     return [ln for ln in lines if ln]
+
+
+def _apply_rule_fallback(report: RCAReport, graph: OntologyGraph) -> RCAReport:
+    """
+    Enrich a LOW-confidence report with rule-based weighted hypotheses.
+
+    Decision fields (summary, root_cause, causal_chain, affected) are populated
+    from the top-weighted hypothesis when the LLM left them empty.
+    Commands are appended to report.remediation for all matching hypotheses.
+    """
+    try:
+        from rca.remediation_engine import RemediationEngine
+        hypotheses = RemediationEngine().score(graph)
+    except Exception as exc:
+        log.warning("remediation_engine failed: %s", exc)
+        return report
+
+    if not hypotheses:
+        return report
+
+    top = hypotheses[0]
+
+    # ── Structured decision fields: fill gaps left by the LLM ────────────────
+    if not report.summary:
+        report.summary = (
+            f"{top.symptom} on {top.affected} "
+            f"(rule: {top.rule_id}, confidence: {top.weight:.0%})"
+        )
+
+    if not report.root_cause:
+        report.root_cause = top.explanation or top.symptom
+
+    if not report.causal_chain:
+        chain: list[str] = []
+        for h in hypotheses[:3]:
+            for ev in h.evidence:
+                entry = f"[{h.rule_id}] {ev}"
+                if entry not in chain:
+                    chain.append(entry)
+        if chain:
+            report.causal_chain = chain
+
+    existing_affected = set(report.affected)
+    for h in hypotheses:
+        if h.affected not in existing_affected:
+            report.affected.append(h.affected)
+            existing_affected.add(h.affected)
+
+    # ── Remediation: one header + commands per hypothesis ────────────────────
+    existing_cmds: set[str] = set(report.remediation)
+    extra: list[str] = []
+
+    for h in hypotheses:
+        header = f"[rule:{h.rule_id} w={h.weight:.2f}] {h.symptom} ({h.affected})"
+        if header not in existing_cmds:
+            extra.append(header)
+            existing_cmds.add(header)
+        for cmd in h.commands:
+            if cmd not in existing_cmds:
+                extra.append(cmd)
+                existing_cmds.add(cmd)
+
+    if extra:
+        report.remediation = report.remediation + extra
+        log.info(
+            "rule fallback: added %d item(s) from %d hypothesis(es)",
+            len(extra), len(hypotheses),
+        )
+
+    report.confidence = (
+        f"LOW (rule-assisted — top: {top.rule_id} w={top.weight:.2f}, "
+        f"{len(hypotheses)} hypothesis(es))"
+    )
+
+    return report

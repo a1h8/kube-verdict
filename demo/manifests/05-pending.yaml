@@ -1,0 +1,39 @@
+# Scenario 5 — Pending (unsatisfiable node selector)
+# gpu-worker requires a node label that does not exist in k3s.
+# Expected: pods permanently Pending (no node matches).
+# RCA should identify: no node with accelerator=nvidia-tesla-v100,
+# suggest removing nodeSelector or provisioning GPU nodes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-worker
+  namespace: kubewhisperer-demo
+  labels:
+    app: gpu-worker
+    app.kubernetes.io/name: gpu-worker
+    tier: compute
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gpu-worker
+  template:
+    metadata:
+      labels:
+        app: gpu-worker
+        app.kubernetes.io/name: gpu-worker
+        tier: compute
+    spec:
+      nodeSelector:
+        accelerator: nvidia-tesla-v100    # no k3s node has this label
+      containers:
+      - name: gpu-compute
+        image: busybox:1.36
+        command: ["sleep", "infinity"]
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
