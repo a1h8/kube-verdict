@@ -1,0 +1,17 @@
+replicaCount: 1
+
+image:
+  # Correct public image declared by the team.
+  # DEMO DRIFT: setup.sh patches to a non-existent private registry image
+  # to simulate a botched image tag promotion.
+  repository: nginx
+  tag: "1.25-alpine"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"

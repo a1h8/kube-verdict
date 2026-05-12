@@ -28,7 +28,11 @@ def _float(key: str, default: float) -> float:
 
 
 # ── Kubernetes ─────────────────────────────────────────────────────────────────
-KUBECONFIG: str | None = os.getenv("KUBECONFIG") or None
+KUBECONFIG: str | None = (
+    str(Path(os.getenv("KUBECONFIG")).expanduser())
+    if os.getenv("KUBECONFIG")
+    else None
+)
 KUBE_CONTEXT: str | None = os.getenv("KUBE_CONTEXT") or None
 KUBE_NAMESPACES: list[str] = _list("KUBE_NAMESPACES")           # empty = all
 KUBE_SKIP_KINDS: set[str] = set(_list("KUBE_SKIP_KINDS", "Event,Endpoints,EndpointSlice"))

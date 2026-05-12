@@ -1,0 +1,24 @@
+# Declared state — what the team intended to deploy.
+# Drift from this file = someone changed prod manually.
+replicaCount: 3
+
+image:
+  repository: busybox
+  tag: "1.36"
+  pullPolicy: IfNotPresent
+
+# Correct resource sizing declared by the team
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+env:
+  DB_HOST: "db-primary.kubewhisperer-demo"
+  DB_PORT: "5432"
+
+service:
+  port: 8080

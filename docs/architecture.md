@@ -16,12 +16,19 @@ KubeWhisperer is a local, air-gapped Kubernetes RCA tool. No cluster data ever l
 │                       OntologyGraph                                   │
 │                  (typed entities + edges)                             │
 │                             │                                         │
-│                       HelmDriftDetector                               │
-│              (declared vs observed comparison)                        │
+│     ┌───────────────────────┼───────────────────────┐                │
+│     │                       │                       │                │
+│  HelmDriftDetector  MetricsServerCollector  PrometheusCollector       │
+│ (declared vs         (metrics.k8s.io        (firing alerts →          │
+│  observed)           → cpu_m / memory_mi)   alert.* annotations)     │
+│                                       │                              │
+│                              OtelCollector + LokiSource               │
+│                         (error traces + pod logs →                    │
+│                          HAS_TRACE / HAS_LOG edges)                   │
 └─────────────────────────────┬─────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼─────────────────────────────────────────┐
-│  GitOps diff layer  (feat/gitops-collector)                           │
+│  GitOps diff layer                                                    │
 │                                                                       │
 │  GitopsCollector                                                      │
 │  ├── GitProvider: LocalGitProvider (clone) or GithubProvider (API)    │
@@ -37,9 +44,44 @@ KubeWhisperer is a local, air-gapped Kubernetes RCA tool. No cluster data ever l
 └─────────────────────────────┬─────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼─────────────────────────────────────────┐
+│  Anchor layer                                                         │
+│                                                                       │
+│  AnchorEngine.collect(graph, provider)                                │
+│                                                                       │
+│  Source 1 — K8s schema (always)                                       │
+│    K8sApiSchema: valid values, defaults for Pod/Deployment/…          │
+│    Enriched from live /openapi/v2 if API server is reachable          │
+│                                                                       │
+│  Source 2 — Rendered manifests (when gitops provider available)       │
+│    Same helm template output as GitOps diff — no second render        │
+│    _extract_manifest_fields → exact declared K8s field values         │
+│    Helmfile environment value_files prepended (-f env.yaml first)     │
+│    Full hierarchy: chart < env value_files < release value_files      │
+│                    < inline values                                    │
+│                                                                       │
+│  Why not heuristic Helm-value → K8s field mapping?                    │
+│    Heuristics (replicaCount → spec.replicas) only work for charts     │
+│    following community naming conventions.  helm template is the      │
+│    generic ground truth — it handles all GoTemplate conditionals,     │
+│    feature gates (enabled: false → block absent), loops, and custom   │
+│    naming without any additional mapping logic.                       │
+│                                                                       │
+│  Dedup: manifest (priority 2) > k8s_defaults (priority 1)            │
+│  Results written as anchor.* annotations on entities                  │
+└─────────────────────────────┬─────────────────────────────────────────┘
+                              │
+┌─────────────────────────────▼─────────────────────────────────────────┐
+│  Signal analysis                                                      │
+│                                                                       │
+│  SignalAnalyzer (PatchTST + z-score fallback)                         │
+│  Results written as signal.* annotations on entities                  │
+└─────────────────────────────┬─────────────────────────────────────────┘
+                              │
+┌─────────────────────────────▼─────────────────────────────────────────┐
 │  Vector store                                                         │
 │                                                                       │
 │  Embedder (all-MiniLM-L6-v2)  →  FAISSStore (IndexFlatIP, L2 norm)    │
+│  Indexes entity text including anchor.*, gitops.*, signal.* tokens    │
 └─────────────────────────────┬─────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼─────────────────────────────────────────┐
@@ -52,13 +94,20 @@ KubeWhisperer is a local, air-gapped Kubernetes RCA tool. No cluster data ever l
 └─────────────────────────────┬─────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼─────────────────────────────────────────┐
-│  Context window (ContextWindow dataclass)                             │
+│  Context window (ContextWindow dataclass — 9 sections)                │
 │                                                                       │
-│  [CRITICAL] seeds   — failed/degraded entities (always included)      │
-│  [CRITICAL] drift   — Helm declared ≠ K8s observed (always included)  │
-│  [WARNING]  events  — sorted by count desc, cap 15                    │
+│  [CRITICAL] seeds    — failed/degraded entities (always included)     │
+│  [CRITICAL] drift    — Helm declared ≠ K8s observed (always included) │
+│  [CRITICAL] alerts   — firing Prometheus alerts (critical first)      │
+│  [TRACES]   traces   — OTel error spans (cap 20)                      │
+│  [LOGS]     logs     — Loki error/warn lines (cap 20)                 │
+│  [WARNING]  events   — sorted by count desc (cap 15)                  │
+│  [ANCHORS]  anchors  — declared values & K8s schema (cap 30)          │
+│             Priority: unhealthy/drifted entities first                │
+│             Format: "Deployment/prod/api: spec.replicas:              │
+│                      declared='5' [manifest] | k8s_default='1'"       │
 │  [Helm]     releases + charts                                         │
-│  [Related]  BFS + FAISS + dedup neighbours                            │
+│  [Related]  BFS + FAISS + dedup neighbours (cap TFIDF_TOP_K)          │
 └─────────────────────────────┬─────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼─────────────────────────────────────────┐
@@ -73,27 +122,44 @@ KubeWhisperer is a local, air-gapped Kubernetes RCA tool. No cluster data ever l
 │                                                                       │
 │  summary · affected · root_cause · causal_chain · remediation         │
 │  confidence · context_stats · raw_analysis                            │
+│                                                                       │
+│  Rule-based fallback (RemediationEngine)                              │
+│    When LLM returns LOW confidence or empty structured fields,         │
+│    7 weighted rules (OOMKill, CrashLoop, ImagePull, MissingConfig,    │
+│    PendingScheduling, HelmDrift, DegradedDeployment) populate         │
+│    summary/root_cause/causal_chain/affected from hypothesis scores.   │
+│    Confidence label: "LOW (rule-assisted — top: {rule} w=0.85)"       │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-## LangGraph workflow (with GitOps node)
+## LangGraph workflow
 
 ```
 START
   │
 ingest          K8s API + Helm + Helmfile → OntologyGraph
   │
+metrics         MetricsServerCollector → metrics.cpu_m / metrics.memory_mi on pods
+  │             (opt-in: METRICS_SERVER_ENABLED=true)
+prometheus      PrometheusCollector → firing alerts → alert.* annotations + PrometheusAlert nodes
+  │             (opt-in: PROMETHEUS_ENABLED=true)
+otel            OtelCollector (Tempo/Jaeger) + LokiSource → HAS_TRACE / HAS_LOG edges
+  │             (opt-in: OTEL_ENABLED=true, LOKI_ENABLED=true)
 gitops          GitopsCollector → ManifestRenderer → ManifestDiffer
+  │             Stores GitProvider in config["configurable"]["provider"]
   │             (skipped when GITOPS_ENABLED=false or no GITOPS_REPO_URL)
+anchor          AnchorEngine → K8s schema + rendered manifests → anchor.*
+  │             Reuses provider from gitops (no second git clone)
+  │             Runs even when gitops is disabled (K8s schema anchors only)
 index           embed entities → FAISSStore
-  │
+  │             (anchor.*, gitops.*, drift.*, signal.* all indexed)
 signal_analysis PatchTST anomaly detection → signal.* annotations
   │
 analyze   ◄─────────────────────────────────────────┐
   │                                                  │ retry
 confidence_router                                    │ (LOW confidence,
-  ├─ "retry" ──► increment_retry ────────────────────┘  < 2 attempts)
-  │
+  ├─ "retry" ──► increment_retry ────────────────────┘  < MAX_RETRIES)
+  │              (BFS depth widens by 1 each retry)
   └─ "review"
        │
 human_review    [INTERRUPT — waits for operator decision]
@@ -107,11 +173,7 @@ The `gitops` node auto-detects provider from `GITOPS_REPO_URL`:
 - `https://github.com/…` → `GithubProvider` (REST API, no local clone, needs `GITHUB_TOKEN`)
 - any other URL or local path → `LocalGitProvider` (shallow clone, fast-forward pull)
 
-## LangGraph workflow (legacy diagram)
-
-KubeWhisperer wraps the entire pipeline in a stateful LangGraph graph with a human-in-the-loop interrupt. See the updated diagram in the section above; the canonical flow is now `ingest → gitops → index → signal_analysis → analyze → …`.
-
-Heavy objects (`OntologyGraph`, `FAISSStore`) are **never stored in LangGraph state** — they are injected via `config["configurable"]` to avoid msgpack serialisation failures with `MemorySaver`. Only JSON-serialisable primitives live in `RCAState`.
+Heavy objects (`OntologyGraph`, `FAISSStore`, `GitProvider`) are **never stored in LangGraph state** — they are injected via `config["configurable"]` to avoid msgpack serialisation failures with `MemorySaver`. Only JSON-serialisable primitives live in `RCAState`.
 
 ### State (`workflow/state.py`)
 
@@ -126,40 +188,16 @@ Heavy objects (`OntologyGraph`, `FAISSStore`) are **never stored in LangGraph st
 | `kube_version` | str | Detected server version |
 | `error` | str | Node error (if any) |
 
-## Signal analysis (`signals/`)
-
-| File | Purpose |
-|---|---|
-| `patchtst_detector.py` | PatchTST forecasting-based anomaly detector + z-score fallback |
-| `analyzer.py` | `SignalAnalyzer` — derives signals from entity attributes, annotates graph |
-
-### PatchTST anomaly detection strategy
-
-Each entity produces one or more metric signals derived from point-in-time K8s attributes:
-
-| Signal | Source | Synthetic history pattern |
-|---|---|---|
-| `restart_count` | Pod | Stable at 0, ramps to `restart_count` in last 30% |
-| `ready_ratio` | Deployment / StatefulSet | Stable at 1.0, degrades in last 20% |
-| `event_count` | Warning events | Near-zero baseline with spike at last 15% |
-
-**Detection flow:**
-1. **Z-score fallback** — if signal is shorter than `context_length + prediction_length`, use max z-score over the last 25% of values.
-2. **PatchTST path** — normalise signal → train on first 80% with sliding windows → evaluate on last 20% → `score = eval_RMSE / baseline_RMSE`.
-3. **Severity thresholds** — `score < warning_threshold` → `normal`; `< critical_threshold` → `warning`; else → `critical`.
-
-Results are written as `signal.<metric>` annotations on entities. The `SIGNAL=[...]` block appears in `entity.to_text()`, making anomalies visible in FAISS searches and in the LLM context window.
-
 ## Key components
 
 ### Ontology (`ontology/`)
 
 | File | Purpose |
 |---|---|
-| `entities.py` | 15 typed dataclasses (Pod, Deployment, …) + HelmChart, DriftItem |
+| `entities.py` | 18 typed dataclasses: Pod, Deployment, StatefulSet, DaemonSet, Service, PVC, HPA, HelmRelease, HelmChart, HelmfileEnvironment, K8sEvent, PrometheusAlert, OtelTrace, LokiLog, ConfigMap, Secret, + DriftItem/ChartDependency |
 | `graph.py` | `OntologyGraph` — nodes, directed edges, BFS, server version |
-| `relationships.py` | 14 edge types: `RUNS_ON`, `OWNED_BY`, `DRIFTS_FROM`, … |
-| `version.py` | `KubeVersion` — feature flags for API deprecations (Ingress v1/v1beta1, CronJob, HPA) |
+| `relationships.py` | 16 edge types: `RUNS_ON`, `OWNED_BY`, `DRIFTS_FROM`, `HAS_ALERT`, `HAS_LOG`, `HAS_TRACE`, … |
+| `version.py` | `KubeVersion` — feature flags for API deprecations |
 | `discovery.py` | `APIServerDiscovery` — dynamic enumeration of all resource kinds via `/apis` |
 | `dynamic_entity.py` | `GenericEntity` — CRDs and unknown resource types |
 
@@ -176,6 +214,13 @@ Results are written as `signal.<metric>` annotations on entities. The `SIGNAL=[.
 | `manifest_renderer.py` | `ManifestRenderer` — wraps `helm template --include-crds`, multi-doc YAML |
 | `manifest_differ.py` | `ManifestDiffer` — rendered vs observed drift (MISSING/ORPHAN/IMAGE/REPLICAS/ENV) |
 | `gitops_collector.py` | `GitopsCollector` — orchestrates provider → render → diff → annotate |
+| `k8s_schema.py` | `FieldMeta` + `_SCHEMA` — embedded K8s field defaults and valid values for 7 resource kinds; `K8sApiSchema` optionally enriches from live `/openapi/v2` |
+| `anchor_engine.py` | `AnchorEngine` — collects declared-value anchors from K8s schema and rendered manifests, writes `anchor.*` annotations; `AnchorRecord` data model |
+| `metrics_server_collector.py` | `MetricsServerCollector` — queries `metrics.k8s.io/v1beta1` per namespace; writes `metrics.cpu_m` and `metrics.memory_mi` on `Pod` entities |
+| `prometheus_collector.py` | `PrometheusCollector` — fetches firing alerts from `/api/v1/alerts`; label-matches to K8s entities (pod › deployment › statefulset › daemonset › service › node); writes `alert.*` annotations; creates `PrometheusAlert` nodes with `HAS_ALERT` edges |
+| `otel_backend.py` | `OtelBackend` ABC + `TempoBackend` (Grafana Tempo `/api/search`) + `JaegerBackend` (`/api/services` + `/api/traces`); normalises traces to a common dict schema |
+| `otel_collector.py` | `OtelCollector` — resolves unhealthy entities to service names; fetches error traces via `OtelBackend`; creates `OtelTrace` nodes with `HAS_TRACE` edges; writes `otel.trace.*` annotations |
+| `loki_source.py` | `LokiSource` — queries `/loki/api/v1/query_range` with pod-scoped LogQL; infers log level; extracts OTel trace IDs; creates `LokiLog` nodes with `HAS_LOG` edges |
 
 ### Deduplication (`dedup/`)
 
@@ -201,21 +246,33 @@ The current default is **FAISS** (in-process, zero-dependency, runs air-gapped):
 | **Deployment** | in-process, no service | separate container / Helm chart |
 | **Persistence** | manual `save/load` to `.faiss` files | built-in, survives restarts |
 | **Search** | pure vector (cosine) | hybrid: BM25 + vector (alpha-weighted) |
-| **BM25 benefit** | — | exact token matches win over semantic noise (e.g. `phase=Failed`, `CrashLoopBackOff`) |
+| **BM25 benefit** | — | exact token matches win over semantic noise |
 | **Scale** | single-node, ~1M vecs fine | distributed, multi-tenant |
 | **Air-gap** | yes — index rebuilt each run | needs Weaviate container (can be local) |
-| **When to switch** | — | large clusters (>5 k entities), persistent index, or when BM25 recall matters |
-
-FAISS is the right choice for the common case: a single cluster, ephemeral analysis runs, or fully air-gapped environments. Switch to Weaviate when you need index persistence across runs, want BM25 recall on exact K8s token matches, or are running at scale with many namespaces.
-
-The `feat/weaviate-store` branch will replace `FAISSStore` with a `WeaviateStore` that exposes the same `index(texts)` / `search(query, k)` interface — no changes required in `ContextBuilder` or upstream nodes.
+| **When to switch** | — | large clusters (>5k entities), persistent index, or BM25 recall matters |
 
 ### RCA (`rca/`)
 
 | File | Purpose |
 |---|---|
-| `context_builder.py` | Assembles `ContextWindow` — 5 labelled sections fed to Mistral |
-| `analyzer.py` | `RCAAnalyzer.analyze()` / `stream_analyze()`, `RCAReport` with parsed structured fields |
+| `context_builder.py` | Assembles `ContextWindow` (11 sections) fed to Mistral; includes `[TRACES]` and `[LOGS]` sections from OTel/Loki; anchors section prioritises unhealthy/drifted entities |
+| `analyzer.py` | `RCAAnalyzer.analyze()` / `stream_analyze()`, `RCAReport` with structured fields; rule-based fallback populates empty fields when LLM confidence is LOW |
+
+### Remediation (`rca/remediation_engine.py`)
+
+7 weighted rules fire against the OntologyGraph. Each rule produces a `Hypothesis` with:
+
+| Rule | Base weight | Key boost conditions |
+|---|---|---|
+| `OOMKill` | 0.80 | `lastState.OOMKilled`, `requests.memory` missing (+0.10 each) |
+| `CrashLoopDB` | 0.65 | restarts ≥ 5, connection-refused messages |
+| `ImagePull` | 0.75 | `ErrImagePull`, `ImagePullBackOff` in state reason |
+| `MissingConfig` | 0.70 | `CreateContainerConfigError`, secret/configmap not found |
+| `PendingScheduling` | 0.60 | `Insufficient`, taint/toleration keywords in events |
+| `HelmDrift` | 0.75 | `drift.*` annotations, unhealthy + drift compound boost |
+| `DegradedDeployment` | 0.65 | readyReplicas / replicas < 0.5 |
+
+`weight = min(1.0, base_weight + Σ boosts)`. Top hypothesis fills `summary`, `root_cause`, `causal_chain`, `affected` when LLM returns empty fields.
 
 ### LLM (`llm/`)
 
@@ -223,10 +280,82 @@ The `feat/weaviate-store` branch will replace `FAISSStore` with a `WeaviateStore
 |---|---|
 | `ollama_client.py` | `/api/generate`, `/api/chat`, streaming, health checks |
 
+### Signal analysis (`signals/`)
+
+| File | Purpose |
+|---|---|
+| `patchtst_detector.py` | PatchTST forecasting-based anomaly detector + z-score fallback |
+| `prometheus_source.py` | `PrometheusMetricSource` — fetches real time series at 3 horizons; graceful fallback to synthetic if Prometheus unavailable |
+| `analyzer.py` | `SignalAnalyzer` — derives signals from real Prometheus data or entity attributes; annotates graph |
+
+#### PatchTST anomaly detection strategy
+
+When `PROMETHEUS_ENABLED=true`, `SignalAnalyzer` fetches real time series from `PrometheusMetricSource` at three horizons before falling back to synthetic history:
+
+| Horizon | Lookback | Step | Purpose |
+|---|---|---|---|
+| `short` | 1 h | 1 m (~60 pts) | Is it getting worse right now? |
+| `medium` | 24 h | 15 m (~96 pts) | When did it start / what trend? |
+| `long` | 7 d | 1 h (~168 pts) | Anomaly vs normal weekly pattern? |
+
+Metrics fetched per entity type:
+- **Pod** — `restart_count` (rate), `cpu_usage` (container CPU seconds), `memory_bytes` (working set)
+- **Deployment / StatefulSet** — `ready_ratio` (available / desired)
+
+When Prometheus is unavailable or returns no data, `SignalAnalyzer` falls back to point-in-time K8s attributes anchored to real `metrics.cpu_m`/`metrics.memory_mi` from `MetricsServerCollector`:
+
+| Signal | Source | Synthetic history pattern |
+|---|---|---|
+| `restart_count` | Pod | Stable at 0, ramps to `restart_count` in last 30% |
+| `ready_ratio` | Deployment / StatefulSet | Stable at 1.0, degrades in last 20% |
+| `event_count` | Warning events | Near-zero baseline with spike at last 15% |
+
+**Detection flow:**
+1. **Z-score fallback** — if signal is shorter than `context_length + prediction_length`, use max z-score over the last 25% of values.
+2. **PatchTST path** — normalise → train on first 80% with sliding windows → evaluate on last 20% → `score = eval_RMSE / baseline_RMSE`.
+3. **Severity thresholds** — `score < warning_threshold` → `normal`; `< critical_threshold` → `warning`; else → `critical`.
+
+Results written as `signal.<metric>` annotations on entities.
+
+## Anchor system design
+
+The anchor system answers "what was this field supposed to be?" for every K8s entity, enabling the LLM to reason about drift without needing to understand Helm templates.
+
+### Two generic sources
+
+**Source 1 — K8s schema** (always available, no network required)
+
+`K8sApiSchema` embeds field metadata for 7 resource kinds and optionally enriches from the live API server's `/openapi/v2`. Anchors include:
+- `k8s_default` — the platform default when the field is omitted
+- `valid_values` — the enum of legal values
+- `severity_on_drift` — how serious a deviation is (critical / warning / info)
+
+**Source 2 — Rendered manifests** (requires GitProvider)
+
+`helm template` with the full value hierarchy produces the exact YAML that would be deployed. `_extract_manifest_fields` reads `spec.replicas`, container resources, image tags, service type, PVC modes, etc. directly from the output — no heuristic mapping needed.
+
+The Helmfile value hierarchy passed to `helm template`:
+```
+-f env_value_file_1.yaml   ← HelmfileEnvironment.value_files (lowest priority)
+-f release_value_file.yaml ← HelmRelease.value_files
+--set key=value            ← HelmRelease.values (inline, highest priority)
+```
+
+### Why not heuristic mapping?
+
+Heuristic approaches (mapping `replicaCount` → `spec.replicas`) only work for charts following bitnami-style naming conventions. A custom chart using `worker.replicas` or `app.instances` breaks silently. The rendered manifest is the only truly generic approach — Helm itself resolves all GoTemplate conditionals, loops, and value transformations.
+
+### Feature gates and disabled blocks
+
+When a value gate is false (`autoscaling.enabled: false`), the entire HPA block is absent from the rendered manifest — no false anchors are created for disabled resources. The LLM sees two complementary signals:
+- **ManifestDiffer** — flags `MISSING` if a resource should exist but doesn't
+- **HelmRelease context** — surfaces `autoscaling.enabled=false` in the `### Helm / Helmfile releases` section
+
+This split is intentional: field-level anchors come from the rendered output (generic, exact); feature-gate context comes from the raw Helm values already in the context window.
+
 ## Multi-version Kubernetes
 
-`detect_version()` hits `/version` at startup and populates `KubeVersion`. All version-dependent
-API choices are driven by feature flags:
+`detect_version()` hits `/version` at startup and populates `KubeVersion`. All version-dependent API choices are driven by feature flags:
 
 | Flag | Threshold | Old API | New API |
 |---|---|---|---|
@@ -239,14 +368,27 @@ K3s suffixes (`v1.28.3+k3s1`) are parsed correctly by the `_parse_int()` regex.
 
 ## Drift detection
 
-`HelmDriftDetector` runs after ingestion and checks:
+### HelmDriftDetector (ingestion-time)
+
+Runs after ingestion and checks:
 - `spec.replicas` declared in Helm values vs `.status.readyReplicas` in K8s
 - PVC phase (Pending = volume not bound)
 - Container restart count > 5
 - `CrashLoopBackOff` / `OOMKilled` in container state reasons
 - Sub-chart enabled/disabled conditions for umbrella charts
 
-Drift items are written as `drift.*` annotations on entities so they surface in FAISS searches and are always included in the `[CRITICAL]` section of the context window.
+Writes `drift.*` annotations → always in `[CRITICAL]` section of context window.
+
+### ManifestDiffer (GitOps-time)
+
+Runs inside `gitops_node` against the rendered manifest:
+- `MISSING` — resource in manifest but not in cluster (critical)
+- `ORPHANED` — resource in cluster but not in manifest (warning)
+- `REPLICAS` — `spec.replicas` mismatch (warning)
+- `IMAGE` — container image tag differs (warning)
+- `ENV` — sensitive env var differs (info)
+
+Writes `gitops.*` annotations.
 
 ## TF-IDF token pattern
 
@@ -263,6 +405,8 @@ This preserves K8s compound tokens that standard tokenizers split incorrectly:
 | `v1.28.3+k3s1` | K3s server version |
 | `CrashLoopBackOff` | CamelCase reason |
 | `nginx:1.21` | image:tag |
+| `declared='5'` | anchor format |
+| `k8s_default='1'` | schema default format |
 
 Trigrams (`ngram_range=(1,3)`) boost multi-token diagnostic phrases like
-`phase=Failed restarts=15 CrashLoopBackOff` or `declared=3 observed=0 severity=critical`.
+`phase=Failed restarts=15 CrashLoopBackOff` or `declared=5 observed=2 severity=critical`.

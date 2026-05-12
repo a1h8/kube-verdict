@@ -1,0 +1,66 @@
+# Scenario 1 — CrashLoopBackOff
+# payment-service exits 1 after printing a DB connection error.
+# Expected: pods in CrashLoopBackOff, high restart count.
+# RCA should identify: container exiting, DB unreachable, suggest checking
+# connection string / secrets.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: kubewhisperer-demo
+  labels:
+    app: payment-service
+    app.kubernetes.io/name: payment-service
+    tier: backend
+    version: "1.4.2"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        app.kubernetes.io/name: payment-service
+        tier: backend
+    spec:
+      containers:
+      - name: payment
+        image: busybox:1.36
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "[payment-service] Starting v1.4.2"
+          echo "[payment-service] Connecting to postgres://db-primary.kubewhisperer-demo:5432/payments"
+          sleep 2
+          echo "[payment-service] ERROR: dial tcp 10.96.5.22:5432: connect: connection refused"
+          echo "[payment-service] FATAL: database initialisation failed — exiting"
+          exit 1
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+        env:
+        - name: DB_HOST
+          value: "db-primary.kubewhisperer-demo"
+        - name: DB_PORT
+          value: "5432"
+---
+# The database it depends on — does NOT exist (intentionally)
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-primary
+  namespace: kubewhisperer-demo
+  labels:
+    app: db-primary
+spec:
+  selector:
+    app: db-primary   # no pods match → service has no endpoints
+  ports:
+  - port: 5432
+    targetPort: 5432
