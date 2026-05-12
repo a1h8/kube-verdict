@@ -1,0 +1,42 @@
+# Scenario 3 — CreateContainerConfigError (missing ConfigMap + Secret)
+# notification-service references config that was never created.
+# Expected: pods stuck in Pending/CreateContainerConfigError.
+# RCA should identify: missing ConfigMap notification-config,
+# missing Secret notification-secrets.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: kubewhisperer-demo
+  labels:
+    app: notification-service
+    app.kubernetes.io/name: notification-service
+    tier: backend
+    version: "2.1.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+        app.kubernetes.io/name: notification-service
+        tier: backend
+    spec:
+      containers:
+      - name: notifier
+        image: nginx:1.25-alpine
+        envFrom:
+        - configMapRef:
+            name: notification-config     # does not exist
+        - secretRef:
+            name: notification-secrets    # does not exist
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"

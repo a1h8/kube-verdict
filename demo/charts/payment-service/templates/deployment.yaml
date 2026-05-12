@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    tier: backend
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        tier: backend
+    spec:
+      containers:
+      - name: payment
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "[payment-service] Starting {{ .Chart.AppVersion }}"
+          echo "[payment-service] Connecting to {{ .Values.env.DB_HOST }}:{{ .Values.env.DB_PORT }}"
+          sleep 2
+          echo "[payment-service] ERROR: dial tcp: connect: connection refused"
+          echo "[payment-service] FATAL: database initialisation failed"
+          exit 1
+        env:
+        - name: DB_HOST
+          value: {{ .Values.env.DB_HOST | quote }}
+        - name: DB_PORT
+          value: {{ .Values.env.DB_PORT | quote }}
+        resources:
+          requests:
+            memory: {{ .Values.resources.requests.memory | quote }}
+            cpu: {{ .Values.resources.requests.cpu | quote }}
+          limits:
+            memory: {{ .Values.resources.limits.memory | quote }}
+            cpu: {{ .Values.resources.limits.cpu | quote }}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import re
 from dataclasses import dataclass, field
 
 import config as cfg
@@ -22,10 +23,13 @@ class ContextWindow:
     """
     seeds: list[str] = field(default_factory=list)          # unhealthy resources
     drift: list[str] = field(default_factory=list)           # declared ≠ observed
+    examples: list[str] = field(default_factory=list)        # similar resolved incidents
     alerts: list[str] = field(default_factory=list)          # firing Prometheus alerts
     traces: list[str] = field(default_factory=list)          # OTel error traces
     logs: list[str] = field(default_factory=list)            # Loki error/warn logs
     events: list[str] = field(default_factory=list)          # Warning K8s events
+    anchors: list[str] = field(default_factory=list)         # declared values + K8s schema
+    anchor_fixes: list[str] = field(default_factory=list)    # helm commands to restore declared values
     helm: list[str] = field(default_factory=list)            # releases + charts
     related: list[str] = field(default_factory=list)         # BFS neighbourhood
 
@@ -34,9 +38,10 @@ class ContextWindow:
 
     @property
     def total_chunks(self) -> int:
-        return (len(self.seeds) + len(self.drift) + len(self.alerts)
-                + len(self.traces) + len(self.logs)
-                + len(self.events) + len(self.helm) + len(self.related))
+        return (len(self.seeds) + len(self.drift) + len(self.examples)
+                + len(self.alerts) + len(self.traces) + len(self.logs)
+                + len(self.events) + len(self.anchors) + len(self.anchor_fixes)
+                + len(self.helm) + len(self.related))
 
     def to_prompt_block(self) -> str:
         lines: list[str] = []
@@ -48,6 +53,17 @@ class ContextWindow:
         if self.drift:
             lines.append(f"\n### CRITICAL — Helm declared vs observed drift ({len(self.drift)})")
             lines.extend(f"  - {t}" for t in self.drift)
+
+        if self.examples:
+            lines.append(f"\n### SIMILAR PAST INCIDENTS — proven remediations ({len(self.examples)})")
+            lines.extend(f"  - {t}" for t in self.examples)
+
+        if self.anchor_fixes:
+            lines.append(
+                f"\n### ANCHOR FIX SUGGESTIONS — helm commands to restore declared values"
+                f" ({len(self.anchor_fixes)})"
+            )
+            lines.extend(f"  - {t}" for t in self.anchor_fixes)
 
         if self.alerts:
             lines.append(f"\n### CRITICAL — Firing Prometheus alerts ({len(self.alerts)})")
@@ -65,6 +81,12 @@ class ContextWindow:
             lines.append(f"\n### WARNING — Kubernetes events ({len(self.events)})")
             lines.extend(f"  - {t}" for t in self.events)
 
+        if self.anchors:
+            lines.append(
+                f"\n### ANCHORS — Declared values & K8s schema ({len(self.anchors)})"
+            )
+            lines.extend(f"  - {t}" for t in self.anchors)
+
         if self.helm:
             lines.append(f"\n### Helm / Helmfile releases ({len(self.helm)})")
             lines.extend(f"  - {t}" for t in self.helm)
@@ -74,6 +96,65 @@ class ContextWindow:
             lines.extend(f"  - {t}" for t in self.related)
 
         return "\n".join(lines)
+
+
+# ── Anchor → Helm value mapping ───────────────────────────────────────────────
+
+def _field_path_to_helm_key(field_path: str) -> str:
+    """Best-effort mapping from anchor field_path to Helm --set key."""
+    # container.NAME.resources.limits.X  →  resources.limits.X
+    m = re.match(r"container\.\w+\.(resources\..+)", field_path)
+    if m:
+        return m.group(1)
+    # container.NAME.image  →  image
+    if re.match(r"container\.\w+\.image$", field_path):
+        return "image"
+    # container.NAME.imagePullPolicy  →  imagePullPolicy
+    if re.match(r"container\.\w+\.imagePullPolicy", field_path):
+        return "imagePullPolicy"
+    # spec.replicas  →  replicaCount
+    if field_path == "spec.replicas":
+        return "replicaCount"
+    # spec.X  →  X
+    if field_path.startswith("spec."):
+        return field_path[5:]
+    return field_path
+
+
+def anchor_fix_hints(graph: "OntologyGraph", seeds: list[K8sEntity]) -> list[str]:
+    """
+    Public: for each unhealthy entity with manifest-sourced anchors,
+    generate an explicit helm command to restore the declared value.
+    """
+    hints: list[str] = []
+
+    release_name_map: dict[tuple[str, str], str] = {}
+    for hr in graph.entities(ResourceKind.HELM_RELEASE):
+        release_name_map[(hr.namespace or "", hr.name)] = hr.name
+
+    for entity in seeds:
+        kind_str = entity.kind.value if hasattr(entity.kind, "value") else str(entity.kind)
+        ns   = entity.namespace or ""
+        name = entity.name
+        release = release_name_map.get((ns, name)) or name
+
+        for ann_key, ann_val in sorted(entity.annotations.items()):
+            if not ann_key.startswith("anchor."):
+                continue
+            if "[manifest]" not in ann_val:
+                continue
+            m = re.search(r"declared='?([^'\s|]+)'?\s*\[manifest\]", ann_val)
+            if not m:
+                continue
+            declared_val = m.group(1)
+            field_path   = ann_key[len("anchor."):]
+            helm_key     = _field_path_to_helm_key(field_path)
+            hints.append(
+                f"{kind_str}/{ns}/{name}  {field_path}={declared_val!r} (declared in chart)"
+                f"  →  helm upgrade {release} -n {ns} --set {helm_key}={declared_val}"
+            )
+
+    return hints[:12]
 
 
 class ContextBuilder:
@@ -107,6 +188,9 @@ class ContextBuilder:
         ctx.seed_entities = seeds
         ctx.seeds = [e.to_text() for e in seeds]
         seed_uids = {e.uid for e in seeds}
+
+        # --- Section 1b: anchor fix hints (from manifest anchors on seeds) -----
+        ctx.anchor_fixes = self._anchor_fix_hints(seeds)
 
         # --- Section 2: drift (verbatim) -------------------------------------
         drift_texts: list[str] = []
@@ -155,6 +239,22 @@ class ContextBuilder:
         ctx.events = [e.to_text() for e in events[:15]]  # cap at 15 most frequent
         event_uids = {e.uid for e in events[:15]}
 
+        # --- Section 5b: Anchors (declared values + K8s schema) ---------------
+        priority = seed_uids | drift_uids
+        anchor_texts: list[str] = []
+        for entity in sorted(
+            self.graph.entities(),
+            key=lambda e: (0 if e.uid in priority else 1, e.name),
+        ):
+            prefix = (
+                f"{entity.kind.value if hasattr(entity.kind, 'value') else entity.kind}"
+                f"/{entity.namespace}/{entity.name}"
+            )
+            for k, v in sorted(entity.annotations.items()):
+                if k.startswith("anchor."):
+                    anchor_texts.append(f"{prefix}: {v}")
+        ctx.anchors = anchor_texts[:30]
+
         # --- Section 6: Helm releases + charts --------------------------------
         helm_texts: list[str] = []
         helm_uids: set[str] = set()
@@ -170,7 +270,13 @@ class ContextBuilder:
         already_covered = seed_uids | drift_uids | alert_uids | trace_uids | log_uids | event_uids | helm_uids
 
         faiss_hits = self.store.search(query, top_k=cfg.TFIDF_TOP_K * 3)
-        faiss_uids = [h["uid"] for h in faiss_hits]
+
+        # Split example hits (resolved incidents) from entity hits
+        example_hits = [h for h in faiss_hits if h["uid"].startswith("example:")]
+        entity_hits  = [h for h in faiss_hits if not h["uid"].startswith("example:")]
+        ctx.examples = [h["text"] for h in example_hits[:5]]
+
+        faiss_uids = [h["uid"] for h in entity_hits]
 
         bfs_entities = expand_incident_context(
             self.graph,
@@ -201,10 +307,15 @@ class ContextBuilder:
         ctx.related = [deduped[i] for i in top_idx]
 
         log.info(
-            "ContextWindow: %d seeds | %d drift | %d alerts | %d traces | %d logs"
-            " | %d events | %d helm | %d related",
-            len(ctx.seeds), len(ctx.drift), len(ctx.alerts),
+            "ContextWindow: %d seeds | %d drift | %d examples | %d alerts"
+            " | %d traces | %d logs | %d events | %d anchors | %d anchor_fixes"
+            " | %d helm | %d related",
+            len(ctx.seeds), len(ctx.drift), len(ctx.examples), len(ctx.alerts),
             len(ctx.traces), len(ctx.logs),
-            len(ctx.events), len(ctx.helm), len(ctx.related),
+            len(ctx.events), len(ctx.anchors), len(ctx.anchor_fixes),
+            len(ctx.helm), len(ctx.related),
         )
         return ctx
+
+    def _anchor_fix_hints(self, seeds: list[K8sEntity]) -> list[str]:
+        return anchor_fix_hints(self.graph, seeds)

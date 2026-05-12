@@ -1,0 +1,6 @@
+apiVersion: v2
+name: notification-service
+description: Email / push notification dispatcher
+type: application
+version: 2.1.0
+appVersion: "2.1.0"

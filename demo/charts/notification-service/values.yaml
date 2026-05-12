@@ -1,0 +1,20 @@
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: "1.25-alpine"
+  pullPolicy: IfNotPresent
+
+# Config expected by the app — MUST be created before deployment.
+# DEMO scenario: ConfigMap and Secret were never provisioned.
+config:
+  configMapName: notification-config
+  secretName: notification-secrets
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "100m"

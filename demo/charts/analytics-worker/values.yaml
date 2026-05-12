@@ -1,0 +1,15 @@
+# Declared state — correct memory sizing for 200 MiB workload.
+# DEMO DRIFT: setup.sh patches limits.memory from 512Mi → 50Mi
+# to simulate a manual "cost-cutting" patch that caused OOMKill.
+image:
+  repository: python
+  tag: "3.11-slim"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"    # chart declares 512Mi — sufficient
+    cpu: "500m"
