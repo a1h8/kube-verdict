@@ -15,7 +15,7 @@ Used by AnchorEngine to annotate graph entities with ground-truth knowledge:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 log = logging.getLogger(__name__)
 
