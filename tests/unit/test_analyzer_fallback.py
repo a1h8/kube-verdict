@@ -7,11 +7,6 @@ RemediationEngine, and that existing LLM-produced fields are preserved.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-
-import pytest
-
 from ontology.entities import K8sEvent, Pod, ResourceKind
 from ontology.graph import OntologyGraph
 from rca.analyzer import RCAReport, _apply_rule_fallback

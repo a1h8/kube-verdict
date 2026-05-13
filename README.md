@@ -24,7 +24,7 @@ K8s API + Helm + Helmfile
    PrometheusAlert, OtelTrace, LokiLog, …)                             │
         │                                                              │
         ├──► MetricsServerCollector                                    │
-        │    └── metrics.k8s.io/v1beta1 ──► metrics.cpu_m/memory_mi   │
+        │    └── metrics.k8s.io/v1beta1 ──► metrics.cpu_m/memory_mi    │
         │                                                              │
         ├──► PrometheusCollector                                       │
         │    ├── firing alerts → PrometheusAlert nodes (HAS_ALERT)     │
@@ -35,10 +35,10 @@ K8s API + Helm + Helmfile
         │        otel.trace.* annotations + LokiSource (HAS_LOG)       │
         │                                                              │
         ├──► HelmDriftDetector ──► drift.* annotations                 │
-        │    (declared ≠ observed)                                      │
+        │    (declared ≠ observed)                                     │
         │                                                              │
         ├──► AnchorEngine                                              │
-        │    ├── K8s schema defaults (valid values, descriptions)       │
+        │    ├── K8s schema defaults (valid values, descriptions)      │
         │    └── helm template output (declared chart values)          │
         │        ──► anchor.* annotations + helm fix suggestions       │
         │                                                              │
@@ -72,26 +72,26 @@ K8s API + Helm + Helmfile
                   └── [Related]   BFS neighbours + FAISS hits (Jaccard dedup + TF-IDF rank)
                         │
               ┌─────────▼─────────────────────────────────────────────┐
-              │          LangGraph multi-path reasoning workflow       │
-              │                                                         │
+              │          LangGraph multi-path reasoning workflow      │
+              │                                                       │
               │  hypothesize ──► LLM generates H1 / H2 / H3           │
-              │       │          from cluster snapshot                  │
-              │       ▼                                                 │
-              │   analyze ──► LLM investigates current hypothesis      │
-              │       │       with full ContextWindow                  │
-              │       │                                                 │
-              │  confidence_router                                      │
-              │   ├── HIGH / MEDIUM ──────────────────────────────┐    │
-              │   ├── LOW + retries left ──► increment_retry ──►  │    │
-              │   │                          analyze again         │    │
-              │   └── LOW + all retries used                       │    │
-              │        └── candidates left? ──► archive_path ──►  │    │
-              │                                 next hypothesis    │    │
-              │             all paths exhausted ──► select_best ──┘    │
-              │                                    (restore highest     │
-              │                                     confidence path)    │
-              │                                         │               │
-              └─────────────────────────────────────────▼───────────────┘
+              │       │          from cluster snapshot                │
+              │       ▼                                               │
+              │   analyze ──► LLM investigates current hypothesis     │
+              │       │       with full ContextWindow                 │
+              │       │                                               │
+              │  confidence_router                                    │
+              │   ├── HIGH / MEDIUM ──────────────────────────────┐   │
+              │   ├── LOW + retries left ──► increment_retry ──►  │   │
+              │   │                          analyze again        │   │
+              │   └── LOW + all retries used                      │   │
+              │        └── candidates left? ──► archive_path ──►  │   │
+              │                                 next hypothesis   │   │
+              │             all paths exhausted ──► select_best ──┘   │
+              │                                    (restore highest   │
+              │                                     confidence path)  │
+              │                                         │             │
+              └─────────────────────────────────────────▼─────────────┘
                                                     dry_run
                                                     each remediation cmd:
                                                     ├── helm diff / values diff

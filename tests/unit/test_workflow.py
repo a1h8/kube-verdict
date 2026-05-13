@@ -829,7 +829,6 @@ class TestExampleLookup:
 
     def test_save_example_persists(self, synthetic_graph, store, tmp_path):
         from workflow.nodes import save_example_node
-        from knowledge.example_store import ExampleStore
         state = {
             "query": "pods oom",
             "current_hypothesis": "memory limit too low",

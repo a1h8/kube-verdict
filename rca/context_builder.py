@@ -22,20 +22,17 @@ class ContextWindow:
     Organized in priority order so the LLM sees the most critical
     information first — regardless of token budget.
     """
-
-    seeds: list[str] = field(default_factory=list)  # unhealthy resources
-    drift: list[str] = field(default_factory=list)  # declared ≠ observed
-    examples: list[str] = field(default_factory=list)  # similar resolved incidents
-    alerts: list[str] = field(default_factory=list)  # firing Prometheus alerts
-    traces: list[str] = field(default_factory=list)  # OTel error traces
-    logs: list[str] = field(default_factory=list)  # Loki error/warn logs
-    events: list[str] = field(default_factory=list)  # Warning K8s events
-    anchors: list[str] = field(default_factory=list)  # declared values + K8s schema
-    anchor_fixes: list[str] = field(
-        default_factory=list
-    )  # helm commands to restore declared values
-    helm: list[str] = field(default_factory=list)  # releases + charts
-    related: list[str] = field(default_factory=list)  # BFS neighbourhood
+    seeds: list[str] = field(default_factory=list)          # unhealthy resources
+    drift: list[str] = field(default_factory=list)           # declared ≠ observed
+    examples: list[str] = field(default_factory=list)        # similar resolved incidents
+    alerts: list[str] = field(default_factory=list)          # firing Prometheus alerts
+    traces: list[str] = field(default_factory=list)          # OTel error traces
+    logs: list[str] = field(default_factory=list)            # Loki error/warn logs
+    events: list[str] = field(default_factory=list)          # Warning K8s events
+    anchors: list[str] = field(default_factory=list)         # declared values + K8s schema
+    anchor_fixes: list[str] = field(default_factory=list)    # helm commands to restore declared values
+    helm: list[str] = field(default_factory=list)            # releases + charts
+    related: list[str] = field(default_factory=list)         # BFS neighbourhood
 
     # raw entity refs for metadata
     seed_entities: list[K8sEntity] = field(default_factory=list, repr=False)
@@ -124,7 +121,6 @@ class ContextWindow:
 
 # ── Anchor → Helm value mapping ───────────────────────────────────────────────
 
-
 def _field_path_to_helm_key(field_path: str) -> str:
     """Best-effort mapping from anchor field_path to Helm --set key."""
     # container.NAME.resources.limits.X  →  resources.limits.X
@@ -174,7 +170,7 @@ def anchor_fix_hints(graph: "OntologyGraph", seeds: list[K8sEntity]) -> list[str
             if not m:
                 continue
             declared_val = m.group(1)
-            field_path = ann_key[len("anchor.") :]
+            field_path = ann_key[len("anchor."):]
             helm_key = _field_path_to_helm_key(field_path)
             hints.append(
                 f"{kind_str}/{ns}/{name}  {field_path}={declared_val!r} "
