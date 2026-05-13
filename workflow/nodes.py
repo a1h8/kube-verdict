@@ -725,7 +725,8 @@ def _helm_values_diff(
     Gets current values via `helm get values`, applies proposed --set overrides,
     then renders the diff as plain text.
     """
-    import subprocess, json
+    import subprocess
+    import json
 
     get_cmd = ["helm", "get", "values", release, "-o", "json"] + ns_flags
     try:
@@ -815,10 +816,12 @@ def _exec_dry_run(cmd: str) -> tuple[str, str, int]:
         while i < len(parts):
             p = parts[i]
             if p in ("-n", "--namespace") and i + 1 < len(parts):
-                ns_flags += [p, parts[i + 1]]; i += 2
+                ns_flags += [p, parts[i + 1]]
+                i += 2
             elif p in ("--set", "--set-string", "--set-file",
                        "-f", "--values") and i + 1 < len(parts):
-                set_flags += [p, parts[i + 1]]; i += 2
+                set_flags += [p, parts[i + 1]]
+                i += 2
             else:
                 i += 1
 

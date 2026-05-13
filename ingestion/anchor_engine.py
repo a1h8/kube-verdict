@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
 
 from ingestion.k8s_schema import FieldMeta, K8sApiSchema, schema_for_kind
 from ingestion.manifest_renderer import ManifestRenderer

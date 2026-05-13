@@ -24,7 +24,6 @@ from ontology.entities import (
     Pod,
     Service,
     StatefulSet,
-    ResourceKind,
 )
 from ontology.graph import OntologyGraph
 
@@ -784,7 +783,6 @@ class TestAnchorEngineCollect:
 
         # Patch _resolve_chart so it returns something non-None
         engine = AnchorEngine(renderer=FakeRenderer())
-        from pathlib import Path
         import unittest.mock as mock
         with mock.patch.object(AnchorEngine, "_resolve_chart", return_value="/fake/root/charts/api"):
             records = engine.collect(g, provider=FakeProvider(), charts_path="charts")
@@ -829,7 +827,6 @@ class TestContextBuilderAnchors:
 
     def test_anchors_populated_from_annotations(self, store_stub):
         from rca.context_builder import ContextBuilder
-        from dedup.bfs import find_unhealthy
 
         dep = self._make_graph_with_unhealthy_deployment()
         g = _graph(dep)

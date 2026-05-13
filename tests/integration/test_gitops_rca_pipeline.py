@@ -29,12 +29,12 @@ from ingestion.gitops_collector import GitopsCollector
 from ingestion.helmfile_collector import HelmfileCollector
 from ingestion.manifest_differ import ManifestDiffer
 from ontology.entities import (
-    ConfigMap, Deployment, HelmRelease,
+    Deployment, HelmRelease,
     K8sEvent, LokiLog, Pod, ResourceKind,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
-from rca.analyzer import RCAAnalyzer, RCAReport, _apply_rule_fallback
+from rca.analyzer import RCAAnalyzer, RCAReport
 from rca.context_builder import ContextBuilder
 from rca.remediation_engine import RemediationEngine
 from vectorstore.embedder import Embedder

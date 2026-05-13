@@ -1,10 +1,8 @@
 """
 Unit tests for RemediationEngine — rule-based weighted fallback.
 """
-import pytest
-
 from ontology.entities import (
-    DaemonSet, Deployment, K8sEvent, Pod, ResourceKind, StatefulSet,
+    DaemonSet, Deployment, K8sEvent, Pod, StatefulSet,
 )
 from ontology.graph import OntologyGraph
 from rca.remediation_engine import (

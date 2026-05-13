@@ -15,13 +15,13 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # noqa: E402
 load_dotenv(dotenv_path=ROOT / ".env", override=False)
 
-import streamlit as st
-from langgraph.types import Command
+import streamlit as st  # noqa: E402
+from langgraph.types import Command  # noqa: E402
 
-import config as cfg
+import config as cfg  # noqa: E402
 
 # ── Page config ───────────────────────────────────────────────────────────────
 
@@ -73,8 +73,10 @@ def _badge(d: dict) -> str:
 
 def _conf_icon(conf: str) -> str:
     c = (conf or "").upper()
-    if c.startswith("HIGH"):   return "🟢"
-    if c.startswith("MEDIUM"): return "🟡"
+    if c.startswith("HIGH"):
+        return "🟢"
+    if c.startswith("MEDIUM"):
+        return "🟡"
     return "🔴"
 
 
@@ -441,27 +443,41 @@ def _render_rca():
             lines = []
             col.metric(label, _badge(d))
             if key == "ingest" and not d.get("skipped"):
-                if "entities"      in d: lines.append(f"{d['entities']} entities")
-                if "helm_releases"  in d: lines.append(f"{d['helm_releases']} releases")
-                if d.get("kube_version"): lines.append(d["kube_version"])
+                if "entities" in d:
+                    lines.append(f"{d['entities']} entities")
+                if "helm_releases" in d:
+                    lines.append(f"{d['helm_releases']} releases")
+                if d.get("kube_version"):
+                    lines.append(d["kube_version"])
             elif key == "metrics" and not d.get("skipped"):
-                if "pods_annotated" in d: lines.append(f"{d['pods_annotated']} pods")
+                if "pods_annotated" in d:
+                    lines.append(f"{d['pods_annotated']} pods")
             elif key == "prometheus" and not d.get("skipped"):
-                if "alerts" in d: lines.append(f"{d['alerts']} alerts")
+                if "alerts" in d:
+                    lines.append(f"{d['alerts']} alerts")
             elif key == "otel" and not d.get("skipped"):
-                if "traces" in d: lines.append(f"{d['traces']} traces")
-                if "logs"   in d: lines.append(f"{d['logs']} logs")
+                if "traces" in d:
+                    lines.append(f"{d['traces']} traces")
+                if "logs" in d:
+                    lines.append(f"{d['logs']} logs")
             elif key == "gitops" and not d.get("skipped"):
-                if "drifts" in d: lines.append(f"{d['drifts']} drifts ({d.get('critical',0)} crit)")
+                if "drifts" in d:
+                    lines.append(f"{d['drifts']} drifts ({d.get('critical',0)} crit)")
             elif key == "anchor" and not d.get("skipped"):
-                if "total"    in d: lines.append(f"{d['total']} records")
-                if "manifest" in d: lines.append(f"manifest={d['manifest']} schema={d.get('schema',0)}")
+                if "total" in d:
+                    lines.append(f"{d['total']} records")
+                if "manifest" in d:
+                    lines.append(f"manifest={d['manifest']} schema={d.get('schema',0)}")
             elif key == "index" and not d.get("skipped"):
-                if "vectors"    in d: lines.append(f"{d['vectors']} vectors")
-                if "doc_chunks" in d and d["doc_chunks"]: lines.append(f"{d['doc_chunks']} doc chunks")
+                if "vectors" in d:
+                    lines.append(f"{d['vectors']} vectors")
+                if "doc_chunks" in d and d["doc_chunks"]:
+                    lines.append(f"{d['doc_chunks']} doc chunks")
             elif key == "signals" and not d.get("skipped"):
-                if "total" in d: lines.append(f"{d.get('anomalous',0)}/{d['total']} anomalous")
-                if "mode"  in d: lines.append(f"mode={d['mode']}")
+                if "total" in d:
+                    lines.append(f"{d.get('anomalous',0)}/{d['total']} anomalous")
+                if "mode" in d:
+                    lines.append(f"mode={d['mode']}")
             if d.get("error"):
                 col.caption(f"⚠ {d['error'][:55]}")
             elif lines:
@@ -764,7 +780,7 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
         import re as _re
         confluence_match = _re.search(r"/wiki/spaces/([^/]+)/pages/(\d+)", url)
         if confluence_match:
-            space, page_id = confluence_match.group(1), confluence_match.group(2)
+            page_id = confluence_match.group(2)
             base = url.split("/wiki/")[0]
             api_url = f"{base}/wiki/rest/api/content/{page_id}?expand=body.storage,title"
             req = urllib.request.Request(api_url, headers={**headers, "Accept": "application/json"})
@@ -879,9 +895,12 @@ def _render_kb():
             sel_ns   = f2.selectbox("Namespace", nss)
             search   = f3.text_input("Search name")
             mask = pd.Series([True] * len(df))
-            if sel_kind != "(all)":  mask &= df["kind"] == sel_kind
-            if sel_ns   != "(all)":  mask &= df["namespace"] == sel_ns
-            if search:               mask &= df["name"].str.contains(search, case=False, na=False)
+            if sel_kind != "(all)":
+                mask &= df["kind"] == sel_kind
+            if sel_ns != "(all)":
+                mask &= df["namespace"] == sel_ns
+            if search:
+                mask &= df["name"].str.contains(search, case=False, na=False)
             filtered = df[mask].drop(columns=["uid"])
             st.caption(f"{mask.sum()} / {len(df)} entities")
             st.dataframe(filtered, use_container_width=True, hide_index=True)
@@ -919,8 +938,10 @@ def _render_kb():
             sel_src = f1.selectbox("Source", sources, key="anc_src")
             search  = f2.text_input("Search field / entity", key="anc_search")
             mask = pd.Series([True] * len(df))
-            if sel_src != "(all)": mask &= df["source"] == sel_src
-            if search:             mask &= (
+            if sel_src != "(all)":
+                mask &= df["source"] == sel_src
+            if search:
+                mask &= (
                 df["field"].str.contains(search, case=False, na=False) |
                 df["entity"].str.contains(search, case=False, na=False)
             )
@@ -1116,12 +1137,14 @@ def _render_kb():
                         raw = uploaded.read()
                         if uploaded.name.endswith(".pdf"):
                             try:
-                                import io, pypdf
+                                import io
+                                import pypdf
                                 reader  = pypdf.PdfReader(io.BytesIO(raw))
                                 content = "\n\n".join(p.extract_text() or "" for p in reader.pages)
                             except ImportError:
                                 try:
-                                    import io, PyPDF2
+                                    import io
+                                    import PyPDF2
                                     reader  = PyPDF2.PdfReader(io.BytesIO(raw))
                                     content = "\n\n".join(p.extract_text() or "" for p in reader.pages)
                                 except ImportError:

@@ -117,7 +117,7 @@ jobs:
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=70 \
+            --cov-fail-under=75 \
             -v --tb=short
 
       - name: Upload combined coverage

@@ -11,8 +11,6 @@ from __future__ import annotations
 import logging
 import re
 import textwrap
-from dataclasses import dataclass, field
-
 from knowledge.doc_store import DocStore, EnterpriseDoc
 
 log = logging.getLogger(__name__)
