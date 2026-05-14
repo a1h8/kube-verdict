@@ -1,0 +1,33 @@
+{
+  "affected_resources": [
+    "Pod/kube-system/coredns-787d4945fb-8xp2k",
+    "Pod/production/billing-service-6c8d9b7f4-kp3m5"
+  ],
+  "root_cause_contains": [
+    "DNS",
+    "CoreDNS",
+    "lookup",
+    "timeout",
+    "cluster.local",
+    "resolution"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "coredns",
+    "configmap"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.43,
+  "fallback_expected": false,
+  "notes": "CoreDNS CrashLoopBackOff in kube-system causes cluster-wide DNS resolution failures. Billing-service errors are a symptom, not the root cause. BFS must cross namespace boundary (production → kube-system) to find the real cause.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.09,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.55
+  }
+}

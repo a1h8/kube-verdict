@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: EventList
+metadata:
+  resourceVersion: "5930600"
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: ml-inference-7c9d8b6f5-pq3r7.failed.pull
+    namespace: production
+    uid: b1d4f6a7-6c9e-11ef-c4b5-0242ac110006
+    resourceVersion: "5930510"
+  type: Warning
+  reason: Failed
+  message: "Failed to pull image \"ghcr.io/acme/ml-inference:v2.1.0-private\": rpc error: code = Unknown desc = failed to pull and unpack image \"ghcr.io/acme/ml-inference:v2.1.0-private\": failed to resolve reference \"ghcr.io/acme/ml-inference:v2.1.0-private\": unexpected status code 401 Unauthorized: unauthorized: unauthenticated"
+  involvedObject:
+    kind: Pod
+    name: ml-inference-7c9d8b6f5-pq3r7
+    namespace: production
+    uid: f8b2d4e5-6c9e-11ef-c4b5-0242ac110006
+  count: 12
+  firstTimestamp: "2026-05-14T08:00:12Z"
+  lastTimestamp: "2026-05-14T09:05:00Z"
+  reportingComponent: kubelet
+  reportingInstance: worker-node-03
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: ml-inference-7c9d8b6f5-pq3r7.backoff.pull
+    namespace: production
+    uid: c2e5a7b8-6c9e-11ef-c4b5-0242ac110006
+    resourceVersion: "5930520"
+  type: Warning
+  reason: BackOff
+  message: "Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\""
+  involvedObject:
+    kind: Pod
+    name: ml-inference-7c9d8b6f5-pq3r7
+    namespace: production
+    uid: f8b2d4e5-6c9e-11ef-c4b5-0242ac110006
+  count: 8
+  firstTimestamp: "2026-05-14T08:01:00Z"
+  lastTimestamp: "2026-05-14T09:06:00Z"
+  reportingComponent: kubelet
+  reportingInstance: worker-node-03

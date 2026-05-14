@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: payment-service-6d8f9b7c4-xk9p2
+  namespace: production
+  uid: a3c1e7f2-5b8d-11ef-b3a4-0242ac110005
+  resourceVersion: "4829371"
+  creationTimestamp: "2026-05-14T06:00:00Z"
+  labels:
+    app.kubernetes.io/name: payment-service
+    app.kubernetes.io/instance: payment-service
+    app.kubernetes.io/version: "1.4.2"
+    pod-template-hash: 6d8f9b7c4
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: payment-service-6d8f9b7c4
+    uid: b4d2f8a3-5b8d-11ef-b3a4-0242ac110005
+    controller: true
+    blockOwnerDeletion: true
+spec:
+  nodeName: worker-node-02
+  serviceAccountName: payment-service
+  containers:
+  - name: payment-service
+    image: ghcr.io/acme/payment-service:1.4.2
+    envFrom:
+    - secretRef:
+        name: payment-db-secret
+    resources:
+      limits:
+        memory: 256Mi
+        cpu: "500m"
+      requests:
+        memory: 128Mi
+        cpu: 100m
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: 8080
+      initialDelaySeconds: 10
+      periodSeconds: 5
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 10
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 30
+  dnsPolicy: ClusterFirst
+status:
+  phase: Running
+  podIP: 10.244.3.47
+  hostIP: 192.168.1.12
+  containerStatuses:
+  - name: payment-service
+    ready: false
+    restartCount: 47
+    image: ghcr.io/acme/payment-service:1.4.2
+    imageID: ghcr.io/acme/payment-service@sha256:abc123def456
+    state:
+      waiting:
+        reason: CrashLoopBackOff
+        message: back-off 5m0s restarting failed container=payment-service pod=payment-service-6d8f9b7c4-xk9p2_production
+    lastState:
+      terminated:
+        reason: Error
+        exitCode: 1
+        startedAt: "2026-05-14T09:10:00Z"
+        finishedAt: "2026-05-14T09:10:03Z"
+        containerID: containerd://deadbeef1234
+  conditions:
+  - type: Initialized
+    status: "True"
+    lastTransitionTime: "2026-05-14T06:00:05Z"
+  - type: Ready
+    status: "False"
+    reason: ContainersNotReady
+    message: "containers with unready status: [payment-service]"
+    lastTransitionTime: "2026-05-14T06:00:10Z"
+  - type: ContainersReady
+    status: "False"
+    reason: ContainersNotReady
+    lastTransitionTime: "2026-05-14T06:00:10Z"
+  - type: PodScheduled
+    status: "True"
+    lastTransitionTime: "2026-05-14T06:00:00Z"

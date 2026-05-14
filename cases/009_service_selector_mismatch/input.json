@@ -1,0 +1,38 @@
+{
+  "scenario": "Service Selector Mismatch - No Endpoints",
+  "namespace": "production",
+  "query": "frontend cannot reach backend-svc, connection refused on port 8080",
+  "events": [],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "backend",
+        "state": {"running": {"startedAt": "2026-05-13T08:00:00Z"}},
+        "restartCount": 0,
+        "ready": true
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "backend",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "service.backend-svc.spec.selector.app",
+        "declared": "backend",
+        "observed": "backend-v2"
+      }
+    ]
+  },
+  "anchors": [
+    "Service/production/backend-svc: spec.selector.app declared='backend' [manifest] | observed='backend-v2' [drift]",
+    "Pod/production/backend-7d9c8b6f5-mn4p2: metadata.labels.app declared='backend-v2' [manifest]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": "Service 'backend-svc' has 0 endpoints. Pod is Running+Ready but its label app=backend-v2 does not match the service selector app=backend."
+}

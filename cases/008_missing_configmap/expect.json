@@ -1,0 +1,30 @@
+{
+  "affected_resources": [
+    "Pod/staging/notification-service-5b8c9d7f6-wr3k8"
+  ],
+  "root_cause_contains": [
+    "configmap",
+    "notification-config",
+    "not found",
+    "CreateContainerConfigError"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "configmap",
+    "create"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.43,
+  "fallback_expected": false,
+  "notes": "ConfigMap 'notification-config' was deleted or never created. Similar pattern to case 001 (missing secret) but for a ConfigMap. No Helm drift — the manifest is correct, the object is absent from the cluster.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.09,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.55
+  }
+}

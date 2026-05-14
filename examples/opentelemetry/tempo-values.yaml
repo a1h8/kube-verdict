@@ -1,0 +1,22 @@
+# Minimal Grafana Tempo values for KubeWhisperer integration.
+# Deploy with:
+#   helm repo add grafana https://grafana.github.io/helm-charts
+#   helm upgrade --install tempo grafana/tempo \
+#     -n monitoring --create-namespace \
+#     -f examples/opentelemetry/tempo-values.yaml
+
+tempo:
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+
+  receivers:
+    otlp:
+      protocols:
+        grpc: {}    # port 4317
+        http: {}    # port 4318
+
+  server:
+    http_listen_port: 3100

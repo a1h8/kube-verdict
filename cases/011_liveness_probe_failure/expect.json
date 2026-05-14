@@ -1,0 +1,31 @@
+{
+  "affected_resources": [
+    "Pod/production/cache-service-8d7f9c6b5-qm7n3"
+  ],
+  "root_cause_contains": [
+    "liveness",
+    "probe",
+    "port",
+    "drift",
+    "6379",
+    "connection refused"
+  ],
+  "fix_commands_contain": [
+    "helm upgrade",
+    "livenessProbe"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.5,
+  "fallback_expected": false,
+  "notes": "Liveness probe port drift (8080 declared → 6379 observed) causes the probe to hit the Redis protocol port instead of the HTTP health endpoint, triggering connection refused → pod kill → restart loop.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.09,
+    "drift_c": 0.07,
+    "policy_c": 0.0,
+    "total": 0.62
+  }
+}

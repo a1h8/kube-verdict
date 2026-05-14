@@ -1,0 +1,32 @@
+{
+  "affected_resources": [
+    "Pod/production/search-indexer-4b7c8d9f3-rs2m6",
+    "Node/worker-node-02"
+  ],
+  "root_cause_contains": [
+    "evicted",
+    "disk",
+    "ephemeral-storage",
+    "DiskPressure",
+    "node"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "node",
+    "ephemeral"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.43,
+  "fallback_expected": false,
+  "notes": "Node DiskPressure triggers kubelet eviction. No Helm drift — the issue is node-level resource exhaustion, not a pod misconfiguration. BFS reaches the Node event, providing the decisive signal.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.09,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.55
+  }
+}

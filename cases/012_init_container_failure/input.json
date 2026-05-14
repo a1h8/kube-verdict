@@ -1,0 +1,65 @@
+{
+  "scenario": "Init Container Failure",
+  "namespace": "production",
+  "query": "user-service pod stuck in Init:CrashLoopBackOff, db-migrate init container failing",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/user-service-9c8d7b6f5-tn6w4",
+      "message": "Back-off restarting failed container db-migrate in pod user-service-9c8d7b6f5-tn6w4_production",
+      "count": 6,
+      "firstTime": "2026-05-13T07:00:00Z",
+      "lastTime": "2026-05-13T07:20:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "Failed",
+      "object": "Pod/user-service-9c8d7b6f5-tn6w4",
+      "message": "Error: failed to create containerd task: init container db-migrate exited with code 1: FATAL: database \"users_db\" does not exist",
+      "count": 6,
+      "firstTime": "2026-05-13T07:00:00Z",
+      "lastTime": "2026-05-13T07:20:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Pending",
+    "initContainerStatuses": [
+      {
+        "name": "db-migrate",
+        "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+        "lastState": {"terminated": {"reason": "Error", "exitCode": 1}},
+        "restartCount": 6,
+        "ready": false
+      }
+    ],
+    "containerStatuses": [
+      {
+        "name": "user-service",
+        "state": {"waiting": {"reason": "PodInitializing"}},
+        "restartCount": 0,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "user-service",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "initContainer.db-migrate.env.DB_NAME",
+        "declared": "users_db",
+        "observed": "userservice_db"
+      }
+    ]
+  },
+  "anchors": [
+    "Pod/production/user-service-9c8d7b6f5-tn6w4: initContainer.db-migrate.env.DB_NAME declared='users_db' [manifest] | observed='userservice_db' [drift]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

@@ -1,0 +1,57 @@
+{
+  "scenario": "Liveness Probe Failure - Restart Loop",
+  "namespace": "production",
+  "query": "cache-service keeps restarting, liveness probe fails after startup",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Unhealthy",
+      "object": "Pod/cache-service-8d7f9c6b5-qm7n3",
+      "message": "Liveness probe failed: Get \"http://10.244.1.47:6379/health\": dial tcp 10.244.1.47:6379: connect: connection refused",
+      "count": 10,
+      "firstTime": "2026-05-13T10:00:00Z",
+      "lastTime": "2026-05-13T10:30:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/cache-service-8d7f9c6b5-qm7n3",
+      "message": "Back-off restarting failed container cache-service in pod cache-service-8d7f9c6b5-qm7n3_production",
+      "count": 10,
+      "firstTime": "2026-05-13T10:05:00Z",
+      "lastTime": "2026-05-13T10:30:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "cache-service",
+        "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+        "lastState": {"terminated": {"reason": "Error", "exitCode": 137}},
+        "restartCount": 10,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "cache-service",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "container.cache-service.livenessProbe.httpGet.port",
+        "declared": "8080",
+        "observed": "6379"
+      }
+    ]
+  },
+  "anchors": [
+    "Pod/production/cache-service-8d7f9c6b5-qm7n3: container.cache-service.livenessProbe.httpGet.port declared='8080' [manifest] | observed='6379' [drift]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

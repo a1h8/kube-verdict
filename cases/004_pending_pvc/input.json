@@ -1,0 +1,53 @@
+{
+  "scenario": "Pending PVC",
+  "namespace": "production",
+  "query": "postgres-primary-0 pod is stuck in Pending state",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "FailedMount",
+      "object": "Pod/postgres-primary-0",
+      "message": "Unable to attach or mount volumes: unmounted volumes=[data], unattached volumes=[data kube-api-access-abc12]: timed out waiting for the condition",
+      "count": 6,
+      "firstTime": "2026-05-13T10:00:00Z",
+      "lastTime": "2026-05-13T10:30:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "ProvisioningFailed",
+      "object": "PersistentVolumeClaim/postgres-data",
+      "message": "storageclass.storage.k8s.io \"fast-ssd\" not found",
+      "count": 6,
+      "firstTime": "2026-05-13T10:00:00Z",
+      "lastTime": "2026-05-13T10:30:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Pending",
+    "conditions": [
+      {"type": "PodScheduled", "status": "True"},
+      {"type": "Ready", "status": "False", "reason": "ContainersNotReady"}
+    ]
+  },
+  "helm_drift": {
+    "release": "postgres",
+    "namespace": "production",
+    "diffs": []
+  },
+  "anchors": [
+    "PersistentVolumeClaim/production/postgres-data: spec.storageClassName declared='fast-ssd' [manifest]"
+  ],
+  "pvc_status": {
+    "name": "postgres-data",
+    "namespace": "production",
+    "phase": "Pending",
+    "storageClassName": "fast-ssd",
+    "accessModes": ["ReadWriteOnce"],
+    "storage": "50Gi"
+  },
+  "available_storage_classes": ["standard", "local-path"],
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "symptom": null
+}

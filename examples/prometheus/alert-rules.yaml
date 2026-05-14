@@ -1,0 +1,42 @@
+# PrometheusRule — alerts that KubeWhisperer correlates to K8s entities.
+# Labels must include `namespace` and `pod` so prometheus_collector.py
+# can label-match them to the right Pod/Deployment nodes.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kubewhisperer-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: kubewhisperer.pod
+      rules:
+        - alert: KubePodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total[5m]) * 60 * 5 > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping"
+            description: "Container {{ $labels.container }} restarted {{ $value | humanize }} times in 5m."
+
+        - alert: KubePodNotReady
+          expr: |
+            kube_pod_status_ready{condition="false"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} not ready for 10m"
+
+    - name: kubewhisperer.memory
+      rules:
+        - alert: KubeContainerOOMKilled
+          expr: |
+            kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+          labels:
+            severity: warning
+          annotations:
+            summary: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} was OOM killed"

@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: EventList
+metadata:
+  resourceVersion: "4829500"
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: payment-service-6d8f9b7c4-xk9p2.backoff.001
+    namespace: production
+    uid: c5e3a9b1-5b8d-11ef-b3a4-0242ac110005
+    resourceVersion: "4829490"
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container payment-service in pod payment-service-6d8f9b7c4-xk9p2_production
+  involvedObject:
+    kind: Pod
+    name: payment-service-6d8f9b7c4-xk9p2
+    namespace: production
+    uid: a3c1e7f2-5b8d-11ef-b3a4-0242ac110005
+  count: 47
+  firstTimestamp: "2026-05-14T06:00:15Z"
+  lastTimestamp: "2026-05-14T09:10:10Z"
+  reportingComponent: kubelet
+  reportingInstance: worker-node-02
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: payment-service-6d8f9b7c4-xk9p2.failed.secret
+    namespace: production
+    uid: d6f4b0c2-5b8d-11ef-b3a4-0242ac110005
+    resourceVersion: "4829410"
+  type: Warning
+  reason: Failed
+  message: "Error: secret \"payment-db-secret\" not found"
+  involvedObject:
+    kind: Pod
+    name: payment-service-6d8f9b7c4-xk9p2
+    namespace: production
+    uid: a3c1e7f2-5b8d-11ef-b3a4-0242ac110005
+  count: 1
+  firstTimestamp: "2026-05-14T06:00:08Z"
+  lastTimestamp: "2026-05-14T06:00:08Z"
+  reportingComponent: kubelet
+  reportingInstance: worker-node-02
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: payment-service-6d8f9b7c4-xk9p2.failed.rootfs
+    namespace: production
+    uid: e7a5c1d3-5b8d-11ef-b3a4-0242ac110005
+    resourceVersion: "4829420"
+  type: Warning
+  reason: Failed
+  message: "Error: failed to create containerd task: failed to create shim task: OCI runtime create failed: container_linux.go:380: starting container process caused: process_linux.go:545: container init caused: rootfs_linux.go:76: mounting \"/var/lib/kubelet/pods/a3c1e7f2/volumes/kubernetes.io~secret/payment-db-secret\" to rootfs at \"/run/secrets/payment-db-secret\" caused: mount through procfd: not a directory: unknown"
+  involvedObject:
+    kind: Pod
+    name: payment-service-6d8f9b7c4-xk9p2
+    namespace: production
+    uid: a3c1e7f2-5b8d-11ef-b3a4-0242ac110005
+  count: 47
+  firstTimestamp: "2026-05-14T06:00:09Z"
+  lastTimestamp: "2026-05-14T09:10:05Z"
+  reportingComponent: kubelet
+  reportingInstance: worker-node-02

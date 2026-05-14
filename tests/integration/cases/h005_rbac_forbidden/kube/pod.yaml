@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: audit-exporter-7b8d6c9f5-m3p1q
+  namespace: monitoring
+  uid: d6f3a9b2-7d0f-11ef-b3a4-0242ac110007
+  labels:
+    app.kubernetes.io/name: audit-exporter
+    app.kubernetes.io/instance: audit-exporter
+    pod-template-hash: 7b8d6c9f5
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: audit-exporter-7b8d6c9f5
+    controller: true
+spec:
+  nodeName: worker-node-03
+  serviceAccountName: audit-exporter-sa   # ← SA exists but has NO RoleBinding
+  containers:
+  - name: audit-exporter
+    image: ghcr.io/acme/audit-exporter:v2.1.0
+    env:
+    - name: WATCH_NAMESPACE
+      value: "production"
+    ports:
+    - containerPort: 9090
+    resources:
+      limits:
+        memory: 128Mi
+        cpu: "200m"
+      requests:
+        memory: 64Mi
+        cpu: 50m
+status:
+  phase: Running
+  podIP: 10.244.2.31
+  containerStatuses:
+  - name: audit-exporter
+    ready: true
+    restartCount: 0
+    state:
+      running:
+        startedAt: "2026-05-14T11:00:00Z"
+  conditions:
+  - type: Ready
+    status: "True"

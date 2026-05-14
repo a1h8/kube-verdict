@@ -8,8 +8,13 @@ import config as cfg
 from dedup.bfs import expand_incident_context, find_unhealthy
 from dedup.jaccard import jaccard_deduplicate
 from dedup.tfidf import tfidf_rank
-from ontology.entities import K8sEntity, LokiLog, OtelTrace, PrometheusAlert, ResourceKind
+from ingestion.policy_collector import policy_fix_hints as _policy_fix_hints
+from ontology.entities import (
+    K8sEntity, LokiLog, MutatingWebhook, OtelTrace, PolicyViolation,
+    PrometheusAlert, ResourceKind,
+)
 from ontology.graph import OntologyGraph
+from rca.confidence import ContextConfidence, compute_confidence
 from vectorstore.store import FAISSStore
 
 log = logging.getLogger(__name__)
@@ -33,9 +38,25 @@ class ContextWindow:
     anchor_fixes: list[str] = field(default_factory=list)    # helm commands to restore declared values
     helm: list[str] = field(default_factory=list)            # releases + charts
     related: list[str] = field(default_factory=list)         # BFS neighbourhood
+    # OPA / Kyverno policy violations (populated by PolicyReportCollector)
+    policy_violations: list[str] = field(default_factory=list)
+
+    # policy violation counters for confidence scoring
+    policy_fail_count: int = 0
+    policy_audit_count: int = 0
+    mutation_webhooks_applied: int = 0
 
     # raw entity refs for metadata
     seed_entities: list[K8sEntity] = field(default_factory=list, repr=False)
+
+    # pre-LLM context quality score (set by ContextBuilder.build)
+    pre_llm_confidence: ContextConfidence | None = field(default=None, repr=False)
+
+    # retrieval pipeline stats (dense/sparse/fused hit counts from hybrid_search)
+    retrieval_stats: dict = field(default_factory=dict, repr=False)
+
+    # Jaccard dedup counts: {"candidates": N, "kept": M}
+    jaccard_stats: dict = field(default_factory=dict, repr=False)
 
     @property
     def total_chunks(self) -> int:
@@ -51,10 +72,17 @@ class ContextWindow:
             + len(self.anchor_fixes)
             + len(self.helm)
             + len(self.related)
+            + len(self.policy_violations)
         )
 
     def to_prompt_block(self) -> str:
         lines: list[str] = []
+
+        if self.policy_violations:
+            lines.append(
+                f"### CRITICAL — Policy violations / OPA / Kyverno ({len(self.policy_violations)})"
+            )
+            lines.extend(f"  - {t}" for t in self.policy_violations)
 
         if self.seeds:
             lines.append(f"### CRITICAL — Unhealthy resources ({len(self.seeds)})")
@@ -144,10 +172,19 @@ def _field_path_to_helm_key(field_path: str) -> str:
 
 def anchor_fix_hints(graph: "OntologyGraph", seeds: list[K8sEntity]) -> list[str]:
     """
-    Public: for each unhealthy entity with manifest-sourced anchors,
-    generate an explicit helm command to restore the declared value.
+    For each unhealthy entity generate fix hints from three annotation types:
+
+    1. ``anchor.*[manifest]``  → ``helm upgrade --set`` (declared value drift)
+    2. ``missing.secret.*``    → ``kubectl create secret``
+    3. ``missing.configmap.*`` → ``kubectl create configmap``
+    4. ``missing.pvc.*``       → ``kubectl apply -f pvc.yaml``
+    5. ``missing.serviceaccount.*`` → ``kubectl create serviceaccount``
+    6. ``missing.rbac.*``      → ``kubectl create clusterrolebinding``
+    7. ``missing.imagepullsecret.*`` → ``kubectl create secret docker-registry``
+    8. ``netpol.*``            → ``kubectl edit networkpolicy``
     """
     hints: list[str] = []
+    seen: set[str] = set()
 
     release_name_map: dict[tuple[str, str], str] = {}
     for hr in graph.entities(ResourceKind.HELM_RELEASE):
@@ -162,23 +199,108 @@ def anchor_fix_hints(graph: "OntologyGraph", seeds: list[K8sEntity]) -> list[str
         release = release_name_map.get((ns, name)) or name
 
         for ann_key, ann_val in sorted(entity.annotations.items()):
-            if not ann_key.startswith("anchor."):
-                continue
-            if "[manifest]" not in ann_val:
-                continue
-            m = re.search(r"declared='?([^'\s|]+)'?\s*\[manifest\]", ann_val)
-            if not m:
-                continue
-            declared_val = m.group(1)
-            field_path = ann_key[len("anchor."):]
-            helm_key = _field_path_to_helm_key(field_path)
-            hints.append(
-                f"{kind_str}/{ns}/{name}  {field_path}={declared_val!r} "
-                f"(declared in chart)  →  helm upgrade {release} -n {ns} "
-                f"--set {helm_key}={declared_val}"
-            )
 
-    return hints[:12]
+            # ── 1. Helm value drift ──────────────────────────────────────────
+            if ann_key.startswith("anchor.") and "[manifest]" in ann_val:
+                m = re.search(r"declared='?([^'\s|]+)'?\s*\[manifest\]", ann_val)
+                if m:
+                    declared_val = m.group(1)
+                    field_path = ann_key[len("anchor."):]
+                    helm_key = _field_path_to_helm_key(field_path)
+                    hint = (
+                        f"{kind_str}/{ns}/{name}  {field_path}={declared_val!r} "
+                        f"(declared in chart)  →  helm upgrade {release} -n {ns} "
+                        f"--set {helm_key}={declared_val}"
+                    )
+                    if hint not in seen:
+                        hints.append(hint)
+                        seen.add(hint)
+
+            # ── 2. Missing secret ────────────────────────────────────────────
+            elif ann_key.startswith("missing.secret."):
+                sname = ann_key[len("missing.secret."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  secret '{sname}' missing  →  "
+                    f"kubectl create secret generic {sname} -n {ns} "
+                    f"--from-literal=KEY=VALUE"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 3. Missing imagePullSecret ───────────────────────────────────
+            elif ann_key.startswith("missing.imagepullsecret."):
+                sname = ann_key[len("missing.imagepullsecret."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  imagePullSecret '{sname}' missing  →  "
+                    f"kubectl create secret docker-registry {sname} -n {ns} "
+                    f"--docker-server=REGISTRY --docker-username=USER --docker-password=TOKEN"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 4. Missing configmap ─────────────────────────────────────────
+            elif ann_key.startswith("missing.configmap."):
+                cname = ann_key[len("missing.configmap."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  configmap '{cname}' missing  →  "
+                    f"kubectl create configmap {cname} -n {ns} "
+                    f"--from-literal=KEY=VALUE"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 5. Missing PVC ───────────────────────────────────────────────
+            elif ann_key.startswith("missing.pvc."):
+                pvcname = ann_key[len("missing.pvc."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  PVC '{pvcname}' missing or not bound  →  "
+                    f"kubectl apply -f - <<EOF\napiVersion: v1\nkind: PersistentVolumeClaim\n"
+                    f"metadata:\n  name: {pvcname}\n  namespace: {ns}\nspec:\n"
+                    f"  accessModes: [ReadWriteOnce]\n  resources:\n    requests:\n      storage: 1Gi\nEOF"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 6. Missing ServiceAccount ────────────────────────────────────
+            elif ann_key.startswith("missing.serviceaccount."):
+                saname = ann_key[len("missing.serviceaccount."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  ServiceAccount '{saname}' missing  →  "
+                    f"kubectl create serviceaccount {saname} -n {ns}"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 7. Missing RBAC binding ──────────────────────────────────────
+            elif ann_key.startswith("missing.rbac."):
+                saname = ann_key[len("missing.rbac."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  ServiceAccount '{saname}' has no RoleBinding  →  "
+                    f"kubectl create clusterrolebinding {saname}-binding "
+                    f"--clusterrole=view --serviceaccount={ns}:{saname}"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 8. NetworkPolicy ─────────────────────────────────────────────
+            elif ann_key.startswith("netpol.") and "egress_blocked" in ann_key:
+                np_name = ann_key.split(".")[1]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  NetworkPolicy '{np_name}' blocks all egress  →  "
+                    f"kubectl edit networkpolicy {np_name} -n {ns}  "
+                    f"# add egress rules for required ports (e.g. 5432/tcp, 6379/tcp)"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+    return hints[:20]
 
 
 class ContextBuilder:
@@ -215,8 +337,8 @@ class ContextBuilder:
         ctx.seeds = [e.to_text() for e in seeds]
         seed_uids = {e.uid for e in seeds}
 
-        # --- Section 1b: anchor fix hints (from manifest anchors on seeds) -----
-        ctx.anchor_fixes = self._anchor_fix_hints(seeds)
+        # --- Section 1b: fix hints (manifest anchors + policy remediations) ----
+        ctx.anchor_fixes = self._anchor_fix_hints(seeds) + _policy_fix_hints(self.graph)
 
         # --- Section 2: drift (verbatim) -------------------------------------
         drift_texts: list[str] = []
@@ -268,6 +390,19 @@ class ContextBuilder:
         ctx.logs = [e.to_text() for e in log_entities[:20]]  # cap at 20
         log_uids = {e.uid for e in log_entities[:20]}
 
+        # --- Section 0: Policy violations (OPA / Kyverno) -------------------
+        policy_entities = [
+            e for e in self.graph.entities(ResourceKind.POLICY_VIOLATION)
+            if isinstance(e, PolicyViolation)
+        ]
+        ctx.policy_violations = [e.to_text() for e in policy_entities]
+        ctx.policy_fail_count  = sum(1 for e in policy_entities if e.is_fail)
+        ctx.policy_audit_count = sum(1 for e in policy_entities if e.is_audit)
+        ctx.mutation_webhooks_applied = sum(
+            1 for e in self.graph.entities(ResourceKind.MUTATING_WEBHOOK)
+            if isinstance(e, MutatingWebhook)
+        )
+
         # --- Section 5: Warning events sorted by count desc ------------------
         events = sorted(
             [e for e in self.graph.entities(ResourceKind.EVENT) if e.is_warning],
@@ -310,7 +445,8 @@ class ContextBuilder:
             | event_uids | helm_uids
         )
 
-        faiss_hits = self.store.search(query, top_k=cfg.TFIDF_TOP_K * 3)
+        faiss_hits = self.store.hybrid_search(query, top_k=cfg.TFIDF_TOP_K * 3)
+        ctx.retrieval_stats = self.store.last_retrieval_stats
 
         # Split example hits (resolved incidents) from entity hits
         example_hits = [h for h in faiss_hits if h["uid"].startswith("example:")]
@@ -346,11 +482,26 @@ class ContextBuilder:
         deduped = [unique[i] for i in kept]
         top_idx = tfidf_rank(query, deduped, top_k=cfg.TFIDF_TOP_K)
         ctx.related = [deduped[i] for i in top_idx]
+        ctx.jaccard_stats = {"candidates": len(unique), "kept": len(kept)}
+
+        # --- Pre-LLM context quality score -----------------------------------
+        jaccard_kept_ratio = len(kept) / max(1, len(unique))
+        ctx.pre_llm_confidence = compute_confidence(
+            bfs_depth=self._bfs_max_depth,
+            jaccard_kept_ratio=jaccard_kept_ratio,
+            tfidf_top_k=len(top_idx),
+            matched_anchors=len(ctx.anchors),
+            critical_signals=len(ctx.seeds) + len(ctx.alerts),
+            helm_drift_items=len(ctx.drift),
+            policy_fail_count=ctx.policy_fail_count,
+            policy_audit_count=ctx.policy_audit_count,
+            mutation_webhooks=ctx.mutation_webhooks_applied,
+        )
 
         log.info(
             "ContextWindow: %d seeds | %d drift | %d examples | %d alerts"
             " | %d traces | %d logs | %d events | %d anchors | %d anchor_fixes"
-            " | %d helm | %d related",
+            " | %d helm | %d related | %d policy_violations",
             len(ctx.seeds),
             len(ctx.drift),
             len(ctx.examples),
@@ -362,6 +513,7 @@ class ContextBuilder:
             len(ctx.anchor_fixes),
             len(ctx.helm),
             len(ctx.related),
+            len(ctx.policy_violations),
         )
         return ctx
 

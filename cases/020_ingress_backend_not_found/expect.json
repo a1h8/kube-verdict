@@ -1,0 +1,31 @@
+{
+  "affected_resources": [
+    "Ingress/production/api-ingress"
+  ],
+  "root_cause_contains": [
+    "Ingress",
+    "service",
+    "not found",
+    "api-gateway-svc",
+    "backend",
+    "drift"
+  ],
+  "fix_commands_contain": [
+    "helm upgrade",
+    "backend.service.name"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.32,
+  "fallback_expected": false,
+  "notes": "Ingress backend service name drift (api-gateway-svc declared → api-gateway-service observed) after a helm upgrade that renamed the Service. Ingress controller cannot resolve the backend, returns 503. No pod failures — the routing layer is broken, not the workload.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.0,
+    "signal_c": 0.03,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.44
+  }
+}

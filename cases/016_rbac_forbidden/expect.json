@@ -1,0 +1,32 @@
+{
+  "affected_resources": [
+    "Pod/production/config-watcher-3d7f8c9b2-wk5p8"
+  ],
+  "root_cause_contains": [
+    "RBAC",
+    "forbidden",
+    "serviceaccount",
+    "config-watcher-sa",
+    "configmaps",
+    "list"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "clusterrole",
+    "rolebinding"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.43,
+  "fallback_expected": false,
+  "notes": "ServiceAccount 'config-watcher-sa' has no Role granting list access to ConfigMaps. App crashes on startup when it tries to watch ConfigMaps. Fix: create a Role with configmaps/list+watch and bind it to the SA.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.09,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.55
+  }
+}

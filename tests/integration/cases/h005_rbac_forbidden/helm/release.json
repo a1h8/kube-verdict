@@ -1,0 +1,11 @@
+{
+  "replicaCount": 1,
+  "image": { "repository": "ghcr.io/acme/audit-exporter", "tag": "v2.1.0" },
+  "serviceAccount": { "name": "audit-exporter-sa", "create": true },
+  "rbac": { "create": false },
+  "watchNamespace": "production",
+  "resources": {
+    "limits": { "memory": "128Mi", "cpu": "200m" },
+    "requests": { "memory": "64Mi", "cpu": "50m" }
+  }
+}

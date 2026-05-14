@@ -1,0 +1,31 @@
+{
+  "affected_resources": [
+    "Pod/production/user-service-9c8d7b6f5-tn6w4"
+  ],
+  "root_cause_contains": [
+    "init",
+    "db-migrate",
+    "database",
+    "users_db",
+    "does not exist",
+    "drift"
+  ],
+  "fix_commands_contain": [
+    "helm upgrade",
+    "DB_NAME"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.5,
+  "fallback_expected": false,
+  "notes": "DB_NAME env drift in init container (users_db declared → userservice_db observed). Migration targets the wrong database name. Main container never starts because init never completes.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.09,
+    "drift_c": 0.07,
+    "policy_c": 0.0,
+    "total": 0.62
+  }
+}

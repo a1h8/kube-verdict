@@ -1,0 +1,67 @@
+{
+  "scenario": "StatefulSet Rolling Update Stuck",
+  "namespace": "production",
+  "query": "kafka StatefulSet rolling update blocked, pod-1 not ready prevents pod-2 update",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Unhealthy",
+      "object": "Pod/kafka-1",
+      "message": "Readiness probe failed: Get \"http://10.244.2.31:8080/ready\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
+      "count": 20,
+      "firstTime": "2026-05-13T11:00:00Z",
+      "lastTime": "2026-05-13T11:20:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/kafka-1",
+      "message": "Back-off restarting failed container kafka in pod kafka-1_production",
+      "count": 5,
+      "firstTime": "2026-05-13T11:10:00Z",
+      "lastTime": "2026-05-13T11:20:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "kafka",
+        "state": {"running": {"startedAt": "2026-05-13T11:05:00Z"}},
+        "restartCount": 5,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "kafka",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "statefulset.kafka.spec.updateStrategy.rollingUpdate.partition",
+        "declared": "0",
+        "observed": "2"
+      },
+      {
+        "field": "container.kafka.env.KAFKA_HEAP_OPTS",
+        "declared": "-Xmx2g -Xms2g",
+        "observed": "-Xmx512m -Xms512m"
+      }
+    ]
+  },
+  "anchors": [
+    "StatefulSet/production/kafka: spec.updateStrategy.rollingUpdate.partition declared='0' [manifest] | observed='2' [drift]",
+    "Pod/production/kafka-1: container.kafka.env.KAFKA_HEAP_OPTS declared='-Xmx2g -Xms2g' [manifest] | observed='-Xmx512m -Xms512m' [drift]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": {
+    "pod": "kafka-1",
+    "memory_mi": 490,
+    "memory_limit_mi": 512,
+    "usage_ratio": 0.96
+  },
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": "StatefulSet update stuck at ordinal 1 (kafka-1). kafka-0 updated successfully. kafka-2 waiting. Partition=2 blocks updates for pods with ordinal < 2."
+}

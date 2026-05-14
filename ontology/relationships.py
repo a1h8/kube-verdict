@@ -38,6 +38,9 @@ class RelationshipType(str, Enum):
     HAS_TRACE = "HAS_TRACE"           # K8s entity → OtelTrace
     HAS_LOG   = "HAS_LOG"             # K8s entity → LokiLog
 
+    # Policy
+    HAS_POLICY_VIOLATION = "HAS_POLICY_VIOLATION"  # K8s entity → PolicyViolation
+
 
 @dataclass(frozen=True)
 class Edge:

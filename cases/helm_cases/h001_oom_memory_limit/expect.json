@@ -1,0 +1,21 @@
+{
+  "scenario": "OOMKilled — memory limit drift (values.yaml 512Mi vs deployed 128Mi)",
+  "namespace": "production",
+  "release": "api",
+  "affected_resources": ["Deployment/production/api", "Pod/production/api-6d8f9b7c4-xvk2p"],
+  "root_cause_contains": ["OOMKilled", "memory", "limit", "drift", "512Mi", "128Mi"],
+  "fix_commands_contain": ["helm upgrade", "resources.limits.memory"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.40,
+  "fallback_expected": false,
+  "notes": "Classic memory limit drift: values.yaml declares 512Mi but a previous 'helm upgrade --set resources.limits.memory=128Mi' overrode it. The pipeline must detect the declared/observed gap AND the OOMKilled signal, then suggest the correct helm upgrade to restore the declared value.",
+  "_debug_score_breakdown": {
+    "bfs_c":    0.20,
+    "jac_c":    0.20,
+    "tfidf_c":  0.14,
+    "anchor_c": 0.10,
+    "signal_c": 0.12,
+    "policy_c": 0.00,
+    "total":    0.76
+  }
+}

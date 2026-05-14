@@ -1,0 +1,30 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "api",
+    "namespace": "production",
+    "uid": "d9f3c21a-4e7b-11ef-a1b2-0242ac110003",
+    "labels": {
+      "app.kubernetes.io/name": "api",
+      "app.kubernetes.io/instance": "api",
+      "helm.sh/chart": "api-1.4.0"
+    }
+  },
+  "spec": {
+    "replicas": 2,
+    "selector": {
+      "matchLabels": {
+        "app.kubernetes.io/name": "api",
+        "app.kubernetes.io/instance": "api"
+      }
+    },
+    "strategy": { "type": "RollingUpdate" }
+  },
+  "status": {
+    "replicas": 2,
+    "readyReplicas": 0,
+    "availableReplicas": 0,
+    "unavailableReplicas": 2
+  }
+}

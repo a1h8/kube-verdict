@@ -1,0 +1,63 @@
+{
+  "scenario": "OOMKilled",
+  "namespace": "production",
+  "query": "analytics-worker keeps restarting with OOMKilled exit code 137",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "OOMKilling",
+      "object": "Node/worker-node-03",
+      "message": "Memory cgroup out of memory: Killed process 184237 (analytics-worke) total-vm:1048576kB, anon-rss:532480kB, file-rss:16384kB, shmem-rss:0kB, UID:1000 pgtables:1152kB oom_score_adj:1000",
+      "count": 8,
+      "firstTime": "2026-05-13T07:00:00Z",
+      "lastTime": "2026-05-13T08:20:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/analytics-worker-5c8f7d9b4-nm8qt",
+      "message": "Back-off restarting failed container analytics-worker in pod analytics-worker-5c8f7d9b4-nm8qt_production",
+      "count": 8,
+      "firstTime": "2026-05-13T07:05:00Z",
+      "lastTime": "2026-05-13T08:20:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "analytics-worker",
+        "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+        "lastState": {"terminated": {"reason": "OOMKilled", "exitCode": 137}},
+        "restartCount": 8,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "analytics-worker",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "container.analytics-worker.resources.limits.memory",
+        "declared": "512Mi",
+        "observed": "50Mi"
+      }
+    ]
+  },
+  "anchors": [
+    "Pod/production/analytics-worker-5c8f7d9b4-nm8qt: container.analytics-worker.resources.limits.memory declared='512Mi' [manifest] | observed='50Mi' [drift]",
+    "Pod/production/analytics-worker-5c8f7d9b4-nm8qt: container.analytics-worker.resources.requests.memory declared='256Mi' [manifest]"
+  ],
+  "metrics": {
+    "pod": "analytics-worker-5c8f7d9b4-nm8qt",
+    "memory_mi": 49,
+    "memory_limit_mi": 50,
+    "usage_ratio": 0.98
+  },
+  "pvc_status": null,
+  "policy_report": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

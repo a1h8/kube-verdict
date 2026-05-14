@@ -35,3 +35,4 @@ htmlcov/
 .claude/
 demo/.env.demo
 data/
+tests/integration/use_cases/sim_results/*.json

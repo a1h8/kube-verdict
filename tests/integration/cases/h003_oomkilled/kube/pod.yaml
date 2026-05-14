@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-5f7c9d8b6-mn4x8
+  namespace: production
+  uid: 2b4d6f8a-7d0f-11ef-d5c6-0242ac110007
+  resourceVersion: "6841593"
+  creationTimestamp: "2026-05-14T07:30:00Z"
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: api
+    app.kubernetes.io/version: "v3.2.0"
+    pod-template-hash: 5f7c9d8b6
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: api-5f7c9d8b6
+    uid: 3c5e7a9b-7d0f-11ef-d5c6-0242ac110007
+    controller: true
+    blockOwnerDeletion: true
+spec:
+  nodeName: worker-node-01
+  serviceAccountName: api
+  containers:
+  - name: api
+    image: ghcr.io/acme/api:v3.2.0
+    resources:
+      limits:
+        memory: 128Mi
+        cpu: "1"
+      requests:
+        memory: 64Mi
+        cpu: 200m
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 5
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 30
+  dnsPolicy: ClusterFirst
+status:
+  phase: Running
+  podIP: 10.244.2.33
+  hostIP: 192.168.1.11
+  containerStatuses:
+  - name: api
+    ready: false
+    restartCount: 3
+    image: ghcr.io/acme/api:v3.2.0
+    imageID: ghcr.io/acme/api@sha256:def789abc012
+    state:
+      waiting:
+        reason: CrashLoopBackOff
+        message: back-off 5m0s restarting failed container=api pod=api-5f7c9d8b6-mn4x8_production
+    lastState:
+      terminated:
+        reason: OOMKilled
+        exitCode: 137
+        startedAt: "2026-05-14T09:00:00Z"
+        finishedAt: "2026-05-14T09:01:45Z"
+        containerID: containerd://cafebabe5678
+  conditions:
+  - type: Initialized
+    status: "True"
+    lastTransitionTime: "2026-05-14T07:30:05Z"
+  - type: Ready
+    status: "False"
+    reason: ContainersNotReady
+    message: "containers with unready status: [api]"
+    lastTransitionTime: "2026-05-14T07:30:10Z"
+  - type: ContainersReady
+    status: "False"
+    reason: ContainersNotReady
+    lastTransitionTime: "2026-05-14T07:30:10Z"
+  - type: PodScheduled
+    status: "True"
+    lastTransitionTime: "2026-05-14T07:30:00Z"

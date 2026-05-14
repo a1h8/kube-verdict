@@ -1,0 +1,30 @@
+{
+  "affected_resources": [
+    "Pod/production/audit-exporter-7c9f4d2b1-mp3k7"
+  ],
+  "root_cause_contains": [
+    "Kyverno",
+    "resource",
+    "limits",
+    "cpu",
+    "memory",
+    "root"
+  ],
+  "fix_commands_contain": [
+    "kubectl"
+  ],
+  "confidence": "HIGH",
+  "confidence_score_min": 0.64,
+  "fallback_expected": false,
+  "notes": "Three Kyverno policy violations: CPU limit missing, memory limit missing, runAsRoot forbidden. The admission webhook blocks the deployment. Fix: add resources.limits.cpu and resources.limits.memory to the container spec; set securityContext.runAsNonRoot=true.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.19,
+    "tfidf_c": 0.03,
+    "anchor_c": 0.0,
+    "signal_c": 0.09,
+    "drift_c": 0.0,
+    "policy_c": 0.30,
+    "total": 0.76
+  }
+}

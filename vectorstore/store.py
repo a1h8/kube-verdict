@@ -9,7 +9,9 @@ import faiss
 import config as cfg
 from ontology.entities import K8sEntity
 from ontology.graph import OntologyGraph
+from vectorstore.bm25_retriever import BM25Retriever
 from vectorstore.embedder import Embedder
+from vectorstore.rrf import rrf_fuse
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +33,9 @@ class FAISSStore:
         self._index: faiss.Index | None = None
         self._metadata: list[dict[str, Any]] = []  # parallel to index rows
         self._uid_to_row: dict[str, int] = {}
+        self._bm25 = BM25Retriever()
+        self._bm25_dirty: bool = False
+        self._last_retrieval_stats: dict = {}
 
     # ------------------------------------------------------------------
     # Indexing
@@ -61,13 +66,21 @@ class FAISSStore:
                 "namespace": e.namespace,
                 "text": texts[i],
                 "kube_version": str(graph.server_version) if graph.server_version else "",
+                "doc_source": "cluster",
             }
             for i, e in enumerate(entities)
         ]
         self._uid_to_row = {m["uid"]: i for i, m in enumerate(self._metadata)}
+        self._bm25.build(self._metadata)
+        self._bm25_dirty = False
         log.info("Index built: %d vectors (dim=%d)", self._index.ntotal, self._embedder.dim)
 
-    def add_entity(self, entity: K8sEntity, kube_version: str = "") -> None:
+    def add_entity(
+        self,
+        entity: K8sEntity,
+        kube_version: str = "",
+        doc_source: str = "cluster",
+    ) -> None:
         """Incrementally add a single entity to the index."""
         text = entity.to_text()
         vec = self._embedder.embed([text])
@@ -84,8 +97,10 @@ class FAISSStore:
             "namespace": entity.namespace,
             "text": text,
             "kube_version": kube_version,
+            "doc_source": doc_source,
         })
         self._uid_to_row[entity.uid] = row
+        self._bm25_dirty = True
 
     # ------------------------------------------------------------------
     # Search
@@ -110,10 +125,78 @@ class FAISSStore:
             if idx < 0:
                 continue
             entry = dict(self._metadata[idx])
-            entry["score"] = float(score)
+            weight = cfg.SOURCE_WEIGHTS.get(entry.get("doc_source", "cluster"), 1.0)
+            entry["score"] = float(score) * weight
             results.append(entry)
 
+        results.sort(key=lambda x: x["score"], reverse=True)
         return results
+
+    def _ensure_bm25(self) -> None:
+        if self._bm25_dirty:
+            self._bm25.build(self._metadata)
+            self._bm25_dirty = False
+
+    def hybrid_search(self, query: str, top_k: int | None = None) -> list[dict[str, Any]]:
+        """
+        Hybrid dense+sparse retrieval fused with Reciprocal Rank Fusion.
+
+        1. FAISS cosine-similarity search  (dense)
+        2. BM25Okapi keyword search        (sparse)
+        3. RRF fusion of both ranked lists
+        4. SOURCE_WEIGHTS applied to rrf_score
+
+        Replaces plain search() in the ContextBuilder hot-path so that
+        rare/exact K8s tokens (error codes, image tags, resource names)
+        are not penalised by embedding distance alone.
+        """
+        if self._index is None or self._index.ntotal == 0:
+            log.warning("Index is empty — run index_graph() first.")
+            return []
+
+        self._ensure_bm25()
+        k = min(top_k or cfg.TFIDF_TOP_K, self._index.ntotal)
+        fetch_k = k * cfg.RRF_FETCH_MULTIPLIER
+
+        # --- dense ---
+        q_vec = self._embedder.embed([query])
+        scores, indices = self._index.search(q_vec, min(fetch_k, self._index.ntotal))
+        dense_hits: list[dict[str, Any]] = []
+        for score, idx in zip(scores[0], indices[0]):
+            if idx < 0:
+                continue
+            entry = dict(self._metadata[idx])
+            entry["score"] = float(score)
+            dense_hits.append(entry)
+
+        # --- sparse ---
+        sparse_hits = self._bm25.search(query, top_k=fetch_k)
+
+        # --- fuse ---
+        fused = rrf_fuse([dense_hits, sparse_hits], top_k=k, k=cfg.RRF_K)
+
+        # apply source weights to rrf_score
+        for entry in fused:
+            weight = cfg.SOURCE_WEIGHTS.get(entry.get("doc_source", "cluster"), 1.0)
+            entry["rrf_score"] *= weight
+
+        fused.sort(key=lambda x: x["rrf_score"], reverse=True)
+        self._last_retrieval_stats = {
+            "dense": len(dense_hits),
+            "sparse": len(sparse_hits),
+            "fused": len(fused),
+            "top_rrf_score": round(fused[0]["rrf_score"], 4) if fused else 0.0,
+        }
+        log.info(
+            "hybrid_search: dense=%d sparse=%d → fused=%d (top_k=%d)",
+            len(dense_hits), len(sparse_hits), len(fused), k,
+        )
+        return fused
+
+    @property
+    def last_retrieval_stats(self) -> dict:
+        """Stats from the most recent hybrid_search call."""
+        return self._last_retrieval_stats
 
     def search_by_uid(self, uid: str) -> dict[str, Any] | None:
         row = self._uid_to_row.get(uid)
@@ -148,6 +231,8 @@ class FAISSStore:
             data = pickle.load(f)
         self._metadata = data["metadata"]
         self._uid_to_row = data["uid_to_row"]
+        self._bm25.build(self._metadata)
+        self._bm25_dirty = False
         log.info("Index loaded from %s (%d vectors)", src, self._index.ntotal)
 
     # ------------------------------------------------------------------

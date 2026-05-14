@@ -1,0 +1,32 @@
+{
+  "scenario": "ResourceQuota Exceeded - Cannot Scale",
+  "namespace": "team-alpha",
+  "query": "data-processor deployment cannot scale up, ReplicaSet FailedCreate",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "FailedCreate",
+      "object": "ReplicaSet/data-processor-7f8c9b5d4",
+      "message": "Error creating: pods \"data-processor-7f8c9b5d4-\" is forbidden: exceeded quota: team-alpha-quota, requested: requests.cpu=500m, used: requests.cpu=3800m, limited: requests.cpu=4000m",
+      "count": 12,
+      "firstTime": "2026-05-13T16:00:00Z",
+      "lastTime": "2026-05-13T16:10:00Z"
+    }
+  ],
+  "pod_status": null,
+  "helm_drift": {
+    "release": "data-processor",
+    "namespace": "team-alpha",
+    "diffs": []
+  },
+  "anchors": [
+    "Namespace/team-alpha: resourcequota.team-alpha-quota.requests.cpu declared='4000m' [manifest]",
+    "ReplicaSet/team-alpha/data-processor-7f8c9b5d4: spec.replicas declared='10' [manifest]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": "Deployment targeted 10 replicas, only 7 created (3800m used). Quota hard limit is 4000m. Each pod requests 500m CPU."
+}

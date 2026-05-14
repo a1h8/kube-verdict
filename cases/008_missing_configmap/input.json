@@ -1,0 +1,51 @@
+{
+  "scenario": "CreateContainerConfigError - Missing ConfigMap",
+  "namespace": "staging",
+  "query": "notification-service pod fails with CreateContainerConfigError",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Failed",
+      "object": "Pod/notification-service-5b8c9d7f6-wr3k8",
+      "message": "Error: configmap \"notification-config\" not found",
+      "count": 1,
+      "firstTime": "2026-05-13T14:00:00Z",
+      "lastTime": "2026-05-13T14:00:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/notification-service-5b8c9d7f6-wr3k8",
+      "message": "Back-off restarting failed container notification-service in pod notification-service-5b8c9d7f6-wr3k8_staging",
+      "count": 5,
+      "firstTime": "2026-05-13T14:02:00Z",
+      "lastTime": "2026-05-13T14:10:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Pending",
+    "containerStatuses": [
+      {
+        "name": "notification-service",
+        "state": {"waiting": {"reason": "CreateContainerConfigError",
+                              "message": "configmap \"notification-config\" not found"}},
+        "restartCount": 0,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "notification-service",
+    "namespace": "staging",
+    "diffs": []
+  },
+  "anchors": [
+    "Pod/staging/notification-service-5b8c9d7f6-wr3k8: container.notification-service.envFrom[0].configMapRef.name declared='notification-config' [manifest]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

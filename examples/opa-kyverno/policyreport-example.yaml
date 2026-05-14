@@ -1,0 +1,45 @@
+# Example PolicyReport — what Kyverno writes after evaluating a Pod.
+# KubeWhisperer reads these via:
+#   kubectl get policyreport -A -o yaml
+# and creates PolicyViolation nodes with HAS_POLICY_VIOLATION edges.
+apiVersion: wgpolicyk8s.io/v1alpha2
+kind: PolicyReport
+metadata:
+  name: audit-exporter-report
+  namespace: production
+  labels:
+    app.kubernetes.io/managed-by: kyverno
+results:
+  - policy: require-resource-limits
+    rule: check-cpu-limit
+    result: fail
+    severity: medium
+    message: "CPU limit must be set. Container audit-exporter has no resources.limits.cpu."
+    resources:
+      - kind: Pod
+        name: audit-exporter-7c9f4d2b1-mp3k7
+        namespace: production
+  - policy: require-resource-limits
+    rule: check-memory-limit
+    result: fail
+    severity: medium
+    message: "Memory limit must be set. Container audit-exporter has no resources.limits.memory."
+    resources:
+      - kind: Pod
+        name: audit-exporter-7c9f4d2b1-mp3k7
+        namespace: production
+  - policy: require-resource-limits
+    rule: disallow-root-user
+    result: fail
+    severity: high
+    message: "Pod must not run as root. Set securityContext.runAsNonRoot=true."
+    resources:
+      - kind: Pod
+        name: audit-exporter-7c9f4d2b1-mp3k7
+        namespace: production
+summary:
+  pass: 0
+  fail: 3
+  warn: 0
+  error: 0
+  skip: 0

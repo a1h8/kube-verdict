@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: order-service-6f9b8c7d5-q4r2s
+  namespace: production
+  uid: e7a4b0c3-8e1a-11ef-b3a4-0242ac110008
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/instance: order-service
+    app: order-service
+    pod-template-hash: 6f9b8c7d5
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: order-service-6f9b8c7d5
+    controller: true
+spec:
+  nodeName: worker-node-01
+  serviceAccountName: order-service
+  containers:
+  - name: order-service
+    image: ghcr.io/acme/order-service:v4.2.1
+    env:
+    - name: DATABASE_URL
+      value: "postgresql://db-primary.production.svc.cluster.local:5432/orders"
+    - name: REDIS_URL
+      value: "redis://redis.production.svc.cluster.local:6379"
+    ports:
+    - containerPort: 8080
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 5
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: "1"
+      requests:
+        memory: 256Mi
+        cpu: 200m
+status:
+  phase: Running
+  podIP: 10.244.1.55
+  containerStatuses:
+  - name: order-service
+    ready: false    # ← readiness probe failing (can't reach DB)
+    restartCount: 0
+    state:
+      running:
+        startedAt: "2026-05-14T12:00:00Z"
+  conditions:
+  - type: Ready
+    status: "False"
+    reason: ContainersNotReady
+    message: "readiness probe failed: Get http://10.244.1.55:8080/healthz: connection refused"

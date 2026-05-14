@@ -1,0 +1,30 @@
+{
+  "affected_resources": [
+    "Service/production/backend-svc"
+  ],
+  "root_cause_contains": [
+    "selector",
+    "label",
+    "mismatch",
+    "endpoints",
+    "backend-v2"
+  ],
+  "fix_commands_contain": [
+    "helm upgrade",
+    "selector"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.46,
+  "fallback_expected": false,
+  "notes": "Service selector drift (app=backend declared → app=backend-v2 observed) creates a 0-endpoint service. Pod is healthy — the only observable signal is the selector drift. No K8s Warning events because both pod and service individually appear healthy.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.1,
+    "signal_c": 0.0,
+    "drift_c": 0.07,
+    "policy_c": 0.0,
+    "total": 0.58
+  }
+}

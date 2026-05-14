@@ -1,0 +1,37 @@
+{
+  "scenario": "Pending - Node Affinity Unmet",
+  "namespace": "production",
+  "query": "gpu-worker pod stuck Pending, no node matches GPU requirement",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "FailedScheduling",
+      "object": "Pod/gpu-worker-6d8f9b7c4-p9mn2",
+      "message": "0/3 nodes are available: 3 node(s) didn't match node affinity/selector. preemption: 0/3 nodes are available: 3 Preemption is not helpful for scheduling.",
+      "count": 18,
+      "firstTime": "2026-05-13T13:00:00Z",
+      "lastTime": "2026-05-13T13:45:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Pending",
+    "conditions": [
+      {"type": "PodScheduled", "status": "False", "reason": "Unschedulable",
+       "message": "0/3 nodes available: 3 node(s) didn't match node affinity/selector"}
+    ]
+  },
+  "helm_drift": {
+    "release": "gpu-worker",
+    "namespace": "production",
+    "diffs": []
+  },
+  "anchors": [
+    "Pod/production/gpu-worker-6d8f9b7c4-p9mn2: spec.nodeSelector.accelerator declared='nvidia-tesla-v100' [manifest]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": "Cluster has 3 nodes: node labels are accelerator=none on all. No GPU node was provisioned."
+}

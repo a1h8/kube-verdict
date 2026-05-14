@@ -1,0 +1,43 @@
+{
+  "scenario": "Pending - Insufficient CPU",
+  "namespace": "production",
+  "query": "api-gateway pod is stuck Pending, never gets scheduled",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "FailedScheduling",
+      "object": "Pod/api-gateway-7f9d8c6b5-xk2p4",
+      "message": "0/3 nodes are available: 3 Insufficient cpu. preemption: 0/3 nodes are available: 3 No preemption victims found for incoming pod.",
+      "count": 24,
+      "firstTime": "2026-05-13T11:00:00Z",
+      "lastTime": "2026-05-13T12:00:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Pending",
+    "conditions": [
+      {"type": "PodScheduled", "status": "False", "reason": "Unschedulable",
+       "message": "0/3 nodes available: 3 Insufficient cpu"}
+    ]
+  },
+  "helm_drift": {
+    "release": "api-gateway",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "container.api-gateway.resources.requests.cpu",
+        "declared": "500m",
+        "observed": "4000m"
+      }
+    ]
+  },
+  "anchors": [
+    "Pod/production/api-gateway-7f9d8c6b5-xk2p4: container.api-gateway.resources.requests.cpu declared='500m' [manifest] | observed='4000m' [drift]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

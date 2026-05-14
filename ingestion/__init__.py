@@ -3,9 +3,11 @@ from .helm_collector import HelmCollector
 from .helmfile_collector import HelmfileCollector
 from .chart_parser import ChartParser, merge_values_hierarchy, flatten_values
 from .helm_drift import HelmDriftDetector
+from .policy_collector import PolicyCollector, PolicyCollectResult, policy_fix_hints
 
 __all__ = [
     "K8sCollector", "HelmCollector", "HelmfileCollector",
     "ChartParser", "merge_values_hierarchy", "flatten_values",
     "HelmDriftDetector",
+    "PolicyCollector", "PolicyCollectResult", "policy_fix_hints",
 ]

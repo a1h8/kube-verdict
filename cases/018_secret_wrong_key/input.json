@@ -1,0 +1,57 @@
+{
+  "scenario": "Secret Wrong Key - EnvFrom KeyRef Not Found",
+  "namespace": "production",
+  "query": "auth-service CrashLoopBackOff, secret key DATABASE_PASSWORD not found",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Failed",
+      "object": "Pod/auth-service-2c8f7d9b4-mn5r7",
+      "message": "Error: couldn't find key DATABASE_PASSWORD in Secret production/db-credentials",
+      "count": 1,
+      "firstTime": "2026-05-13T09:00:00Z",
+      "lastTime": "2026-05-13T09:00:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/auth-service-2c8f7d9b4-mn5r7",
+      "message": "Back-off restarting failed container auth-service in pod auth-service-2c8f7d9b4-mn5r7_production",
+      "count": 18,
+      "firstTime": "2026-05-13T09:01:00Z",
+      "lastTime": "2026-05-13T09:20:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "auth-service",
+        "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+        "restartCount": 18,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "auth-service",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "container.auth-service.env.DATABASE_PASSWORD.secretKeyRef.key",
+        "declared": "DATABASE_PASSWORD",
+        "observed": "DB_PASSWORD"
+      }
+    ]
+  },
+  "anchors": [
+    "Pod/production/auth-service-2c8f7d9b4-mn5r7: container.auth-service.env.DATABASE_PASSWORD.secretKeyRef.key declared='DATABASE_PASSWORD' [manifest] | observed='DB_PASSWORD' [drift]",
+    "Pod/production/auth-service-2c8f7d9b4-mn5r7: container.auth-service.env.DATABASE_PASSWORD.secretKeyRef.name declared='db-credentials' [manifest]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

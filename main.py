@@ -20,7 +20,7 @@ Config is read from .env (see .env.example). CLI flags override .env values.
 import argparse
 
 import config as cfg  # loads .env
-from ingestion import K8sCollector, HelmCollector, HelmfileCollector, HelmDriftDetector
+from ingestion import K8sCollector, HelmCollector, HelmfileCollector, HelmDriftDetector, PolicyCollector
 from llm import OllamaClient
 from rca import RCAAnalyzer
 from vectorstore import Embedder, FAISSStore
@@ -42,6 +42,8 @@ def main() -> None:
                         help="Load an existing FAISS index instead of re-collecting.")
     parser.add_argument("--stream", action="store_true",
                         help="Stream Mistral output token by token.")
+    parser.add_argument("--policy", action="store_true",
+                        help="Collect OPA / Kyverno PolicyReport violations (requires wgpolicyk8s.io CRD).")
     args = parser.parse_args()
 
     namespaces = args.namespaces or cfg.KUBE_NAMESPACES or None
@@ -80,6 +82,16 @@ def main() -> None:
             import logging
             logging.getLogger(__name__).info(
                 "%d drift item(s) annotated on graph entities", drift_count
+            )
+
+        if args.policy:
+            policy_result = PolicyCollector().collect(graph, namespaces=namespaces)
+            import logging as _logging
+            _logging.getLogger(__name__).info(
+                "policy violations: fail=%d audit=%d webhooks=%d",
+                policy_result.fail_count,
+                policy_result.audit_count,
+                policy_result.mutation_webhooks,
             )
 
         print(graph.summary())

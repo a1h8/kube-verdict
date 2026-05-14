@@ -1,0 +1,34 @@
+{
+  "affected_resources": [
+    "StatefulSet/production/kafka",
+    "Pod/production/kafka-1"
+  ],
+  "root_cause_contains": [
+    "StatefulSet",
+    "partition",
+    "rolling",
+    "update",
+    "KAFKA_HEAP_OPTS",
+    "memory",
+    "drift"
+  ],
+  "fix_commands_contain": [
+    "helm upgrade",
+    "partition",
+    "KAFKA_HEAP_OPTS"
+  ],
+  "confidence": "HIGH",
+  "confidence_score_min": 0.62,
+  "fallback_expected": false,
+  "notes": "Two compounding drifts: (1) partition=2 observed vs 0 declared blocks the rolling update from advancing past ordinal 1; (2) KAFKA_HEAP_OPTS drift causes near-OOM on kafka-1, failing readiness. Fix both drifts to unblock the rollout.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.1,
+    "signal_c": 0.09,
+    "drift_c": 0.14,
+    "policy_c": 0.0,
+    "total": 0.74
+  }
+}
