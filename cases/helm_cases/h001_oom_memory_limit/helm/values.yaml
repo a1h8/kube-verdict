@@ -1,0 +1,22 @@
+# Declared intent — what the team wants deployed
+replicaCount: 2
+
+image:
+  repository: ghcr.io/acme/api
+  tag: v2.3.1
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    memory: 512Mi
+    cpu: "1"
+  requests:
+    memory: 256Mi
+    cpu: 200m
+
+service:
+  type: ClusterIP
+  port: 8080
+
+autoscaling:
+  enabled: false

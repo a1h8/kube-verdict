@@ -1,0 +1,31 @@
+{
+  "affected_resources": [
+    "Pod/production/gpu-worker-6d8f9b7c4-p9mn2"
+  ],
+  "root_cause_contains": [
+    "affinity",
+    "nodeSelector",
+    "accelerator",
+    "nvidia",
+    "scheduling"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "label",
+    "node"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.4,
+  "fallback_expected": false,
+  "notes": "No Helm drift — the nodeSelector is correctly declared (500m) but the cluster has no nodes labelled accelerator=nvidia-tesla-v100. Fix: label an existing node or provision a GPU node. Medium confidence because the cause is a missing node, not a misconfiguration.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.06,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.52
+  }
+}

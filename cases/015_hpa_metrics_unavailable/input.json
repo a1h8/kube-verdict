@@ -1,0 +1,51 @@
+{
+  "scenario": "HPA - Metrics Unavailable",
+  "namespace": "production",
+  "query": "report-generator not scaling under load, HPA shows unknown metrics",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "FailedGetScale",
+      "object": "HorizontalPodAutoscaler/report-generator",
+      "message": "the HPA was unable to compute the replica count: failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API",
+      "count": 15,
+      "firstTime": "2026-05-13T12:00:00Z",
+      "lastTime": "2026-05-13T12:30:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "FailedComputeMetricsReplicas",
+      "object": "HorizontalPodAutoscaler/report-generator",
+      "message": "invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API",
+      "count": 15,
+      "firstTime": "2026-05-13T12:00:00Z",
+      "lastTime": "2026-05-13T12:30:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "report-generator",
+        "state": {"running": {"startedAt": "2026-05-13T11:00:00Z"}},
+        "restartCount": 0,
+        "ready": true
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "report-generator",
+    "namespace": "production",
+    "diffs": []
+  },
+  "anchors": [
+    "HorizontalPodAutoscaler/production/report-generator: spec.metrics[0].resource.name declared='cpu' [manifest]",
+    "HorizontalPodAutoscaler/production/report-generator: spec.minReplicas declared='2' [manifest]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": "metrics-server pod in kube-system is in CrashLoopBackOff. HPA cannot retrieve resource metrics. Deployment stuck at minReplicas=2 under heavy load."
+}

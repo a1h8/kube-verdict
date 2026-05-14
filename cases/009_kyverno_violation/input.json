@@ -1,0 +1,74 @@
+{
+  "scenario": "Kyverno Policy Violation — no resource limits + runAsRoot",
+  "namespace": "production",
+  "query": "audit-exporter pod rejected by Kyverno, missing CPU/memory limits and runs as root",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Failed",
+      "object": "Pod/audit-exporter-7c9f4d2b1-mp3k7",
+      "message": "Error creating: admission webhook \"validate.kyverno.svc\" denied the request: resource Deployment/production/audit-exporter was blocked due to the following policies require-resource-limits: check-cpu-limit, check-memory-limit",
+      "count": 1,
+      "firstTime": "2026-05-14T10:00:00Z",
+      "lastTime": "2026-05-14T10:00:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/audit-exporter-7c9f4d2b1-mp3k7",
+      "message": "Back-off restarting failed container audit-exporter in pod audit-exporter-7c9f4d2b1-mp3k7_production",
+      "count": 8,
+      "firstTime": "2026-05-14T10:01:00Z",
+      "lastTime": "2026-05-14T10:15:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "audit-exporter",
+        "state": {
+          "waiting": {
+            "reason": "CrashLoopBackOff"
+          }
+        },
+        "restartCount": 8,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "audit-exporter",
+    "namespace": "production",
+    "diffs": []
+  },
+  "anchors": [],
+  "pvc_status": null,
+  "policy_report": {
+    "policy": "require-resource-limits",
+    "violations": [
+      {
+        "rule": "check-cpu-limit",
+        "resource": "Pod/production/audit-exporter-7c9f4d2b1-mp3k7",
+        "result": "fail",
+        "message": "CPU limit must be set. Container audit-exporter has no resources.limits.cpu."
+      },
+      {
+        "rule": "check-memory-limit",
+        "resource": "Pod/production/audit-exporter-7c9f4d2b1-mp3k7",
+        "result": "fail",
+        "message": "Memory limit must be set. Container audit-exporter has no resources.limits.memory."
+      },
+      {
+        "rule": "disallow-root-user",
+        "resource": "Pod/production/audit-exporter-7c9f4d2b1-mp3k7",
+        "result": "fail",
+        "message": "Pod must not run as root. Set securityContext.runAsNonRoot=true."
+      }
+    ]
+  },
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

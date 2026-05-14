@@ -1,0 +1,31 @@
+{
+  "affected_resources": [
+    "HorizontalPodAutoscaler/production/report-generator"
+  ],
+  "root_cause_contains": [
+    "metrics",
+    "HPA",
+    "cpu",
+    "metrics-server",
+    "unavailable",
+    "scaling"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "metrics-server"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.46,
+  "fallback_expected": false,
+  "notes": "metrics-server is unavailable (CrashLoopBackOff in kube-system), causing HPA to fail all scale computations. Pod itself is healthy; the failure is in the metrics pipeline, not the workload. Medium confidence because the root cause (metrics-server state) is outside the incident graph.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.02,
+    "anchor_c": 0.1,
+    "signal_c": 0.06,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.58
+  }
+}

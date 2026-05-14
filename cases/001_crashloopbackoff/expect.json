@@ -1,0 +1,29 @@
+{
+  "affected_resources": [
+    "Pod/production/payment-service-6d8f9b7c4-xk9p2"
+  ],
+  "root_cause_contains": [
+    "secret",
+    "payment-db-secret",
+    "not found",
+    "missing"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "secret"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.46,
+  "fallback_expected": false,
+  "notes": "Missing secret causes container to fail on startup. restart_count=47 is the primary signal. The BackOff event (count=47) is the dedup anchor. No Helm drift — pure runtime misconfiguration.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.12,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.58
+  }
+}

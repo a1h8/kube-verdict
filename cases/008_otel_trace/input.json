@@ -1,0 +1,94 @@
+{
+  "scenario": "OTel Error Traces — DB connection timeout in order-processor",
+  "namespace": "production",
+  "query": "order-processor requests return HTTP 500, OTel traces show database timeout",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Unhealthy",
+      "object": "Pod/order-processor-5f7b9c3d1-kp4m2",
+      "message": "Readiness probe failed: HTTP probe failed with statuscode: 503",
+      "count": 12,
+      "firstTime": "2026-05-14T09:00:00Z",
+      "lastTime": "2026-05-14T09:45:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/order-processor-5f7b9c3d1-kp4m2",
+      "message": "Back-off restarting failed container order-processor in pod order-processor-5f7b9c3d1-kp4m2_production",
+      "count": 4,
+      "firstTime": "2026-05-14T09:30:00Z",
+      "lastTime": "2026-05-14T09:45:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "order-processor",
+        "state": {
+          "running": {
+            "startedAt": "2026-05-14T09:00:00Z"
+          }
+        },
+        "restartCount": 4,
+        "ready": false
+      }
+    ]
+  },
+  "otel_traces": [
+    {
+      "trace_id": "4a5f8b2e9c1d7f3a6e2b0c9d",
+      "service_name": "order-processor",
+      "status": "ERROR",
+      "duration_ms": 5023.0,
+      "span_count": 7,
+      "root_span_name": "POST /api/orders",
+      "error_message": "context deadline exceeded: postgresql://orders-db.production:5432 — connection refused after 5000ms",
+      "error_spans": [
+        {
+          "name": "db.query.insert_order",
+          "error": "context deadline exceeded"
+        },
+        {
+          "name": "tcp.connect orders-db.production:5432",
+          "error": "connection refused"
+        }
+      ]
+    },
+    {
+      "trace_id": "7c3e1a9f2b6d4h8k",
+      "service_name": "order-processor",
+      "status": "ERROR",
+      "duration_ms": 5011.0,
+      "span_count": 5,
+      "root_span_name": "GET /api/orders/health",
+      "error_message": "dial tcp orders-db.production:5432: connect: connection refused",
+      "error_spans": [
+        {
+          "name": "db.ping",
+          "error": "dial tcp orders-db.production:5432: connect: connection refused"
+        }
+      ]
+    }
+  ],
+  "helm_drift": {
+    "release": "order-processor",
+    "namespace": "production",
+    "diffs": []
+  },
+  "anchors": [
+    "Pod/production/order-processor-5f7b9c3d1-kp4m2: spec.readinessProbe.httpGet.path declared='/health' [values.yaml]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": {
+    "memory_mi": 128,
+    "memory_limit_mi": 512,
+    "usage_ratio": 0.25
+  },
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

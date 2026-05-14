@@ -1,0 +1,56 @@
+{
+  "scenario": "ImagePullBackOff",
+  "namespace": "production",
+  "query": "ml-inference pod stuck in ImagePullBackOff",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Failed",
+      "object": "Pod/ml-inference-7d9f8b6c5-r2m4k",
+      "message": "Failed to pull image \"ghcr.io/acme/ml-inference:v2.1.0-private\": rpc error: code = Unknown desc = failed to pull and unpack image: failed to resolve reference \"ghcr.io/acme/ml-inference:v2.1.0-private\": unexpected status code 401 Unauthorized",
+      "count": 12,
+      "firstTime": "2026-05-13T09:00:00Z",
+      "lastTime": "2026-05-13T09:15:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/ml-inference-7d9f8b6c5-r2m4k",
+      "message": "Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\"",
+      "count": 8,
+      "firstTime": "2026-05-13T09:05:00Z",
+      "lastTime": "2026-05-13T09:15:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Pending",
+    "containerStatuses": [
+      {
+        "name": "ml-inference",
+        "state": {"waiting": {"reason": "ImagePullBackOff", "message": "Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\""}},
+        "restartCount": 0,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "ml-inference",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "container.ml-inference.image",
+        "declared": "ghcr.io/acme/ml-inference:v2.0.5",
+        "observed": "ghcr.io/acme/ml-inference:v2.1.0-private"
+      }
+    ]
+  },
+  "anchors": [
+    "Pod/production/ml-inference-7d9f8b6c5-r2m4k: container.ml-inference.image declared='ghcr.io/acme/ml-inference:v2.0.5' [manifest] | observed='ghcr.io/acme/ml-inference:v2.1.0-private' [drift]",
+    "Pod/production/ml-inference-7d9f8b6c5-r2m4k: container.ml-inference.imagePullPolicy declared='IfNotPresent' [schema]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": []
+}

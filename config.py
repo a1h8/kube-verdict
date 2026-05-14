@@ -90,6 +90,24 @@ JACCARD_THRESHOLD: float = _float("JACCARD_THRESHOLD", 0.7)
 TFIDF_TOP_K: int = _int("TFIDF_TOP_K", 20)
 TFIDF_NGRAM_MAX: int = _int("TFIDF_NGRAM_MAX", 3)   # (1, N) — 3 = trigrams
 
+# ── Hybrid retrieval (BM25 + FAISS → RRF) ──────────────────────────────────────
+RRF_K: int = _int("RRF_K", 60)                        # RRF damping constant (paper default)
+RRF_FETCH_MULTIPLIER: int = _int("RRF_FETCH_MULTIPLIER", 3)  # over-fetch per source before fusion
+
+# ── Document source weights ────────────────────────────────────────────────────
+# Applied as a score multiplier in FAISSStore.search() before TF-IDF ranking.
+# Override per-source with SOURCE_WEIGHT_<SOURCE_UPPER>=<float> in .env.
+# Sources: cluster (live K8s entities), enterprise (internal docs/runbooks),
+#          runbook (operational procedures), official (K8s/Helm upstream docs),
+#          example (past resolved incidents).
+SOURCE_WEIGHTS: dict[str, float] = {
+    "cluster":    _float("SOURCE_WEIGHT_CLUSTER",    1.0),
+    "official":   _float("SOURCE_WEIGHT_OFFICIAL",   1.0),
+    "example":    _float("SOURCE_WEIGHT_EXAMPLE",    1.2),
+    "enterprise": _float("SOURCE_WEIGHT_ENTERPRISE", 1.5),
+    "runbook":    _float("SOURCE_WEIGHT_RUNBOOK",    1.8),
+}
+
 # ── Runtime ────────────────────────────────────────────────────────────────────
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 

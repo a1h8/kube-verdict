@@ -1,0 +1,23 @@
+# Minimal kube-prometheus-stack overrides for KubeWhisperer integration.
+# Deploy with:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace \
+#     -f examples/prometheus/kube-prometheus-stack-values.yaml
+
+prometheus:
+  prometheusSpec:
+    # Expose the API outside the cluster for KubeWhisperer (or use kubectl port-forward)
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    # Retain 30 days of data
+    retention: 30d
+
+  service:
+    type: ClusterIP   # use port-forward or an Ingress in production
+
+alertmanager:
+  enabled: true
+
+grafana:
+  enabled: false    # optional — not required by KubeWhisperer

@@ -1,0 +1,12 @@
+{
+  "scenario": "CrashLoopBackOff — missing Kubernetes secret",
+  "namespace": "production",
+  "release": "payment-service",
+  "affected_resources": ["Pod/production/payment-service-6d8f9b7c4-xk9p2"],
+  "root_cause_contains": ["secret", "payment-db-secret", "not found", "missing"],
+  "fix_commands_contain": ["kubectl", "secret"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.45,
+  "fallback_expected": false,
+  "notes": "Secret missing causes CrashLoopBackOff. restartCount=47 is primary signal."
+}

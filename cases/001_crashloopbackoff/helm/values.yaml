@@ -1,0 +1,36 @@
+# Declared chart values — payment-service
+# Scenario: CrashLoopBackOff caused by missing secret
+
+replicaCount: 2
+
+image:
+  repository: docker.io/acme/payment-service
+  tag: "1.4.2"
+  pullPolicy: IfNotPresent
+
+env:
+  DB_HOST: db-primary.production.svc.cluster.local
+  DB_PORT: "5432"
+  DB_NAME: payments
+
+# Secret reference — MUST exist before deployment
+existingSecret: payment-db-secret   # kubectl create secret generic payment-db-secret --from-literal=DB_PASSWORD=...
+
+resources:
+  limits:
+    memory: 256Mi
+    cpu: "500m"
+  requests:
+    memory: 128Mi
+    cpu: 100m
+
+service:
+  type: ClusterIP
+  port: 8080
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 5

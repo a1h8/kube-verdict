@@ -1,0 +1,63 @@
+# Kyverno ClusterPolicy — enforces resource limits and non-root containers.
+# Violations are written to PolicyReport objects (wgpolicyk8s.io/v1alpha2)
+# which KubeWhisperer ingests via policy_collector.py.
+#
+# Install Kyverno:
+#   helm repo add kyverno https://kyverno.github.io/kyverno
+#   helm upgrade --install kyverno kyverno/kyverno -n kyverno --create-namespace
+#
+# Apply this policy:
+#   kubectl apply -f examples/opa-kyverno/kyverno-policy.yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require Resource Limits
+    policies.kyverno.io/description: >
+      Pods must declare CPU and memory limits. Missing limits risk node
+      pressure, OOMKilled events, and CrashLoopBackOff cycles.
+spec:
+  validationFailureAction: Audit   # use Enforce to block; Audit to report only
+  background: true
+  rules:
+    - name: check-cpu-limit
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: "CPU limit must be set for all containers."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    cpu: "?*"
+
+    - name: check-memory-limit
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: "Memory limit must be set for all containers."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    memory: "?*"
+
+    - name: disallow-root-user
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: "Containers must not run as root. Set securityContext.runAsNonRoot=true."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  runAsNonRoot: true
