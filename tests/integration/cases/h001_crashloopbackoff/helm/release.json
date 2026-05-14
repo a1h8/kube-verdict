@@ -1,0 +1,31 @@
+{
+  "replicaCount": 2,
+  "image": {
+    "repository": "ghcr.io/acme/payment-service",
+    "tag": "1.4.2",
+    "pullPolicy": "IfNotPresent"
+  },
+  "existingSecret": "payment-db-secret",
+  "resources": {
+    "limits": {
+      "memory": "256Mi",
+      "cpu": "500m"
+    },
+    "requests": {
+      "memory": "128Mi",
+      "cpu": "100m"
+    }
+  },
+  "env": {
+    "DB_HOST": "db-primary.production.svc.cluster.local",
+    "DB_PORT": "5432",
+    "DB_NAME": "payments"
+  },
+  "service": {
+    "type": "ClusterIP",
+    "port": 8080
+  },
+  "autoscaling": {
+    "enabled": false
+  }
+}

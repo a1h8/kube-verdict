@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: production
+  uid: 4d6e8b0c-7d0f-11ef-d5c6-0242ac110007
+  resourceVersion: "6841580"
+  creationTimestamp: "2026-05-14T07:00:00Z"
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: api
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    deployment.kubernetes.io/revision: "3"
+    meta.helm.sh/release-name: api
+    meta.helm.sh/release-namespace: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/instance: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api
+        app.kubernetes.io/instance: api
+    spec:
+      containers:
+      - name: api
+        image: ghcr.io/acme/api:v3.2.0
+        resources:
+          limits:
+            memory: 128Mi
+            cpu: "1"
+          requests:
+            memory: 64Mi
+            cpu: 200m
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+status:
+  observedGeneration: 3
+  replicas: 2
+  updatedReplicas: 2
+  readyReplicas: 0
+  availableReplicas: 0
+  conditions:
+  - type: Available
+    status: "False"
+    reason: MinimumReplicasUnavailable
+    message: Deployment does not have minimum availability.
+    lastTransitionTime: "2026-05-14T09:00:05Z"
+  - type: Progressing
+    status: "True"
+    reason: ReplicaSetUpdated
+    message: ReplicaSet "api-5f7c9d8b6" is progressing.
+    lastTransitionTime: "2026-05-14T07:30:00Z"

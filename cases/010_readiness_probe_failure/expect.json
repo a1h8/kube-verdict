@@ -1,0 +1,31 @@
+{
+  "affected_resources": [
+    "Pod/production/order-service-6c9d8b7f4-vp5r1"
+  ],
+  "root_cause_contains": [
+    "readiness",
+    "probe",
+    "database",
+    "pool",
+    "DB_POOL_SIZE",
+    "drift"
+  ],
+  "fix_commands_contain": [
+    "helm upgrade",
+    "DB_POOL_SIZE"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.49,
+  "fallback_expected": false,
+  "notes": "DB_POOL_SIZE drift (20 declared → 2 observed) exhausts the connection pool, causing the readiness probe HTTP 500. Pod is Running but never Ready → service has 0 endpoints. Two anchors (readinessProbe + pool size drift) boost anchor component.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.1,
+    "signal_c": 0.03,
+    "drift_c": 0.07,
+    "policy_c": 0.0,
+    "total": 0.61
+  }
+}

@@ -38,9 +38,10 @@ _SYSTEM_PROMPT = textwrap.dedent("""\
 
 _PROMPT_TEMPLATE = textwrap.dedent("""\
     ## Cluster information
-    Kubernetes version : {kube_version}
-    Analysis timestamp : {timestamp}
-    Total context chunks: {total_chunks}
+    Kubernetes version   : {kube_version}
+    Analysis timestamp   : {timestamp}
+    Total context chunks : {total_chunks}
+    Context quality score: {pre_llm_label} ({pre_llm_score:.2f}/1.00) — {pre_llm_reasons}
 
     {context_block}
 
@@ -128,7 +129,19 @@ class RCAReport:
                 "helm": len(self.context.helm),
                 "related": len(self.context.related),
                 "total": self.context.total_chunks,
+                "anchors": list(self.context.anchors),
+                "retrieval": self.context.retrieval_stats,
+                "jaccard": self.context.jaccard_stats,
             },
+            "pre_llm_confidence": (
+                {
+                    "score": self.context.pre_llm_confidence.score,
+                    "label": self.context.pre_llm_confidence.label,
+                    "reasons": list(self.context.pre_llm_confidence.reasons),
+                }
+                if self.context.pre_llm_confidence
+                else None
+            ),
             "raw_analysis": self.raw_analysis,
         }
 
@@ -235,10 +248,14 @@ def _kube_version(graph: OntologyGraph) -> str:
 
 
 def _build_prompt(query: str, ctx: ContextWindow, kube_version: str) -> str:
+    conf = ctx.pre_llm_confidence
     return _PROMPT_TEMPLATE.format(
         kube_version=kube_version,
         timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         total_chunks=ctx.total_chunks,
+        pre_llm_label=conf.label if conf else "N/A",
+        pre_llm_score=conf.score if conf else 0.0,
+        pre_llm_reasons=", ".join(conf.reasons) if conf else "",
         context_block=ctx.to_prompt_block(),
         query=query,
     )

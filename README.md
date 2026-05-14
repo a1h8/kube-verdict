@@ -2,11 +2,11 @@
 
 > Automated Root Cause Analysis for Kubernetes — multi-path LLM reasoning, fully local, no data leaves your infrastructure.
 
-[![Tests](https://img.shields.io/badge/tests-896%20passed-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-1100%2B%20passed-brightgreen)](#tests)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
-KubeWhisperer combines a typed Kubernetes ontology, a GitOps drift engine, real-time observability ingestion (Prometheus, OTel/Tempo/Jaeger, Loki, metrics-server), a multi-path LLM reasoning workflow (LangGraph), a local FAISS vector store, and an enterprise knowledge base — all running locally with Mistral via Ollama.
+KubeWhisperer combines a typed Kubernetes ontology, a GitOps drift engine, real-time observability ingestion (Prometheus, OTel/Tempo/Jaeger, Loki, metrics-server), a multi-path LLM reasoning workflow (LangGraph), a hybrid BM25+FAISS retrieval pipeline (RRF), an anchor-driven remediation engine, and an enterprise knowledge base — all running locally with Mistral via Ollama.
 
 ---
 
@@ -21,10 +21,11 @@ K8s API + Helm + Helmfile
    Pod, Deployment, Service,                                           │
    HelmRelease, HelmChart,                                             │
    ConfigMap, Secret, PVC,                                             │
-   PrometheusAlert, OtelTrace, LokiLog, …)                             │
+   PrometheusAlert, OtelTrace, LokiLog,                                │
+   PolicyViolation, MutatingWebhook, …)                                │
         │                                                              │
         ├──► MetricsServerCollector                                    │
-        │    └── metrics.k8s.io/v1beta1 ──► metrics.cpu_m/memory_mi    │
+        │    └── metrics.k8s.io/v1beta1 ──► metrics.cpu_m/memory_mi   │
         │                                                              │
         ├──► PrometheusCollector                                       │
         │    ├── firing alerts → PrometheusAlert nodes (HAS_ALERT)     │
@@ -40,7 +41,13 @@ K8s API + Helm + Helmfile
         ├──► AnchorEngine                                              │
         │    ├── K8s schema defaults (valid values, descriptions)      │
         │    └── helm template output (declared chart values)          │
-        │        ──► anchor.* annotations + helm fix suggestions       │
+        │        ──► anchor.* annotations                              │
+        │            anchor_fix_hints() → helm upgrade --set commands  │
+        │                                                              │
+        ├──► PolicyCollector (OPA / Kyverno)                           │
+        │    ├── PolicyReport / ClusterPolicyReport (wgpolicyk8s.io)   │
+        │    ├── MutatingWebhookConfiguration                          │
+        │    └── PolicyViolation nodes (HAS_POLICY_VIOLATION edges)    │
         │                                                              │
         ├──► GitOpsCollector (optional)                                │
         │    ├── git clone / GitHub API                                │
@@ -54,27 +61,34 @@ K8s API + Helm + Helmfile
         │    └── ──► signal.* annotations                              │
         │                                                              │
         └──► FAISSStore (all-MiniLM-L6-v2)  ◄── Enterprise Knowledge ──┘
-             ├── K8s entities (semantic search)
-             ├── K8s docs (versioned, fetched per cluster version)
-             └── Enterprise docs (runbooks, SOPs, Confluence, wikis)
+             ├── Dense search (cosine, FAISS IndexFlatIP)
+             ├── Sparse search (BM25 — K8s-aware tokeniser)
+             └── Hybrid fusion: Reciprocal Rank Fusion (RRF)
+                 ├── K8s entities                    doc_source=cluster   ×1.0
+                 ├── K8s docs (versioned)             doc_source=official  ×1.0
+                 ├── Past incidents                   doc_source=example   ×1.2
+                 ├── Enterprise docs (Confluence, wikis) doc_source=enterprise ×1.5
+                 ├── Runbooks / SOPs                  doc_source=runbook   ×1.8
+                 └── Helm / Helmfile charts           doc_source=helm      ×1.5
                         │
                   ContextWindow
+                  ├── [CRITICAL] Policy violations (OPA / Kyverno)
                   ├── [CRITICAL] unhealthy seeds
                   ├── [CRITICAL] Helm drift (declared ≠ observed)
                   ├── [CRITICAL] firing Prometheus alerts
+                  ├── [ANCHOR FIX] helm upgrade commands (restore declared values)
                   ├── [TRACES]   OTel error spans (cap 20)
                   ├── [LOGS]     Loki error/warn lines (cap 20)
-                  ├── [ANCHOR FIX] helm upgrade commands (restore declared values)
-                  ├── [SIGNALS]   PatchTST anomalies
-                  ├── [WARNINGS]  K8s events
-                  ├── [ANCHORS]   schema defaults + valid values
-                  ├── [Helm]      releases + charts
-                  └── [Related]   BFS neighbours + FAISS hits (Jaccard dedup + TF-IDF rank)
+                  ├── [SIMILAR]  resolved past incidents (FAISS examples)
+                  ├── [WARNINGS] K8s events
+                  ├── [ANCHORS]  schema defaults + valid values (pivot: declared→observed→fix)
+                  ├── [Helm]     releases + charts
+                  └── [Related]  BFS neighbours + RRF hits (Jaccard dedup + TF-IDF rank)
                         │
               ┌─────────▼─────────────────────────────────────────────┐
               │          LangGraph multi-path reasoning workflow      │
               │                                                       │
-              │  hypothesize ──► LLM generates H1 / H2 / H3           │
+              │  hypothesize ──► LLM generates H1 / H2 / H3          │
               │       │          from cluster snapshot                │
               │       ▼                                               │
               │   analyze ──► LLM investigates current hypothesis     │
@@ -123,13 +137,12 @@ K8s API + Helm + Helmfile
 streamlit run ui/app.py
 ```
 
-Two-tab layout:
-
 ### Tab 1 — Root Cause Analysis
 
 - **Sidebar**: kube context selector, namespace, optional collectors (Metrics server, GitOps drift, Prometheus, OTel/Loki)
 - **Pipeline bar**: 8-step progress — K8s+Helm · Metrics · Prometheus · OTel · GitOps · Anchors · FAISS · PatchTST
 - **Context banner**: cluster, namespace, entity count, K8s version, elapsed time
+- **Retrieval expander**: BM25+FAISS→RRF stats — dense hits / sparse hits / fused hits / top RRF score
 - **Helm drift table**: declared vs observed, colour-coded by severity
 - **Reasoning journey**: collapsible path history (exhausted paths) + current best path
 - **Root cause + remediation**: causal chain + executable `kubectl`/`helm` commands
@@ -141,8 +154,95 @@ Two-tab layout:
 |---|---|
 | **Ontology** | Filterable entity browser — kind / namespace / name / annotation count |
 | **Anchors** | Helm fix suggestions (manifest anchors on unhealthy pods) + full anchor records |
-| **K8s Docs** | Version-adaptive links (e.g. `v1-31.docs.kubernetes.io`) + Fetch & Index 16 key pages |
-| **Enterprise Docs** | Manual text / file upload / URL fetch (Confluence API auto-detected) + tag filter + re-index |
+| **K8s Docs** | Version-adaptive links + Fetch & Index 16 key pages at detected cluster version |
+| **Enterprise Docs** | Manual text / file upload / URL fetch (Confluence auto-detected) + tag filter |
+| **Helm / Helmfile** | Upload `values.yaml`, `helmfile.yaml`, or `.tgz` chart archives — indexed as helm source documents |
+
+### Tab 3 — Dashboard
+
+- Ingestion pipeline step table (last run status + stats)
+- Knowledge base metrics: enterprise docs / K8s docs / references / total content
+- Tag breakdown bar chart
+- Source weight configuration
+
+### Tab 4 — Integration Tests
+
+Cluster-free pipeline exploration — no Ollama required for **🔬 Pipeline trace** mode.
+
+**Dropdown**: all registered test cases from:
+- `cases/NNN_*/` — synthetic JSON fixtures (shown when `tests/unit/test_hybrid_pipeline_NNN.py` exists)
+- `cases/helm_cases/h*/` — Helm chart cases (native YAML + values + observed)
+- `tests/integration/cases/h*/` — **native K8s cases** (kube YAML + helm + helmfile + policy reports)
+
+**Modes**:
+
+| Mode | Requires Ollama | Description |
+|---|---|---|
+| 🔬 Pipeline trace | No | 10-step pre-LLM pipeline visualization (default) |
+| Auto (full BFS) | Yes | Full dialogue simulation with LLM |
+| Manual (step-by-step) | Yes | Interactive turn-by-turn simulation |
+
+**Pipeline trace steps** (auto-runs on case selection, cached per case):
+
+| Step | What it shows |
+|---|---|
+| 1 | BM25 tokenizer — query tokens |
+| 2 | FAISS dense hits (cosine similarity) |
+| 3 | BM25 sparse hits (keyword) |
+| 4 | RRF fusion — dense + sparse metrics |
+| 5 | Seeds — unhealthy resources + Warning events |
+| 6 | **Anchor pivot table** — declared → observed → status → fix command |
+| 7 | Jaccard deduplication — candidates / kept / diversity ratio |
+| 8 | TF-IDF ranked context chunks |
+| 9 | Pre-LLM confidence score breakdown |
+| 10 | **Proposed changes** — values.yaml diff · `helm upgrade` commands · OPA/Kyverno fixes |
+| Bonus | RemediationEngine rule-based hypotheses |
+| Bonus | LLM prompt dry-run (full prompt preview) |
+
+---
+
+## Anchor pivot — declared → observed → fix
+
+Anchors are the ontological pivot connecting chart intent to live state to remediation:
+
+```
+values.yaml declares:   resources.limits.memory = 512Mi
+Observed (deployed):    resources.limits.memory = 128Mi   ← DRIFT
+Fix command:            helm upgrade api -n production --set resources.limits.memory=512Mi
+```
+
+The **Step 6** anchor table in the pipeline trace renders this for every declared field:
+
+| resource | field | declared | observed | source | status | fix |
+|---|---|---|---|---|---|---|
+| api | `resources.limits.memory` | `512Mi` | `128Mi` | values.yaml | 🔴 DRIFT | `helm upgrade api --set resources.limits.memory=512Mi` |
+| api | `image.tag` | `v3.2.0` | `v3.2.0` | values.yaml | ✅ OK | — |
+
+**Step 10** then groups all proposed changes: values.yaml diff table, executable helm commands, and OPA/Kyverno policy fix hints.
+
+---
+
+## Integration test cases — native Kubernetes format
+
+Test cases in `tests/integration/cases/` use real Kubernetes artifact formats instead of custom JSON:
+
+```
+tests/integration/cases/
+├── h001_crashloopbackoff/
+│   ├── kube/
+│   │   ├── pod.yaml        ← kubectl get pod -o yaml
+│   │   └── events.yaml     ← kubectl get events -o yaml (EventList)
+│   ├── helm/
+│   │   ├── values.yaml     ← declared chart values
+│   │   └── release.json    ← helm get values -o json (deployed state)
+│   └── expect.json         ← test expectations
+├── h002_imagepullbackoff/  ← image tag drift v2.0.5 → v2.1.0-private, 401 Unauthorized
+└── h003_oomkilled/         ← memory limit drift 512Mi declared → 128Mi deployed, OOMKilled
+```
+
+The `case_loader.py` reads all formats (YAML/JSON), runs `HelmDriftDetector` + `AnchorEngine`, and produces a full `OntologyGraph` — the same pipeline used against a real cluster.
+
+Add a new case: create `tests/integration/cases/hNNN_name/` with the YAML artifacts. It appears automatically in the UI dropdown.
 
 ---
 
@@ -152,10 +252,11 @@ Two-tab layout:
 |---|---|
 | **Data sovereignty** | All inference runs locally — cluster data never leaves your network |
 | **Air-gapped** | Works without internet once models and dependencies are pulled |
-| **Ontology-aware** | Typed entities (Pod, Deployment, HelmRelease, OtelTrace, LokiLog, …) with 16 directed relationship edge types |
+| **Ontology-aware** | Typed entities (Pod, Deployment, HelmRelease, OtelTrace, LokiLog, PolicyViolation, …) with 16 directed relationship edge types |
 | **Helm + Helmfile** | Correlates declared chart values with live runtime state; detects drift at field level |
 | **GitOps diff** | Clones chart repo (or uses GitHub API), runs `helm template`, diffs rendered vs observed |
-| **AnchorEngine** | Extracts declared values from `helm template` output; maps to `helm upgrade --set` fix commands |
+| **AnchorEngine** | Extracts declared values from `helm template` output; maps to `helm upgrade --set` fix commands; rendered as pivot table in UI |
+| **BM25 + FAISS hybrid** | Dense cosine (FAISS) + sparse keyword (BM25) fused with Reciprocal Rank Fusion; `retrieval_stats` exposed in UI |
 | **Dynamic discovery** | Queries `/apis` to index CRDs and operator resources automatically |
 | **Multi-version K8s** | Detects server version; drives API choices for 1.16 → 1.31+ and K3s |
 | **Prometheus alerts** | Correlates firing alerts with K8s entities via label matching; `alert.*` annotations in context |
@@ -165,8 +266,12 @@ Two-tab layout:
 | **PatchTST signals** | Forecasting-based anomaly detection on real Prometheus time series at 3 horizons (1h/24h/7d) |
 | **Trigram TF-IDF** | K8s-aware tokenisation preserves `phase=Failed`, `apps/v1`, `v1.31.5+k3s1` |
 | **Multi-path reasoning** | LLM generates H1/H2/H3 hypotheses; explores each, archives dead ends, selects best path |
-| **Enterprise knowledge** | DocStore + DocIndexer — runbooks, SOPs, Confluence, wikis indexed into FAISS for RAG |
+| **Enterprise knowledge** | DocStore + DocIndexer — runbooks, SOPs, Confluence, wikis, Helm charts indexed into FAISS for RAG |
 | **Versioned K8s docs** | Fetches and indexes official K8s docs at the detected cluster version |
+| **Source weights** | Per-source score multipliers applied before TF-IDF ranking — enterprise ×1.5, runbook ×1.8, configurable via `SOURCE_WEIGHT_*` env vars |
+| **OPA / Kyverno** | PolicyReport / ClusterPolicyReport ingested; violations wired as `HAS_POLICY_VIOLATION` edges; confidence boost; fix hints in Step 10 |
+| **Pre-LLM pipeline trace** | Full 10-step pre-LLM pipeline visualization in UI — no Ollama required; auto-runs on case selection |
+| **Native test cases** | `tests/integration/cases/` — real K8s YAML artifacts (pod, deployment, events, values.yaml, helmfile, PolicyReport) |
 
 ---
 
@@ -175,79 +280,63 @@ Two-tab layout:
 **Prerequisites:** Python 3.11+, a Kubernetes cluster reachable via kubeconfig, Ollama with `mistral` pulled.
 
 ```bash
-# Clone and set up
 git clone https://github.com/your-org/kubewhisperer.git
 cd kubewhisperer
 pip install -r requirements.txt
 
-# Configure
 cp .env.example .env
 # Edit .env: KUBECONFIG, OLLAMA_URL, KUBE_NAMESPACES, etc.
 
-# Pull the local model (one-time)
 ollama pull mistral
-
-# Launch the UI
 streamlit run ui/app.py
 ```
+
+### Try without a cluster
+
+The **Integration Tests** tab runs entirely offline — no cluster, no Ollama needed:
+
+1. Open the UI: `streamlit run ui/app.py`
+2. Go to **🧪 Integration Tests**
+3. Select any `h00N_*` case from the dropdown
+4. Mode defaults to **🔬 Pipeline trace** — pipeline runs automatically
+5. Explore all 10 steps: tokenizer → retrieval → anchors → drift → confidence → proposed fixes
 
 ---
 
 ## Demo
 
-A local demo deploys 5 incident scenarios on a k3d cluster — no external dependencies.
+A local demo deploys incident scenarios on a k3d cluster — no external dependencies.
 
 ```bash
-# Deploy incident scenarios (k3d must be running)
 bash demo/setup.sh
-
-# Then open the UI and run analysis on namespace: kubewhisperer-demo
 streamlit run ui/app.py
+# Analyse namespace: kubewhisperer-demo
 ```
-
-Incident scenarios deployed by the demo:
 
 | Service | Failure | Root cause |
 |---|---|---|
 | `payment-service` | CrashLoopBackOff | Missing `db-primary` service — DB connection refused |
 | `notification-service` | CreateContainerConfigError | Missing `notification-config` ConfigMap |
-| `ml-inference` | ImagePullBackOff | Image drift patch pointing to private registry |
+| `ml-inference` | ImagePullBackOff | Image tag drift pointing to private registry |
 | `analytics-worker` | OOMKilled / Pending | Memory limit drift: 512Mi → 50Mi |
 | `gpu-worker` | Pending | GPU node affinity unsatisfiable |
 | `api-gateway` | Running ✓ | Healthy baseline |
 
 ---
 
-## Deploy on K3s (fully local stack)
-
-```bash
-# Build and load the image
-docker build -t ghcr.io/your-org/kubewhisperer:latest .
-docker save ghcr.io/your-org/kubewhisperer:latest | sudo k3s ctr images import -
-
-# Bootstrap K3s + Ollama + KubeWhisperer CronJob
-sudo bash scripts/init-k3s.sh --image ghcr.io/your-org/kubewhisperer:latest
-```
-
-For an existing cluster:
-
-```bash
-kubectl create namespace kubewhisperer
-kubectl apply -f k8s/rbac.yaml
-kubectl apply -f k8s/ollama.yaml
-kubectl apply -f k8s/kubewhisperer.yaml
-```
-
----
-
 ## Tests
 
 ```bash
-pytest                          # 896 tests (unit + integration)
-pytest tests/unit/              # unit only (no cluster required)
-pytest tests/integration/       # pipeline tests with mock LLM
+pytest                               # all tests (unit + cases + integration)
+pytest tests/unit/                   # unit only — no cluster, no LLM
+pytest tests/cases/                  # offline JSON fixture regression (20 scenarios)
+pytest tests/unit/test_hybrid_pipeline_001.py  # h001 CrashLoopBackOff pipeline
+pytest tests/unit/test_hybrid_pipeline_002.py  # h002 ImagePullBackOff pipeline
+pytest tests/integration/            # pipeline tests with mock LLM
 pytest --cov=. --cov-report=term-missing
 ```
+
+The `test_hybrid_pipeline_NNN.py` files are also the **registration mechanism** for the UI dropdown — creating one registers the corresponding case in the Integration Tests tab.
 
 ---
 
@@ -259,9 +348,9 @@ kubewhisperer/
 ├── main.py                     # CLI entry point
 │
 ├── ontology/                   # K8s knowledge model
-│   ├── entities.py             # Typed dataclasses: Pod, Deployment, HelmRelease, …
+│   ├── entities.py             # Typed dataclasses: Pod, Deployment, HelmRelease, PolicyViolation, …
 │   ├── graph.py                # OntologyGraph — nodes, edges, BFS
-│   ├── relationships.py        # 14 edge types
+│   ├── relationships.py        # 16 edge types
 │   ├── version.py              # KubeVersion + feature flags
 │   ├── discovery.py            # Dynamic API server discovery (/apis)
 │   └── dynamic_entity.py       # GenericEntity for CRDs
@@ -272,26 +361,29 @@ kubewhisperer/
 │   ├── helm_drift.py           # Helm declared vs K8s observed
 │   ├── helmfile_collector.py   # Helmfile YAML parsing
 │   ├── chart_parser.py         # Chart.yaml, umbrella deps, value hierarchy
-│   ├── git_provider.py         # LocalGitProvider + GithubProvider (REST API)
-│   ├── manifest_renderer.py    # helm template → []dict
-│   ├── manifest_differ.py      # rendered vs observed drift detection
-│   ├── gitops_collector.py     # GitopsCollector orchestrator
 │   ├── anchor_engine.py        # Declared-value anchors (schema + rendered manifests)
 │   ├── k8s_schema.py           # Embedded K8s API field metadata
-│   ├── metrics_server_collector.py  # Live CPU/memory from metrics.k8s.io
-│   ├── prometheus_collector.py     # Firing alert ingestion + entity correlation
-│   ├── otel_backend.py             # OtelBackend ABC + TempoBackend + JaegerBackend
-│   ├── otel_collector.py           # Error trace fetching → HAS_TRACE edges
-│   └── loki_source.py              # Pod log fetching via LogQL → HAS_LOG edges
+│   ├── policy_collector.py     # OPA/Kyverno PolicyReport + MutatingWebhook → HAS_POLICY_VIOLATION
+│   ├── metrics_server_collector.py
+│   ├── prometheus_collector.py
+│   ├── otel_backend.py
+│   ├── otel_collector.py
+│   ├── loki_source.py
+│   ├── git_provider.py
+│   ├── manifest_renderer.py
+│   ├── manifest_differ.py
+│   └── gitops_collector.py
 │
 ├── dedup/                      # Context deduplication pipeline
 │   ├── bfs.py                  # Graph BFS from unhealthy seeds
-│   ├── jaccard.py              # Token-level dedup
+│   ├── jaccard.py              # Token-level Jaccard dedup
 │   └── tfidf.py                # TF-IDF trigram ranking
 │
-├── vectorstore/                # Semantic search
+├── vectorstore/                # Hybrid retrieval
 │   ├── embedder.py             # sentence-transformers + L2 normalisation
-│   └── store.py                # FAISSStore (IndexFlatIP, save/load)
+│   ├── bm25_retriever.py       # BM25 sparse retriever (K8s-aware tokeniser)
+│   ├── rrf.py                  # Reciprocal Rank Fusion
+│   └── store.py                # FAISSStore — dense + BM25 + RRF hybrid search
 │
 ├── knowledge/                  # Enterprise knowledge base
 │   ├── doc_store.py            # DocStore — JSON-backed persistence (./data/docs/)
@@ -304,41 +396,72 @@ kubewhisperer/
 │   └── analyzer.py             # SignalAnalyzer — derives signals, annotates graph
 │
 ├── rca/                        # Root cause analysis
+│   ├── confidence.py           # compute_confidence() — pre-LLM context quality score
 │   ├── context_builder.py      # ContextWindow assembly + anchor_fix_hints()
+│   ├── remediation_engine.py   # Rule-based weighted hypotheses (LOW-confidence fallback)
 │   └── analyzer.py             # RCAAnalyzer + RCAReport
 │
 ├── llm/
 │   └── ollama_client.py        # Ollama /api/generate + streaming
 │
 ├── workflow/                   # LangGraph stateful multi-path workflow
-│   ├── state.py                # RCAState — candidate_paths, reasoning_history, current_hypothesis
-│   ├── nodes.py                # hypothesize, analyze, archive_path, select_best, dry_run, human_review, …
-│   └── graph.py                # build_graph() — StateGraph topology
+│   ├── state.py
+│   ├── nodes.py
+│   └── graph.py
 │
 ├── ui/
-│   └── app.py                  # Streamlit UI — RCA tab + Knowledge Base tab
+│   └── app.py                  # Streamlit UI — 4 tabs (RCA / KB / Dashboard / Integration Tests)
 │
-├── demo/                       # Local demo — 5 incident scenarios on k3d
-│   ├── setup.sh                # Deploy charts + drift patches + GitOps repo
-│   ├── cleanup.sh              # Tear down demo namespace
-│   ├── run_rca.py              # CLI demo runner
-│   ├── charts/                 # payment-service, analytics-worker, ml-inference, …
-│   └── manifests/              # gpu-worker (Pending), api-gateway (healthy)
-│
-├── k8s/                        # Kubernetes manifests for production deployment
-│   ├── rbac.yaml               # ServiceAccount + ClusterRole (read-only)
-│   ├── ollama.yaml             # Ollama Deployment + Service + PVC
-│   └── kubewhisperer.yaml      # CronJob + ConfigMap + PVC
+├── cases/                      # JSON test fixtures (20 failure scenarios)
+│   ├── 001_crashloopbackoff/   # input.json · expect.json · helm/values.yaml
+│   ├── 002_imagepullbackoff/   # input.json · expect.json · helm/values.yaml
+│   ├── 003_oomkilled/ … 020_ingress_backend_not_found/
+│   └── helm_cases/             # Native Helm format (values.yaml + observed/*.json)
+│       └── h001_oom_memory_limit/
 │
 ├── tests/
-│   ├── conftest.py             # synthetic_graph fixture (degraded production scenario)
-│   ├── unit/                   # 896 tests (no cluster required)
-│   └── integration/            # Pipeline tests with mock LLM
+│   ├── conftest.py
+│   ├── unit/                   # Unit tests — no cluster, no LLM
+│   │   ├── test_hybrid_pipeline_001.py   # h001 CrashLoopBackOff — 9 test classes
+│   │   ├── test_hybrid_pipeline_002.py   # h002 ImagePullBackOff — 9 test classes
+│   │   └── …
+│   ├── cases/                  # JSON fixture regression suite
+│   │   ├── graph_factory.py    # Builds OntologyGraph from input.json
+│   │   └── test_case_bank.py
+│   ├── helm_cases/             # Helm native case regression suite
+│   │   ├── helm_case_factory.py
+│   │   └── test_helm_case_bank.py
+│   └── integration/
+│       ├── cases/              # ← Native K8s integration test cases
+│       │   ├── case_loader.py  #   Reads kube/*.yaml + helm/ + policy/ → OntologyGraph
+│       │   ├── h001_crashloopbackoff/   # kube/pod.yaml, kube/events.yaml, helm/
+│       │   ├── h002_imagepullbackoff/   # image tag drift + 401 Unauthorized
+│       │   └── h003_oomkilled/          # memory limit drift 512Mi → 128Mi
+│       └── use_cases/          # Dialogue simulator + proposal engine
 │
-├── Dockerfile                  # Multi-stage Python 3.11 image
-├── .env.example                # Config template
+├── tools/                      # Dev utilities (case contract, recalibration)
+├── demo/                       # Local demo on k3d
+├── k8s/                        # Production K8s manifests
+├── Dockerfile
+├── .env.example
 └── requirements.txt
 ```
+
+---
+
+## Adding a new integration test case
+
+1. Create `tests/integration/cases/hNNN_name/` with:
+   ```
+   kube/pod.yaml          # kubectl get pod -o yaml
+   kube/events.yaml       # kubectl get events --field-selector involvedObject.name=… -o yaml
+   helm/values.yaml       # declared chart values
+   helm/release.json      # helm get values RELEASE -n NS -o json
+   policy/                # optional: kubectl get policyreport -o yaml
+   expect.json            # test expectations
+   ```
+2. Create `tests/unit/test_hybrid_pipeline_NNN.py` to register the case in the UI dropdown and add pipeline assertions.
+3. The case appears automatically in **🧪 Integration Tests** → pipeline trace.
 
 ---
 
@@ -355,30 +478,29 @@ No `create`, `update`, `patch`, or `delete` permissions are granted.
 
 ### Done
 
-- [x] **LangGraph multi-path workflow** — hypothesize (LLM-generated H1/H2/H3) → analyze → retry / archive_path → select_best → dry_run → human_review
-- [x] **AnchorEngine** — manifest + schema anchors; `anchor_fix_hints()` generates `helm upgrade --set` commands for each unhealthy entity
+- [x] **LangGraph multi-path workflow** — hypothesize → analyze → retry / archive_path → select_best → dry_run → human_review
+- [x] **AnchorEngine** — manifest + schema anchors; `anchor_fix_hints()` generates `helm upgrade --set` commands; **anchor pivot table** in UI (declared → observed → status → fix)
+- [x] **BM25 + FAISS hybrid retrieval** — K8s-aware BM25 tokeniser + FAISS dense cosine + Reciprocal Rank Fusion; `retrieval_stats` (dense/sparse/fused/top_rrf_score) in UI
+- [x] **Integration test cases — native format** — `tests/integration/cases/` with real K8s YAML (pod, events, values.yaml, helmfile, PolicyReport); unified `case_loader.py`
+- [x] **Pipeline trace UI** — 10-step pre-LLM pipeline visualization (auto-runs on case select, no Ollama needed); Step 10 proposes values.yaml diffs + helm commands + OPA/Kyverno fixes
+- [x] **RemediationEngine** — rule-based weighted hypotheses for LOW-confidence fallback; integrated in pipeline trace Bonus step
+- [x] **OPA / Kyverno policy integration** — `PolicyCollector` ingests `PolicyReport` / `ClusterPolicyReport`; violations as `HAS_POLICY_VIOLATION` edges; confidence boost; fix hints
+- [x] **Helm / Helmfile KB tab** — upload/paste `values.yaml`, `helmfile.yaml`, `.tgz` archives; indexed as `source=helm` documents in FAISS
 - [x] **GitOps diff** — `helm template` rendered manifests vs live cluster; `LocalGitProvider` + `GithubProvider`
-- [x] **Enterprise Knowledge Base** — DocStore + DocIndexer; runbooks, SOPs, Confluence (auto-detected), wikis indexed into FAISS
-- [x] **Versioned K8s docs** — fetch & index official K8s docs at detected cluster version (e.g. `v1-31.docs.kubernetes.io`)
-- [x] **Streamlit UI** — pipeline bar, reasoning journey, drift table, anchor fix panel, KB browser
-- [x] **PatchTST signals** — multi-horizon anomaly detection on real Prometheus time series (1h/24h/7d) + z-score fallback
-- [x] **Prometheus alert correlation** — firing alerts ingested via `PrometheusCollector`; label-matched to K8s entities; `[CRITICAL]` context section
-- [x] **OTel traces** — `OtelCollector` (Tempo + Jaeger backends) fetches error spans; `HAS_TRACE` edges; `[TRACES]` context section
-- [x] **Loki logs** — `LokiSource` queries pod logs via LogQL; extracts log level + trace IDs; `[LOGS]` context section
-- [x] **Metrics server** — `MetricsServerCollector` annotates pods with live CPU/memory; seeds PatchTST with real resource values
-- [x] **Demo scenarios** — 5 incident types deployed on k3d (CrashLoop, ConfigError, ImagePull, OOMKill, Pending)
+- [x] **Enterprise Knowledge Base** — DocStore + DocIndexer; runbooks, SOPs, Confluence, Helm charts indexed into FAISS
+- [x] **Versioned K8s docs** — fetch & index official K8s docs at detected cluster version
+- [x] **PatchTST signals** — multi-horizon anomaly detection on real Prometheus time series (1h/24h/7d)
+- [x] **Prometheus alert correlation** — firing alerts ingested; label-matched to K8s entities; `[CRITICAL]` context section
+- [x] **OTel traces** — error spans from Tempo/Jaeger; `HAS_TRACE` edges; `[TRACES]` context section
+- [x] **Loki logs** — pod logs via LogQL; log level + trace IDs; `[LOGS]` context section
+- [x] **Metrics server** — live CPU/memory from `metrics.k8s.io/v1beta1`; seeds PatchTST
+- [x] **Pre-LLM confidence scoring** — `compute_confidence()` weights BFS, Jaccard, TF-IDF, anchors, signals, policy violations into 0–1 score
+- [x] **Source weights** — per-source score multipliers; configurable via `SOURCE_WEIGHT_*` env vars
 
 ### Next
 
-- [ ] **Weaviate vector store** — replace FAISS with hybrid BM25+vector, persistent index
-
-  | | FAISS (current) | Weaviate (planned) |
-  |---|---|---|
-  | Persistence | manual `.faiss` save/load | built-in |
-  | Search | pure vector (cosine) | BM25 + vector (hybrid) |
-  | Air-gap | yes | local container |
-  | Best for | single cluster, ephemeral | large clusters, persistent |
-
+- [ ] **More h-series cases** — h004 NetworkPolicy blocked, h005 Kyverno violation, h006 PVC Pending, …
+- [ ] **Helmfile multi-release** — h00N case with `helmfile.yaml` covering multiple interdependent releases
 - [ ] **Multi-cluster support** — analyse multiple contexts in one session
 - [ ] **Slack / PagerDuty enrichment** — push RCA summary via webhook
 - [ ] **RBAC-aware scoping** — per-namespace analysis with service-account impersonation
@@ -387,4 +509,4 @@ No `create`, `update`, `patch`, or `delete` permissions are granted.
 
 ## License
 
-MIT
+[Apache 2.0](LICENSE)

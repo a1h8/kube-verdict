@@ -1,0 +1,33 @@
+{
+  "affected_resources": [
+    "Pod/production/frontend-6b9c7d4f8-p3kw7",
+    "NetworkPolicy/production/allow-frontend-to-backend"
+  ],
+  "root_cause_contains": [
+    "NetworkPolicy",
+    "selector",
+    "frontend-v1",
+    "frontend-v2",
+    "label",
+    "mismatch"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "NetworkPolicy",
+    "label"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.49,
+  "fallback_expected": false,
+  "notes": "Kyverno policy report flags the label mismatch (frontend-v2 vs frontend-v1 expected by NetworkPolicy). policy_fail_count=1 (+0.10) raises score above MEDIUM threshold and provides the decisive signal. deny-all-ingress default deny makes this a silent failure without K8s events.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.03,
+    "anchor_c": 0.05,
+    "signal_c": 0.03,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.61
+  }
+}

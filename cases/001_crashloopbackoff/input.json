@@ -1,0 +1,58 @@
+{
+  "scenario": "CrashLoopBackOff",
+  "namespace": "production",
+  "query": "payment-service is in CrashLoopBackOff",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/payment-service-6d8f9b7c4-xk9p2",
+      "message": "Back-off restarting failed container payment-service in pod payment-service-6d8f9b7c4-xk9p2_production",
+      "count": 47,
+      "firstTime": "2026-05-13T08:00:00Z",
+      "lastTime": "2026-05-13T08:30:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "Failed",
+      "object": "Pod/payment-service-6d8f9b7c4-xk9p2",
+      "message": "Error: failed to create containerd task: failed to create shim: OCI runtime create failed: container_linux.go:380: starting container process caused: process_linux.go:545: container init caused: rootfs_linux.go:76: mounting \"/var/lib/kubelet/pods/.../payment-config\" to rootfs at \"/etc/payment\" caused: mount through procfd: not a directory: unknown",
+      "count": 47,
+      "firstTime": "2026-05-13T08:00:00Z",
+      "lastTime": "2026-05-13T08:30:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "Failed",
+      "object": "Pod/payment-service-6d8f9b7c4-xk9p2",
+      "message": "Error: secret \"payment-db-secret\" not found",
+      "count": 1,
+      "firstTime": "2026-05-13T07:58:00Z",
+      "lastTime": "2026-05-13T07:58:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "payment-service",
+        "state": {"waiting": {"reason": "CrashLoopBackOff", "message": "back-off 5m0s restarting failed container"}},
+        "restartCount": 47,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "payment-service",
+    "namespace": "production",
+    "diffs": []
+  },
+  "anchors": [
+    "Pod/production/payment-service-6d8f9b7c4-xk9p2: container.payment-service.env.DB_HOST declared='db-primary.production.svc.cluster.local' [manifest]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": []
+}

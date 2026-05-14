@@ -1,0 +1,12 @@
+{
+  "scenario": "ImagePullBackOff — private image 401 + Helm tag drift",
+  "namespace": "production",
+  "release": "ml-inference",
+  "affected_resources": ["Pod/production/ml-inference-7c9d8b6f5-pq3r7"],
+  "root_cause_contains": ["image", "pull", "401", "ghcr", "drift"],
+  "fix_commands_contain": ["helm upgrade", "image.tag"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.50,
+  "fallback_expected": false,
+  "notes": "Image tag was overridden via 'helm upgrade --set image.tag=v2.1.0-private'. The private tag requires different credentials. Drift from values.yaml (v2.0.5) to deployed (v2.1.0-private) is the primary signal alongside the 401 Unauthorized pull failure."
+}

@@ -7,6 +7,7 @@ Run:
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -513,6 +514,22 @@ def _render_rca():
         c3.metric("Entities",  ctx.get("entities", "?"))
         c4.metric("K8s",       ctx.get("kube_version", "?"))
         c5.metric("Elapsed",   f"{st.session_state.elapsed:.1f}s")
+
+    # Retrieval pipeline details
+    ret = (report.get("context_stats") or {}).get("retrieval") or {}
+    if ret:
+        with st.expander("Retrieval pipeline — BM25 + FAISS → RRF", expanded=False):
+            r1, r2, r3, r4 = st.columns(4)
+            r1.metric("Dense (FAISS)",  ret.get("dense",  "—"))
+            r2.metric("Sparse (BM25)",  ret.get("sparse", "—"))
+            r3.metric("Fused (RRF)",    ret.get("fused",  "—"))
+            r4.metric("Top RRF score",  ret.get("top_rrf_score", "—"))
+            st.caption(
+                "Dense = FAISS cosine hits · Sparse = BM25 keyword hits · "
+                "Fused = after Reciprocal Rank Fusion + source weights"
+            )
+
+    if ctx:
         st.divider()
 
     # Example match banner
@@ -876,8 +893,8 @@ _K8S_DOCS = [
 
 def _render_kb():
     st.title("Knowledge Base")
-    onto_tab, anchor_tab, k8s_tab, ent_tab = st.tabs([
-        "🗂 Ontology", "⚓ Anchors", "📖 Kubernetes Docs", "🏢 Enterprise Docs",
+    onto_tab, anchor_tab, k8s_tab, ent_tab, helm_tab = st.tabs([
+        "🗂 Ontology", "⚓ Anchors", "📖 Kubernetes Docs", "🏢 Enterprise Docs", "⎈ Helm / Helmfile",
     ])
 
     # ── Ontology ──────────────────────────────────────────────────────────────
@@ -1233,15 +1250,1369 @@ def _render_kb():
         else:
             st.info("No enterprise documents yet. Add runbooks, SOPs, or architecture notes above.")
 
+    # ── Helm / Helmfile ────────────────────────────────────────────────────────
+    with helm_tab:
+        from knowledge import DocStore, EnterpriseDoc, DocIndexer
+
+        st.subheader("Index Helm chart or Helmfile as enterprise knowledge")
+        st.caption(
+            "Upload `values.yaml`, `Chart.yaml`, `helmfile.yaml` or any Helm/Helmfile "
+            "config. The content is indexed in FAISS so the RCA pipeline retrieves "
+            "declared values alongside live cluster state."
+        )
+
+        _HELM_PRESETS = ["helm", "helmfile", "values", "chart", "enterprise", "infra"]
+
+        with st.form("add_helm_doc", clear_on_submit=True):
+            h_title   = st.text_input("Title *", placeholder="payment-service values.yaml — prod")
+            h_release = st.text_input("Release / chart name", placeholder="payment-service")
+            h_ns      = st.text_input("Namespace", placeholder="production")
+            h_env     = st.text_input("Helmfile environment (optional)", placeholder="production")
+            h_preset  = st.multiselect("Tags", _HELM_PRESETS, default=["helm", "enterprise"])
+            h_extra   = st.text_input("Additional tags", placeholder="payment, critical")
+
+            h_input = st.radio(
+                "Input",
+                ["📂 Upload file", "✏️ Paste YAML"],
+                horizontal=True,
+                label_visibility="collapsed",
+                key="helm_input_mode",
+            )
+
+            h_content  = ""
+            h_uploaded = None
+
+            if h_input == "✏️ Paste YAML":
+                h_content = st.text_area(
+                    "YAML content *", height=240,
+                    placeholder="# Paste values.yaml, Chart.yaml, or helmfile.yaml here",
+                )
+            else:
+                h_uploaded = st.file_uploader(
+                    "File (.yaml, .yml, .tgz)",
+                    type=["yaml", "yml", "tgz"],
+                    key="helm_upload",
+                )
+                st.caption("`.tgz` archives are read and their YAML files are concatenated.")
+
+            h_submit = st.form_submit_button("💾 Index chart / helmfile", type="primary")
+
+            if h_submit:
+                if h_input == "📂 Upload file":
+                    if h_uploaded is None:
+                        st.error("No file selected.")
+                        h_submit = False
+                    else:
+                        raw = h_uploaded.read()
+                        fname = h_uploaded.name
+                        if fname.endswith(".tgz"):
+                            import tarfile, io
+                            try:
+                                with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tf:
+                                    parts = []
+                                    for member in tf.getmembers():
+                                        if member.name.endswith((".yaml", ".yml")):
+                                            f = tf.extractfile(member)
+                                            if f:
+                                                parts.append(f"# --- {member.name} ---\n" + f.read().decode("utf-8", errors="replace"))
+                                    h_content = "\n\n".join(parts)
+                            except Exception as exc:
+                                st.error(f"Could not read .tgz: {exc}")
+                                h_submit = False
+                        else:
+                            h_content = raw.decode("utf-8", errors="replace")
+
+                if h_submit:
+                    if not h_title.strip():
+                        st.error("Title is required.")
+                    elif not h_content.strip():
+                        st.error("No content to index.")
+                    else:
+                        tags = h_preset + [t.strip() for t in h_extra.split(",") if t.strip()]
+                        meta_header = ""
+                        if h_release:
+                            meta_header += f"release: {h_release}\n"
+                        if h_ns:
+                            meta_header += f"namespace: {h_ns}\n"
+                        if h_env:
+                            meta_header += f"helmfile_environment: {h_env}\n"
+                        full_content = (
+                            f"# {h_title}\n{meta_header}\n{h_content}" if meta_header
+                            else f"# {h_title}\n\n{h_content}"
+                        )
+                        ds   = DocStore()
+                        doc  = ds.save(EnterpriseDoc(
+                            title=h_title.strip(),
+                            content=full_content,
+                            tags=tags,
+                            source="helm",
+                        ))
+                        try:
+                            store = st.session_state.get("faiss_store")
+                            if store:
+                                DocIndexer(store).index_doc(doc)
+                                st.success(f"Indexed `{h_title}` (id={doc.id}) — active in current session.", icon="✅")
+                            else:
+                                st.success(f"Saved `{h_title}` (id={doc.id}). Will be indexed on next analysis run.", icon="💾")
+                        except Exception as exc:
+                            st.warning(f"Saved but indexing failed: {exc}", icon="⚠️")
+
+        # ── Saved Helm docs list ───────────────────────────────────────────────
+        st.divider()
+        st.subheader("Indexed Helm / Helmfile documents")
+        helm_docs = [d for d in DocStore().list() if "helm" in d.tags or d.source == "helm"]
+        if helm_docs:
+            for doc in helm_docs:
+                tag_str = "  ".join(f"`{t}`" for t in doc.tags)
+                with st.expander(f"**{doc.title}** — {tag_str}", expanded=False):
+                    st.caption(f"id={doc.id}  ·  created {doc.created_at[:10]}")
+                    st.code(doc.content[:1200] + ("…" if len(doc.content) > 1200 else ""), language="yaml")
+                    if st.button("🗑 Delete", key=f"del_helm_{doc.id}"):
+                        DocStore().delete(doc.id)
+                        st.rerun()
+        else:
+            st.info("No Helm / Helmfile documents yet. Upload a `values.yaml` or `helmfile.yaml` above.")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Dashboard tab
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_dashboard():
+    import json
+    import pandas as pd
+
+    st.title("Pipeline Dashboard")
+
+    CASES_ROOT = ROOT / "cases"
+
+    # ── Section 1: Ingestion pipeline ─────────────────────────────────────────
+    st.subheader("Ingestion pipeline — last run")
+    stats = st.session_state.ingestion_stats
+
+    if not stats:
+        st.info("No analysis run yet. Click **▶ Run** in the sidebar to start.")
+    else:
+        rows = []
+        for key, label in _STEPS:
+            d     = stats.get(key, {})
+            if d.get("skipped"):
+                status = "⏭ skipped"
+                detail = ""
+            elif d.get("fallback") or d.get("error"):
+                status = "⚠ fallback"
+                detail = d.get("error", "")[:80]
+            else:
+                status = "✅ ok"
+                detail_parts = []
+                if key == "ingest":
+                    if "entities"     in d: detail_parts.append(f"{d['entities']} entities")
+                    if "helm_releases" in d: detail_parts.append(f"{d['helm_releases']} releases")
+                    if d.get("kube_version"):    detail_parts.append(d["kube_version"])
+                elif key == "metrics":
+                    if "pods_annotated" in d: detail_parts.append(f"{d['pods_annotated']} pods")
+                elif key == "prometheus":
+                    if "alerts" in d: detail_parts.append(f"{d['alerts']} alerts")
+                elif key == "otel":
+                    if "traces" in d: detail_parts.append(f"{d['traces']} traces")
+                    if "logs"   in d: detail_parts.append(f"{d['logs']} logs")
+                elif key == "gitops":
+                    if "drifts" in d: detail_parts.append(f"{d['drifts']} drifts ({d.get('critical',0)} critical)")
+                elif key == "anchor":
+                    if "total" in d:
+                        detail_parts.append(f"{d['total']} records (manifest={d.get('manifest',0)} schema={d.get('schema',0)})")
+                elif key == "index":
+                    if "vectors"   in d: detail_parts.append(f"{d['vectors']} vectors")
+                    if "doc_chunks" in d and d["doc_chunks"]: detail_parts.append(f"{d['doc_chunks']} doc chunks")
+                    if "examples"   in d and d["examples"]:   detail_parts.append(f"{d['examples']} examples")
+                elif key == "signals":
+                    if "total" in d:
+                        detail_parts.append(f"{d.get('anomalous',0)}/{d['total']} anomalous  mode={d.get('mode','?')}")
+                detail = "  ·  ".join(detail_parts)
+            rows.append({"Step": label, "Status": status, "Detail": detail})
+
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    # ── Section 2: Knowledge base stats ───────────────────────────────────────
+    st.divider()
+    st.subheader("Knowledge base")
+
+    from knowledge import DocStore as _DS
+    all_docs = _DS().list()
+
+    ent_docs = [d for d in all_docs if "k8s-docs" not in d.tags and "k8s-ref" not in d.tags]
+    k8s_docs = [d for d in all_docs if "k8s-docs" in d.tags]
+    ref_docs = [d for d in all_docs if "k8s-ref" in d.tags]
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Enterprise docs", len(ent_docs))
+    m2.metric("K8s docs",        len(k8s_docs))
+    m3.metric("References",      len(ref_docs))
+    total_chars = sum(len(d.content) for d in all_docs)
+    m4.metric("Total content", f"{total_chars:,} chars")
+
+    if not all_docs:
+        st.info(
+            "Knowledge base is empty. Add documents in **📚 Knowledge Base → Enterprise Docs** "
+            "or fetch K8s documentation in **📚 Knowledge Base → Kubernetes Docs**.",
+            icon="📄",
+        )
+
+    if ent_docs:
+        # Tag breakdown
+        tag_counts: dict[str, int] = {}
+        for d in ent_docs:
+            for t in d.tags:
+                tag_counts[t] = tag_counts.get(t, 0) + 1
+        if tag_counts:
+            df_tags = pd.DataFrame(
+                [{"tag": t, "docs": c} for t, c in sorted(tag_counts.items(), key=lambda x: -x[1])]
+            )
+            st.caption("Enterprise docs by tag")
+            st.bar_chart(df_tags.set_index("tag")["docs"])
+
+    # Source weights config
+    with st.expander("Source weights (config)", expanded=False):
+        import config as _cfg
+        rows_w = [
+            {"doc_source": k, "weight": v, "env_var": f"SOURCE_WEIGHT_{k.upper()}"}
+            for k, v in _cfg.SOURCE_WEIGHTS.items()
+        ]
+        st.dataframe(pd.DataFrame(rows_w), use_container_width=True, hide_index=True)
+        st.caption(
+            "Override any weight in `.env` or as environment variable. "
+            "Higher weight → documents from this source rank higher in TF-IDF results."
+        )
+
+    # ── Section 3: Case bank ───────────────────────────────────────────────────
+    st.divider()
+    st.subheader("Case bank")
+
+    case_dirs = sorted(CASES_ROOT.glob("0*/"))
+    case_rows = []
+    for cd in case_dirs:
+        inp_path = cd / "input.json"
+        exp_path = cd / "expect.json"
+        if not inp_path.exists() or not exp_path.exists():
+            continue
+        try:
+            inp = json.loads(inp_path.read_text())
+            exp = json.loads(exp_path.read_text())
+        except Exception:
+            continue
+
+        bd   = exp.get("_debug_score_breakdown", {})
+        conf = exp.get("confidence", "")
+        conf_icon = {"HIGH": "🟢", "MEDIUM": "🟡", "LOW": "🔴"}.get(conf, "⚪")
+        case_rows.append({
+            "case":              cd.name,
+            "scenario":          inp.get("scenario", ""),
+            "confidence":        f"{conf_icon} {conf}",
+            "score_min":         exp.get("confidence_score_min", ""),
+            "score_expected":    bd.get("total", ""),
+            "anchors":           len(inp.get("anchors", [])),
+            "events":            len(inp.get("events", [])),
+            "has_drift":         bool((inp.get("helm_drift") or {}).get("diffs")),
+            "has_policy":        bool(inp.get("policy_report")),
+            "fallback_expected": exp.get("fallback_expected", False),
+        })
+
+    if case_rows:
+        df_cases = pd.DataFrame(case_rows)
+        st.caption(f"{len(df_cases)} cases in `cases/`")
+
+        # Filter by confidence
+        conf_filter = st.multiselect(
+            "Filter by confidence",
+            ["🟢 HIGH", "🟡 MEDIUM", "🔴 LOW"],
+            default=[],
+            key="dash_conf_filter",
+        )
+        if conf_filter:
+            mask = df_cases["confidence"].apply(lambda c: any(f in c for f in conf_filter))
+            df_cases = df_cases[mask]
+
+        st.dataframe(df_cases, use_container_width=True, hide_index=True)
+
+        # Score distribution chart
+        scores = [r["score_expected"] for r in case_rows if isinstance(r["score_expected"], (int, float))]
+        if scores:
+            score_df = pd.DataFrame({"case": [r["case"] for r in case_rows if isinstance(r["score_expected"], (int, float))], "expected_score": scores})
+            st.caption("Expected score distribution (from `_debug_score_breakdown`)")
+            st.bar_chart(score_df.set_index("case")["expected_score"])
+
+        # Run offline validation
+        st.divider()
+        with st.expander("▶ Run offline pipeline validation (slow — ~10 min)", expanded=False):
+            st.caption(
+                "Builds a synthetic OntologyGraph for each case, runs the full pipeline "
+                "(BM25 + FAISS → RRF + BFS + Jaccard + TF-IDF), and compares the actual "
+                "confidence score against `confidence_score_min` in each `expect.json`. No LLM required."
+            )
+            if st.button("Run case bank now", key="dash_run_cases"):
+                from tests.cases.graph_factory import load_case, build_graph
+                from vectorstore.embedder import Embedder
+                from vectorstore.store import FAISSStore
+                from rca.context_builder import ContextBuilder
+
+                results = []
+                prog = st.progress(0, text="Starting…")
+                for i, cd in enumerate(case_dirs):
+                    if not (cd / "input.json").exists():
+                        continue
+                    prog.progress(i / len(case_dirs), text=f"{cd.name}…")
+                    try:
+                        data  = load_case(cd)
+                        graph = build_graph(data["input"])
+                        store = FAISSStore(embedder=Embedder())
+                        store.index_graph(graph)
+                        ctx   = ContextBuilder(graph, store).build(data["input"]["query"])
+                        exp   = data["expect"]
+                        actual  = ctx.pre_llm_confidence.score
+                        minimum = exp.get("confidence_score_min", 0)
+                        passed  = actual >= minimum
+                        rs = ctx.retrieval_stats
+                        results.append({
+                            "case":    cd.name,
+                            "actual":  round(actual, 3),
+                            "minimum": minimum,
+                            "label":   ctx.pre_llm_confidence.label,
+                            "expect":  exp.get("confidence", ""),
+                            "dense":   rs.get("dense",  "—"),
+                            "sparse":  rs.get("sparse", "—"),
+                            "fused":   rs.get("fused",  "—"),
+                            "pass":    "✅" if passed else "❌",
+                        })
+                    except Exception as exc:
+                        results.append({
+                            "case": cd.name, "actual": "error",
+                            "minimum": "", "label": "", "expect": "", "pass": f"⚠ {exc}",
+                        })
+
+                prog.progress(1.0, text="Done.")
+                if results:
+                    df_res = pd.DataFrame(results)
+                    ok  = sum(1 for r in results if r["pass"] == "✅")
+                    err = len(results) - ok
+                    st.metric("Passed", f"{ok} / {len(results)}", delta=f"-{err} failed" if err else None)
+                    st.dataframe(df_res, use_container_width=True, hide_index=True)
+    else:
+        st.info(f"No cases found in `{CASES_ROOT}`.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tab 4 — Integration Tests (interactive dialogue)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_integration_tests():  # noqa: C901
+    import json as _json
+
+    from tests.cases.graph_factory import build_graph, load_case
+    from tests.helm_cases.helm_case_factory import build_helm_graph, load_helm_case
+    from tests.integration.cases.case_loader import (
+        load_case as load_native_case,
+        build_graph as build_native_graph,
+        list_cases as list_native_cases,
+    )
+    from tests.integration.use_cases.dialogue_simulator import (
+        DialogueSimulator, render_tree, write_json,
+        count_resolved, count_dead_ends, count_nodes, best_score,
+    )
+    from tests.integration.use_cases.proposal_engine import generate_proposals
+    from tools.case_contract import update_expect_from_sim, update_input_from_sim, recalibrate_all
+    from rca.analyzer import RCAAnalyzer
+    from llm.ollama_client import OllamaClient
+    from vectorstore.embedder import Embedder
+    from vectorstore.store import FAISSStore
+
+    CASES_ROOT        = ROOT / "cases"
+    HELM_CASES_ROOT   = ROOT / "cases" / "helm_cases"
+    NATIVE_CASES_ROOT = ROOT / "tests" / "integration" / "cases"
+    SIM_RESULTS       = ROOT / "tests" / "integration" / "use_cases" / "sim_results"
+
+    # Discover cases — only h-series: synthetic cases that have a matching
+    # tests/unit/test_hybrid_pipeline_NNN.py, shown as h001_*, h002_*, etc.
+    _unit_dir = ROOT / "tests" / "unit"
+    _h_nums   = {
+        p.stem.replace("test_hybrid_pipeline_", "")
+        for p in _unit_dir.glob("test_hybrid_pipeline_*.py")
+    }  # e.g. {"001", "002"}
+    synthetic_dirs = [
+        d for d in sorted(CASES_ROOT.glob("0*/"))
+        if d.name[:3] in _h_nums
+    ]
+    helm_dirs   = sorted(HELM_CASES_ROOT.glob("h*/")) if HELM_CASES_ROOT.is_dir() else []
+    native_dirs = list_native_cases(NATIVE_CASES_ROOT) if NATIVE_CASES_ROOT.is_dir() else []
+    all_cases_meta = (
+        [("synthetic", d) for d in synthetic_dirs]
+        + [("helm", d) for d in helm_dirs]
+        + [("native", d) for d in native_dirs]
+    )
+
+    if not all_cases_meta:
+        st.warning(f"No h-series cases found. Add tests/unit/test_hybrid_pipeline_NNN.py to register a case.")
+        return
+
+    st.title("Integration Tests — Dialogue Simulation")
+
+    col_left, col_right = st.columns([1, 2], gap="large")
+
+    # ── Left panel: selector + config ─────────────────────────────────────────
+    with col_left:
+        case_labels = [
+            ("h" if ct == "synthetic" else "") + d.name
+            for ct, d in all_cases_meta
+        ]
+        sel_idx   = st.selectbox(
+            "Case",
+            range(len(case_labels)),
+            format_func=lambda i: case_labels[i],
+            key="it_case_select",
+        )
+        case_type, case_dir = all_cases_meta[sel_idx]
+        case_name = case_dir.name
+
+        # Load case metadata
+        try:
+            if case_type == "synthetic":
+                data   = load_case(case_dir)
+                inp    = data["input"]
+                expect = data["expect"]
+                root_query = inp.get("query", "")
+                scenario   = inp.get("scenario", case_name)
+            elif case_type == "native":
+                data   = load_native_case(case_dir)
+                inp    = None
+                expect = data["expect"]
+                _ns    = expect.get("namespace", "default")
+                _rel   = expect.get("release", case_name)
+                root_query = (
+                    f"Multiple failures detected in the '{_rel}' release "
+                    f"(namespace {_ns}). Identify every root cause and provide "
+                    f"remediation commands."
+                )
+                scenario = expect.get("scenario", case_name)
+            else:
+                data   = load_helm_case(case_dir)
+                inp    = None
+                expect = data["expect"]
+                _ns    = expect.get("namespace", "default")
+                _rel   = expect.get("release", case_name)
+                root_query = (
+                    f"Multiple failures detected in the '{_rel}' release "
+                    f"(namespace {_ns}). Identify every root cause and provide "
+                    f"remediation commands."
+                )
+                scenario = expect.get("scenario", case_name)
+        except Exception as exc:
+            st.error(f"Cannot load case: {exc}")
+            return
+
+        st.caption(f"**Scenario:** {scenario}")
+        st.caption(f"**Query:** {root_query[:110]}{'…' if len(root_query) > 110 else ''}")
+        st.caption(
+            f"**Expected:** {_conf_icon(expect.get('confidence',''))} "
+            f"{expect.get('confidence','?')}  "
+            f"(min score {expect.get('confidence_score_min','?')})"
+        )
+        if expect.get("notes"):
+            st.info(expect["notes"], icon="📌")
+
+        st.divider()
+
+        mode = st.radio(
+            "Simulation mode",
+            ["🔬 Pipeline trace", "Auto (full BFS)", "Manual (step-by-step)"],
+            horizontal=True,
+            key="it_mode",
+        )
+        is_auto = mode.startswith("Auto")
+
+        is_pipeline = mode.startswith("🔬")
+        if not is_pipeline:
+            max_turns    = st.slider("Max turns",    1, 4, 2, key="it_turns")
+            max_branches = st.slider("Max branches", 1, 4, 3, key="it_branches")
+        else:
+            max_turns, max_branches = 2, 3
+
+        st.divider()
+
+        client    = OllamaClient()
+        ollama_ok = client.is_available() and client.model_is_pulled()
+        if is_pipeline:
+            st.success("Pipeline trace — no Ollama required", icon="🔬")
+        elif not client.is_available():
+            st.error("Ollama not reachable — run `ollama serve`", icon="🔴")
+        elif not client.model_is_pulled():
+            st.warning(f"Model `{client.model}` not pulled", icon="⚠️")
+        else:
+            st.success(f"Ollama: `{client.model}`", icon="🟢")
+
+        run_label = "▶ Run trace" if is_pipeline else "▶ Run simulation"
+        run_btn = st.button(
+            run_label, type="primary",
+            use_container_width=True, disabled=(not ollama_ok and not is_pipeline),
+        )
+
+        sim_path  = SIM_RESULTS / f"{case_name}.json"
+        has_cache = sim_path.exists()
+        load_cached = False
+        if is_auto and has_cache:
+            st.success("Cached result available", icon="✅")
+            load_cached = st.button("📂 Load cached", use_container_width=True)
+
+    # ── Session-state key scoped to the selected case ─────────────────────────
+    state_key = f"it_dlg_{case_name}"
+
+    def _reset_state():
+        st.session_state[state_key] = {
+            "mode":       "auto" if is_auto else ("pipeline" if is_pipeline else "manual"),
+            "case_type":  case_type,
+            "root_query": root_query,
+            "status":     "idle",
+            "payload":    None,   # auto mode: full sim JSON
+            "turns":      [],     # manual mode: list of turn dicts
+        }
+
+    if state_key not in st.session_state:
+        _reset_state()
+
+    dlg = st.session_state[state_key]
+
+    # Reset when case or mode changes
+    cur_mode = "auto" if is_auto else ("pipeline" if is_pipeline else "manual")
+    if dlg.get("root_query") != root_query or dlg.get("mode") != cur_mode:
+        _reset_state()
+        dlg = st.session_state[state_key]
+
+    # ── Graph / analyzer builder (called from both modes) ─────────────────────
+    def _build_analyzer() -> RCAAnalyzer:
+        if case_type == "synthetic":
+            graph = build_graph(inp)
+        elif case_type == "native":
+            graph = build_native_graph(data)
+        else:
+            graph = build_helm_graph(data)
+        store = FAISSStore(embedder=Embedder())
+        store.index_graph(graph)
+        return RCAAnalyzer(graph=graph, store=store, llm=client)
+
+    # ── Right panel ────────────────────────────────────────────────────────────
+    with col_right:
+
+        # ══════════════════════════════════════════════════════════════════════
+        # AUTO MODE
+        # ══════════════════════════════════════════════════════════════════════
+        if is_auto:
+            if load_cached and has_cache:
+                dlg["payload"] = _json.loads(sim_path.read_text())
+                dlg["status"]  = "done"
+
+            if run_btn:
+                _reset_state()
+                dlg = st.session_state[state_key]
+                tree_ph = st.empty()
+                with st.status("Running BFS dialogue simulation…", expanded=True) as sw:
+                    st.write(f"Building graph for `{case_name}`…")
+                    analyzer = _build_analyzer()
+
+                    def _on_node(root):
+                        tree_ph.code(render_tree(root), language=None)
+
+                    sim = DialogueSimulator(
+                        analyzer=analyzer,
+                        max_turns=max_turns,
+                        max_branches=max_branches,
+                        on_node=_on_node,
+                    )
+                    st.write("Expanding proposal tree…")
+                    root = sim.run(root_query)
+                    jpath = write_json(
+                        root, case_name, root_query,
+                        out_dir=SIM_RESULTS,
+                        max_turns=max_turns,
+                        max_branches=max_branches,
+                    )
+                    dlg["payload"] = _json.loads(jpath.read_text())
+                    dlg["status"]  = "done"
+                    sw.update(label="Simulation complete", state="complete")
+
+            payload = dlg.get("payload")
+            if payload:
+                # ── Summary metrics ────────────────────────────────────────
+                summary = payload.get("summary", {})
+                c1, c2, c3, c4, c5 = st.columns(5)
+                c1.metric("Nodes",      summary.get("total_nodes", "—"))
+                c2.metric("Resolved",   summary.get("resolved",    "—"))
+                c3.metric("Dead ends",  summary.get("dead_ends",   "—"))
+                c4.metric("Root score", f"{summary.get('root_score', 0):.2f}")
+                c5.metric("Best score", f"{summary.get('best_score', 0):.2f}")
+
+                # ── ASCII tree ─────────────────────────────────────────────
+                st.divider()
+
+                def _ascii_lines(node: dict, prefix: str = "", is_last: bool = True) -> list[str]:
+                    status = node.get("status", "pending")
+                    icon   = {"resolved": "✓", "dead_end": "✗", "pending": "…"}.get(status, "?")
+                    suffix = (
+                        " resolved" if status == "resolved" else
+                        f" dead_end ({node.get('dead_end_reason','')})" if status == "dead_end" else ""
+                    )
+                    prop = node.get("proposal")
+                    if prop:
+                        connector = "└── " if is_last else "├── "
+                        head = f"[{prop['label']}] {prop['description']}"
+                    else:
+                        connector = prefix = ""
+                        q    = node.get("query", "")
+                        head = q[:70] + ("…" if len(q) > 70 else "")
+                    score = node.get("score", 0)
+                    label = node.get("label", "?")
+                    lines = [f"{prefix}{connector}{head} → score={score:.2f}, {label} {icon}{suffix}"]
+                    cpfx  = prefix + ("    " if is_last else "│   ")
+                    for i, ch in enumerate(node.get("children", [])):
+                        lines += _ascii_lines(ch, cpfx, i == len(node["children"]) - 1)
+                    return lines
+
+                st.code("\n".join(_ascii_lines(payload["tree"])), language=None)
+
+                # ── Turn-by-turn breakdown ─────────────────────────────────
+                st.divider()
+                st.subheader("Turn breakdown")
+
+                def _walk_nodes(node: dict, depth: int = 0) -> list[dict]:
+                    flat = [{"depth": depth, **node}]
+                    for ch in node.get("children", []):
+                        flat += _walk_nodes(ch, depth + 1)
+                    return flat
+
+                all_nodes = _walk_nodes(payload["tree"])
+                for ni, node in enumerate(all_nodes):
+                    turn = node.get("turn", 0)
+                    prop = node.get("proposal")
+                    status = node.get("status", "pending")
+                    icon   = {"resolved": "✓", "dead_end": "✗", "pending": "…"}.get(status, "?")
+                    label_str = (
+                        f"[Turn {turn}] {prop['label'] if prop else 'root'} — "
+                        f"score={node.get('score', 0):.2f} {node.get('label','?')} {icon}"
+                    )
+                    if prop:
+                        label_str += f"  ·  {prop['description'][:60]}"
+                    with st.expander(label_str, expanded=(turn == 0)):
+                        ret_n = node.get("retrieval") or {}
+                        if ret_n:
+                            ac1, ac2, ac3 = st.columns(3)
+                            ac1.metric("FAISS dense", ret_n.get("dense",  "—"))
+                            ac2.metric("BM25 sparse", ret_n.get("sparse", "—"))
+                            ac3.metric("RRF fused",   ret_n.get("fused",  "—"))
+                        if node.get("root_cause"):
+                            st.markdown(f"**Root cause:** {node['root_cause']}")
+                        if node.get("raw_analysis"):
+                            st.text_area(
+                                "LLM response (truncated)",
+                                value=node["raw_analysis"][:1200],
+                                height=150,
+                                disabled=True,
+                                key=f"auto_raw_{case_name}_{ni}",
+                            )
+                        cmds = node.get("remediation", [])
+                        if cmds:
+                            st.markdown("**Remediation commands:**")
+                            for cmd in cmds:
+                                st.code(cmd, language="bash")
+                        if status == "dead_end":
+                            st.warning(f"Dead end: {node.get('dead_end_reason', '')}", icon="✗")
+                        elif status == "resolved":
+                            st.success("Resolved", icon="✓")
+
+                # ── Remediation panel (auto mode) ──────────────────────────
+                all_cmds = list(dict.fromkeys(
+                    cmd
+                    for node in all_nodes
+                    if node.get("status") != "dead_end"
+                    for cmd in node.get("remediation", [])
+                ))
+                if all_cmds:
+                    st.divider()
+                    _render_remediation_panel(all_cmds, case_name)
+
+                # ── Actions ────────────────────────────────────────────────
+                st.divider()
+                ac1, ac2, ac3 = st.columns(3)
+                with ac1:
+                    st.download_button(
+                        "📥 Download JSON",
+                        data=_json.dumps(payload, indent=2, ensure_ascii=False),
+                        file_name=f"{case_name}_sim.json",
+                        mime="application/json",
+                        use_container_width=True,
+                    )
+                with ac2:
+                    if st.button("📋 Update expect.json", use_container_width=True, key="upd_expect"):
+                        _, changes = update_expect_from_sim(case_dir, payload, dry_run=True)
+                        if changes:
+                            with st.expander("Changes preview", expanded=True):
+                                for c in changes:
+                                    st.code(c, language=None)
+                            if st.button("✅ Apply to expect.json", key="apply_expect"):
+                                update_expect_from_sim(case_dir, payload, dry_run=False)
+                                st.success("expect.json updated.")
+                        else:
+                            st.info("expect.json already up to date.")
+                with ac3:
+                    if case_type == "synthetic":
+                        if st.button("📋 Update input.json", use_container_width=True, key="upd_input"):
+                            _, changes = update_input_from_sim(case_dir, payload, dry_run=True)
+                            if changes:
+                                with st.expander("Changes preview", expanded=True):
+                                    for c in changes:
+                                        st.code(c, language=None)
+                                if st.button("✅ Apply to input.json", key="apply_input"):
+                                    update_input_from_sim(case_dir, payload, dry_run=False)
+                                    st.success("input.json updated.")
+                            else:
+                                st.info("No anchors/symptom to add.")
+
+                st.divider()
+                with st.expander("🔁 Recalibrate all cases from sim results"):
+                    st.caption(
+                        "Loops over every JSON in `sim_results/` and updates "
+                        "`confidence_score_min` + `confidence` in the matching `expect.json`."
+                    )
+                    if st.button("Preview changes (dry run)", key="recal_dry"):
+                        all_changes = recalibrate_all(SIM_RESULTS, CASES_ROOT, dry_run=True)
+                        for cnm, ch_list in all_changes.items():
+                            if ch_list:
+                                st.write(f"**{cnm}**")
+                                for c in ch_list:
+                                    st.code(c, language=None)
+                        if not any(all_changes.values()):
+                            st.info("All cases already calibrated.")
+                    if st.button("Apply to all cases", type="primary", key="recal_apply"):
+                        all_changes = recalibrate_all(SIM_RESULTS, CASES_ROOT, dry_run=False)
+                        updated = sum(1 for v in all_changes.values() if v)
+                        st.success(f"{updated} case(s) updated.")
+
+            elif not run_btn:
+                st.info(
+                    "Select a case and click **▶ Run simulation** to expand the full BFS "
+                    "dialogue tree. The ASCII tree builds live as each node completes.",
+                    icon="🧪",
+                )
+
+        # ══════════════════════════════════════════════════════════════════════
+        # PIPELINE TRACE MODE  (no LLM)
+        # ══════════════════════════════════════════════════════════════════════
+        elif is_pipeline:
+            _render_pipeline_trace(run_btn, case_name, root_query, inp, case_type, data)
+
+        # ══════════════════════════════════════════════════════════════════════
+        # MANUAL MODE
+        # ══════════════════════════════════════════════════════════════════════
+        else:
+            turns = dlg.setdefault("turns", [])
+
+            # ── Start: run initial LLM call ────────────────────────────────
+            if run_btn:
+                _reset_state()
+                dlg   = st.session_state[state_key]
+                turns = dlg["turns"]
+                with st.spinner("Running initial analysis…"):
+                    analyzer = _build_analyzer()
+                    report   = analyzer.analyze(root_query)
+                    props    = generate_proposals(report, max_n=max_branches)
+                    turns.append({
+                        "turn":         0,
+                        "query":        root_query,
+                        "score":        report.context.pre_llm_confidence.score if report.context and report.context.pre_llm_confidence else 0.0,
+                        "label":        report.context.pre_llm_confidence.label if report.context and report.context.pre_llm_confidence else "LOW",
+                        "retrieval":    report.context.retrieval_stats if report.context else {},
+                        "raw_analysis": (report.raw_analysis or "")[:1500],
+                        "root_cause":   report.root_cause or "",
+                        "remediation":  list(report.remediation or []),
+                        "proposals":    [{"label": p.label, "category": p.category, "description": p.description, "query": p.follow_up_query} for p in props],
+                        "status":       "pending",
+                        "dead_end_reason": "",
+                    })
+                    dlg["status"] = "ready"
+
+            if not turns:
+                st.info(
+                    "Click **▶ Run simulation** to begin step-by-step dialogue.\n\n"
+                    "At each turn you choose which proposal to follow, see the full LLM "
+                    "response, and decide how to proceed.",
+                    icon="🧪",
+                )
+            else:
+                # ── Render completed turns ─────────────────────────────────
+                for t in turns:
+                    turn_n = t["turn"]
+                    icon   = {"resolved": "✓", "dead_end": "✗", "pending": "…"}.get(t["status"], "?")
+                    conf_i = _conf_icon(t.get("label", ""))
+                    header = (
+                        f"Turn {turn_n} — score={t['score']:.2f} {conf_i} {t.get('label','?')} {icon}"
+                        + (f"  ·  dead end ({t['dead_end_reason']})" if t["status"] == "dead_end" else "")
+                        + (" ✓ resolved" if t["status"] == "resolved" else "")
+                    )
+                    with st.expander(header, expanded=(turn_n == len(turns) - 1)):
+                        st.markdown(f"**Query:** _{t['query'][:200]}_")
+                        ret_t = t.get("retrieval") or {}
+                        if ret_t:
+                            rc1, rc2, rc3 = st.columns(3)
+                            rc1.metric("FAISS dense", ret_t.get("dense",  "—"))
+                            rc2.metric("BM25 sparse", ret_t.get("sparse", "—"))
+                            rc3.metric("RRF fused",   ret_t.get("fused",  "—"))
+                        if t.get("root_cause"):
+                            st.markdown(f"**Root cause:** {t['root_cause']}")
+                        if t.get("raw_analysis"):
+                            st.text_area(
+                                "LLM response (truncated)",
+                                value=t["raw_analysis"],
+                                height=160,
+                                disabled=True,
+                                key=f"man_raw_{case_name}_{turn_n}",
+                            )
+                        cmds = t.get("remediation", [])
+                        if cmds:
+                            st.markdown("**Remediation commands:**")
+                            for cmd in cmds:
+                                st.code(cmd, language="bash")
+
+                # ── Proposal chooser for last pending turn ─────────────────
+                last = turns[-1]
+                max_turns_reached = last["turn"] >= max_turns
+
+                if last["status"] == "pending" and not max_turns_reached and last.get("proposals"):
+                    st.divider()
+                    st.subheader(f"Turn {last['turn'] + 1} — Choose a proposal")
+                    proposals = last["proposals"]
+                    prop_labels = [f"[{p['label']}] {p['description']}" for p in proposals]
+                    chosen_idx = st.radio(
+                        "Follow-up proposals",
+                        range(len(prop_labels)),
+                        format_func=lambda i: prop_labels[i],
+                        key=f"man_prop_{case_name}_{last['turn']}",
+                    )
+                    chosen = proposals[chosen_idx]
+                    st.caption(f"Query: _{chosen['query']}_")
+
+                    if st.button(
+                        f"▶ Continue with [{chosen['label']}]",
+                        type="primary",
+                        use_container_width=True,
+                        key=f"man_continue_{case_name}_{last['turn']}",
+                    ):
+                        with st.spinner(f"Running turn {last['turn'] + 1}…"):
+                            analyzer = _build_analyzer()
+                            report   = analyzer.analyze(chosen["query"])
+                            score    = report.context.pre_llm_confidence.score if report.context and report.context.pre_llm_confidence else 0.0
+                            parent_score = last["score"]
+
+                            # Determine status
+                            if score >= 0.70 or (score - parent_score >= 0.10 and score >= 0.55):
+                                new_status = "resolved"
+                                ded_reason = ""
+                            elif score < parent_score - 0.05 or abs(score - parent_score) < 0.03:
+                                new_status = "dead_end"
+                                ded_reason = (
+                                    "confidence_regressed" if score < parent_score - 0.05
+                                    else "confidence_stagnant"
+                                )
+                            else:
+                                new_status = "pending"
+                                ded_reason = ""
+
+                            next_props = []
+                            if new_status == "pending":
+                                next_props = [
+                                    {"label": p.label, "category": p.category,
+                                     "description": p.description, "query": p.follow_up_query}
+                                    for p in generate_proposals(report, max_n=max_branches)
+                                ]
+
+                            turns.append({
+                                "turn":         last["turn"] + 1,
+                                "query":        chosen["query"],
+                                "score":        score,
+                                "label":        report.context.pre_llm_confidence.label if report.context and report.context.pre_llm_confidence else "LOW",
+                                "retrieval":    report.context.retrieval_stats if report.context else {},
+                                "raw_analysis": (report.raw_analysis or "")[:1500],
+                                "root_cause":   report.root_cause or "",
+                                "remediation":  list(report.remediation or []),
+                                "proposals":    next_props,
+                                "status":       new_status,
+                                "dead_end_reason": ded_reason,
+                            })
+                        st.rerun()
+
+                elif max_turns_reached and last["status"] == "pending":
+                    st.info(f"Max turns ({max_turns}) reached — simulation complete.", icon="🏁")
+
+                # ── Remediation panel (manual mode) ───────────────────────
+                all_cmds = list(dict.fromkeys(
+                    cmd
+                    for t in turns
+                    if t.get("status") != "dead_end"
+                    for cmd in t.get("remediation", [])
+                ))
+                if all_cmds:
+                    st.divider()
+                    _render_remediation_panel(all_cmds, case_name)
+
+
+def _render_remediation_panel(cmds: list[str], case_name: str) -> None:
+    """Remediation panel: checkboxes, kube context display, apply with confirmation."""
+    st.subheader("Remediation panel")
+    st.caption(
+        "Review commands collected across all resolved turns. "
+        "Check the ones you want to apply, confirm the kube context, then execute."
+    )
+
+    # Kube context info
+    ctx = _current_context()
+    if ctx:
+        st.info(f"Current kube context: `{ctx}`", icon="⎈")
+    else:
+        st.warning("No active kube context detected.", icon="⚠️")
+
+    # Checkboxes
+    selected_cmds = []
+    for i, cmd in enumerate(cmds):
+        if st.checkbox(cmd, key=f"rem_cmd_{case_name}_{i}"):
+            selected_cmds.append(cmd)
+
+    if not selected_cmds:
+        st.caption("Select at least one command above to enable execution.")
+        return
+
+    st.divider()
+    confirmed = st.checkbox(
+        f"I confirm the kube context `{ctx or 'unknown'}` is the correct target cluster.",
+        key=f"rem_confirm_{case_name}",
+    )
+
+    if st.button(
+        f"Apply {len(selected_cmds)} selected command(s)",
+        type="primary",
+        disabled=not confirmed,
+        use_container_width=True,
+        key=f"rem_apply_{case_name}",
+    ):
+        for cmd in selected_cmds:
+            st.markdown(f"**Running:** `{cmd}`")
+            try:
+                args = shlex.split(cmd)
+                result = subprocess.run(args, capture_output=True, text=True, timeout=120)
+                if result.returncode == 0:
+                    st.success(f"Exit 0")
+                    if result.stdout:
+                        st.code(result.stdout[:2000], language="yaml")
+                else:
+                    st.error(f"Exit {result.returncode}")
+                    if result.stderr:
+                        st.code(result.stderr[:1000], language=None)
+            except Exception as exc:
+                st.error(f"Failed: {exc}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 10 helper — Proposed Remediation
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_proposed_changes(ctx, case_name: str, case_type: str) -> None:
+    """
+    Step 10 — proposed changes to values.yaml / helmfile / OPA-Kyverno policies.
+
+    Sources (in priority order):
+      1. helm/values.yaml declared file (from the case directory)
+      2. Helm drift items → diff table (declared vs observed)
+      3. anchor_fixes → helm upgrade commands
+      4. policy_violations → OPA/Kyverno YAML fix hints
+    """
+    import re as _re
+
+    CASES_ROOT      = ROOT / "cases"
+    HELM_CASES_ROOT = ROOT / "cases" / "helm_cases"
+
+    case_dir = (CASES_ROOT / case_name) if case_type == "synthetic" else (HELM_CASES_ROOT / case_name)
+    values_file = case_dir / "helm" / "values.yaml"
+
+    has_drift      = bool(ctx.drift)
+    has_fixes      = bool(ctx.anchor_fixes)
+    has_violations = bool(ctx.policy_violations)
+    has_values     = values_file.exists()
+
+    nothing = not (has_drift or has_fixes or has_violations or has_values)
+    label = f"Step 10 — Proposed Changes ({('values · helm · OPA/Kyverno' if not nothing else '—')})"
+
+    with st.expander(label, expanded=True):
+        if nothing:
+            st.info("No drift, anchor fixes, or policy violations detected — no changes needed.", icon="✅")
+            return
+
+        # ── 1. Declared values.yaml ────────────────────────────────────────────
+        if has_values:
+            st.markdown("#### 📄 Declared `values.yaml`")
+            st.code(values_file.read_text(), language="yaml")
+            st.divider()
+
+        # ── 2. Drift table: declared vs observed ──────────────────────────────
+        if has_drift:
+            st.markdown("#### 🔀 Helm drift — declared vs observed")
+            rows = []
+            for d in ctx.drift:
+                # Format: "kind/ns/name: drift.X.Y: declared='A' observed='B' [manifest drift]"
+                m_decl = _re.search(r"declared='?([^'\s|]+)'?", d)
+                m_obs  = _re.search(r"observed='?([^'\s|]+)'?", d)
+                m_field = _re.search(r"drift\.([\w.]+):", d)
+                field   = m_field.group(1) if m_field else d.split(":")[0]
+                declared = m_decl.group(1) if m_decl else "?"
+                observed = m_obs.group(1)  if m_obs  else "?"
+                rows.append({
+                    "field":    field,
+                    "declared": declared,
+                    "observed": observed,
+                    "action":   "🔄 restore to declared",
+                })
+            import pandas as pd
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.divider()
+
+        # ── 3. helm upgrade commands (anchor fixes) ────────────────────────────
+        if has_fixes:
+            st.markdown("#### ⎈ Helm upgrade commands (restore declared values)")
+            for fix in ctx.anchor_fixes:
+                parts = fix.split("  →  ", 1)
+                if len(parts) == 2:
+                    st.caption(parts[0].strip())
+                    st.code(parts[1].strip(), language="bash")
+                else:
+                    st.code(fix, language="bash")
+            st.divider()
+
+        # ── 4. OPA / Kyverno policy fixes ─────────────────────────────────────
+        if has_violations:
+            st.markdown("#### 🔒 OPA / Kyverno policy fixes")
+            for v in ctx.policy_violations:
+                # Parse key fields from to_text() output
+                m_src    = _re.search(r"source=(\S+)",   v)
+                m_pol    = _re.search(r"policy=(\S+)",   v)
+                m_rule   = _re.search(r"rule=(\S+)",     v)
+                m_res    = _re.search(r"resource=(\S+)", v)
+                m_sev    = _re.search(r"severity=(\S+)", v)
+                m_msg    = _re.search(r"message='(.+)'$", v)
+                source   = m_src.group(1)  if m_src  else "unknown"
+                policy   = m_pol.group(1)  if m_pol  else "?"
+                rule     = m_rule.group(1) if m_rule else "?"
+                resource = m_res.group(1)  if m_res  else "?"
+                severity = m_sev.group(1)  if m_sev  else "low"
+                message  = m_msg.group(1)  if m_msg  else ""
+
+                sev_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(severity, "⚪")
+                st.markdown(f"{sev_icon} **{policy}** / `{rule}` → `{resource}`")
+                if message:
+                    st.caption(message[:300])
+
+                if source == "kyverno":
+                    policy_name = policy.split("=")[-1] if "=" in policy else policy
+                    st.code(
+                        f"# Inspect the policy\n"
+                        f"kubectl describe clusterpolicy {policy_name}\n\n"
+                        f"# Test locally\n"
+                        f"kyverno test .\n\n"
+                        f"# Patch the violating resource\n"
+                        f"kubectl annotate {resource.replace('/', ' -n ')} "
+                        f"policies.kyverno.io/last-applied-patches-",
+                        language="bash",
+                    )
+                elif source == "gatekeeper":
+                    constraint = policy.split("=")[-1] if "=" in policy else policy
+                    st.code(
+                        f"# Inspect the constraint\n"
+                        f"kubectl describe constraint {constraint}\n\n"
+                        f"# List violations\n"
+                        f"kubectl get constraint {constraint} -o jsonpath='{{.status.violations}}'",
+                        language="bash",
+                    )
+                else:
+                    ns = resource.split("/")[1] if resource.count("/") >= 1 else "default"
+                    st.code(
+                        f"kubectl get policyreport -n {ns} -o yaml\n"
+                        f"kubectl describe policyreport -n {ns}",
+                        language="bash",
+                    )
+                st.markdown("---")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pipeline Trace renderer  (no LLM — pre-LLM pipeline only)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_pipeline_trace(run_btn, case_name, root_query, inp, case_type, data):
+    """Step-by-step trace of the hybrid retrieval + context-building pipeline."""
+    from tests.cases.graph_factory import build_graph
+    from tests.helm_cases.helm_case_factory import build_helm_graph
+    from tests.integration.cases.case_loader import build_graph as build_native_graph
+    from vectorstore.bm25_retriever import _tokenize
+    from vectorstore.embedder import Embedder
+    from vectorstore.store import FAISSStore
+    from rca.context_builder import ContextBuilder
+    from rca.remediation_engine import RemediationEngine
+    from rca.analyzer import _build_prompt
+
+    cache_key = f"trace_{case_name}"
+
+    # Auto-run on first selection; explicit button always forces a rerun
+    if cache_key not in st.session_state or run_btn:
+        with st.spinner("Building graph & running pipeline…"):
+            if case_type == "synthetic":
+                graph = build_graph(inp)
+            elif case_type == "native":
+                graph = build_native_graph(data)
+            else:
+                graph = build_helm_graph(data)
+            store = FAISSStore(embedder=Embedder())
+            store.index_graph(graph)
+            ctx        = ContextBuilder(graph=graph, store=store).build(root_query)
+            tokens     = _tokenize(root_query)
+            dense_hits = store.search(root_query, top_k=5)
+            bm25_hits  = store._bm25.search(root_query, top_k=5)
+            fused_hits = store.hybrid_search(root_query, top_k=5)
+            hyps       = RemediationEngine().score(graph)
+            prompt     = _build_prompt(root_query, ctx, kube_version="trace/n-a")
+
+        st.session_state[cache_key] = {
+            "ctx":        ctx,
+            "tokens":     tokens,
+            "dense_hits": dense_hits,
+            "bm25_hits":  bm25_hits,
+            "fused_hits": fused_hits,
+            "hyps":       hyps,
+            "prompt":     prompt,
+        }
+
+    c = st.session_state[cache_key]
+    ctx        = c["ctx"]
+    tokens     = c["tokens"]
+    dense_hits = c["dense_hits"]
+    bm25_hits  = c["bm25_hits"]
+    fused_hits = c["fused_hits"]
+    hyps       = c["hyps"]
+    prompt     = c["prompt"]
+
+    col_hdr, col_rerun = st.columns([5, 1])
+    col_hdr.success(
+        f"Pipeline — {ctx.total_chunks} chunks  ·  "
+        f"confidence {ctx.pre_llm_confidence.score:.2f} {ctx.pre_llm_confidence.label}",
+        icon="✅",
+    )
+    if col_rerun.button("🔄 Rerun", use_container_width=True, key=f"rerun_{cache_key}"):
+        del st.session_state[cache_key]
+        st.rerun()
+
+    # ── Step 1: BM25 tokenizer ─────────────────────────────────────────────────
+    with st.expander("Step 1 — BM25 tokenizer", expanded=True):
+        st.caption(f"Query: _{root_query}_")
+        st.write(f"**{len(tokens)} tokens:** `{' · '.join(tokens)}`")
+
+    # ── Step 2: FAISS dense hits ───────────────────────────────────────────────
+    with st.expander("Step 2 — FAISS dense hits (cosine similarity)", expanded=True):
+        if dense_hits:
+            import pandas as pd
+            st.dataframe(
+                pd.DataFrame([{
+                    "score": round(h.get("score", 0), 4),
+                    "kind":  h.get("kind", "?"),
+                    "uid":   h["uid"][:80],
+                    "text":  h.get("text", "")[:120],
+                } for h in dense_hits]),
+                use_container_width=True, hide_index=True,
+            )
+        else:
+            st.warning("No dense hits.")
+
+    # ── Step 3: BM25 sparse hits ───────────────────────────────────────────────
+    with st.expander("Step 3 — BM25 sparse hits (keyword)", expanded=True):
+        if bm25_hits:
+            import pandas as pd
+            st.dataframe(
+                pd.DataFrame([{
+                    "bm25":  round(h.get("bm25_score", 0), 4),
+                    "kind":  h.get("kind", "?"),
+                    "uid":   h["uid"][:80],
+                    "text":  h.get("text", "")[:120],
+                } for h in bm25_hits]),
+                use_container_width=True, hide_index=True,
+            )
+        else:
+            st.warning("No BM25 hits — no keyword overlap with corpus.")
+
+    # ── Step 4: RRF fusion ─────────────────────────────────────────────────────
+    with st.expander("Step 4 — RRF fusion (dense + sparse)", expanded=True):
+        rs = ctx.retrieval_stats
+        if rs:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Dense (FAISS)",  rs.get("dense",  "—"))
+            c2.metric("Sparse (BM25)",  rs.get("sparse", "—"))
+            c3.metric("Fused (RRF)",    rs.get("fused",  "—"))
+            c4.metric("Top RRF score",  rs.get("top_rrf_score", "—"))
+        if fused_hits:
+            import pandas as pd
+            st.dataframe(
+                pd.DataFrame([{
+                    "rrf_score": round(h.get("rrf_score", 0), 5),
+                    "kind":      h.get("kind", "?"),
+                    "uid":       h["uid"][:80],
+                    "text":      h.get("text", "")[:120],
+                } for h in fused_hits]),
+                use_container_width=True, hide_index=True,
+            )
+
+    # ── Step 5: Seeds (unhealthy resources) ────────────────────────────────────
+    with st.expander(f"Step 5 — Seeds — {len(ctx.seeds)} unhealthy resource(s)", expanded=True):
+        if ctx.seeds:
+            for s in ctx.seeds:
+                st.markdown(f"- `{s[:200]}`")
+        else:
+            st.info("No unhealthy seeds found.")
+        if ctx.events:
+            st.markdown(f"**{len(ctx.events)} Warning event(s):**")
+            for ev in ctx.events[:5]:
+                st.markdown(f"  - {ev[:200]}")
+
+    # ── Step 6: Anchors — pivot table declared → observed → fix ───────────────
+    with st.expander(
+        f"Step 6 — Anchors ({len(ctx.anchors)} declared values → drift → fix)",
+        expanded=True,
+    ):
+        import re as _re
+        import pandas as pd
+
+        if not ctx.anchors:
+            st.info("No anchors found — run HelmDriftDetector + AnchorEngine for this case.")
+        else:
+            # Build a lookup: drift_key → observed value
+            # drift text: "kind/ns/name: drift.field.path: declared='X' observed='Y' ..."
+            # or anchor_fixes text: "kind/ns/name  field='val' (declared)  →  helm upgrade ..."
+            drift_observed: dict[str, str] = {}
+            for d in ctx.drift:
+                m_field = _re.search(r"drift\.([\w.]+)(?:\s*:|\s+declared)", d)
+                m_obs   = _re.search(r"observed='?([^'\s|]+)'?", d)
+                if m_field and m_obs:
+                    drift_observed[m_field.group(1)] = m_obs.group(1)
+
+            # Build lookup: field path → fix command
+            fix_for_field: dict[str, str] = {}
+            for fix in ctx.anchor_fixes:
+                m_field = _re.search(r"(container\.\S+|spec\.\S+|\w+[\.\w]+)\s*=", fix)
+                m_cmd   = fix.split("  →  ", 1)
+                if m_field and len(m_cmd) == 2:
+                    fix_for_field[m_field.group(1)] = m_cmd[1].strip()
+
+            rows = []
+            for ann in ctx.anchors:
+                # Format: "kind/ns/name: field.path declared='X' [source] | observed='Y' [drift]"
+                m_resource = _re.match(r"^([^:]+):\s*", ann)
+                m_field    = _re.search(r":\s*([^\s]+)\s+declared=", ann)
+                m_decl     = _re.search(r"declared='?([^'\s|]+)'?", ann)
+                m_obs_ann  = _re.search(r"observed='?([^'\s|]+)'?", ann)
+                m_src      = _re.search(r"\[(manifest|schema|values\.yaml|helm-deployed)\]", ann)
+
+                resource  = m_resource.group(1).strip() if m_resource else "?"
+                field     = m_field.group(1) if m_field else "?"
+                declared  = m_decl.group(1) if m_decl else "?"
+                # Observed: prefer drift lookup, then inline annotation
+                observed  = drift_observed.get(field) or (m_obs_ann.group(1) if m_obs_ann else "—")
+                source    = m_src.group(1) if m_src else "?"
+
+                has_drift = observed not in ("—", declared)
+                status    = "🔴 DRIFT" if has_drift else "✅ OK"
+                fix_cmd   = fix_for_field.get(field, "—") if has_drift else "—"
+
+                rows.append({
+                    "resource": resource.split("/")[-1] if "/" in resource else resource,
+                    "field":    field,
+                    "declared": declared[:60],
+                    "observed": observed[:60],
+                    "source":   source,
+                    "status":   status,
+                    "fix":      fix_cmd[:80] if fix_cmd != "—" else "—",
+                })
+
+            df = pd.DataFrame(rows)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+
+            drift_count = sum(1 for r in rows if r["status"] == "🔴 DRIFT")
+            if drift_count:
+                st.warning(f"{drift_count} anchor(s) have drift — see Step 10 for fix commands.", icon="🔴")
+            else:
+                st.success("All declared values match observed state.", icon="✅")
+
+    # ── Step 7: Jaccard dedup ──────────────────────────────────────────────────
+    with st.expander("Step 7 — Jaccard deduplication", expanded=True):
+        js         = ctx.jaccard_stats
+        candidates = js.get("candidates", "?")
+        kept       = js.get("kept", "?")
+        ratio      = kept / max(candidates, 1) if isinstance(candidates, int) and isinstance(kept, int) else 0
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Candidates",       candidates)
+        c2.metric("Kept after dedup", kept)
+        c3.metric("Diversity ratio",  f"{ratio:.0%}")
+        st.caption(f"Jaccard threshold=0.7  ·  lower = stricter dedup")
+
+    # ── Step 8: TF-IDF ranked context ─────────────────────────────────────────
+    with st.expander(f"Step 8 — TF-IDF ranked context — {len(ctx.related)} chunk(s)", expanded=False):
+        if ctx.related:
+            for i, chunk in enumerate(ctx.related, 1):
+                st.markdown(f"**#{i}** `{chunk[:250]}`")
+        else:
+            st.info("No related context after dedup+ranking.")
+
+    # ── Step 9: Confidence score breakdown ────────────────────────────────────
+    with st.expander("Step 9 — Confidence score breakdown", expanded=True):
+        conf = ctx.pre_llm_confidence
+        st.metric("Score", f"{conf.score:.2f}", delta=conf.label)
+        for reason in conf.reasons:
+            st.markdown(f"  - {reason}")
+
+    # ── Step 10: Proposed Remediation — values / helm / OPA ──────────────────
+    _render_proposed_changes(ctx, case_name, case_type)
+
+    # ── Bonus: RemediationEngine hypotheses ───────────────────────────────────
+    with st.expander("Bonus — RemediationEngine (rule-based hypotheses)", expanded=False):
+        if hyps:
+            for h in hyps:
+                with st.container():
+                    b1, b2 = st.columns([1, 5])
+                    b1.metric("Weight", f"{h.weight:.2f}")
+                    b2.markdown(f"**[{h.rule_id}]** {h.symptom}  \n_{h.explanation}_")
+                    for cmd in h.commands:
+                        st.code(cmd, language="bash")
+                    st.divider()
+        else:
+            st.info("No hypotheses fired.")
+
+    # ── Bonus: LLM prompt dry-run ─────────────────────────────────────────────
+    with st.expander("Bonus — LLM prompt dry-run (what would be sent to Ollama)", expanded=False):
+        st.caption(f"{len(prompt)} characters total")
+        st.text_area("Prompt preview", value=prompt[:3000], height=400, disabled=True)
+
+
 # Tab layout — entry point
 # ─────────────────────────────────────────────────────────────────────────────
 
-tab_rca, tab_kb = st.tabs(["🔍 Root Cause Analysis", "📚 Knowledge Base"])
+tab_rca, tab_kb, tab_dash, tab_it = st.tabs([
+    "🔍 Root Cause Analysis", "📚 Knowledge Base", "📊 Dashboard", "🧪 Integration Tests",
+])
 
 with tab_rca:
     _render_rca()
 
 with tab_kb:
     _render_kb()
+
+with tab_dash:
+    _render_dashboard()
+
+with tab_it:
+    _render_integration_tests()
