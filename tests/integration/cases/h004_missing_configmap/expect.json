@@ -1,0 +1,12 @@
+{
+  "scenario": "CreateContainerConfigError — missing ConfigMap and Secrets",
+  "namespace": "production",
+  "release": "api-gateway",
+  "affected_resources": ["Pod/production/api-gateway-5c7d9b8f4-x2k9p"],
+  "root_cause_contains": ["configmap", "api-gateway-config", "not found", "missing"],
+  "fix_commands_contain": ["kubectl create configmap", "kubectl create secret"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.45,
+  "fallback_expected": false,
+  "notes": "Pod cannot start: references 3 missing resources (1 ConfigMap + 2 Secrets). No Helm drift — the chart values are correct but the prerequisite resources were never created. Fix: kubectl create configmap api-gateway-config and kubectl create secret for each missing secret."
+}

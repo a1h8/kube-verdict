@@ -1,0 +1,12 @@
+{
+  "scenario": "NetworkPolicy blocks all egress — pod running but unreachable DB/Redis",
+  "namespace": "production",
+  "release": "order-service",
+  "affected_resources": ["Pod/production/order-service-6f9b8c7d5-q4r2s"],
+  "root_cause_contains": ["networkpolicy", "egress", "blocked", "connection", "timeout"],
+  "fix_commands_contain": ["kubectl edit networkpolicy", "egress"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.40,
+  "fallback_expected": false,
+  "notes": "Pod is Running but not Ready. No crash, no missing resources, no Helm drift. A NetworkPolicy applied by the security team (SEC-4821) sets egress: [] which blocks ALL outbound traffic including DNS (UDP/53), PostgreSQL (5432), Redis (6379). Fix: add egress rules to order-service-restrict-egress NetworkPolicy."
+}

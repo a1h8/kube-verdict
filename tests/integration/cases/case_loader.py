@@ -135,6 +135,9 @@ def build_graph(case: dict) -> OntologyGraph:
     except Exception:
         pass  # AnchorEngine is best-effort in test context
 
+    # ── 9. Missing deployment dependencies ──────────────────────────────────
+    _detect_missing_deps(graph, case["observed"])
+
     return graph
 
 
@@ -143,20 +146,31 @@ def build_graph(case: dict) -> OntologyGraph:
 # ---------------------------------------------------------------------------
 
 def _load_kube(kube_dir: Path) -> dict[str, Any]:
-    """Load kubectl YAML/JSON output from kube/."""
+    """Load kubectl YAML/JSON output from kube/ — all resource kinds."""
     out: dict[str, Any] = {
         "deployments":         [],
         "pods":                [],
         "events":              [],
+        "secrets":             [],   # present secrets (names only needed)
+        "configmaps":          [],
+        "serviceaccounts":     [],
+        "networkpolicies":     [],
+        "pvcs":                [],
+        "rbac":                [],   # roles, rolebindings, clusterroles, clusterrolebindings
         "helm_release_values": None,
     }
     if not kube_dir.is_dir():
         return out
 
-    for fpath in sorted(kube_dir.iterdir()):
-        if fpath.suffix not in (".yaml", ".yml", ".json"):
-            continue
+    # Also recurse one level (e.g. kube/rbac/)
+    files: list[Path] = []
+    for p in sorted(kube_dir.iterdir()):
+        if p.is_dir():
+            files.extend(sorted(p.glob("*.yaml")) + sorted(p.glob("*.yml")) + sorted(p.glob("*.json")))
+        elif p.suffix in (".yaml", ".yml", ".json"):
+            files.append(p)
 
+    for fpath in files:
         if fpath.suffix in (".yaml", ".yml"):
             docs = list(yaml.safe_load_all(fpath.read_text()))
         else:
@@ -179,6 +193,22 @@ def _load_kube(kube_dir: Path) -> dict[str, Any]:
                 out["pods"].append(raw)
             elif kind == "podlist":
                 out["pods"].extend(raw.get("items", []))
+            elif kind == "secret":
+                out["secrets"].append(raw)
+            elif kind == "secretlist":
+                out["secrets"].extend(raw.get("items", []))
+            elif kind == "configmap":
+                out["configmaps"].append(raw)
+            elif kind == "configmaplist":
+                out["configmaps"].extend(raw.get("items", []))
+            elif kind == "serviceaccount":
+                out["serviceaccounts"].append(raw)
+            elif kind == "networkpolicy":
+                out["networkpolicies"].append(raw)
+            elif kind in ("persistentvolumeclaim", "pvc"):
+                out["pvcs"].append(raw)
+            elif kind in ("role", "rolebinding", "clusterrole", "clusterrolebinding"):
+                out["rbac"].append(raw)
 
     return out
 
@@ -274,6 +304,168 @@ def _ingest_policy_report(report: dict, graph: OntologyGraph) -> None:
                 if uid not in existing:
                     graph.add_edge(
                         Edge(entity.uid, uid, RelationshipType.HAS_POLICY_VIOLATION)
+                    )
+
+
+# ---------------------------------------------------------------------------
+# Missing deployment dependency detection
+# ---------------------------------------------------------------------------
+
+def _detect_missing_deps(graph: OntologyGraph, observed: dict) -> None:
+    """
+    Scan every pod spec for referenced Kubernetes resources.
+    For each reference that has NO corresponding object in observed/kube/,
+    annotate the Pod entity with ``missing.<type>.<name>`` so the
+    ContextBuilder surfaces it and anchor_fix_hints() can generate a
+    concrete ``kubectl create`` command.
+
+    Detects:
+      - envFrom  secretRef / configMapRef
+      - env[].valueFrom  secretKeyRef / configMapKeyRef
+      - volumes[]  secret / configMap / persistentVolumeClaim
+      - imagePullSecrets
+      - serviceAccountName (non-default)
+      - NetworkPolicy entities → annotated on ALL pods in the namespace
+      - Missing RBAC binding for a ServiceAccount
+    """
+    present_secrets = {
+        r.get("metadata", {}).get("name", "")
+        for r in observed.get("secrets", [])
+    }
+    present_cms = {
+        r.get("metadata", {}).get("name", "")
+        for r in observed.get("configmaps", [])
+    }
+    present_sas = {
+        r.get("metadata", {}).get("name", "")
+        for r in observed.get("serviceaccounts", [])
+    }
+    present_pvcs = {
+        r.get("metadata", {}).get("name", "")
+        for r in observed.get("pvcs", [])
+    }
+    # SA names that have at least one (Cluster)RoleBinding
+    bound_sas: set[str] = set()
+    for rb in observed.get("rbac", []):
+        if rb.get("kind", "").lower() in ("rolebinding", "clusterrolebinding"):
+            for subj in rb.get("subjects", []):
+                if subj.get("kind", "").lower() == "serviceaccount":
+                    bound_sas.add(subj.get("name", ""))
+
+    netpols = observed.get("networkpolicies", [])
+
+    for pod_raw in observed.get("pods", []):
+        meta = pod_raw.get("metadata", {})
+        spec = pod_raw.get("spec", {})
+        pod_name = meta.get("name", "")
+        ns = meta.get("namespace", "")
+
+        entity = _find_entity(graph, "Pod", pod_name, ns)
+        if entity is None:
+            continue
+
+        all_containers = (
+            spec.get("containers", [])
+            + spec.get("initContainers", [])
+            + spec.get("ephemeralContainers", [])
+        )
+
+        for container in all_containers:
+            # envFrom
+            for ef in container.get("envFrom", []):
+                sr = ef.get("secretRef", {})
+                cr = ef.get("configMapRef", {})
+                if sr.get("name") and sr["name"] not in present_secrets:
+                    entity.annotations[f"missing.secret.{sr['name']}"] = (
+                        f"Secret '{sr['name']}' referenced in envFrom "
+                        f"(container {container.get('name','?')}) — not found in cluster"
+                    )
+                if cr.get("name") and cr["name"] not in present_cms:
+                    entity.annotations[f"missing.configmap.{cr['name']}"] = (
+                        f"ConfigMap '{cr['name']}' referenced in envFrom "
+                        f"(container {container.get('name','?')}) — not found in cluster"
+                    )
+            # env valueFrom
+            for env in container.get("env", []):
+                vf = env.get("valueFrom", {})
+                skr = vf.get("secretKeyRef", {})
+                ckr = vf.get("configMapKeyRef", {})
+                if skr.get("name") and skr["name"] not in present_secrets:
+                    entity.annotations[f"missing.secret.{skr['name']}"] = (
+                        f"Secret '{skr['name']}' referenced in env.valueFrom.secretKeyRef "
+                        f"(key {skr.get('key','?')}) — not found in cluster"
+                    )
+                if ckr.get("name") and ckr["name"] not in present_cms:
+                    entity.annotations[f"missing.configmap.{ckr['name']}"] = (
+                        f"ConfigMap '{ckr['name']}' referenced in env.valueFrom.configMapKeyRef "
+                        f"(key {ckr.get('key','?')}) — not found in cluster"
+                    )
+
+        # volumes
+        for vol in spec.get("volumes", []):
+            sec = vol.get("secret", {})
+            cm  = vol.get("configMap", {})
+            pvc = vol.get("persistentVolumeClaim", {})
+            if sec.get("secretName") and sec["secretName"] not in present_secrets:
+                entity.annotations[f"missing.secret.{sec['secretName']}"] = (
+                    f"Secret '{sec['secretName']}' mounted as volume '{vol.get('name','')}' — not found"
+                )
+            if cm.get("name") and cm["name"] not in present_cms:
+                entity.annotations[f"missing.configmap.{cm['name']}"] = (
+                    f"ConfigMap '{cm['name']}' mounted as volume '{vol.get('name','')}' — not found"
+                )
+            if pvc.get("claimName") and pvc["claimName"] not in present_pvcs:
+                entity.annotations[f"missing.pvc.{pvc['claimName']}"] = (
+                    f"PVC '{pvc['claimName']}' referenced as volume '{vol.get('name','')}' — not found or not bound"
+                )
+
+        # imagePullSecrets
+        for ips in spec.get("imagePullSecrets", []):
+            sn = ips.get("name", "")
+            if sn and sn not in present_secrets:
+                entity.annotations[f"missing.imagepullsecret.{sn}"] = (
+                    f"imagePullSecret '{sn}' not found — image pull will fail (401/403)"
+                )
+
+        # serviceAccount
+        sa = spec.get("serviceAccountName", "")
+        if sa and sa not in ("default", ""):
+            if sa not in present_sas:
+                entity.annotations[f"missing.serviceaccount.{sa}"] = (
+                    f"ServiceAccount '{sa}' not found in cluster (namespace {ns})"
+                )
+            elif sa not in bound_sas:
+                entity.annotations[f"missing.rbac.{sa}"] = (
+                    f"ServiceAccount '{sa}' exists but has no (Cluster)RoleBinding — "
+                    f"API calls will be Forbidden"
+                )
+
+        # NetworkPolicy — flag if any netpol targets pods in this namespace
+        for np in netpols:
+            np_ns = np.get("metadata", {}).get("namespace", "")
+            if np_ns and np_ns != ns:
+                continue
+            np_name = np.get("metadata", {}).get("name", "np-unknown")
+            pod_sel = np.get("spec", {}).get("podSelector", {})
+            # Empty podSelector = applies to all pods in namespace
+            match_labels = pod_sel.get("matchLabels", {})
+            pod_labels = meta.get("labels", {})
+            matches = not match_labels or all(
+                pod_labels.get(k) == v for k, v in match_labels.items()
+            )
+            if matches:
+                spec_np = np.get("spec", {})
+                if "egress" in spec_np and not spec_np.get("egress"):
+                    entity.annotations[f"netpol.{np_name}.egress_blocked"] = (
+                        f"NetworkPolicy '{np_name}' selects this pod with empty egress rules "
+                        f"— ALL outbound traffic is blocked"
+                    )
+                elif "egress" not in spec_np and "ingress" in spec_np:
+                    pass  # ingress-only policy, egress unaffected
+                else:
+                    entity.annotations[f"netpol.{np_name}.applied"] = (
+                        f"NetworkPolicy '{np_name}' applies to this pod — "
+                        f"verify egress/ingress rules allow required traffic"
                     )
 
 

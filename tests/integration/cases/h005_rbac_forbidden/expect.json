@@ -1,0 +1,12 @@
+{
+  "scenario": "RBAC Forbidden — ServiceAccount has no ClusterRoleBinding",
+  "namespace": "monitoring",
+  "release": "audit-exporter",
+  "affected_resources": ["Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q"],
+  "root_cause_contains": ["forbidden", "serviceaccount", "audit-exporter-sa", "rbac", "cannot list"],
+  "fix_commands_contain": ["kubectl create clusterrolebinding", "serviceaccount"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.40,
+  "fallback_expected": false,
+  "notes": "Pod is Running but completely non-functional: every API call returns 403 Forbidden. The ServiceAccount exists and a ClusterRole is defined, but there is no ClusterRoleBinding connecting them. Fix: kubectl create clusterrolebinding audit-exporter-binding --clusterrole=audit-exporter-role --serviceaccount=monitoring:audit-exporter-sa"
+}

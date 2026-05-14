@@ -1,0 +1,30 @@
+# Declared chart values — audit-exporter
+replicaCount: 1
+
+image:
+  repository: ghcr.io/acme/audit-exporter
+  tag: "v2.1.0"
+  pullPolicy: IfNotPresent
+
+# The chart creates the ServiceAccount but NOT the ClusterRoleBinding
+# (expected to exist from the cluster bootstrap / Terraform)
+serviceAccount:
+  name: audit-exporter-sa
+  create: true
+  # clusterRoleBinding must be created separately:
+  # kubectl create clusterrolebinding audit-exporter-binding \
+  #   --clusterrole=audit-exporter-role \
+  #   --serviceaccount=monitoring:audit-exporter-sa
+
+rbac:
+  create: false   # ← intentionally false — org policy: RBAC managed externally
+
+watchNamespace: production
+
+resources:
+  limits:
+    memory: 128Mi
+    cpu: "200m"
+  requests:
+    memory: 64Mi
+    cpu: 50m

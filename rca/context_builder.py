@@ -172,10 +172,19 @@ def _field_path_to_helm_key(field_path: str) -> str:
 
 def anchor_fix_hints(graph: "OntologyGraph", seeds: list[K8sEntity]) -> list[str]:
     """
-    Public: for each unhealthy entity with manifest-sourced anchors,
-    generate an explicit helm command to restore the declared value.
+    For each unhealthy entity generate fix hints from three annotation types:
+
+    1. ``anchor.*[manifest]``  → ``helm upgrade --set`` (declared value drift)
+    2. ``missing.secret.*``    → ``kubectl create secret``
+    3. ``missing.configmap.*`` → ``kubectl create configmap``
+    4. ``missing.pvc.*``       → ``kubectl apply -f pvc.yaml``
+    5. ``missing.serviceaccount.*`` → ``kubectl create serviceaccount``
+    6. ``missing.rbac.*``      → ``kubectl create clusterrolebinding``
+    7. ``missing.imagepullsecret.*`` → ``kubectl create secret docker-registry``
+    8. ``netpol.*``            → ``kubectl edit networkpolicy``
     """
     hints: list[str] = []
+    seen: set[str] = set()
 
     release_name_map: dict[tuple[str, str], str] = {}
     for hr in graph.entities(ResourceKind.HELM_RELEASE):
@@ -190,23 +199,108 @@ def anchor_fix_hints(graph: "OntologyGraph", seeds: list[K8sEntity]) -> list[str
         release = release_name_map.get((ns, name)) or name
 
         for ann_key, ann_val in sorted(entity.annotations.items()):
-            if not ann_key.startswith("anchor."):
-                continue
-            if "[manifest]" not in ann_val:
-                continue
-            m = re.search(r"declared='?([^'\s|]+)'?\s*\[manifest\]", ann_val)
-            if not m:
-                continue
-            declared_val = m.group(1)
-            field_path = ann_key[len("anchor."):]
-            helm_key = _field_path_to_helm_key(field_path)
-            hints.append(
-                f"{kind_str}/{ns}/{name}  {field_path}={declared_val!r} "
-                f"(declared in chart)  →  helm upgrade {release} -n {ns} "
-                f"--set {helm_key}={declared_val}"
-            )
 
-    return hints[:12]
+            # ── 1. Helm value drift ──────────────────────────────────────────
+            if ann_key.startswith("anchor.") and "[manifest]" in ann_val:
+                m = re.search(r"declared='?([^'\s|]+)'?\s*\[manifest\]", ann_val)
+                if m:
+                    declared_val = m.group(1)
+                    field_path = ann_key[len("anchor."):]
+                    helm_key = _field_path_to_helm_key(field_path)
+                    hint = (
+                        f"{kind_str}/{ns}/{name}  {field_path}={declared_val!r} "
+                        f"(declared in chart)  →  helm upgrade {release} -n {ns} "
+                        f"--set {helm_key}={declared_val}"
+                    )
+                    if hint not in seen:
+                        hints.append(hint)
+                        seen.add(hint)
+
+            # ── 2. Missing secret ────────────────────────────────────────────
+            elif ann_key.startswith("missing.secret."):
+                sname = ann_key[len("missing.secret."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  secret '{sname}' missing  →  "
+                    f"kubectl create secret generic {sname} -n {ns} "
+                    f"--from-literal=KEY=VALUE"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 3. Missing imagePullSecret ───────────────────────────────────
+            elif ann_key.startswith("missing.imagepullsecret."):
+                sname = ann_key[len("missing.imagepullsecret."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  imagePullSecret '{sname}' missing  →  "
+                    f"kubectl create secret docker-registry {sname} -n {ns} "
+                    f"--docker-server=REGISTRY --docker-username=USER --docker-password=TOKEN"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 4. Missing configmap ─────────────────────────────────────────
+            elif ann_key.startswith("missing.configmap."):
+                cname = ann_key[len("missing.configmap."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  configmap '{cname}' missing  →  "
+                    f"kubectl create configmap {cname} -n {ns} "
+                    f"--from-literal=KEY=VALUE"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 5. Missing PVC ───────────────────────────────────────────────
+            elif ann_key.startswith("missing.pvc."):
+                pvcname = ann_key[len("missing.pvc."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  PVC '{pvcname}' missing or not bound  →  "
+                    f"kubectl apply -f - <<EOF\napiVersion: v1\nkind: PersistentVolumeClaim\n"
+                    f"metadata:\n  name: {pvcname}\n  namespace: {ns}\nspec:\n"
+                    f"  accessModes: [ReadWriteOnce]\n  resources:\n    requests:\n      storage: 1Gi\nEOF"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 6. Missing ServiceAccount ────────────────────────────────────
+            elif ann_key.startswith("missing.serviceaccount."):
+                saname = ann_key[len("missing.serviceaccount."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  ServiceAccount '{saname}' missing  →  "
+                    f"kubectl create serviceaccount {saname} -n {ns}"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 7. Missing RBAC binding ──────────────────────────────────────
+            elif ann_key.startswith("missing.rbac."):
+                saname = ann_key[len("missing.rbac."):]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  ServiceAccount '{saname}' has no RoleBinding  →  "
+                    f"kubectl create clusterrolebinding {saname}-binding "
+                    f"--clusterrole=view --serviceaccount={ns}:{saname}"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+            # ── 8. NetworkPolicy ─────────────────────────────────────────────
+            elif ann_key.startswith("netpol.") and "egress_blocked" in ann_key:
+                np_name = ann_key.split(".")[1]
+                hint = (
+                    f"{kind_str}/{ns}/{name}  NetworkPolicy '{np_name}' blocks all egress  →  "
+                    f"kubectl edit networkpolicy {np_name} -n {ns}  "
+                    f"# add egress rules for required ports (e.g. 5432/tcp, 6379/tcp)"
+                )
+                if hint not in seen:
+                    hints.append(hint)
+                    seen.add(hint)
+
+    return hints[:20]
 
 
 class ContextBuilder:

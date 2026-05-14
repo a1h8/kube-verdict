@@ -42,7 +42,15 @@ K8s API + Helm + Helmfile
         │    ├── K8s schema defaults (valid values, descriptions)      │
         │    └── helm template output (declared chart values)          │
         │        ──► anchor.* annotations                              │
-        │            anchor_fix_hints() → helm upgrade --set commands  │
+        │            anchor_fix_hints() → kubectl/helm fix commands    │
+        │                                                              │
+        ├──► DeploymentReadinessDetector                               │
+        │    ├── scan pod spec: envFrom · env.valueFrom · volumes      │
+        │    │   imagePullSecrets · serviceAccountName                 │
+        │    ├── cross-check secrets / configmaps / pvcs / SAs         │
+        │    ├── RBAC: SA exists but no (Cluster)RoleBinding           │
+        │    ├── NetworkPolicy: egress: [] → all traffic blocked        │
+        │    └── missing.* / netpol.* annotations → kubectl create cmds│
         │                                                              │
         ├──► PolicyCollector (OPA / Kyverno)                           │
         │    ├── PolicyReport / ClusterPolicyReport (wgpolicyk8s.io)   │
@@ -76,7 +84,7 @@ K8s API + Helm + Helmfile
                   ├── [CRITICAL] unhealthy seeds
                   ├── [CRITICAL] Helm drift (declared ≠ observed)
                   ├── [CRITICAL] firing Prometheus alerts
-                  ├── [ANCHOR FIX] helm upgrade commands (restore declared values)
+                  ├── [ANCHOR FIX] kubectl create / helm upgrade commands (missing deps + drift)
                   ├── [TRACES]   OTel error spans (cap 20)
                   ├── [LOGS]     Loki error/warn lines (cap 20)
                   ├── [SIMILAR]  resolved past incidents (FAISS examples)
@@ -88,7 +96,7 @@ K8s API + Helm + Helmfile
               ┌─────────▼─────────────────────────────────────────────┐
               │          LangGraph multi-path reasoning workflow      │
               │                                                       │
-              │  hypothesize ──► LLM generates H1 / H2 / H3          │
+              │  hypothesize ──► LLM generates H1 / H2 / H3           │
               │       │          from cluster snapshot                │
               │       ▼                                               │
               │   analyze ──► LLM investigates current hypothesis     │
@@ -203,22 +211,38 @@ Cluster-free pipeline exploration — no Ollama required for **🔬 Pipeline tra
 
 ## Anchor pivot — declared → observed → fix
 
-Anchors are the ontological pivot connecting chart intent to live state to remediation:
+Anchors bridge chart intent to live cluster state to concrete remediation commands. The pivot covers **all deployment blockers**, not just value drift:
 
 ```
 values.yaml declares:   resources.limits.memory = 512Mi
-Observed (deployed):    resources.limits.memory = 128Mi   ← DRIFT
-Fix command:            helm upgrade api -n production --set resources.limits.memory=512Mi
+Observed (deployed):    resources.limits.memory = 128Mi        ← DRIFT
+Fix:                    helm upgrade api -n production --set resources.limits.memory=512Mi
+
+Pod references:         secret/payment-db-secret (envFrom)
+Observed:               secret not found in namespace
+Fix:                    kubectl create secret generic payment-db-secret -n production --from-literal=…
+
+NetworkPolicy applied:  order-service-restrict-egress  egress: []
+Effect:                 ALL outbound blocked (DNS 53, PostgreSQL 5432, Redis 6379)
+Fix:                    kubectl edit networkpolicy order-service-restrict-egress -n production
+
+ServiceAccount:         audit-exporter-sa  (exists, no RoleBinding)
+Fix:                    kubectl create clusterrolebinding audit-exporter-rb --clusterrole=view --serviceaccount=production:audit-exporter-sa
 ```
 
-The **Step 6** anchor table in the pipeline trace renders this for every declared field:
+The **Step 6** anchor table in the pipeline trace renders declared vs observed for every field:
 
 | resource | field | declared | observed | source | status | fix |
 |---|---|---|---|---|---|---|
 | api | `resources.limits.memory` | `512Mi` | `128Mi` | values.yaml | 🔴 DRIFT | `helm upgrade api --set resources.limits.memory=512Mi` |
 | api | `image.tag` | `v3.2.0` | `v3.2.0` | values.yaml | ✅ OK | — |
 
-**Step 10** then groups all proposed changes: values.yaml diff table, executable helm commands, and OPA/Kyverno policy fix hints.
+**Step 10** proposes all changes in priority order:
+1. 🔴 **Missing deployment dependencies** — `kubectl create secret/configmap/serviceaccount/pvc`
+2. 🌐 **NetworkPolicy blockers** — `kubectl edit networkpolicy` + egress rule template
+3. 🔒 **OPA / Kyverno policy fixes** — policy-specific remediation hints
+4. 🔀 **Helm drift** — `helm upgrade --set` to restore declared values
+5. 📄 **Declared values.yaml** (collapsed reference)
 
 ---
 
@@ -230,17 +254,21 @@ Test cases in `tests/integration/cases/` use real Kubernetes artifact formats in
 tests/integration/cases/
 ├── h001_crashloopbackoff/
 │   ├── kube/
-│   │   ├── pod.yaml        ← kubectl get pod -o yaml
-│   │   └── events.yaml     ← kubectl get events -o yaml (EventList)
+│   │   ├── pod.yaml          ← kubectl get pod -o yaml
+│   │   └── events.yaml       ← kubectl get events -o yaml (EventList)
 │   ├── helm/
-│   │   ├── values.yaml     ← declared chart values
-│   │   └── release.json    ← helm get values -o json (deployed state)
-│   └── expect.json         ← test expectations
-├── h002_imagepullbackoff/  ← image tag drift v2.0.5 → v2.1.0-private, 401 Unauthorized
-└── h003_oomkilled/         ← memory limit drift 512Mi declared → 128Mi deployed, OOMKilled
+│   │   ├── values.yaml       ← declared chart values
+│   │   └── release.json      ← helm get values -o json (deployed state)
+│   └── expect.json           ← test expectations
+├── h002_imagepullbackoff/    ← image tag drift v2.0.5 → v2.1.0-private, 401 Unauthorized
+├── h003_oomkilled/           ← memory limit drift 512Mi declared → 128Mi deployed, OOMKilled
+├── h004_missing_configmap/   ← CreateContainerConfigError — 3 missing resources (ConfigMap + 2 Secrets)
+├── h005_rbac_forbidden/      ← SA exists, no ClusterRoleBinding → 403 Forbidden on all API calls
+│   └── kube/rbac/            ← optional subdirectory for RBAC resources
+└── h006_networkpolicy_blocked/ ← egress: [] blocks DNS + PostgreSQL + Redis; pod Running but not Ready
 ```
 
-The `case_loader.py` reads all formats (YAML/JSON), runs `HelmDriftDetector` + `AnchorEngine`, and produces a full `OntologyGraph` — the same pipeline used against a real cluster.
+The `case_loader.py` reads all formats (YAML/JSON), runs `HelmDriftDetector` + `AnchorEngine` + `_detect_missing_deps()`, and produces a full `OntologyGraph` — the same pipeline used against a real cluster. It recurses into subdirectories under `kube/` (e.g. `kube/rbac/`) and collects all resource kinds including secrets, configmaps, serviceaccounts, networkpolicies, pvcs, and RBAC objects.
 
 Add a new case: create `tests/integration/cases/hNNN_name/` with the YAML artifacts. It appears automatically in the UI dropdown.
 
@@ -256,6 +284,7 @@ Add a new case: create `tests/integration/cases/hNNN_name/` with the YAML artifa
 | **Helm + Helmfile** | Correlates declared chart values with live runtime state; detects drift at field level |
 | **GitOps diff** | Clones chart repo (or uses GitHub API), runs `helm template`, diffs rendered vs observed |
 | **AnchorEngine** | Extracts declared values from `helm template` output; maps to `helm upgrade --set` fix commands; rendered as pivot table in UI |
+| **Deployment readiness** | Scans pod specs for all resource references; detects missing secrets, configmaps, PVCs, imagePullSecrets, serviceaccounts; flags RBAC gaps and NetworkPolicy egress blocks; `anchor_fix_hints()` generates concrete `kubectl create/edit` commands |
 | **BM25 + FAISS hybrid** | Dense cosine (FAISS) + sparse keyword (BM25) fused with Reciprocal Rank Fusion; `retrieval_stats` exposed in UI |
 | **Dynamic discovery** | Queries `/apis` to index CRDs and operator resources automatically |
 | **Multi-version K8s** | Detects server version; drives API choices for 1.16 → 1.31+ and K3s |
@@ -433,10 +462,13 @@ kubewhisperer/
 │   │   └── test_helm_case_bank.py
 │   └── integration/
 │       ├── cases/              # ← Native K8s integration test cases
-│       │   ├── case_loader.py  #   Reads kube/*.yaml + helm/ + policy/ → OntologyGraph
-│       │   ├── h001_crashloopbackoff/   # kube/pod.yaml, kube/events.yaml, helm/
+│       │   ├── case_loader.py  #   kube/*.yaml + helm/ + policy/ → OntologyGraph
+│       │   ├── h001_crashloopbackoff/   # CrashLoopBackOff — missing secret
 │       │   ├── h002_imagepullbackoff/   # image tag drift + 401 Unauthorized
-│       │   └── h003_oomkilled/          # memory limit drift 512Mi → 128Mi
+│       │   ├── h003_oomkilled/          # memory limit drift 512Mi → 128Mi
+│       │   ├── h004_missing_configmap/  # CreateContainerConfigError — 3 missing resources
+│       │   ├── h005_rbac_forbidden/     # SA exists, no ClusterRoleBinding → 403 Forbidden
+│       │   └── h006_networkpolicy_blocked/ # egress: [] → DNS + DB + Redis blocked
 │       └── use_cases/          # Dialogue simulator + proposal engine
 │
 ├── tools/                      # Dev utilities (case contract, recalibration)
@@ -482,6 +514,7 @@ No `create`, `update`, `patch`, or `delete` permissions are granted.
 - [x] **AnchorEngine** — manifest + schema anchors; `anchor_fix_hints()` generates `helm upgrade --set` commands; **anchor pivot table** in UI (declared → observed → status → fix)
 - [x] **BM25 + FAISS hybrid retrieval** — K8s-aware BM25 tokeniser + FAISS dense cosine + Reciprocal Rank Fusion; `retrieval_stats` (dense/sparse/fused/top_rrf_score) in UI
 - [x] **Integration test cases — native format** — `tests/integration/cases/` with real K8s YAML (pod, events, values.yaml, helmfile, PolicyReport); unified `case_loader.py`
+- [x] **Deployment readiness detection** — `_detect_missing_deps()` scans pod specs for all resource references (secrets, configmaps, PVCs, imagePullSecrets, serviceaccounts, RBAC, NetworkPolicy egress); generates `missing.*` / `netpol.*` annotations; `anchor_fix_hints()` produces concrete `kubectl create/edit` commands; h004/h005/h006 cases cover the full range
 - [x] **Pipeline trace UI** — 10-step pre-LLM pipeline visualization (auto-runs on case select, no Ollama needed); Step 10 proposes values.yaml diffs + helm commands + OPA/Kyverno fixes
 - [x] **RemediationEngine** — rule-based weighted hypotheses for LOW-confidence fallback; integrated in pipeline trace Bonus step
 - [x] **OPA / Kyverno policy integration** — `PolicyCollector` ingests `PolicyReport` / `ClusterPolicyReport`; violations as `HAS_POLICY_VIOLATION` edges; confidence boost; fix hints
@@ -499,7 +532,7 @@ No `create`, `update`, `patch`, or `delete` permissions are granted.
 
 ### Next
 
-- [ ] **More h-series cases** — h004 NetworkPolicy blocked, h005 Kyverno violation, h006 PVC Pending, …
+- [ ] **More h-series cases** — h007 PVC not bound, h008 Kyverno violation at admission, h009 resource quota exceeded, …
 - [ ] **Helmfile multi-release** — h00N case with `helmfile.yaml` covering multiple interdependent releases
 - [ ] **Multi-cluster support** — analyse multiple contexts in one session
 - [ ] **Slack / PagerDuty enrichment** — push RCA summary via webhook

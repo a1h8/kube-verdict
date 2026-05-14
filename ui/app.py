@@ -1616,7 +1616,7 @@ def _render_integration_tests():  # noqa: C901
     )
     from tests.integration.use_cases.dialogue_simulator import (
         DialogueSimulator, render_tree, write_json,
-        count_resolved, count_dead_ends, count_nodes, best_score,
+        count_resolved, count_dead_ends,
     )
     from tests.integration.use_cases.proposal_engine import generate_proposals
     from tools.case_contract import update_expect_from_sim, update_input_from_sim, recalibrate_all
@@ -1650,7 +1650,7 @@ def _render_integration_tests():  # noqa: C901
     )
 
     if not all_cases_meta:
-        st.warning(f"No h-series cases found. Add tests/unit/test_hybrid_pipeline_NNN.py to register a case.")
+        st.warning("No h-series cases found. Add tests/unit/test_hybrid_pipeline_NNN.py to register a case.")
         return
 
     st.title("Integration Tests — Dialogue Simulation")
@@ -2204,7 +2204,7 @@ def _render_remediation_panel(cmds: list[str], case_name: str) -> None:
                 args = shlex.split(cmd)
                 result = subprocess.run(args, capture_output=True, text=True, timeout=120)
                 if result.returncode == 0:
-                    st.success(f"Exit 0")
+                    st.success("Exit 0")
                     if result.stdout:
                         st.code(result.stdout[:2000], language="yaml")
                 else:
@@ -2221,74 +2221,173 @@ def _render_remediation_panel(cmds: list[str], case_name: str) -> None:
 
 def _render_proposed_changes(ctx, case_name: str, case_type: str) -> None:
     """
-    Step 10 — proposed changes to values.yaml / helmfile / OPA-Kyverno policies.
+    Step 10 — full deployment readiness remediation.
 
-    Sources (in priority order):
-      1. helm/values.yaml declared file (from the case directory)
-      2. Helm drift items → diff table (declared vs observed)
-      3. anchor_fixes → helm upgrade commands
-      4. policy_violations → OPA/Kyverno YAML fix hints
+    Priority order (what blocks deployment first):
+      1. Missing dependencies  (secrets, configmaps, RBAC, PVC, imagePullSecret)
+      2. NetworkPolicy blockers
+      3. OPA / Kyverno violations
+      4. Helm drift (declared values ≠ deployed)
+      5. Declared values.yaml (reference)
     """
     import re as _re
+    import pandas as pd
 
     CASES_ROOT      = ROOT / "cases"
     HELM_CASES_ROOT = ROOT / "cases" / "helm_cases"
+    NATIVE_ROOT     = ROOT / "tests" / "integration" / "cases"
 
-    case_dir = (CASES_ROOT / case_name) if case_type == "synthetic" else (HELM_CASES_ROOT / case_name)
+    if case_type == "synthetic":
+        case_dir = CASES_ROOT / case_name
+    elif case_type == "native":
+        case_dir = NATIVE_ROOT / case_name
+    else:
+        case_dir = HELM_CASES_ROOT / case_name
     values_file = case_dir / "helm" / "values.yaml"
 
+    # Partition anchor_fixes by type
+    missing_fixes   = [f for f in ctx.anchor_fixes if "missing" in f.split("→")[0].lower()]
+    netpol_fixes    = [f for f in ctx.anchor_fixes if "networkpolicy" in f.lower() or "netpol" in f.lower()]
+    helm_fixes      = [f for f in ctx.anchor_fixes
+                       if f not in missing_fixes and f not in netpol_fixes]
+
+    has_missing    = bool(missing_fixes)
+    has_netpol     = bool(netpol_fixes)
     has_drift      = bool(ctx.drift)
-    has_fixes      = bool(ctx.anchor_fixes)
+    has_helm_fixes = bool(helm_fixes)
     has_violations = bool(ctx.policy_violations)
     has_values     = values_file.exists()
 
-    nothing = not (has_drift or has_fixes or has_violations or has_values)
-    label = f"Step 10 — Proposed Changes ({('values · helm · OPA/Kyverno' if not nothing else '—')})"
+    nothing = not any([has_missing, has_netpol, has_drift, has_helm_fixes,
+                       has_violations, has_values])
+
+    # Label summarises the types of issues found
+    issue_tags = []
+    if has_missing:   issue_tags.append("missing deps")
+    if has_netpol:    issue_tags.append("netpol")
+    if has_violations:issue_tags.append("OPA/Kyverno")
+    if has_drift:     issue_tags.append("helm drift")
+    label = f"Step 10 — Proposed Remediation ({' · '.join(issue_tags) if issue_tags else '—'})"
 
     with st.expander(label, expanded=True):
         if nothing:
-            st.info("No drift, anchor fixes, or policy violations detected — no changes needed.", icon="✅")
+            st.success("No missing dependencies, drift, or policy violations detected.", icon="✅")
             return
 
-        # ── 1. Declared values.yaml ────────────────────────────────────────────
-        if has_values:
-            st.markdown("#### 📄 Declared `values.yaml`")
-            st.code(values_file.read_text(), language="yaml")
-            st.divider()
-
-        # ── 2. Drift table: declared vs observed ──────────────────────────────
-        if has_drift:
-            st.markdown("#### 🔀 Helm drift — declared vs observed")
-            rows = []
-            for d in ctx.drift:
-                # Format: "kind/ns/name: drift.X.Y: declared='A' observed='B' [manifest drift]"
-                m_decl = _re.search(r"declared='?([^'\s|]+)'?", d)
-                m_obs  = _re.search(r"observed='?([^'\s|]+)'?", d)
-                m_field = _re.search(r"drift\.([\w.]+):", d)
-                field   = m_field.group(1) if m_field else d.split(":")[0]
-                declared = m_decl.group(1) if m_decl else "?"
-                observed = m_obs.group(1)  if m_obs  else "?"
-                rows.append({
-                    "field":    field,
-                    "declared": declared,
-                    "observed": observed,
-                    "action":   "🔄 restore to declared",
-                })
-            import pandas as pd
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            st.divider()
-
-        # ── 3. helm upgrade commands (anchor fixes) ────────────────────────────
-        if has_fixes:
-            st.markdown("#### ⎈ Helm upgrade commands (restore declared values)")
-            for fix in ctx.anchor_fixes:
+        # ── 1. MISSING DEPENDENCIES (highest priority) ────────────────────────
+        if has_missing:
+            st.markdown("#### 🔴 Missing deployment dependencies")
+            st.caption(
+                "These Kubernetes objects are referenced in the pod spec but do not exist. "
+                "The application **cannot start** until they are created."
+            )
+            for fix in missing_fixes:
                 parts = fix.split("  →  ", 1)
-                if len(parts) == 2:
-                    st.caption(parts[0].strip())
-                    st.code(parts[1].strip(), language="bash")
+                label_part = parts[0].strip()
+                cmd_part   = parts[1].strip() if len(parts) == 2 else fix
+                # Categorise icon
+                if "secret" in label_part.lower() and "docker" in cmd_part.lower():
+                    icon = "🔑"
+                elif "secret" in label_part.lower():
+                    icon = "🔐"
+                elif "configmap" in label_part.lower():
+                    icon = "⚙️"
+                elif "serviceaccount" in label_part.lower():
+                    icon = "👤"
+                elif "rbac" in label_part.lower() or "rolebinding" in cmd_part.lower():
+                    icon = "🔒"
+                elif "pvc" in label_part.lower():
+                    icon = "💾"
                 else:
-                    st.code(fix, language="bash")
+                    icon = "❌"
+                st.caption(f"{icon} {label_part}")
+                st.code(cmd_part, language="bash")
             st.divider()
+
+        # ── 2. NetworkPolicy blockers ─────────────────────────────────────────
+        if has_netpol:
+            st.markdown("#### 🌐 NetworkPolicy — traffic blocked")
+            st.caption(
+                "A NetworkPolicy is blocking required traffic. "
+                "Edit it to add egress/ingress rules for the ports your application needs."
+            )
+            for fix in netpol_fixes:
+                parts = fix.split("  →  ", 1)
+                st.caption(parts[0].strip())
+                cmd = parts[1].strip() if len(parts) == 2 else fix
+                st.code(cmd, language="bash")
+                # Show a template for the egress rule
+                st.code(
+                    "# Example: add egress rules for PostgreSQL + Redis + DNS\n"
+                    "egress:\n"
+                    "- ports:\n"
+                    "  - port: 5432    # PostgreSQL\n"
+                    "  - port: 6379    # Redis\n"
+                    "  - port: 53      # DNS (UDP)\n"
+                    "    protocol: UDP\n"
+                    "  - port: 53      # DNS (TCP)\n"
+                    "    protocol: TCP",
+                    language="yaml",
+                )
+            st.divider()
+
+        # ── 3. OPA / Kyverno violations ───────────────────────────────────────
+        if has_violations:
+            st.markdown("#### 🔒 OPA / Kyverno policy fixes")
+            for v in ctx.policy_violations:
+                m_pol  = _re.search(r"policy=(\S+)", v)
+                m_rule = _re.search(r"rule=(\S+)", v)
+                m_res  = _re.search(r"resource=(\S+)", v)
+                m_sev  = _re.search(r"severity=(\S+)", v)
+                m_src  = _re.search(r"source=(\S+)", v)
+                m_msg  = _re.search(r"message='(.+)'$", v)
+                policy = m_pol.group(1) if m_pol else "?"
+                rule   = m_rule.group(1) if m_rule else "?"
+                res    = m_res.group(1) if m_res else "?"
+                sev    = m_sev.group(1) if m_sev else "low"
+                src    = m_src.group(1) if m_src else "unknown"
+                msg    = m_msg.group(1) if m_msg else ""
+                icon   = {"critical":"🔴","high":"🟠","medium":"🟡","low":"🟢"}.get(sev,"⚪")
+                st.markdown(f"{icon} **{policy}** / `{rule}` → `{res}`")
+                if msg: st.caption(msg[:300])
+                if src == "kyverno":
+                    p = policy.split("=")[-1] if "=" in policy else policy
+                    st.code(f"kubectl describe clusterpolicy {p}\nkyverno test .", language="bash")
+                else:
+                    st.code(f"kubectl get constraint {policy} -o jsonpath='{{.status.violations}}'", language="bash")
+                st.markdown("---")
+            st.divider()
+
+        # ── 4. Helm drift ─────────────────────────────────────────────────────
+        if has_drift or has_helm_fixes:
+            st.markdown("#### 🔀 Helm values drift — declared vs deployed")
+            if has_drift:
+                rows = []
+                for d in ctx.drift:
+                    m_decl  = _re.search(r"declared='?([^'\s|]+)'?", d)
+                    m_obs   = _re.search(r"observed='?([^'\s|]+)'?", d)
+                    m_field = _re.search(r"drift\.([\w.]+)", d)
+                    rows.append({
+                        "field":    m_field.group(1) if m_field else d.split(":")[0],
+                        "declared": m_decl.group(1) if m_decl else "?",
+                        "observed": m_obs.group(1)  if m_obs  else "?",
+                        "action":   "🔄 restore",
+                    })
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            if has_helm_fixes:
+                for fix in helm_fixes:
+                    parts = fix.split("  →  ", 1)
+                    if len(parts) == 2:
+                        st.caption(parts[0].strip())
+                        st.code(parts[1].strip(), language="bash")
+                    else:
+                        st.code(fix, language="bash")
+            st.divider()
+
+        # ── 5. Declared values.yaml (reference) ───────────────────────────────
+        if has_values:
+            with st.expander("📄 Declared `values.yaml` (reference)", expanded=False):
+                st.code(values_file.read_text(), language="yaml")
 
         # ── 4. OPA / Kyverno policy fixes ─────────────────────────────────────
         if has_violations:
