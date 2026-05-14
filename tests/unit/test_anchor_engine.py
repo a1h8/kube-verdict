@@ -806,6 +806,7 @@ class TestContextBuilderAnchors:
     @pytest.fixture
     def store_stub(self):
         class _StubStore:
+            last_retrieval_stats: dict = {}
             def search(self, query, top_k=10):
                 return []
             def hybrid_search(self, query, top_k=10):
