@@ -20,10 +20,10 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tests.cases.graph_factory import build_graph, load_case
-from rca.context_builder import ContextBuilder
-from vectorstore.embedder import Embedder
-from vectorstore.store import FAISSStore
+from tests.cases.graph_factory import build_graph, load_case  # noqa: E402
+from rca.context_builder import ContextBuilder  # noqa: E402
+from vectorstore.embedder import Embedder  # noqa: E402
+from vectorstore.store import FAISSStore  # noqa: E402
 
 CASES_ROOT = ROOT / "cases"
 _REASON_RE = re.compile(r"→\s*([\d.]+)$")

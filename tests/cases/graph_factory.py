@@ -23,7 +23,6 @@ from ontology.entities import (
     PersistentVolumeClaim,
     Pod,
     PolicyViolation,
-    ResourceKind,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType

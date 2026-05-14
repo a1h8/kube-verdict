@@ -5,13 +5,10 @@ All K8s API calls are mocked — no cluster required.
 """
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from ingestion.policy_collector import (
     PolicyCollector,
-    PolicyCollectResult,
     _detect_source,
     _violation_uid,
     policy_fix_hints,

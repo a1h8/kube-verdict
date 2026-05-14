@@ -34,7 +34,6 @@ from llm.ollama_client import OllamaClient
 from rca.analyzer import RCAAnalyzer
 from tests.cases.graph_factory import build_graph, load_case
 from tests.integration.use_cases.dialogue_simulator import (
-    DialogueNode,
     DialogueSimulator,
     _MAX_BRANCHES,
     _MAX_TURNS,

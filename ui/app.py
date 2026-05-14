@@ -1306,7 +1306,8 @@ def _render_kb():
                         raw = h_uploaded.read()
                         fname = h_uploaded.name
                         if fname.endswith(".tgz"):
-                            import tarfile, io
+                            import tarfile
+                            import io
                             try:
                                 with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tf:
                                     parts = []
@@ -1406,25 +1407,36 @@ def _render_dashboard():
                 status = "✅ ok"
                 detail_parts = []
                 if key == "ingest":
-                    if "entities"     in d: detail_parts.append(f"{d['entities']} entities")
-                    if "helm_releases" in d: detail_parts.append(f"{d['helm_releases']} releases")
-                    if d.get("kube_version"):    detail_parts.append(d["kube_version"])
+                    if "entities" in d:
+                        detail_parts.append(f"{d['entities']} entities")
+                    if "helm_releases" in d:
+                        detail_parts.append(f"{d['helm_releases']} releases")
+                    if d.get("kube_version"):
+                        detail_parts.append(d["kube_version"])
                 elif key == "metrics":
-                    if "pods_annotated" in d: detail_parts.append(f"{d['pods_annotated']} pods")
+                    if "pods_annotated" in d:
+                        detail_parts.append(f"{d['pods_annotated']} pods")
                 elif key == "prometheus":
-                    if "alerts" in d: detail_parts.append(f"{d['alerts']} alerts")
+                    if "alerts" in d:
+                        detail_parts.append(f"{d['alerts']} alerts")
                 elif key == "otel":
-                    if "traces" in d: detail_parts.append(f"{d['traces']} traces")
-                    if "logs"   in d: detail_parts.append(f"{d['logs']} logs")
+                    if "traces" in d:
+                        detail_parts.append(f"{d['traces']} traces")
+                    if "logs" in d:
+                        detail_parts.append(f"{d['logs']} logs")
                 elif key == "gitops":
-                    if "drifts" in d: detail_parts.append(f"{d['drifts']} drifts ({d.get('critical',0)} critical)")
+                    if "drifts" in d:
+                        detail_parts.append(f"{d['drifts']} drifts ({d.get('critical',0)} critical)")
                 elif key == "anchor":
                     if "total" in d:
                         detail_parts.append(f"{d['total']} records (manifest={d.get('manifest',0)} schema={d.get('schema',0)})")
                 elif key == "index":
-                    if "vectors"   in d: detail_parts.append(f"{d['vectors']} vectors")
-                    if "doc_chunks" in d and d["doc_chunks"]: detail_parts.append(f"{d['doc_chunks']} doc chunks")
-                    if "examples"   in d and d["examples"]:   detail_parts.append(f"{d['examples']} examples")
+                    if "vectors" in d:
+                        detail_parts.append(f"{d['vectors']} vectors")
+                    if "doc_chunks" in d and d["doc_chunks"]:
+                        detail_parts.append(f"{d['doc_chunks']} doc chunks")
+                    if "examples" in d and d["examples"]:
+                        detail_parts.append(f"{d['examples']} examples")
                 elif key == "signals":
                     if "total" in d:
                         detail_parts.append(f"{d.get('anomalous',0)}/{d['total']} anomalous  mode={d.get('mode','?')}")
@@ -1616,7 +1628,6 @@ def _render_integration_tests():  # noqa: C901
     )
     from tests.integration.use_cases.dialogue_simulator import (
         DialogueSimulator, render_tree, write_json,
-        count_resolved, count_dead_ends,
     )
     from tests.integration.use_cases.proposal_engine import generate_proposals
     from tools.case_contract import update_expect_from_sim, update_input_from_sim, recalibrate_all
@@ -2263,10 +2274,14 @@ def _render_proposed_changes(ctx, case_name: str, case_type: str) -> None:
 
     # Label summarises the types of issues found
     issue_tags = []
-    if has_missing:   issue_tags.append("missing deps")
-    if has_netpol:    issue_tags.append("netpol")
-    if has_violations:issue_tags.append("OPA/Kyverno")
-    if has_drift:     issue_tags.append("helm drift")
+    if has_missing:
+        issue_tags.append("missing deps")
+    if has_netpol:
+        issue_tags.append("netpol")
+    if has_violations:
+        issue_tags.append("OPA/Kyverno")
+    if has_drift:
+        issue_tags.append("helm drift")
     label = f"Step 10 — Proposed Remediation ({' · '.join(issue_tags) if issue_tags else '—'})"
 
     with st.expander(label, expanded=True):
@@ -2349,7 +2364,8 @@ def _render_proposed_changes(ctx, case_name: str, case_type: str) -> None:
                 msg    = m_msg.group(1) if m_msg else ""
                 icon   = {"critical":"🔴","high":"🟠","medium":"🟡","low":"🟢"}.get(sev,"⚪")
                 st.markdown(f"{icon} **{policy}** / `{rule}` → `{res}`")
-                if msg: st.caption(msg[:300])
+                if msg:
+                    st.caption(msg[:300])
                 if src == "kyverno":
                     p = policy.split("=")[-1] if "=" in policy else policy
                     st.code(f"kubectl describe clusterpolicy {p}\nkyverno test .", language="bash")
@@ -2657,7 +2673,7 @@ def _render_pipeline_trace(run_btn, case_name, root_query, inp, case_type, data)
         c1.metric("Candidates",       candidates)
         c2.metric("Kept after dedup", kept)
         c3.metric("Diversity ratio",  f"{ratio:.0%}")
-        st.caption(f"Jaccard threshold=0.7  ·  lower = stricter dedup")
+        st.caption("Jaccard threshold=0.7  ·  lower = stricter dedup")
 
     # ── Step 8: TF-IDF ranked context ─────────────────────────────────────────
     with st.expander(f"Step 8 — TF-IDF ranked context — {len(ctx.related)} chunk(s)", expanded=False):

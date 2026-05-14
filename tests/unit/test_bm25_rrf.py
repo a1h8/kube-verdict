@@ -1,8 +1,6 @@
 """Unit tests for BM25Retriever and rrf_fuse."""
 from __future__ import annotations
 
-import pytest
-
 from vectorstore.bm25_retriever import BM25Retriever, _tokenize
 from vectorstore.rrf import rrf_fuse
 

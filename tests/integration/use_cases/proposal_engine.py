@@ -7,7 +7,6 @@ No LLM call — all decisions are keyword-driven on the report text.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 from rca.analyzer import RCAReport
@@ -79,7 +78,7 @@ def generate_proposals(report: RCAReport, max_n: int = 3) -> list[Proposal]:
             "How do I verify that the imagePullSecret exists and is correctly referenced by the pod?"))
 
     # ── PVC / storage: ctx-driven ─────────────────────────────────────────────
-    if _has(ctx_text, ["pvc", "persistentvolumeclaim", "storageclass", "pending"]):
+    if _has(ctx_text, ["pvc", "persistentvolumeclaim", "storageclass"]):
         candidates.append((15, "storage",
             "PVC binding status",
             "How do I check which PersistentVolumes are available and why the PVC cannot bind?"))
@@ -99,13 +98,13 @@ def generate_proposals(report: RCAReport, max_n: int = 3) -> list[Proposal]:
             "How do I test connectivity between pods and identify which network policy is blocking traffic?"))
 
     # ── RBAC: combined ────────────────────────────────────────────────────────
-    if _has(combined, ["rbac", "forbidden", "unauthorized", "clusterrole", "serviceaccount"]):
+    if _has(combined, ["rbac", "forbidden", "clusterrole", "serviceaccount"]):
         candidates.append((15, "rbac",
             "RBAC permission check",
             "What kubectl command shows me the exact permissions missing for this service account?"))
 
     # ── DNS: combined ─────────────────────────────────────────────────────────
-    if _has(combined, ["dns", "resolv", "nslookup", "coredns"]):
+    if _has(combined, ["dns resolution", "nslookup", "coredns", "i/o timeout"]):
         candidates.append((15, "dns",
             "DNS resolution test",
             "How do I run an nslookup or dig from inside the cluster to test DNS resolution?"))

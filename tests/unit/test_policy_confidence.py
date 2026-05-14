@@ -101,7 +101,6 @@ class TestMutationWebhooks:
 class TestCombinedPolicyCap:
     def test_combined_capped_at_030(self):
         """fail=3 (0.30) + audit=1 (0.05) + webhooks=1 (0.05) → capped at 0.30."""
-        base = _base()
         combined = _base(policy_fail_count=3, policy_audit_count=1, mutation_webhooks=1)
         max_boost = _base(policy_fail_count=3)
         assert combined.score == max_boost.score

@@ -39,7 +39,6 @@ from tests.integration.use_cases.dialogue_simulator import (
     count_nodes,
     count_resolved,
     render_tree,
-    summary_row,
     write_json,
 )
 from vectorstore.embedder import Embedder

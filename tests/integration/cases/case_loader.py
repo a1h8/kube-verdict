@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +34,7 @@ from ingestion.anchor_engine import AnchorEngine
 from ingestion.helm_drift import HelmDriftDetector
 from ingestion.chart_parser import flatten_values
 from ontology.entities import (
-    Deployment, HelmRelease, K8sEvent, Pod, PolicyViolation, ResourceKind,
+    Deployment, HelmRelease, K8sEvent, Pod, PolicyViolation,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType

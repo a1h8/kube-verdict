@@ -14,13 +14,11 @@ No LLM / Ollama is required — all tests run fully offline.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
 from dedup.bfs import find_unhealthy
-from rca.confidence import compute_confidence
 from rca.context_builder import ContextBuilder
 from tests.cases.graph_factory import build_graph, load_case
 from vectorstore.embedder import Embedder

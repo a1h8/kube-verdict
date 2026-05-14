@@ -30,13 +30,13 @@ from rca.context_builder import ContextBuilder
 from rca.remediation_engine import RemediationEngine
 from tests.cases.graph_factory import build_graph, load_case
 from tests.integration.use_cases.proposal_engine import generate_proposals
-from vectorstore.bm25_retriever import BM25Retriever, _tokenize
+from vectorstore.bm25_retriever import _tokenize
 from vectorstore.embedder import Embedder
 from vectorstore.rrf import rrf_fuse
 from vectorstore.store import FAISSStore
 
-CASE_DIR = Path(__file__).parent.parent.parent / "cases" / "001_crashloopbackoff"
-QUERY    = "payment-service is in CrashLoopBackOff"
+CASE_DIR = Path(__file__).parent.parent.parent / "cases" / "001_crashloopbackof"
+QUERY    = "payment-service is in CrashLoopBackOf"
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ class TestStep1Tokenizer:
 
     def test_query_tokens_include_crashloopbackoff(self):
         tokens = _tokenize(QUERY)
-        assert "crashloopbackoff" in tokens, (
+        assert "crashloopbackof" in tokens, (
             f"'crashloopbackoff' not found in {tokens}"
         )
 
@@ -84,10 +84,10 @@ class TestStep1Tokenizer:
         assert "payment-service" in tokens or "payment" in tokens
 
     def test_compound_split_preserved(self):
-        # "reason=CrashLoopBackOff" → both compound AND parts indexed
+        # "reason=CrashLoopBackOf" → both compound AND parts indexed
         tokens = _tokenize("reason=CrashLoopBackOff restarts=47")
-        assert "reason=crashloopbackoff" in tokens
-        assert "crashloopbackoff" in tokens
+        assert "reason=crashloopbackof" in tokens
+        assert "crashloopbackof" in tokens
         assert "restarts=47" in tokens
         assert "restarts" in tokens
 
@@ -105,7 +105,7 @@ class TestStep2DenseRetrieval:
     def test_plain_search_returns_results(self, store):
         hits = store.search(QUERY, top_k=5)
         assert hits, "FAISS search returned nothing"
-        print(f"\n  [FAISS dense] top-5 hits:")
+        print("\n  [FAISS dense] top-5 hits:")
         for h in hits:
             print(f"    score={h['score']:.4f}  uid={h['uid']}")
 
@@ -131,15 +131,15 @@ class TestStep3SparseRetrieval:
     def test_bm25_finds_crashloopbackoff(self, store):
         hits = store._bm25.search(QUERY, top_k=5)
         assert hits, "BM25 returned no hits for CrashLoopBackOff query"
-        print(f"\n  [BM25 sparse] top-5 hits:")
+        print("\n  [BM25 sparse] top-5 hits:")
         for h in hits:
             print(f"    bm25={h['bm25_score']:.4f}  uid={h['uid']}")
 
     def test_bm25_top_hit_mentions_relevant_token(self, store):
         hits = store._bm25.search(QUERY, top_k=3)
         texts_lower = " ".join(h["text"].lower() for h in hits)
-        assert "crashloopbackoff" in texts_lower or "payment" in texts_lower, (
-            f"Top-3 BM25 hits don't contain CrashLoopBackOff or payment:\n"
+        assert "crashloopbackof" in texts_lower or "payment" in texts_lower, (
+            "Top-3 BM25 hits don't contain CrashLoopBackOff or payment:\n"
             + "\n".join(f"  {h['text'][:120]}" for h in hits)
         )
 
@@ -153,7 +153,7 @@ class TestStep4RRFFusion:
     def test_hybrid_search_returns_results(self, store):
         hits = store.hybrid_search(QUERY, top_k=10)
         assert hits, "hybrid_search returned nothing"
-        print(f"\n  [RRF fused] top-10 hits:")
+        print("\n  [RRF fused] top-10 hits:")
         for h in hits:
             print(
                 f"    rrf={h.get('rrf_score', 0):.5f}  "
@@ -195,7 +195,7 @@ class TestStep5ContextWindow:
         print(f"\n  [seeds] {len(ctx.seeds)} item(s):")
         for s in ctx.seeds:
             print(f"    {s[:140]}")
-        assert "payment" in seeds_text or "crashloopbackoff" in seeds_text, (
+        assert "payment" in seeds_text or "crashloopbackof" in seeds_text, (
             f"Seeds don't mention payment/CrashLoopBackOff:\n{ctx.seeds}"
         )
 
@@ -205,7 +205,7 @@ class TestStep5ContextWindow:
         print(f"\n  [events] {len(ctx.events)} event(s):")
         for e in ctx.events[:3]:
             print(f"    {e[:140]}")
-        assert "backoff" in events_text or "failed" in events_text, (
+        assert "backof" in events_text or "failed" in events_text, (
             "Expected BackOff or Failed in events"
         )
 
@@ -263,7 +263,7 @@ class TestStep6E2ERecall:
             + " ".join(ctx.events)
             + " ".join(ctx.related)
         ).lower()
-        print(f"\n  [e2e recall] checking 'secret' in combined context...")
+        print("\n  [e2e recall] checking 'secret' in combined context...")
         assert "secret" in all_text, (
             "Expected 'secret' to appear in seeds/events/related — "
             "the missing-secret signal was lost"
@@ -302,7 +302,7 @@ class TestStep7RemediationEngine:
                 print(f"  Explain  : {h.explanation}")
             if h.evidence:
                 print(f"  Evidence : {', '.join(h.evidence)}")
-            print(f"  Commands :")
+            print("  Commands :")
             for cmd in h.commands:
                 print(f"    $ {cmd}")
         return hyps
@@ -397,7 +397,7 @@ class TestStep8PromptDryRun:
         assert "CRITICAL" in prompt
 
     def test_prompt_contains_crashloopbackoff(self, prompt):
-        assert "CrashLoopBackOff" in prompt or "crashloopbackoff" in prompt.lower()
+        assert "CrashLoopBackOf" in prompt or "crashloopbackof" in prompt.lower()
 
     def test_prompt_contains_secret_signal(self, prompt):
         """The secret-not-found event must be visible to the LLM."""
@@ -449,7 +449,7 @@ class TestStep9Proposals:
                 f"### 1. Summary\n{top.symptom} on {top.affected}\n\n"
                 f"### 2. Affected resources\n- {top.affected}\n\n"
                 f"### 3. Root cause\n{top.explanation}\n\n"
-                f"### 4. Causal chain\n"
+                "### 4. Causal chain\n"
                 + "\n".join(f"{i+1}. {ev}" for i, ev in enumerate(top.evidence or ["restarts=47"]))
                 + "\n\n### 5. Remediation\n"
                 + "\n".join(f"- {cmd}" for cmd in top.commands)
