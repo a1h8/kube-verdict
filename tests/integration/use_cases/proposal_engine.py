@@ -25,11 +25,25 @@ _LABELS = list("ABCDEFGH")
 
 
 def generate_proposals(report: RCAReport, max_n: int = 3) -> list[Proposal]:
-    """Return up to max_n ranked proposals derived from the report content."""
-    text = _full_text(report)
+    """Return up to max_n ranked proposals derived from the report content.
+
+    Signals are sourced from two tiers:
+      ctx_text — ContextWindow structured data (seeds, events, drift, anchors).
+                 Factual cluster state; used for high-confidence signal matching.
+      llm_text — full LLM response text. May contain hallucinations; used only
+                 when the ctx_text ALSO contains a corroborating keyword, except
+                 for categories where the LLM analysis is the primary signal.
+    """
+    llm_text = _full_text(report)
+    ctx_text = _context_text(report)
+
+    # Combined text used for generic keyword checks (both sources).
+    combined = ctx_text + " " + llm_text
+
     candidates: list[tuple[int, str, str, str]] = []  # (priority, category, desc, query)
 
-    if _has(text, ["helm", "drift", "declared", "observed"]):
+    # ── Helm drift: require signal in ctx (drift annotations are factual) ──────
+    if _has(ctx_text, ["drift", "declared", "observed"]):
         candidates.append((10, "drift",
             "Full Helm drift detail",
             "Show me the complete helm drift with all changed fields and their previous values."))
@@ -37,7 +51,8 @@ def generate_proposals(report: RCAReport, max_n: int = 3) -> list[Proposal]:
             "When did drift start?",
             "When did this configuration drift occur and which helm release introduced it?"))
 
-    if _has(text, ["helm upgrade", "helm upgrade --set"]):
+    # ── Helm upgrade: require ctx drift OR LLM + ctx helm mention ─────────────
+    if _has(ctx_text, ["drift", "helm"]) and _has(llm_text, ["helm upgrade"]):
         candidates.append((20, "remediation",
             "Exact helm command",
             "Give me the exact helm upgrade command with namespace and all --set parameters I need to run."))
@@ -45,7 +60,8 @@ def generate_proposals(report: RCAReport, max_n: int = 3) -> list[Proposal]:
             "Rollback option",
             "Can I rollback the helm release to fix this instead of upgrading? What is the command?"))
 
-    if _has(text, ["oom", "memory", "limit", "mi", "gb"]):
+    # ── OOM / memory: require ctx confirmation (OOMKilled in events/seeds) ────
+    if _has(ctx_text, ["oomkilled", "memory"]):
         candidates.append((15, "memory",
             "Recommended memory limits",
             "What memory limits and requests do you recommend for this workload to avoid OOMKilled?"))
@@ -53,7 +69,8 @@ def generate_proposals(report: RCAReport, max_n: int = 3) -> list[Proposal]:
             "Monitor memory usage",
             "How do I monitor real-time memory usage to confirm usage is below the new limit?"))
 
-    if _has(text, ["imagepull", "image", "registry", "pull", "ecr", "gcr", "docker"]):
+    # ── Image pull: require ctx confirmation (event reason or message) ────────
+    if _has(ctx_text, ["imagepullbackoff", "errimagepull", "pull"]):
         candidates.append((15, "image",
             "Image pull diagnosis",
             "What is the exact image name and tag that cannot be pulled, and how do I check registry credentials?"))
@@ -61,7 +78,8 @@ def generate_proposals(report: RCAReport, max_n: int = 3) -> list[Proposal]:
             "Secret and credentials check",
             "How do I verify that the imagePullSecret exists and is correctly referenced by the pod?"))
 
-    if _has(text, ["pvc", "persistentvolumeclaim", "storageclass", "volume", "bound"]):
+    # ── PVC / storage: ctx-driven ─────────────────────────────────────────────
+    if _has(ctx_text, ["pvc", "persistentvolumeclaim", "storageclass", "pending"]):
         candidates.append((15, "storage",
             "PVC binding status",
             "How do I check which PersistentVolumes are available and why the PVC cannot bind?"))
@@ -69,37 +87,49 @@ def generate_proposals(report: RCAReport, max_n: int = 3) -> list[Proposal]:
             "Compatible storage class",
             "Which storage class should I use and how do I patch the PVC or recreate it?"))
 
-    if _has(text, ["503", "ingress", "service not found", "backend", "nginx", "traefik"]):
+    # ── Ingress / network: combined ───────────────────────────────────────────
+    if _has(combined, ["503", "ingress", "service not found", "backend", "nginx", "traefik"]):
         candidates.append((15, "network",
             "Ingress backend check",
             "What kubectl command shows me which service the Ingress currently resolves to?"))
 
-    if _has(text, ["networkpolicy", "network policy", "deny", "port", "egress", "ingress"]):
+    if _has(combined, ["networkpolicy", "network policy", "deny"]):
         candidates.append((14, "network",
             "Network policy diagnosis",
             "How do I test connectivity between pods and identify which network policy is blocking traffic?"))
 
-    if _has(text, ["rbac", "forbidden", "unauthorized", "clusterrole", "serviceaccount"]):
+    # ── RBAC: combined ────────────────────────────────────────────────────────
+    if _has(combined, ["rbac", "forbidden", "unauthorized", "clusterrole", "serviceaccount"]):
         candidates.append((15, "rbac",
             "RBAC permission check",
             "What kubectl command shows me the exact permissions missing for this service account?"))
 
-    if _has(text, ["dns", "resolv", "nslookup", "coredns", "lookup"]):
+    # ── DNS: combined ─────────────────────────────────────────────────────────
+    if _has(combined, ["dns", "resolv", "nslookup", "coredns"]):
         candidates.append((15, "dns",
             "DNS resolution test",
             "How do I run an nslookup or dig from inside the cluster to test DNS resolution?"))
 
-    if _has(text, ["secret", "configmap", "key", "envfrom", "env"]):
-        candidates.append((14, "config",
+    # ── Secret / ConfigMap: ctx seeds/events OR LLM root_cause ───────────────
+    # Use ctx_text OR the structured root_cause (not raw LLM hallucinations)
+    rc_text = (report.root_cause or "").lower()
+    if _has(ctx_text, ["secret", "configmap", "not found"]) or \
+       _has(rc_text, ["secret", "configmap", "missing"]):
+        candidates.append((18, "config",
             "Secret / ConfigMap key check",
             "How do I verify that the required key exists in the secret or configmap and is correctly referenced?"))
+        candidates.append((16, "config",
+            "Create missing secret",
+            "What is the exact kubectl command to create the missing secret with the correct keys?"))
 
-    if _has(text, ["quota", "limitrange", "exceeds", "exceeded"]):
+    # ── Quota: combined ───────────────────────────────────────────────────────
+    if _has(combined, ["quota", "limitrange", "exceeds", "exceeded"]):
         candidates.append((14, "quota",
             "Quota usage breakdown",
             "How do I see total resource quota usage for this namespace vs the defined limits?"))
 
-    if _has(text, ["crashloop", "restart", "backoff", "exitcode"]):
+    # ── CrashLoop / restarts: ctx-driven ─────────────────────────────────────
+    if _has(ctx_text, ["crashloopbackoff", "backoff", "restart"]):
         candidates.append((12, "generic",
             "Container logs",
             "How do I get the last 100 lines of logs from the crashing container including previous restarts?"))
@@ -144,6 +174,21 @@ def _full_text(report: RCAReport) -> str:
         report.confidence,
     ]
     return " ".join(p for p in parts if p).lower()
+
+
+def _context_text(report: RCAReport) -> str:
+    """Factual cluster signals from the ContextWindow — not LLM-generated."""
+    ctx = report.context
+    if ctx is None:
+        return ""
+    parts = (
+        ctx.seeds
+        + ctx.events
+        + ctx.drift
+        + ctx.anchors
+        + ctx.policy_violations
+    )
+    return " ".join(parts).lower()
 
 
 def _has(text: str, keywords: list[str]) -> bool:

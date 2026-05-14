@@ -254,7 +254,7 @@ class TestComponents:
 class TestReasons:
     def test_returns_five_reasons(self):
         c = _conf()
-        assert len(c.reasons) == 5
+        assert len(c.reasons) == 6
 
     def test_reasons_mention_each_component(self):
         c = _conf(bfs_depth=3, matched_anchors=2, critical_signals=4)

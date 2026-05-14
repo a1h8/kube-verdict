@@ -808,6 +808,8 @@ class TestContextBuilderAnchors:
         class _StubStore:
             def search(self, query, top_k=10):
                 return []
+            def hybrid_search(self, query, top_k=10):
+                return []
         return _StubStore()
 
     def _make_graph_with_unhealthy_deployment(self):

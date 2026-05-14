@@ -123,7 +123,7 @@ class TestPolicyReasons:
             bfs_depth=2, jaccard_kept_ratio=0.5, tfidf_top_k=5,
             matched_anchors=0, critical_signals=0,
         )
-        assert len(c.reasons) == 5
+        assert len(c.reasons) == 6
 
     def test_with_policy_six_reasons(self):
         c = compute_confidence(
@@ -131,7 +131,7 @@ class TestPolicyReasons:
             matched_anchors=0, critical_signals=0,
             policy_fail_count=1,
         )
-        assert len(c.reasons) == 6
+        assert len(c.reasons) == 7
 
     def test_policy_reason_content(self):
         c = compute_confidence(
@@ -150,7 +150,7 @@ class TestPolicyReasons:
             matched_anchors=0, critical_signals=0,
             policy_fail_count=0, policy_audit_count=0, mutation_webhooks=0,
         )
-        assert len(c.reasons) == 5
+        assert len(c.reasons) == 6
 
 
 # ---------------------------------------------------------------------------

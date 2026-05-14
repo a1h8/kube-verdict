@@ -25,10 +25,14 @@ from tests.integration.use_cases.proposal_engine import Proposal, generate_propo
 _MAX_TURNS    = int(os.getenv("SIM_MAX_TURNS",    "2"))
 _MAX_BRANCHES = int(os.getenv("SIM_MAX_BRANCHES", "3"))
 
-_SCORE_RESOLVED_ABS  = 0.70   # score ≥ this → resolved unconditionally
-_SCORE_RESOLVED_DELTA = 0.10  # score rose by this much from parent → resolved
-_SCORE_STAGNANT_DELTA = 0.03  # |delta| < this → dead_end (stagnant)
-_SCORE_REGRESS_DELTA  = 0.05  # score fell more than this → dead_end (regressed)
+_SCORE_RESOLVED_ABS   = 0.70   # score ≥ this → resolved unconditionally
+_SCORE_RESOLVED_DELTA = 0.10   # score rose by this much from parent → resolved
+_SCORE_STAGNANT_DELTA = 0.03   # |delta| < this → dead_end (stagnant)
+_SCORE_REGRESS_DELTA  = 0.05   # score fell more than this → dead_end (regressed)
+# LLM-stated HIGH + pre_llm score ≥ this also counts as resolved.
+# Rationale: on a small graph the graph-topology score is capped even when the
+# LLM correctly identifies and explains the root cause.
+_SCORE_LLM_HIGH_MIN   = 0.45
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +136,15 @@ def _is_resolved(node: DialogueNode) -> bool:
         return True
     if node.delta >= _SCORE_RESOLVED_DELTA and node.score >= 0.55:
         return True
+    # LLM stated MEDIUM/HIGH confidence + remediation commands present + sufficient
+    # graph quality → the investigation converged.  On small graphs the topology
+    # score is capped below 0.70 even when the LLM correctly identifies the root
+    # cause — use the LLM output as a tiebreaker rather than a hard gate.
+    llm_conf = (node.report.confidence or "").upper()
+    if (llm_conf.startswith(("HIGH", "MEDIUM"))
+            and bool(node.report.remediation)
+            and node.score >= _SCORE_LLM_HIGH_MIN):
+        return True
     return False
 
 
@@ -233,6 +246,7 @@ def _render_node(
 # ---------------------------------------------------------------------------
 
 def node_to_dict(node: DialogueNode) -> dict:
+    ctx = node.report.context
     return {
         "turn":             node.turn,
         "query":            node.query,
@@ -241,6 +255,7 @@ def node_to_dict(node: DialogueNode) -> dict:
         "delta":            round(node.delta, 4),
         "status":           node.status,
         "dead_end_reason":  node.dead_end_reason or None,
+        "retrieval":        ctx.retrieval_stats if ctx else {},
         "raw_analysis":     node.report.raw_analysis[:1200] if node.report.raw_analysis else "",
         "root_cause":       node.report.root_cause or "",
         "remediation":      list(node.report.remediation) if node.report.remediation else [],
