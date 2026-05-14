@@ -1,0 +1,29 @@
+{
+  "affected_resources": [
+    "Pod/production/order-processor-5f7b9c3d1-kp4m2"
+  ],
+  "root_cause_contains": [
+    "orders-db",
+    "connection",
+    "timeout",
+    "deadline",
+    "5432"
+  ],
+  "fix_commands_contain": [
+    "kubectl"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.43,
+  "fallback_expected": false,
+  "notes": "Pod is Running but readiness probe fails (503). Two OTel traces show connection refused to orders-db.production:5432 with 5s deadline exceeded. Root cause is DB unreachable — either orders-db pod is down or a NetworkPolicy blocks port 5432.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.09,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.55
+  }
+}

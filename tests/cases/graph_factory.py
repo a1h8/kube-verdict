@@ -20,9 +20,11 @@ from pathlib import Path
 from ontology.entities import (
     K8sEvent,
     Namespace,
+    OtelTrace,
     PersistentVolumeClaim,
     Pod,
     PolicyViolation,
+    PrometheusAlert,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
@@ -117,7 +119,51 @@ def build_graph(input_json: dict) -> OntologyGraph:
         if pod is not None:
             graph.add_edge(Edge(pod.uid, pvc.uid, RelationshipType.USES_PVC))
 
-    # ── Policy violations (case 05) ──────────────────────────────────────────
+    # ── Prometheus alerts ─────────────────────────────────────────────────────
+    for i, alert in enumerate(input_json.get("prometheus_alerts") or []):
+        alert_name = alert.get("alertname", f"alert-{i}")
+        pa_uid = f"prom-alert-{alert_name}-{namespace}"
+        pa = PrometheusAlert(
+            uid=pa_uid,
+            name=alert_name,
+            namespace=namespace,
+            alert_name=alert_name,
+            severity=alert.get("severity", "warning"),
+            state="firing",
+            summary=alert.get("summary", ""),
+            description=alert.get("description", ""),
+            alert_labels=alert.get("labels", {}),
+        )
+        graph.add_entity(pa)
+        if pod is not None:
+            graph.add_edge(Edge(pod.uid, pa_uid, RelationshipType.HAS_ALERT))
+            pod.annotations[f"alert.{alert_name}.severity"] = alert.get("severity", "warning")
+            pod.annotations[f"alert.{alert_name}.summary"] = alert.get("summary", "")[:200]
+
+    # ── OTel traces ───────────────────────────────────────────────────────────
+    for trace in input_json.get("otel_traces") or []:
+        trace_id = trace.get("trace_id", f"trace-{id(trace)}")
+        ot_uid = f"otel-trace-{trace_id}"
+        ot = OtelTrace(
+            uid=ot_uid,
+            name=trace.get("service_name", "unknown"),
+            namespace=namespace,
+            trace_id=trace_id,
+            service_name=trace.get("service_name", ""),
+            status=trace.get("status", "ERROR"),
+            duration_ms=float(trace.get("duration_ms", 0)),
+            span_count=trace.get("span_count", 0),
+            error_message=trace.get("error_message", ""),
+            root_span_name=trace.get("root_span_name", ""),
+            error_spans=trace.get("error_spans", []),
+        )
+        graph.add_entity(ot)
+        if pod is not None:
+            graph.add_edge(Edge(pod.uid, ot_uid, RelationshipType.HAS_TRACE))
+            pod.annotations[f"otel.trace.{trace_id}.status"] = "ERROR"
+            pod.annotations[f"otel.trace.{trace_id}.error"] = trace.get("error_message", "")[:200]
+
+    # ── Policy violations ─────────────────────────────────────────────────────
     policy_report = input_json.get("policy_report") or {}
     for viol in policy_report.get("violations", []):
         resource = viol.get("resource", "")
