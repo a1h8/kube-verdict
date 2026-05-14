@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ml-inference-7c9d8b6f5-pq3r7
+  namespace: production
+  uid: f8b2d4e5-6c9e-11ef-c4b5-0242ac110006
+  resourceVersion: "5930482"
+  creationTimestamp: "2026-05-14T08:00:00Z"
+  labels:
+    app.kubernetes.io/name: ml-inference
+    app.kubernetes.io/instance: ml-inference
+    app.kubernetes.io/version: v2.1.0-private
+    pod-template-hash: 7c9d8b6f5
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: ml-inference-7c9d8b6f5
+    uid: a9c3e5f6-6c9e-11ef-c4b5-0242ac110006
+    controller: true
+    blockOwnerDeletion: true
+spec:
+  nodeName: worker-node-03
+  serviceAccountName: ml-inference
+  imagePullSecrets:
+  - name: ghcr-pull-secret
+  containers:
+  - name: ml-inference
+    image: ghcr.io/acme/ml-inference:v2.1.0-private
+    resources:
+      limits:
+        memory: 4Gi
+        cpu: "2"
+      requests:
+        memory: 2Gi
+        cpu: "1"
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 60
+  dnsPolicy: ClusterFirst
+status:
+  phase: Pending
+  podIP: ""
+  hostIP: 192.168.1.13
+  containerStatuses:
+  - name: ml-inference
+    ready: false
+    restartCount: 0
+    image: ghcr.io/acme/ml-inference:v2.1.0-private
+    imageID: ""
+    state:
+      waiting:
+        reason: ImagePullBackOff
+        message: "Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\""
+    lastState: {}
+  conditions:
+  - type: Initialized
+    status: "True"
+    lastTransitionTime: "2026-05-14T08:00:05Z"
+  - type: Ready
+    status: "False"
+    reason: ContainersNotReady
+    message: "containers with unready status: [ml-inference]"
+    lastTransitionTime: "2026-05-14T08:00:10Z"
+  - type: ContainersReady
+    status: "False"
+    reason: ContainersNotReady
+    lastTransitionTime: "2026-05-14T08:00:10Z"
+  - type: PodScheduled
+    status: "True"
+    lastTransitionTime: "2026-05-14T08:00:00Z"

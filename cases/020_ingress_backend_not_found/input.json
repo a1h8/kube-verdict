@@ -1,0 +1,37 @@
+{
+  "scenario": "Ingress Backend Service Not Found",
+  "namespace": "production",
+  "query": "public API returning 503, Ingress cannot find backend service",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "ServiceNotFound",
+      "object": "Ingress/api-ingress",
+      "message": "service \"api-gateway-svc\" not found",
+      "count": 8,
+      "firstTime": "2026-05-13T17:00:00Z",
+      "lastTime": "2026-05-13T17:10:00Z"
+    }
+  ],
+  "pod_status": null,
+  "helm_drift": {
+    "release": "api-gateway",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "ingress.api-ingress.spec.rules[0].http.paths[0].backend.service.name",
+        "declared": "api-gateway-svc",
+        "observed": "api-gateway-service"
+      }
+    ]
+  },
+  "anchors": [
+    "Ingress/production/api-ingress: spec.rules[0].http.paths[0].backend.service.name declared='api-gateway-svc' [manifest] | observed='api-gateway-service' [drift]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": "NGINX Ingress Controller returns 503 Service Unavailable. The Service 'api-gateway-svc' does not exist; the actual service name is 'api-gateway-service' (renamed in a recent helm upgrade)."
+}

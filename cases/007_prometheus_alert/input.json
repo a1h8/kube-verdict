@@ -1,0 +1,94 @@
+{
+  "scenario": "Prometheus Alert — KubePodCrashLooping + KubeMemoryUsageHigh",
+  "namespace": "monitoring",
+  "query": "metrics-api is CrashLoopBackOff, Prometheus alert KubePodCrashLooping firing",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/metrics-api-7d8f9b4c2-xk9p2",
+      "message": "Back-off restarting failed container metrics-api in pod metrics-api-7d8f9b4c2-xk9p2_monitoring",
+      "count": 31,
+      "firstTime": "2026-05-14T06:00:00Z",
+      "lastTime": "2026-05-14T07:30:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "OOMKilling",
+      "object": "Pod/metrics-api-7d8f9b4c2-xk9p2",
+      "message": "Memory limit reached — container metrics-api was OOM killed (limit: 256Mi)",
+      "count": 3,
+      "firstTime": "2026-05-14T06:10:00Z",
+      "lastTime": "2026-05-14T07:20:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "metrics-api",
+        "state": {
+          "waiting": {
+            "reason": "CrashLoopBackOff",
+            "message": "back-off 5m0s restarting failed container=metrics-api"
+          }
+        },
+        "lastState": {
+          "terminated": {
+            "reason": "OOMKilled",
+            "exitCode": 137
+          }
+        },
+        "restartCount": 31,
+        "ready": false
+      }
+    ]
+  },
+  "prometheus_alerts": [
+    {
+      "alertname": "KubePodCrashLooping",
+      "severity": "critical",
+      "labels": {
+        "pod": "metrics-api-7d8f9b4c2-xk9p2",
+        "namespace": "monitoring",
+        "container": "metrics-api"
+      },
+      "summary": "Pod monitoring/metrics-api-7d8f9b4c2-xk9p2 is crash-looping",
+      "description": "Pod monitoring/metrics-api-7d8f9b4c2-xk9p2 (metrics-api) is restarting 2.10 times / 5 minutes."
+    },
+    {
+      "alertname": "KubeMemoryUsageHigh",
+      "severity": "warning",
+      "labels": {
+        "pod": "metrics-api-7d8f9b4c2-xk9p2",
+        "namespace": "monitoring"
+      },
+      "summary": "Container metrics-api memory usage above 90% of limit",
+      "description": "Container metrics-api in pod metrics-api-7d8f9b4c2-xk9p2 is using 243Mi / 256Mi (95%)."
+    }
+  ],
+  "helm_drift": {
+    "release": "metrics-api",
+    "namespace": "monitoring",
+    "diffs": [
+      {
+        "field": "resources.limits.memory",
+        "declared": "512Mi",
+        "observed": "256Mi"
+      }
+    ]
+  },
+  "anchors": [
+    "Pod/monitoring/metrics-api-7d8f9b4c2-xk9p2: resources.limits.memory declared='512Mi' [values.yaml] observed='256Mi' severity=critical"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": {
+    "memory_mi": 243,
+    "memory_limit_mi": 256,
+    "usage_ratio": 0.95
+  },
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

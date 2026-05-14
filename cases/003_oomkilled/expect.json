@@ -1,0 +1,31 @@
+{
+  "affected_resources": [
+    "Pod/production/analytics-worker-5c8f7d9b4-nm8qt"
+  ],
+  "root_cause_contains": [
+    "memory",
+    "limit",
+    "OOMKilled",
+    "drift",
+    "512Mi",
+    "50Mi"
+  ],
+  "fix_commands_contain": [
+    "helm upgrade",
+    "resources.limits.memory"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.55,
+  "fallback_expected": false,
+  "notes": "Memory limit drift (512Mi declared → 50Mi observed) directly explains the OOMKill. Deep BFS (depth=4) reaches the Node OOMKilling event. Anchor fix hint should suggest helm upgrade --set resources.limits.memory=512Mi.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.1,
+    "signal_c": 0.09,
+    "drift_c": 0.07,
+    "policy_c": 0.0,
+    "total": 0.67
+  }
+}

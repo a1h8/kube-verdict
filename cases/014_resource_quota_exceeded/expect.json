@@ -1,0 +1,31 @@
+{
+  "affected_resources": [
+    "ReplicaSet/team-alpha/data-processor-7f8c9b5d4"
+  ],
+  "root_cause_contains": [
+    "quota",
+    "exceeded",
+    "requests.cpu",
+    "forbidden",
+    "namespace"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "quota",
+    "resourcequota"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.32,
+  "fallback_expected": false,
+  "notes": "Namespace ResourceQuota caps CPU at 4000m; 3800m already used, each new pod needs 500m. 3 replicas cannot be created. Fix: raise the quota or reduce per-pod CPU requests. No pod_status because pods were never created.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.0,
+    "signal_c": 0.03,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.44
+  }
+}

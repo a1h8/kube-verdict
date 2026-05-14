@@ -1,0 +1,30 @@
+{
+  "affected_resources": [
+    "Pod/production/api-gateway-7f9d8c6b5-xk2p4"
+  ],
+  "root_cause_contains": [
+    "cpu",
+    "Insufficient",
+    "scheduling",
+    "requests",
+    "drift"
+  ],
+  "fix_commands_contain": [
+    "helm upgrade",
+    "resources.requests.cpu"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.47,
+  "fallback_expected": false,
+  "notes": "CPU request drift (500m declared → 4000m observed) makes the pod unschedulable on all 3 nodes. Direct causal chain: drift → FailedScheduling → Pending.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.06,
+    "drift_c": 0.07,
+    "policy_c": 0.0,
+    "total": 0.59
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "scenario": "DNS Resolution Failure - CoreDNS CrashLoopBackOff",
+  "namespace": "production",
+  "query": "billing-service cannot resolve other services, DNS lookup failures cluster-wide",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/coredns-787d4945fb-8xp2k",
+      "message": "Back-off restarting failed container coredns in pod coredns-787d4945fb-8xp2k_kube-system",
+      "count": 30,
+      "firstTime": "2026-05-13T07:30:00Z",
+      "lastTime": "2026-05-13T08:30:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "Failed",
+      "object": "Pod/billing-service-6c8d9b7f4-kp3m5",
+      "message": "container billing-service: dial tcp: lookup payment-service.production.svc.cluster.local on 10.96.0.10:53: read udp 10.244.1.23:55342->10.96.0.10:53: i/o timeout",
+      "count": 50,
+      "firstTime": "2026-05-13T07:35:00Z",
+      "lastTime": "2026-05-13T08:30:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "billing-service",
+        "state": {"running": {"startedAt": "2026-05-13T07:00:00Z"}},
+        "restartCount": 3,
+        "ready": true
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "billing-service",
+    "namespace": "production",
+    "diffs": []
+  },
+  "anchors": [
+    "Pod/production/billing-service-6c8d9b7f4-kp3m5: spec.dnsPolicy declared='ClusterFirst' [schema]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": "All pods across the cluster reporting DNS timeouts. CoreDNS pods in kube-system CrashLoopBackOff after a ConfigMap change to the Corefile."
+}

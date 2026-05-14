@@ -1,0 +1,50 @@
+{
+  "scenario": "RBAC Forbidden - ServiceAccount Missing Role",
+  "namespace": "production",
+  "query": "config-watcher pod CrashLoopBackOff, forbidden to list ConfigMaps",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Failed",
+      "object": "Pod/config-watcher-3d7f8c9b2-wk5p8",
+      "message": "Error: configmaps is forbidden: User \"system:serviceaccount:production:config-watcher-sa\" cannot list resource \"configmaps\" in API group \"\" in the namespace \"production\"",
+      "count": 1,
+      "firstTime": "2026-05-13T08:00:00Z",
+      "lastTime": "2026-05-13T08:00:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "BackOff",
+      "object": "Pod/config-watcher-3d7f8c9b2-wk5p8",
+      "message": "Back-off restarting failed container config-watcher in pod config-watcher-3d7f8c9b2-wk5p8_production",
+      "count": 22,
+      "firstTime": "2026-05-13T08:01:00Z",
+      "lastTime": "2026-05-13T08:30:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "config-watcher",
+        "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+        "restartCount": 22,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "config-watcher",
+    "namespace": "production",
+    "diffs": []
+  },
+  "anchors": [
+    "Pod/production/config-watcher-3d7f8c9b2-wk5p8: spec.serviceAccountName declared='config-watcher-sa' [manifest]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

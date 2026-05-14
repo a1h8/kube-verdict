@@ -1,0 +1,19 @@
+# This NetworkPolicy was applied by the security team but inadvertently
+# blocks ALL egress from order-service pods — including to the database.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: order-service-restrict-egress
+  namespace: production
+  annotations:
+    applied-by: "security-team"
+    applied-at: "2026-05-14T11:55:00Z"
+    ticket: "SEC-4821"
+spec:
+  podSelector:
+    matchLabels:
+      app: order-service          # ← selects the order-service pods
+  policyTypes:
+  - Egress
+  egress: []                      # ← EMPTY = blocks ALL outbound traffic
+  # Missing: egress rules for postgres:5432, redis:6379, DNS:53

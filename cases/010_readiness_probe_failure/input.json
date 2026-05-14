@@ -1,0 +1,53 @@
+{
+  "scenario": "Readiness Probe Failure - No Endpoints",
+  "namespace": "production",
+  "query": "order-service pod Running but not Ready, service has no endpoints",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Unhealthy",
+      "object": "Pod/order-service-6c9d8b7f4-vp5r1",
+      "message": "Readiness probe failed: HTTP probe failed with statuscode: 500. Response body: {\"error\": \"database connection pool exhausted\"}",
+      "count": 42,
+      "firstTime": "2026-05-13T09:00:00Z",
+      "lastTime": "2026-05-13T09:20:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "order-service",
+        "state": {"running": {"startedAt": "2026-05-13T08:50:00Z"}},
+        "restartCount": 0,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "order-service",
+    "namespace": "production",
+    "diffs": [
+      {
+        "field": "container.order-service.env.DB_POOL_SIZE",
+        "declared": "20",
+        "observed": "2"
+      }
+    ]
+  },
+  "anchors": [
+    "Pod/production/order-service-6c9d8b7f4-vp5r1: container.order-service.readinessProbe.httpGet.path declared='/health' [schema]",
+    "Pod/production/order-service-6c9d8b7f4-vp5r1: container.order-service.env.DB_POOL_SIZE declared='20' [manifest] | observed='2' [drift]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": {
+    "pod": "order-service-6c9d8b7f4-vp5r1",
+    "memory_mi": 312,
+    "memory_limit_mi": 512,
+    "usage_ratio": 0.61
+  },
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": null
+}

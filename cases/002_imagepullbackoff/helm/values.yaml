@@ -1,0 +1,34 @@
+# Declared chart values — ml-inference
+# Scenario: ImagePullBackOff — image tag was overridden from v2.0.5 to v2.1.0-private
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/acme/ml-inference
+  tag: "v2.0.5"          # ← declared; deployed with v2.1.0-private (private/unavailable)
+  pullPolicy: IfNotPresent
+
+# Registry credentials (must exist as a k8s Secret)
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
+resources:
+  limits:
+    memory: 4Gi
+    cpu: "2"
+  requests:
+    memory: 2Gi
+    cpu: "1"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+env:
+  MODEL_PATH: /models/resnet50
+  NUM_WORKERS: "4"
+
+persistence:
+  enabled: true
+  storageClass: fast-ssd
+  size: 20Gi

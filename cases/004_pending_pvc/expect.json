@@ -1,0 +1,32 @@
+{
+  "affected_resources": [
+    "Pod/production/postgres-primary-0",
+    "PersistentVolumeClaim/production/postgres-data"
+  ],
+  "root_cause_contains": [
+    "StorageClass",
+    "fast-ssd",
+    "not found",
+    "PVC",
+    "Pending"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "storageClassName",
+    "StorageClass"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.46,
+  "fallback_expected": false,
+  "notes": "StorageClass 'fast-ssd' does not exist on this cluster. Available: standard, local-path. BFS reaches PVC → Pod relationship. Limited anchor coverage (only SC name declared). No Helm drift. Remediation should suggest creating the SC or patching the PVC with an available one.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.05,
+    "signal_c": 0.12,
+    "drift_c": 0.0,
+    "policy_c": 0.0,
+    "total": 0.58
+  }
+}

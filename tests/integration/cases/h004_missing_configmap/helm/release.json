@@ -1,0 +1,13 @@
+{
+  "replicaCount": 2,
+  "image": { "repository": "ghcr.io/acme/api-gateway", "tag": "v1.3.0" },
+  "config": {
+    "existingConfigMap": "api-gateway-config",
+    "existingSecret": "api-gateway-tls-secret"
+  },
+  "dbCredentials": { "existingSecret": "db-credentials" },
+  "resources": {
+    "limits": { "memory": "512Mi", "cpu": "1" },
+    "requests": { "memory": "256Mi", "cpu": "200m" }
+  }
+}

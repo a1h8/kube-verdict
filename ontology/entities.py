@@ -28,6 +28,8 @@ class ResourceKind(str, Enum):
     PROMETHEUS_ALERT = "PrometheusAlert"
     OTEL_TRACE = "OtelTrace"
     LOKI_LOG = "LokiLog"
+    POLICY_VIOLATION = "PolicyViolation"
+    MUTATING_WEBHOOK = "MutatingWebhook"
 
 
 @dataclass
@@ -578,4 +580,69 @@ class LokiLog(K8sEntity):
             parts.append(f"traceId={self.trace_id}")
         if self.log_line:
             parts.append(f"message={self.log_line[:200]!r}")
+        return " ".join(parts)
+
+
+@dataclass
+class PolicyViolation(K8sEntity):
+    """
+    A single failing or warning result from a PolicyReport / ClusterPolicyReport
+    (wgpolicyk8s.io/v1alpha2), emitted by Kyverno or OPA Gatekeeper.
+
+    uid = "policy-violation-{policy}-{rule}-{resource_kind}-{resource_ns}-{resource_name}"
+    """
+    policy: str = ""           # policy name (e.g. "disallow-latest-tag")
+    rule: str = ""             # rule name inside the policy
+    result: str = ""           # fail | warn | error | skip
+    message: str = ""          # human-readable violation message
+    severity: str = ""         # low | medium | high | critical
+    source: str = ""           # kyverno | gatekeeper | unknown
+    resource_kind: str = ""    # kind of the violating resource (e.g. "Pod")
+    resource_name: str = ""    # name of the violating resource
+    resource_namespace: str = ""
+
+    def __post_init__(self):
+        self.kind = ResourceKind.POLICY_VIOLATION
+
+    @property
+    def is_fail(self) -> bool:
+        return self.result == "fail"
+
+    @property
+    def is_audit(self) -> bool:
+        return self.result in ("warn", "audit")
+
+    def to_text(self) -> str:
+        parts = [
+            f"kind=PolicyViolation source={self.source or 'unknown'}",
+            f"policy={self.policy} rule={self.rule}",
+            f"result={self.result} severity={self.severity or 'unknown'}",
+            f"resource={self.resource_kind}/{self.resource_namespace}/{self.resource_name}",
+        ]
+        if self.message:
+            parts.append(f"message={self.message[:300]!r}")
+        return " ".join(parts)
+
+
+@dataclass
+class MutatingWebhook(K8sEntity):
+    """
+    A MutatingWebhookConfiguration — signals that live resource state may differ
+    from declared manifests (admission mutations are invisible to Helm drift).
+
+    uid = "mutating-webhook-{name}"
+    """
+    failure_policy: str = ""     # Fail | Ignore
+    matched_resources: list[str] = field(default_factory=list)  # "group/version/resource"
+
+    def __post_init__(self):
+        self.kind = ResourceKind.MUTATING_WEBHOOK
+        self.namespace = None
+
+    def to_text(self) -> str:
+        parts = [f"kind=MutatingWebhook name={self.name}"]
+        if self.failure_policy:
+            parts.append(f"failurePolicy={self.failure_policy}")
+        if self.matched_resources:
+            parts.append(f"resources=[{' '.join(self.matched_resources[:5])}]")
         return " ".join(parts)

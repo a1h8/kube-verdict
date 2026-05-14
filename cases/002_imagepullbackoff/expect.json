@@ -1,0 +1,31 @@
+{
+  "affected_resources": [
+    "Pod/production/ml-inference-7d9f8b6c5-r2m4k"
+  ],
+  "root_cause_contains": [
+    "image",
+    "drift",
+    "private",
+    "unauthorized",
+    "registry"
+  ],
+  "fix_commands_contain": [
+    "helm upgrade",
+    "image",
+    "imagePullSecret"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.55,
+  "fallback_expected": false,
+  "notes": "Helm drift on image tag (v2.0.5 → v2.1.0-private) + 401 Unauthorized from GHCR. High confidence because drift is directly observable. Two anchors (image + imagePullPolicy) boost anchor component.",
+  "_debug_score_breakdown": {
+    "bfs_c": 0.15,
+    "jac_c": 0.25,
+    "tfidf_c": 0.01,
+    "anchor_c": 0.1,
+    "signal_c": 0.09,
+    "drift_c": 0.07,
+    "policy_c": 0.0,
+    "total": 0.67
+  }
+}

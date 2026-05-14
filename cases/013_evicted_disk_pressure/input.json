@@ -1,0 +1,52 @@
+{
+  "scenario": "Pod Evicted - Node DiskPressure",
+  "namespace": "production",
+  "query": "search-indexer pod was evicted, node has DiskPressure",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "Evicted",
+      "object": "Pod/search-indexer-4b7c8d9f3-rs2m6",
+      "message": "The node was low on resource: ephemeral-storage. Threshold quantity: 10%, available: 3%.",
+      "count": 1,
+      "firstTime": "2026-05-13T15:00:00Z",
+      "lastTime": "2026-05-13T15:00:00Z"
+    },
+    {
+      "type": "Warning",
+      "reason": "NodeHasDiskPressure",
+      "object": "Node/worker-node-02",
+      "message": "Node worker-node-02 status is now: NodeHasDiskPressure",
+      "count": 1,
+      "firstTime": "2026-05-13T14:55:00Z",
+      "lastTime": "2026-05-13T14:55:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Failed",
+    "reason": "Evicted",
+    "message": "The node was low on resource: ephemeral-storage.",
+    "containerStatuses": [
+      {
+        "name": "search-indexer",
+        "state": {"terminated": {"reason": "ContainerStatusUnknown", "exitCode": 137}},
+        "restartCount": 0,
+        "ready": false
+      }
+    ]
+  },
+  "helm_drift": {
+    "release": "search-indexer",
+    "namespace": "production",
+    "diffs": []
+  },
+  "anchors": [
+    "Pod/production/search-indexer-4b7c8d9f3-rs2m6: container.search-indexer.ephemeral-storage declared='2Gi' [schema]"
+  ],
+  "pvc_status": null,
+  "policy_report": null,
+  "metrics": null,
+  "network_policies": [],
+  "available_storage_classes": [],
+  "symptom": "Pod evicted by kubelet. Node ephemeral-storage at 97% — search index scratch files accumulating in /tmp."
+}

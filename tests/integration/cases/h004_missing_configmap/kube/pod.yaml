@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-gateway-5c7d9b8f4-x2k9p
+  namespace: production
+  uid: c5e2f8a1-6c9e-11ef-b3a4-0242ac110006
+  labels:
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/instance: api-gateway
+    pod-template-hash: 5c7d9b8f4
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: api-gateway-5c7d9b8f4
+    controller: true
+spec:
+  nodeName: worker-node-01
+  serviceAccountName: api-gateway
+  containers:
+  - name: api-gateway
+    image: ghcr.io/acme/api-gateway:v1.3.0
+    envFrom:
+    - configMapRef:
+        name: api-gateway-config      # ← this ConfigMap does NOT exist
+    - secretRef:
+        name: api-gateway-tls-secret  # ← this Secret does NOT exist
+    env:
+    - name: DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: db-credentials        # ← this Secret does NOT exist
+          key: connection_string
+    ports:
+    - containerPort: 8080
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: "1"
+      requests:
+        memory: 256Mi
+        cpu: 200m
+status:
+  phase: Pending
+  containerStatuses:
+  - name: api-gateway
+    ready: false
+    restartCount: 0
+    state:
+      waiting:
+        reason: CreateContainerConfigError
+        message: "couldn't find key LOG_LEVEL in ConfigMap production/api-gateway-config"
+  conditions:
+  - type: Initialized
+    status: "True"
+  - type: Ready
+    status: "False"
+    reason: ContainersNotReady
+    message: "containers with unready status: [api-gateway]"
+  - type: PodScheduled
+    status: "True"

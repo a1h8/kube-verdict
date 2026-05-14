@@ -1,0 +1,40 @@
+# OpenTelemetry Collector config — forwards traces to Grafana Tempo.
+# Deploy the collector as a DaemonSet or Deployment; instrument your apps
+# to export traces to it via OTLP gRPC on port 4317.
+#
+# Install:
+#   helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+#   helm upgrade --install otelcol open-telemetry/opentelemetry-collector \
+#     -n monitoring --create-namespace \
+#     --set mode=deployment \
+#     -f examples/opentelemetry/otelcol-config.yaml
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    batch:
+      timeout: 1s
+      send_batch_size: 512
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 256
+
+  exporters:
+    otlp/tempo:
+      endpoint: tempo.monitoring.svc:4317
+      tls:
+        insecure: true
+
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/tempo]

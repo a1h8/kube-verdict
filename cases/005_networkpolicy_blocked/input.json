@@ -1,0 +1,71 @@
+{
+  "scenario": "NetworkPolicy blocked",
+  "namespace": "production",
+  "query": "frontend cannot reach backend service, connection timeout",
+  "events": [
+    {
+      "type": "Warning",
+      "reason": "NetworkNotReady",
+      "object": "Pod/frontend-6b9c7d4f8-p3kw7",
+      "message": "network is not ready: container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: cni plugin not initialized",
+      "count": 1,
+      "firstTime": "2026-05-13T06:00:00Z",
+      "lastTime": "2026-05-13T06:00:00Z"
+    }
+  ],
+  "pod_status": {
+    "phase": "Running",
+    "containerStatuses": [
+      {
+        "name": "frontend",
+        "state": {"running": {"startedAt": "2026-05-13T06:01:00Z"}},
+        "restartCount": 0,
+        "ready": true
+      }
+    ],
+    "conditions": [
+      {"type": "Ready", "status": "True"}
+    ]
+  },
+  "helm_drift": null,
+  "anchors": [
+    "NetworkPolicy/production/allow-frontend-to-backend: spec.ingress[0].from[0].podSelector.matchLabels.app declared='frontend-v1' [manifest]"
+  ],
+  "network_policies": [
+    {
+      "name": "deny-all-ingress",
+      "namespace": "production",
+      "spec": {
+        "podSelector": {},
+        "policyTypes": ["Ingress"]
+      }
+    },
+    {
+      "name": "allow-frontend-to-backend",
+      "namespace": "production",
+      "spec": {
+        "podSelector": {"matchLabels": {"app": "backend"}},
+        "ingress": [
+          {
+            "from": [{"podSelector": {"matchLabels": {"app": "frontend-v1"}}}]
+          }
+        ]
+      }
+    }
+  ],
+  "policy_report": {
+    "policy": "require-network-policy-labels",
+    "violations": [
+      {
+        "resource": "Pod/production/frontend-6b9c7d4f8-p3kw7",
+        "rule": "check-app-label-version",
+        "message": "Pod label 'app' value 'frontend-v2' does not match NetworkPolicy selector 'frontend-v1'",
+        "result": "fail"
+      }
+    ]
+  },
+  "symptom": "frontend (app=frontend-v2) cannot reach backend on port 8080. Connection refused / timeout.",
+  "pvc_status": null,
+  "metrics": null,
+  "available_storage_classes": []
+}
