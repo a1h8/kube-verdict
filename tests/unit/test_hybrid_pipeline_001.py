@@ -35,8 +35,8 @@ from vectorstore.embedder import Embedder
 from vectorstore.rrf import rrf_fuse
 from vectorstore.store import FAISSStore
 
-CASE_DIR = Path(__file__).parent.parent.parent / "cases" / "001_crashloopbackof"
-QUERY    = "payment-service is in CrashLoopBackOf"
+CASE_DIR = Path(__file__).parent.parent.parent / "cases" / "001_crashloopbackoff"
+QUERY    = "payment-service is in CrashLoopBackOff"
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ class TestStep1Tokenizer:
 
     def test_query_tokens_include_crashloopbackoff(self):
         tokens = _tokenize(QUERY)
-        assert "crashloopbackof" in tokens, (
+        assert "crashloopbackoff" in tokens, (
             f"'crashloopbackoff' not found in {tokens}"
         )
 
@@ -84,10 +84,10 @@ class TestStep1Tokenizer:
         assert "payment-service" in tokens or "payment" in tokens
 
     def test_compound_split_preserved(self):
-        # "reason=CrashLoopBackOf" → both compound AND parts indexed
+        # "reason=CrashLoopBackOff" → both compound AND parts indexed
         tokens = _tokenize("reason=CrashLoopBackOff restarts=47")
-        assert "reason=crashloopbackof" in tokens
-        assert "crashloopbackof" in tokens
+        assert "reason=crashloopbackoff" in tokens
+        assert "crashloopbackoff" in tokens
         assert "restarts=47" in tokens
         assert "restarts" in tokens
 
@@ -138,7 +138,7 @@ class TestStep3SparseRetrieval:
     def test_bm25_top_hit_mentions_relevant_token(self, store):
         hits = store._bm25.search(QUERY, top_k=3)
         texts_lower = " ".join(h["text"].lower() for h in hits)
-        assert "crashloopbackof" in texts_lower or "payment" in texts_lower, (
+        assert "crashloopbackoff" in texts_lower or "payment" in texts_lower, (
             "Top-3 BM25 hits don't contain CrashLoopBackOff or payment:\n"
             + "\n".join(f"  {h['text'][:120]}" for h in hits)
         )
@@ -195,7 +195,7 @@ class TestStep5ContextWindow:
         print(f"\n  [seeds] {len(ctx.seeds)} item(s):")
         for s in ctx.seeds:
             print(f"    {s[:140]}")
-        assert "payment" in seeds_text or "crashloopbackof" in seeds_text, (
+        assert "payment" in seeds_text or "crashloopbackoff" in seeds_text, (
             f"Seeds don't mention payment/CrashLoopBackOff:\n{ctx.seeds}"
         )
 
@@ -205,7 +205,7 @@ class TestStep5ContextWindow:
         print(f"\n  [events] {len(ctx.events)} event(s):")
         for e in ctx.events[:3]:
             print(f"    {e[:140]}")
-        assert "backof" in events_text or "failed" in events_text, (
+        assert "backoff" in events_text or "failed" in events_text, (
             "Expected BackOff or Failed in events"
         )
 
@@ -397,7 +397,7 @@ class TestStep8PromptDryRun:
         assert "CRITICAL" in prompt
 
     def test_prompt_contains_crashloopbackoff(self, prompt):
-        assert "CrashLoopBackOf" in prompt or "crashloopbackof" in prompt.lower()
+        assert "CrashLoopBackOff" in prompt or "crashloopbackoff" in prompt.lower()
 
     def test_prompt_contains_secret_signal(self, prompt):
         """The secret-not-found event must be visible to the LLM."""
@@ -449,7 +449,7 @@ class TestStep9Proposals:
                 f"### 1. Summary\n{top.symptom} on {top.affected}\n\n"
                 f"### 2. Affected resources\n- {top.affected}\n\n"
                 f"### 3. Root cause\n{top.explanation}\n\n"
-                "### 4. Causal chain\n"
+                f"### 4. Causal chain\n"
                 + "\n".join(f"{i+1}. {ev}" for i, ev in enumerate(top.evidence or ["restarts=47"]))
                 + "\n\n### 5. Remediation\n"
                 + "\n".join(f"- {cmd}" for cmd in top.commands)

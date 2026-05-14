@@ -36,8 +36,8 @@ from vectorstore.embedder import Embedder
 from vectorstore.rrf import rrf_fuse
 from vectorstore.store import FAISSStore
 
-CASE_DIR = Path(__file__).parent.parent.parent / "cases" / "002_imagepullbackof"
-QUERY    = "ml-inference pod stuck in ImagePullBackOf"
+CASE_DIR = Path(__file__).parent.parent.parent / "cases" / "002_imagepullbackoff"
+QUERY    = "ml-inference pod stuck in ImagePullBackOff"
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ class TestStep1Tokenizer:
 
     def test_query_tokens_include_imagepullbackoff(self):
         tokens = _tokenize(QUERY)
-        assert "imagepullbackof" in tokens, (
+        assert "imagepullbackoff" in tokens, (
             f"'imagepullbackoff' not found in {tokens}"
         )
 
@@ -86,8 +86,8 @@ class TestStep1Tokenizer:
 
     def test_compound_split_preserved(self):
         tokens = _tokenize("reason=ImagePullBackOff image=ghcr.io/acme/ml-inference:v2.1.0-private")
-        assert "reason=imagepullbackof" in tokens
-        assert "imagepullbackof" in tokens
+        assert "reason=imagepullbackoff" in tokens
+        assert "imagepullbackoff" in tokens
         assert "ghcr.io" in tokens or "acme" in tokens
 
 
@@ -137,7 +137,7 @@ class TestStep3SparseRetrieval:
     def test_bm25_top_hit_mentions_relevant_token(self, store):
         hits = store._bm25.search(QUERY, top_k=3)
         texts_lower = " ".join(h["text"].lower() for h in hits)
-        assert "imagepullbackof" in texts_lower or "ml-inference" in texts_lower or "pull" in texts_lower, (
+        assert "imagepullbackoff" in texts_lower or "ml-inference" in texts_lower or "pull" in texts_lower, (
             "Top-3 BM25 hits don't contain expected tokens:\n"
             + "\n".join(f"  {h['text'][:120]}" for h in hits)
         )
@@ -198,7 +198,7 @@ class TestStep5ContextWindow:
         print(f"\n  [seeds] {len(ctx.seeds)} item(s):")
         for s in ctx.seeds:
             print(f"    {s[:160]}")
-        assert "ml-inference" in seeds_text or "imagepullbackof" in seeds_text, (
+        assert "ml-inference" in seeds_text or "imagepullbackoff" in seeds_text, (
             f"Seeds don't mention ml-inference or ImagePullBackOff:\n{ctx.seeds}"
         )
 
@@ -221,7 +221,7 @@ class TestStep5ContextWindow:
                 None,
             )
             backoff_idx = next(
-                (i for i, e in enumerate(events_lower) if "back-of" in e or "backof" in e),
+                (i for i, e in enumerate(events_lower) if "back-off" in e or "backoff" in e),
                 None,
             )
             if failed_idx is not None and backoff_idx is not None:
@@ -274,7 +274,7 @@ class TestStep5ContextWindow:
         for r in conf.reasons:
             print(f"    {r}")
         assert conf.score >= 0.55, (
-            "Expected score ≥ 0.55 (MEDIUM) for ImagePullBackOff with drift. "
+            f"Expected score ≥ 0.55 (MEDIUM) for ImagePullBackOff with drift. "
             f"Got {conf.score:.2f} {conf.label}"
         )
 
@@ -350,7 +350,7 @@ class TestStep7RemediationEngine:
     def test_image_pull_rule_fires(self, hypotheses):
         """image_pull_backoff must fire — events mention 'Failed to pull image'."""
         rule_ids = [h.rule_id for h in hypotheses]
-        assert "image_pull_backof" in rule_ids, (
+        assert "image_pull_backoff" in rule_ids, (
             f"image_pull_backoff rule did not fire. Fired rules: {rule_ids}"
         )
 
@@ -364,18 +364,18 @@ class TestStep7RemediationEngine:
     def test_image_pull_weight_highest(self, hypotheses):
         """image_pull_backoff (0.97 w/ drift boost) should be top hypothesis."""
         top = hypotheses[0]
-        assert top.rule_id == "image_pull_backof", (
+        assert top.rule_id == "image_pull_backoff", (
             f"Expected image_pull_backoff as top hypothesis, got: {top.rule_id} w={top.weight:.2f}"
         )
 
     def test_image_pull_weight_above_threshold(self, hypotheses):
-        h = next(h for h in hypotheses if h.rule_id == "image_pull_backof")
+        h = next(h for h in hypotheses if h.rule_id == "image_pull_backoff")
         assert h.weight >= 0.90, (
             f"Expected weight ≥ 0.90 (base 0.90 + image drift boost). Got {h.weight:.2f}"
         )
 
     def test_image_pull_commands_contain_kubectl(self, hypotheses):
-        h = next(h for h in hypotheses if h.rule_id == "image_pull_backof")
+        h = next(h for h in hypotheses if h.rule_id == "image_pull_backoff")
         cmds_text = " ".join(h.commands).lower()
         assert "kubectl" in cmds_text
 
@@ -427,7 +427,7 @@ class TestStep8PromptDryRun:
         assert "CRITICAL" in prompt
 
     def test_prompt_contains_imagepullbackoff_signal(self, prompt):
-        assert "ImagePullBackOf" in prompt or "imagepullbackof" in prompt.lower()
+        assert "ImagePullBackOff" in prompt or "imagepullbackoff" in prompt.lower()
 
     def test_prompt_contains_image_pull_failure(self, prompt):
         """Unauthorized or 401 must be visible to the LLM."""
@@ -470,7 +470,7 @@ class TestStep9Proposals:
                 f"### 1. Summary\n{top.symptom} on {top.affected}\n\n"
                 f"### 2. Affected resources\n- {top.affected}\n\n"
                 f"### 3. Root cause\n{top.explanation}\n\n"
-                "### 4. Causal chain\n"
+                f"### 4. Causal chain\n"
                 + "\n".join(f"{i+1}. {ev}" for i, ev in enumerate(top.evidence or ["image=v2.1.0-private"]))
                 + "\n\n### 5. Remediation\n"
                 + "\n".join(f"- {cmd}" for cmd in top.commands)
