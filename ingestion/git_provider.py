@@ -1,9 +1,13 @@
 """
 GitProvider — abstracts over local git clones and the GitHub REST API.
 
-Two implementations:
+Implementations:
   LocalGitProvider  — git clone / git pull into a temp directory.
+                      Accepts any HTTPS/SSH/file URL + optional token.
   GithubProvider    — GitHub REST API (no local clone required, rate-limited).
+
+Factory:
+  make_provider(url, branch, token) — returns the right provider for any URL.
 
 Both expose the same interface so GitopsCollector is provider-agnostic.
 """
@@ -14,6 +18,7 @@ import logging
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
+from urllib.parse import urlparse, urlunparse
 
 import requests
 
@@ -42,13 +47,18 @@ class GitProvider(ABC):
 
 class LocalGitProvider(GitProvider):
     """
-    Clones a git repo (shallow, single branch) into a local cache directory
+    Clones any git repo (shallow, single branch) into a local cache directory
     and keeps it up-to-date with `git pull --ff-only`.
+
+    Works with GitHub, GitLab, Gitea, Gist, self-hosted, Bitbucket — any URL
+    accepted by `git clone`. SSH URLs use the system ssh-agent; HTTPS URLs
+    accept an optional token injected as `oauth2:{token}@` credentials.
 
     Parameters
     ----------
-    repo_url:   HTTPS or SSH URL, e.g. https://github.com/myorg/infra.git
-    branch:     branch / tag / SHA to check out (default: main)
+    repo_url:   HTTPS, SSH, or file:// URL
+    branch:     branch / tag / SHA (default: main)
+    token:      optional PAT/oauth token for HTTPS auth
     clone_dir:  parent directory for clones (default: /tmp/kubewhisperer-gitops)
     """
 
@@ -56,10 +66,12 @@ class LocalGitProvider(GitProvider):
         self,
         repo_url: str,
         branch: str = "main",
+        token: str | None = None,
         clone_dir: Path | None = None,
     ) -> None:
         self.repo_url = repo_url
         self.branch = branch
+        self._clone_url = _inject_token(repo_url, token) if token else repo_url
         self._base = clone_dir or Path("/tmp/kubewhisperer-gitops")
 
     def _repo_dir(self) -> Path:
@@ -79,7 +91,7 @@ class LocalGitProvider(GitProvider):
             dest.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(
                 ["git", "clone", "--depth=1", "--branch", self.branch,
-                 self.repo_url, str(dest)],
+                 self._clone_url, str(dest)],
                 capture_output=True, text=True, check=True,
             )
         return dest
@@ -177,3 +189,35 @@ class GithubProvider(GitProvider):
             log.warning("GithubProvider._get_tree: %s", exc)
             self._tree_cache = []
         return self._tree_cache
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _inject_token(url: str, token: str) -> str:
+    """Inject token into an HTTPS URL as oauth2:{token}@ credentials.
+
+    Works universally: GitHub PAT, GitLab PAT, Gitea token, Gist, self-hosted.
+    SSH and file:// URLs are returned unchanged (credentials handled externally).
+    """
+    p = urlparse(url)
+    if p.scheme not in ("https", "http"):
+        return url
+    netloc = f"oauth2:{token}@{p.hostname}"
+    if p.port:
+        netloc += f":{p.port}"
+    return urlunparse(p._replace(netloc=netloc))
+
+
+def make_provider(
+    url: str,
+    branch: str = "main",
+    token: str | None = None,
+) -> GitProvider:
+    """Return the right GitProvider for any repo URL + optional auth token.
+
+    Works for GitHub, GitLab, Gitea, Gist, Bitbucket, self-hosted, file://.
+    SSH URLs use the system ssh-agent; HTTPS URLs accept a token.
+    """
+    return LocalGitProvider(repo_url=url, branch=branch, token=token)

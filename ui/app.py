@@ -85,6 +85,40 @@ def _kubeconfig() -> str:
     return cfg.KUBECONFIG or os.path.expanduser("~/.kube/config")
 
 
+# ── Git repo management UI ────────────────────────────────────────────────────
+
+def _render_git_repos_ui() -> None:
+    """Sidebar widget: list configured repos + add/remove form."""
+    repos: list[dict] = st.session_state.git_repos
+
+    # Show existing repos with a delete button each
+    for i, r in enumerate(repos):
+        label = r.get("label") or r["url"].rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
+        cols = st.columns([6, 1])
+        cols[0].caption(f"📦 {label}")
+        if cols[1].button("✕", key=f"del_repo_{i}", help="Remove"):
+            st.session_state.git_repos.pop(i)
+            st.rerun()
+
+    with st.expander("＋ Add repo", expanded=not repos):
+        new_url    = st.text_input("URL (HTTPS / SSH / Gist)", key="new_repo_url",
+                                   placeholder="https://gitlab.com/org/charts.git")
+        new_branch = st.text_input("Branch", value="main", key="new_repo_branch")
+        new_token  = st.text_input("Token (optional)", key="new_repo_token",
+                                   type="password", placeholder="ghp_xxx / glpat-xxx")
+        new_label  = st.text_input("Label (optional)", key="new_repo_label")
+        new_charts = st.text_input("Charts path", value="charts", key="new_repo_charts")
+        if st.button("Add", key="add_repo_btn", disabled=not new_url):
+            st.session_state.git_repos.append({
+                "url":         new_url.strip(),
+                "branch":      new_branch.strip() or "main",
+                "token":       new_token.strip(),
+                "label":       new_label.strip(),
+                "charts_path": new_charts.strip() or "charts",
+            })
+            st.rerun()
+
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
@@ -104,17 +138,16 @@ with st.sidebar:
 
     col_a, col_b = st.columns(2)
     use_metrics  = col_a.toggle("Metrics server", value=True)
-    use_gitops   = col_b.toggle("GitOps drift",   value=bool(cfg.GITOPS_REPO_URL))
+    use_gitops   = col_b.toggle("GitOps drift",   value=bool(cfg.GIT_REPOS))
     col_c, col_d = st.columns(2)
     use_prom     = col_c.toggle("Prometheus",      value=False)
     use_otel     = col_d.toggle("OTel / Loki",     value=False)
 
-    gitops_url = ""
+    if "git_repos" not in st.session_state:
+        st.session_state.git_repos = list(cfg.GIT_REPOS)
+
     if use_gitops:
-        gitops_url = st.text_input(
-            "GitOps repo URL",
-            value=cfg.GITOPS_REPO_URL or "file:///tmp/kw-demo-gitops",
-        )
+        _render_git_repos_ui()
 
     st.divider()
     model = st.text_input("Ollama model", value=cfg.OLLAMA_MODEL)
@@ -275,24 +308,37 @@ if run_btn and st.session_state.status not in ("running",):
 
     # ── GitOps drift ──────────────────────────────────────────────────────────
     provider = None
-    if use_gitops and gitops_url:
-        with st.spinner("GitOps drift detection…"):
-            try:
-                from ingestion.git_provider import GithubProvider, LocalGitProvider
-                from ingestion.gitops_collector import GitopsCollector
+    if use_gitops and st.session_state.get("git_repos"):
+        from ingestion.git_provider import make_provider
+        from ingestion.gitops_collector import GitopsCollector
 
-                if gitops_url.startswith(("https://github.com", "git@github.com")):
-                    repo = gitops_url.removeprefix("https://github.com/").removesuffix(".git")
-                    provider = GithubProvider(repo=repo, ref=cfg.GITOPS_BRANCH, token=cfg.GITHUB_TOKEN)
-                else:
-                    provider = LocalGitProvider(repo_url=gitops_url, branch=cfg.GITOPS_BRANCH)
+        all_drifts = []
+        errors = []
+        for repo_cfg in st.session_state.git_repos:
+            label = repo_cfg.get("label") or repo_cfg["url"].rstrip("/").rsplit("/", 1)[-1]
+            with st.spinner(f"GitOps drift — {label}…"):
+                try:
+                    provider = make_provider(
+                        url=repo_cfg["url"],
+                        branch=repo_cfg.get("branch", "main"),
+                        token=repo_cfg.get("token") or None,
+                    )
+                    drifts = GitopsCollector(
+                        provider,
+                        charts_path=repo_cfg.get("charts_path", cfg.GITOPS_CHARTS_PATH),
+                    ).collect(graph)
+                    all_drifts.extend(drifts)
+                except Exception as exc:
+                    errors.append(f"{label}: {exc}")
 
-                drifts = GitopsCollector(provider, charts_path=cfg.GITOPS_CHARTS_PATH).collect(graph)
-                critical = sum(1 for d in drifts if d.severity == "critical")
-                stats["gitops"] = {"drifts": len(drifts), "critical": critical, "fallback": False}
-                st.session_state.drift_items = drifts
-            except Exception as exc:
-                stats["gitops"] = {"fallback": True, "error": str(exc)}
+        critical = sum(1 for d in all_drifts if d.severity == "critical")
+        stats["gitops"] = {
+            "drifts": len(all_drifts),
+            "critical": critical,
+            "fallback": bool(errors),
+            "error": "; ".join(errors) if errors else None,
+        }
+        st.session_state.drift_items = all_drifts
     else:
         stats["gitops"] = {"skipped": True}
 
