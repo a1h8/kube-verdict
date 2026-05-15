@@ -3,7 +3,7 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
-# System deps needed to compile faiss-cpu and sentence-transformers wheels
+# System deps needed to compile faiss-cpu, sentence-transformers, and streamlit wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         libopenblas-dev \
@@ -39,6 +39,7 @@ COPY dedup/            ./dedup/
 COPY vectorstore/      ./vectorstore/
 COPY rca/              ./rca/
 COPY llm/              ./llm/
+COPY ui/               ./ui/
 
 # Pre-download the embedding model so the image is self-contained
 # Remove this RUN if you want to mount a model cache volume instead.
@@ -56,5 +57,6 @@ ENV LOG_LEVEL=INFO
 
 VOLUME ["/data", "/root/.kube"]
 
-ENTRYPOINT ["python", "main.py"]
-CMD ["--help"]
+EXPOSE 8501
+
+CMD ["streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
