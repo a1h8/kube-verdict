@@ -2,6 +2,10 @@
 
 ## Done
 
+- [x] **Evidence-first hypothesis generation** — ontology causal chains + anchor violations + RemediationEngine rules + KB examples → hypotheses before LLM; LLM only fills remaining slots (P(token | top-k context))
+- [x] **Beam search confidence routing** — `path_confidence_history` detects LOW × 2 → early path switch; `archive_path_node` re-ranks remaining candidates via hybrid_search on failed analysis text
+- [x] **RRF-on-anchors** — `index_anchor_violations()` indexes each manifest drift field as `doc_source="anchor"` (×1.6 weight); Phase 2b processes `anchor:` UIDs from hybrid_search into testable hypotheses
+- [x] **FastAPI REST API** — `POST /run`, `GET /state`, `GET /stream` (SSE), `POST /feedback`, `DELETE`; exposes `hypothesis_sources`, `path_confidence_history`, `edge_log` with `declining` flag
 - [x] **LangGraph multi-path workflow** — hypothesize → analyze → retry / archive_path → select_best → dry_run → human_review
 - [x] **AnchorEngine** — manifest + schema anchors; `anchor_fix_hints()` generates `helm upgrade --set` commands; **anchor pivot table** in UI (declared → observed → status → fix)
 - [x] **BM25 + FAISS hybrid retrieval** — K8s-aware BM25 tokeniser + FAISS dense cosine + Reciprocal Rank Fusion; `retrieval_stats` (dense/sparse/fused/top_rrf_score) in UI
@@ -24,8 +28,9 @@
 
 ## Next
 
-- [ ] **More h-series cases** — h007 PVC not bound, h008 Kyverno violation at admission, h009 resource quota exceeded, …
-- [ ] **Helmfile multi-release** — h00N case with `helmfile.yaml` covering multiple interdependent releases
+- [ ] **Monte Carlo Tree Search** — replace greedy beam search with MCTS: UCB1 node selection, rollout via LLM, backpropagation of confidence scores across hypothesis tree
+- [ ] **More h-series cases** — h012+: network latency, cert expiry, etcd compaction, …
+- [ ] **Helmfile multi-release** — case with `helmfile.yaml` covering interdependent releases
 - [ ] **Multi-cluster support** — analyse multiple contexts in one session
 - [ ] **Slack / PagerDuty enrichment** — push RCA summary via webhook
 - [ ] **RBAC-aware scoping** — per-namespace analysis with service-account impersonation

@@ -1,0 +1,15 @@
+{
+  "kind": "EventList",
+  "items": [
+    {
+      "metadata": {"name": "api-gateway-throttle.9a8b7c", "namespace": "production", "uid": "evt-cpu-throttle"},
+      "involvedObject": {"kind": "Pod", "name": "api-gateway-8c7d9f6b5-tz5kp", "namespace": "production"},
+      "reason": "CPUThrottling",
+      "message": "Throttling CPU in pod api-gateway-8c7d9f6b5-tz5kp for container api-gateway (cpu.cfs_throttled_periods_total > 80%)",
+      "type": "Warning",
+      "count": 47,
+      "firstTimestamp": "2026-05-14T14:00:00Z",
+      "lastTimestamp": "2026-05-14T16:00:00Z"
+    }
+  ]
+}

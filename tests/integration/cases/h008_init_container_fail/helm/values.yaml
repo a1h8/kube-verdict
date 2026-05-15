@@ -1,0 +1,27 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/acme/backend
+  tag: "5.3.2"
+  pullPolicy: IfNotPresent
+
+initContainers:
+  dbMigrate:
+    enabled: true
+    image: ghcr.io/acme/backend-migrate:5.3.2
+    command: ["alembic", "upgrade", "head"]
+
+env:
+  DATABASE_URL: "postgresql://backend:secret@db-primary.staging.svc.cluster.local:5432/backend"
+
+resources:
+  limits:
+    memory: 512Mi
+    cpu: "1"
+  requests:
+    memory: 256Mi
+    cpu: 100m
+
+service:
+  type: ClusterIP
+  port: 8000

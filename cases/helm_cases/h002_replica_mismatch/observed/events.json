@@ -1,0 +1,15 @@
+{
+  "kind": "EventList",
+  "items": [
+    {
+      "metadata": {"name": "frontend-scale.1a2b3c", "namespace": "staging", "uid": "evt-staging-frontend-scale"},
+      "involvedObject": {"kind": "Deployment", "name": "frontend", "namespace": "staging"},
+      "reason": "ScalingReplicaSet",
+      "message": "Scaled down replica set frontend-6c9f8b7d4 to 1 from 3",
+      "type": "Normal",
+      "count": 1,
+      "firstTimestamp": "2026-05-14T09:00:00Z",
+      "lastTimestamp": "2026-05-14T09:00:00Z"
+    }
+  ]
+}

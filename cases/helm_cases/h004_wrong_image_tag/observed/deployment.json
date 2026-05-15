@@ -1,0 +1,15 @@
+{
+  "kind": "Deployment",
+  "metadata": {
+    "name": "worker",
+    "namespace": "production",
+    "uid": "dep-production-worker-001",
+    "labels": {"app": "worker"}
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {"matchLabels": {"app": "worker"}},
+    "strategy": {"type": "RollingUpdate"}
+  },
+  "status": {"replicas": 1, "readyReplicas": 0, "availableReplicas": 0}
+}

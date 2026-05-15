@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api-service-hpa.unable-metrics.001
+    namespace: production
+    uid: evt-hpa-nometrics-001
+  type: Warning
+  reason: FailedGetResourceMetric
+  message: "failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API"
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api-service
+    namespace: production
+  count: 143
+  firstTimestamp: "2026-05-14T08:00:00Z"
+  lastTimestamp: "2026-05-14T12:00:00Z"
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api-service-hpa.scale-failed.002
+    namespace: production
+    uid: evt-hpa-scale-fail-002
+  type: Warning
+  reason: FailedComputeMetricsReplicas
+  message: "failed to compute desired number of replicas based on listed metrics for Deployment/production/api-service: invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API"
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api-service
+    namespace: production
+  count: 143
+  firstTimestamp: "2026-05-14T08:00:01Z"
+  lastTimestamp: "2026-05-14T12:00:01Z"
+  reportingComponent: horizontal-pod-autoscaler

@@ -1,0 +1,16 @@
+{
+  "kind": "Pod",
+  "metadata": {
+    "name": "order-service-7b8c9d6e5-kp4mn",
+    "namespace": "production",
+    "uid": "pod-production-order-service-7b8c9d6e5-kp4mn",
+    "labels": {"app": "order-service"},
+    "ownerReferences": [{"kind": "ReplicaSet", "name": "order-service-7b8c9d6e5", "controller": true}]
+  },
+  "spec": {"nodeName": "worker-node-02"},
+  "status": {
+    "phase": "Running",
+    "containerStatuses": [{"name": "order-service", "ready": true, "restartCount": 0, "state": {"running": {}}}],
+    "conditions": [{"type": "Ready", "status": "True"}]
+  }
+}

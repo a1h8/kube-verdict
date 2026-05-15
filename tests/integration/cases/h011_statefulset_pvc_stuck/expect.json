@@ -1,0 +1,12 @@
+{
+  "scenario": "StatefulSet rolling update stuck — PVC bound to old pod prevents rescheduling",
+  "namespace": "data",
+  "release": "kafka",
+  "affected_resources": ["Pod/data/kafka-2"],
+  "root_cause_contains": ["pvc", "statefulset", "stuck", "volume", "pending"],
+  "fix_commands_contain": ["kubectl", "pvc"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.35,
+  "fallback_expected": false,
+  "notes": "StatefulSet kafka is performing a rolling update. Pod kafka-2 is stuck Pending because its PVC 'data-kafka-2' is bound to the old node 'worker-node-01' which was drained. The new pod cannot be scheduled because the PVC's volumeMode is ReadWriteOnce — only one node can mount it. Fix: delete the stuck PVC so Kubernetes recreates it on the new node, or annotate volume to allow re-binding."
+}

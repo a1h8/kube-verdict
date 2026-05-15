@@ -1,0 +1,12 @@
+{
+  "scenario": "CPU throttling — cpu request drift (500m declared, 100m deployed)",
+  "namespace": "production",
+  "release": "api-gateway",
+  "affected_resources": ["Deployment/production/api-gateway", "Pod/production/api-gateway-8c7d9f6b5-tz5kp"],
+  "root_cause_contains": ["cpu", "throttling", "drift", "500m", "100m", "requests"],
+  "fix_commands_contain": ["helm upgrade", "resources.requests.cpu"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.40,
+  "fallback_expected": false,
+  "notes": "CPU request drift (500m declared → 100m deployed) causes heavy CFS throttling. Metrics show cpu_throttle_ratio > 0.8. Fix: helm upgrade restoring the declared 500m."
+}

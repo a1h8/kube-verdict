@@ -1,0 +1,12 @@
+{
+  "scenario": "Init container failing — DB migration script exits 1",
+  "namespace": "staging",
+  "release": "backend",
+  "affected_resources": ["Pod/staging/backend-6b9f7c8d5-mn4pq"],
+  "root_cause_contains": ["init", "container", "migration", "database", "exit", "failed"],
+  "fix_commands_contain": ["kubectl", "logs", "init"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.38,
+  "fallback_expected": false,
+  "notes": "Pod is stuck in Init:0/1 state. The 'db-migrate' init container runs Alembic migrations and exits with code 1 — schema drift or DB unreachable. Main container never starts. Fix: check init container logs, verify DB connectivity and migration state."
+}

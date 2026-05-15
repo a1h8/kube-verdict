@@ -1,0 +1,22 @@
+{
+  "kind": "Pod",
+  "metadata": {
+    "name": "payment-api-7d9f6b8c5-qr3sx",
+    "namespace": "production",
+    "uid": "pod-production-payment-api-7d9f6b8c5-qr3sx",
+    "labels": {"app": "payment-api"},
+    "ownerReferences": [{"kind": "ReplicaSet", "name": "payment-api-7d9f6b8c5", "controller": true}]
+  },
+  "spec": {"nodeName": "worker-node-02"},
+  "status": {
+    "phase": "Running",
+    "containerStatuses": [{
+      "name": "payment-api",
+      "ready": false,
+      "restartCount": 12,
+      "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+      "lastState": {"terminated": {"exitCode": 1, "reason": "Error"}}
+    }],
+    "conditions": [{"type": "Ready", "status": "False"}]
+  }
+}

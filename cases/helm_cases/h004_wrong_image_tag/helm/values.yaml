@@ -1,0 +1,15 @@
+replicaCount: 1
+image:
+  repository: ghcr.io/acme/worker
+  tag: v9.9.9
+  pullPolicy: Always
+resources:
+  limits:
+    memory: 256Mi
+    cpu: 500m
+  requests:
+    memory: 128Mi
+    cpu: 100m
+service:
+  type: ClusterIP
+  port: 9000

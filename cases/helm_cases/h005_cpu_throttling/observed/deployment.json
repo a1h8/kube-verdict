@@ -1,0 +1,15 @@
+{
+  "kind": "Deployment",
+  "metadata": {
+    "name": "api-gateway",
+    "namespace": "production",
+    "uid": "dep-production-api-gateway-001",
+    "labels": {"app": "api-gateway"}
+  },
+  "spec": {
+    "replicas": 2,
+    "selector": {"matchLabels": {"app": "api-gateway"}},
+    "strategy": {"type": "RollingUpdate"}
+  },
+  "status": {"replicas": 2, "readyReplicas": 2, "availableReplicas": 2}
+}

@@ -8,6 +8,7 @@ to serialise them.  Nodes that need them call _get_infra(config).
 from __future__ import annotations
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
@@ -352,8 +353,9 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
     embedder = Embedder()
     built_store = FAISSStore(embedder=embedder)
     built_store.index_graph(graph)
+    anchor_count = built_store.index_anchor_violations(graph)
     built_store.save()
-    log.info("index: %d vectors", built_store.size)
+    log.info("index: %d vectors, %d anchor violation(s)", built_store.size, anchor_count)
 
     config.setdefault("configurable", {})["store"] = built_store
     return {}
@@ -434,7 +436,7 @@ def _parse_hypotheses(raw: str) -> list[str]:
 
 
 def _graph_snapshot(graph) -> str:
-    """Compact cluster snapshot for the hypothesis prompt — no BFS, no FAISS."""
+    """Compact cluster snapshot for the hypothesis prompt — entity states + drifts."""
     lines: list[str] = []
     for entity in graph.entities():
         kind = getattr(entity.kind, "value", entity.kind)
@@ -482,70 +484,372 @@ def _graph_snapshot(graph) -> str:
     return "\n".join(lines) if lines else "  (no obvious unhealthy signals detected)"
 
 
+def _build_hypothesis_context(graph, store, query: str) -> tuple[str, list[dict]]:
+    """
+    Build a pre-ranked evidence block to anchor hypothesis ordering.
+
+    Uses deterministic rule-based scoring (RemediationEngine), active policy
+    violations, manifest anchor drift, and FAISS example matches so the LLM
+    ranks H1/H2/H3 based on ALL available signals — not just raw entity states.
+
+    Returns:
+        evidence_block  — formatted string injected into the hypothesize prompt
+        rule_sources    — serialisable list of rule hits stored in state for UI
+    """
+    from ontology.entities import ResourceKind, PolicyViolation
+    from rca.remediation_engine import RemediationEngine
+
+    sections: list[str] = []
+    rule_sources: list[dict] = []
+
+    # ── 1. Rule-based diagnostics (deterministic, weight-ordered) ─────────────
+    rule_hyps = RemediationEngine().score(graph)[:5]
+    if rule_hyps:
+        block = "DETERMINISTIC RULE EVIDENCE (ordered by diagnostic weight):\n"
+        for h in rule_hyps:
+            block += f"  [{h.weight:.2f}] {h.symptom}  →  {h.affected}\n"
+            if h.evidence:
+                block += f"         corroborated by: {', '.join(h.evidence[:2])}\n"
+        sections.append(block)
+        rule_sources = [
+            {
+                "rule_id":  h.rule_id,
+                "symptom":  h.symptom,
+                "affected": h.affected,
+                "weight":   round(h.weight, 2),
+                "evidence": h.evidence,
+            }
+            for h in rule_hyps
+        ]
+
+    # ── 2. Policy violations (OPA / Kyverno FAIL) ─────────────────────────────
+    policy_fails = [
+        e for e in graph.entities(ResourceKind.POLICY_VIOLATION)
+        if isinstance(e, PolicyViolation) and e.is_fail
+    ]
+    if policy_fails:
+        block = f"POLICY VIOLATIONS — {len(policy_fails)} FAIL rule(s):\n"
+        for p in policy_fails[:3]:
+            block += f"  - {p.to_text()[:120]}\n"
+        sections.append(block)
+
+    # ── 3. Anchor violations (manifest declared ≠ live observed) ──────────────
+    anchor_lines: list[str] = []
+    for entity in graph.entities():
+        ann = getattr(entity, "annotations", {}) or {}
+        for k, v in ann.items():
+            if k.startswith("anchor.") and "[manifest]" in str(v):
+                kind_str = getattr(entity.kind, "value", str(entity.kind))
+                anchor_lines.append(
+                    f"{kind_str}/{entity.namespace}/{entity.name}: "
+                    f"{k[len('anchor.'):]}  (declared≠observed)"
+                )
+    if anchor_lines:
+        block = f"ANCHOR VIOLATIONS — declared ≠ observed ({len(anchor_lines)}):\n"
+        for a in anchor_lines[:5]:
+            block += f"  - {a}\n"
+        sections.append(block)
+
+    # ── 4. Similar past incidents from knowledge base (FAISS examples) ─────────
+    if store is not None:
+        try:
+            hits = store.hybrid_search(query, top_k=6)
+            ex_hits = [h for h in hits if h["uid"].startswith("example:")][:2]
+            if ex_hits:
+                block = "SIMILAR RESOLVED INCIDENTS (knowledge base):\n"
+                for h in ex_hits:
+                    block += f"  (score={h['score']:.2f}) {h['text'][:200]}\n"
+                sections.append(block)
+        except Exception as exc:
+            log.debug("_build_hypothesis_context: example search failed: %s", exc)
+
+    # ── 5. Ontology causal chains (graph traversal — topology-aware) ───────────
+    from dedup.bfs import find_unhealthy
+    from ontology.relationships import RelationshipType
+
+    _CAUSAL_RELS = {
+        RelationshipType.USES_PVC:           "uses PVC",
+        RelationshipType.BINDS_PV:           "binds PV",
+        RelationshipType.MOUNTS_SECRET:      "mounts Secret",
+        RelationshipType.MOUNTS_CONFIGMAP:   "mounts ConfigMap",
+        RelationshipType.DRIFTS_FROM:        "drifts from HelmRelease",
+        RelationshipType.MANAGED_BY_HELM:    "managed by HelmRelease",
+        RelationshipType.HAS_ALERT:          "has firing alert",
+        RelationshipType.HAS_TRACE:          "has error trace",
+        RelationshipType.EXPOSES:            "exposed by Service",
+        RelationshipType.USES_SERVICE_ACCOUNT: "uses ServiceAccount",
+    }
+
+    seeds = find_unhealthy(graph)
+    chain_lines: list[str] = []
+    for seed in seeds[:6]:
+        kind_str = getattr(seed.kind, "value", str(seed.kind))
+        state_str = (
+            getattr(seed, "phase", "")
+            or (seed.annotations or {}).get("status.phase", "unhealthy")
+        )
+        header = f"{kind_str}/{seed.namespace}/{seed.name} [{state_str}]"
+        children: list[str] = []
+        for rel_type, rel_label in _CAUSAL_RELS.items():
+            neighbours = graph.neighbors(seed.uid, rel_type=rel_type)
+            for nb in neighbours[:2]:
+                nb_kind = getattr(nb.kind, "value", str(nb.kind))
+                nb_phase = getattr(nb, "phase", "") or (nb.annotations or {}).get("status.phase", "")
+                nb_state = f" [{nb_phase}]" if nb_phase else ""
+                # Flag if the linked entity itself looks problematic
+                flag = ""
+                if nb_phase in ("Pending", "Failed", "CrashLoopBackOff"):
+                    flag = " ← LIKELY CAUSE"
+                elif nb_kind in ("Secret", "ConfigMap") and nb_phase == "":
+                    flag = " ← check exists"
+                children.append(
+                    f"    → {rel_label} → {nb_kind}/{nb.namespace}/{nb.name}{nb_state}{flag}"
+                )
+        if children:
+            chain_lines.append(header)
+            chain_lines.extend(children)
+
+    if chain_lines:
+        block = "ONTOLOGY CAUSAL CHAINS (graph traversal):\n"
+        for line in chain_lines:
+            block += f"  {line}\n"
+        sections.append(block)
+
+    return "\n\n".join(sections), rule_sources
+
+
+_ANCHOR_FIELD_HYPOTHESES: list[tuple[str, str]] = [
+    ("spec.replicas",           "Replica count drift — deployment scaling mismatch"),
+    (".image",                  "Container image drift — wrong tag deployed"),
+    ("resources.limits.memory", "Memory resource drift — OOM/throttling risk"),
+    ("resources.limits.cpu",    "CPU resource drift — throttling/starvation risk"),
+    ("resources.requests",      "Resource request drift — scheduling affected"),
+    ("spec.template",           "Pod template drift — rolling update may stall"),
+    ("env.",                    "Environment variable drift — misconfiguration"),
+    ("volumeMounts",            "Volume mount drift — storage misconfiguration"),
+    ("containers.",             "Container spec drift — deployment mismatch"),
+    ("serviceAccountName",      "ServiceAccount drift — RBAC/identity mismatch"),
+    ("imagePullPolicy",         "Image pull policy drift — stale image may be used"),
+    ("port",                    "Port configuration drift — traffic routing broken"),
+]
+
+
+def _anchor_hit_to_hypothesis(text: str) -> str | None:
+    """Map an anchor violation search hit to a testable hypothesis string."""
+    for field_fragment, hypothesis in _ANCHOR_FIELD_HYPOTHESES:
+        if field_fragment in text:
+            return hypothesis
+    return None
+
+
 def hypothesize_node(state: RCAState, config: RunnableConfig) -> dict:
     """
-    Ask the LLM to generate up to MAX_PATHS distinct root-cause hypotheses from
-    the cluster evidence (container states, phases, drifts).  Each hypothesis
-    becomes a focused BFS+analysis path — if one path is a dead end (LOW confidence
-    after retries), the workflow automatically explores the next.
+    Generate up to MAX_PATHS root-cause hypotheses ordered by probability.
 
-    Falls back to single-path (empty return) when the LLM is unavailable or
-    returns an unparseable response.
+    Retrieval-first approach — the LLM is only a last-resort filler:
+
+      Phase 1 — KB examples (FAISS):  proven past resolutions, score > 0.55.
+                  Hypothesis: field extracted directly → weight = score + 1.0
+      Phase 2 — RemediationEngine:    deterministic rule hits, weight-ordered.
+      Phase 3 — Ontology chains:      Pod→PVC Pending, Pod→Secret missing …
+                  structural graph evidence, boosted if dependency is unhealthy.
+      Phase 4 — LLM fallback:         only fills remaining slots if < MAX_PATHS
+                  gathered from the above, using all evidence as context.
+
+    H1 = highest-probability path, H2/H3 = fallbacks explored if H1 is LOW.
     """
-    graph, _ = _get_infra(config)
+    from dedup.bfs import find_unhealthy
+    from ontology.relationships import RelationshipType
+    from rca.remediation_engine import RemediationEngine
+
+    graph, store = _get_infra(config)
     if graph is None:
         return {}
 
-    llm      = _get_llm(config)
-    query    = state.get("query", "")
-    snapshot = _graph_snapshot(graph)
+    query = state.get("query", "")
 
-    prompt = (
-        f"You are a Kubernetes SRE expert. Given the cluster snapshot below, "
-        f"generate exactly {MAX_PATHS} distinct root-cause hypotheses to investigate, "
-        f"ordered by likelihood.\n\n"
-        f"CLUSTER SNAPSHOT:\n{snapshot}\n\n"
-        f"INCIDENT QUERY: {query}\n\n"
-        f"Reply with ONLY {MAX_PATHS} lines in this exact format "
-        f"(no extra text, no numbering beyond H1/H2/H3):\n"
-        f"H1: <concise testable hypothesis>\n"
-        f"H2: <concise testable hypothesis>\n"
-        f"H3: <concise testable hypothesis>\n\n"
-        f"Each hypothesis must focus on a distinct, specific failure mode."
-    )
+    # (weight, hypothesis_text, source_tag)
+    pool: list[tuple[float, str, str]] = []
 
-    try:
-        raw = llm.generate(prompt)
-        hypotheses: list[str] = _parse_hypotheses(raw)
+    # ── Phase 1 + 2b: KB examples + anchor violations (single hybrid_search) ────
+    # example: UIDs → proven resolutions; anchor: UIDs → manifest drift hypotheses
+    if store is not None:
+        try:
+            hits = store.hybrid_search(query, top_k=10)
+            for h in hits:
+                uid = h["uid"]
+                if uid.startswith("example:"):
+                    # cosine score preferred; rrf_score as fallback (different scale)
+                    score = float(h.get("score", h.get("rrf_score", 0.0)))
+                    if score < 0.55:
+                        continue
+                    for line in h["text"].splitlines():
+                        if line.startswith("Hypothesis:"):
+                            hyp_text = line[11:].strip()
+                            if len(hyp_text) > 15:
+                                pool.append((score + 1.0, hyp_text, "example"))
+                            break
+                elif uid.startswith("anchor:"):
+                    # anchor hits are SOURCE_WEIGHTS-boosted (×1.6) by hybrid_search
+                    hyp = _anchor_hit_to_hypothesis(h["text"])
+                    if hyp:
+                        pool.append((0.88, hyp, "anchor"))
+        except Exception as exc:
+            log.debug("hypothesize: KB/anchor search failed: %s", exc)
 
-        if not hypotheses:
-            log.info("hypothesize: no hypotheses parsed — single-path fallback")
-            return {}
+    # ── Phase 2: RemediationEngine (deterministic, weight-ordered) ─────────────
+    rule_hyps = RemediationEngine().score(graph)
+    rule_sources: list[dict] = []
+    for h in rule_hyps[:5]:
+        pool.append((h.weight, f"{h.symptom} affecting {h.affected}", "rule"))
+        rule_sources.append({
+            "rule_id":  h.rule_id,
+            "symptom":  h.symptom,
+            "affected": h.affected,
+            "weight":   round(h.weight, 2),
+            "evidence": h.evidence,
+        })
 
-        candidates = hypotheses[:MAX_PATHS]
-        first, *rest = candidates
-        log.info("hypothesize: %d path(s) — leading with: %s", len(candidates), first)
-        return {
-            "current_hypothesis": first,
-            "candidate_paths":    rest,
-            "reasoning_history":  [],
-        }
-    except Exception as exc:
-        log.warning("hypothesize: LLM call failed (%s) — single-path fallback", exc)
+    # ── Phase 3: Ontology causal chains (graph topology) ─────────────────────
+    # Relationship → (human-readable label, base weight)
+    _CAUSAL: list[tuple[RelationshipType, str, float]] = [
+        (RelationshipType.USES_PVC,         "PVC dependency failure",           0.85),
+        (RelationshipType.MOUNTS_SECRET,    "missing Secret dependency",        0.82),
+        (RelationshipType.MOUNTS_CONFIGMAP, "missing ConfigMap dependency",     0.80),
+        (RelationshipType.DRIFTS_FROM,      "Helm chart drift from declared",   0.78),
+        (RelationshipType.EXPOSES,          "Service exposure broken",          0.65),
+        (RelationshipType.USES_SERVICE_ACCOUNT, "ServiceAccount issue",         0.60),
+    ]
+    for seed in find_unhealthy(graph)[:4]:
+        kind_str = getattr(seed.kind, "value", str(seed.kind))
+        for rel_type, rel_desc, base_w in _CAUSAL:
+            for nb in graph.neighbors(seed.uid, rel_type=rel_type):
+                nb_kind  = getattr(nb.kind, "value", str(nb.kind))
+                nb_phase = (
+                    getattr(nb, "phase", "")
+                    or (nb.annotations or {}).get("status.phase", "")
+                )
+                weight   = base_w + (0.10 if nb_phase in ("Pending", "Failed") else 0.0)
+                suffix   = f" is {nb_phase}" if nb_phase else ""
+                hyp = (
+                    f"{rel_desc}: {kind_str}/{seed.name} "
+                    f"→ {nb_kind}/{nb.name}{suffix}"
+                )
+                pool.append((weight, hyp, "ontology"))
+
+    # ── Dedup + rank ──────────────────────────────────────────────────────────
+    seen_hyps: set[str] = set()
+    ordered: list[str] = []
+    for _w, hyp, _src in sorted(pool, key=lambda x: x[0], reverse=True):
+        if hyp not in seen_hyps and len(hyp) > 15:
+            seen_hyps.add(hyp)
+            ordered.append(hyp)
+
+    # ── Phase 4: LLM fills remaining slots ────────────────────────────────────
+    llm = _get_llm(config)
+    if len(ordered) < MAX_PATHS:
+        snapshot = _graph_snapshot(graph)
+        evidence_block, _ = _build_hypothesis_context(graph, store, query)
+        needed = MAX_PATHS - len(ordered)
+        existing = "\n".join(f"  - {h}" for h in ordered) if ordered else "  (none yet)"
+
+        prompt = (
+            f"Kubernetes SRE expert. The following hypotheses were already identified "
+            f"from deterministic evidence:\n{existing}\n\n"
+            f"CLUSTER SNAPSHOT:\n{snapshot}\n\n"
+            + (f"\n{evidence_block}\n\n" if evidence_block else "")
+            + f"INCIDENT QUERY: {query}\n\n"
+            f"Generate exactly {needed} ADDITIONAL distinct hypothesis(es) "
+            f"not already listed above, in order of likelihood.\n"
+            f"Reply with ONLY {needed} line(s), one per line, no numbering, no prefix.\n"
+        )
+        try:
+            raw = llm.generate(prompt)
+            for h in _parse_hypotheses(raw):
+                if h not in seen_hyps and len(ordered) < MAX_PATHS:
+                    seen_hyps.add(h)
+                    ordered.append(h)
+        except Exception as exc:
+            log.warning("hypothesize: LLM fill-in failed (%s)", exc)
+
+    if not ordered:
+        log.info("hypothesize: no hypotheses from any source — single-path fallback")
         return {}
+
+    final = ordered[:MAX_PATHS]
+    first, *rest = final
+    llm_used = len(pool) < MAX_PATHS
+    log.info(
+        "hypothesize: %d path(s) — H1='%s'  sources: rules=%d pool=%d llm_fill=%s",
+        len(final), first[:60], len(rule_sources), len(pool), llm_used,
+    )
+    return {
+        "current_hypothesis": first,
+        "candidate_paths":    rest,
+        "reasoning_history":  [],
+        "hypothesis_sources": rule_sources,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Path archival — save current analysis, switch to next hypothesis
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _rerank_candidates(
+    candidates: list[str],
+    failed_raw: str,
+    store,
+) -> list[str]:
+    """
+    Re-rank remaining candidate hypotheses using evidence from the failed path.
+
+    Strategy: hybrid_search on the failed analysis text — surface anchor/example
+    hits that correlate with the remaining candidates, boost the ones whose keywords
+    appear in the top-k results.  Returns a new ordering (highest P first).
+    """
+    if not candidates or store is None or not failed_raw:
+        return candidates
+
+    try:
+        hits = store.hybrid_search(failed_raw[:400], top_k=6)
+        # Collect signal tokens from high-scoring hits
+        signal_tokens: set[str] = set()
+        for h in hits:
+            for word in h["text"].lower().split():
+                if len(word) > 4:
+                    signal_tokens.add(word)
+
+        def _score(hyp: str) -> float:
+            words = set(hyp.lower().split())
+            overlap = len(words & signal_tokens)
+            return overlap
+
+        ranked = sorted(candidates, key=_score, reverse=True)
+        if ranked != candidates:
+            log.info(
+                "archive_path: re-ranked %d candidates — new H1='%s'",
+                len(ranked), ranked[0][:60],
+            )
+        return ranked
+    except Exception as exc:
+        log.debug("archive_path: re-rank failed (%s) — keeping original order", exc)
+        return candidates
+
+
 def archive_path_node(state: RCAState, config: RunnableConfig) -> dict:
     """
-    Called when confidence is LOW and retries are exhausted but other hypotheses remain.
+    Called when confidence is LOW and the path is abandoned.
 
-    Archives the current analysis into reasoning_history, pops the next candidate
-    hypothesis, and resets retry_count so the next path gets a fresh retry budget.
+    Archives the current analysis into reasoning_history, re-ranks the remaining
+    candidate hypotheses using evidence from the failed analysis (signal tokens from
+    anchor/example hits), then pops the new best candidate.
+
+    Re-ranking implements the beam-search principle: after a path's probability
+    declines, update the global probability estimate for remaining paths using
+    the evidence accumulated so far — the next path chosen is the one with the
+    highest posterior probability given all signals observed.
     """
+    _, store   = _get_infra(config)
     history    = list(state.get("reasoning_history") or [])
     hypothesis = state.get("current_hypothesis") or ""
     report_dict = state.get("report_dict") or {}
@@ -560,7 +864,13 @@ def archive_path_node(state: RCAState, config: RunnableConfig) -> dict:
         "retry_count": state.get("retry_count", 0),
     })
 
-    candidates     = list(state.get("candidate_paths") or [])
+    # Re-rank remaining candidates using evidence from the failed path
+    raw_analysis = state.get("raw_analysis", "")
+    candidates = _rerank_candidates(
+        list(state.get("candidate_paths") or []),
+        failed_raw=raw_analysis,
+        store=store,
+    )
     next_hypothesis = candidates.pop(0) if candidates else ""
 
     log.info(
@@ -570,10 +880,11 @@ def archive_path_node(state: RCAState, config: RunnableConfig) -> dict:
     )
 
     return {
-        "reasoning_history":  history,
-        "candidate_paths":    candidates,
-        "current_hypothesis": next_hypothesis,
-        "retry_count":        0,
+        "reasoning_history":      history,
+        "candidate_paths":        candidates,
+        "current_hypothesis":     next_hypothesis,
+        "retry_count":            0,
+        "path_confidence_history": [],   # reset per-path history for the new path
     }
 
 
@@ -697,6 +1008,8 @@ def human_review_node(state: RCAState, config: RunnableConfig) -> dict:
         "example_match":      state.get("example_match") or False,
         "matched_example_id": state.get("matched_example_id") or "",
         "no_solution":        no_solution,
+        "edge_log":           list(state.get("edge_log") or []),
+        "hypothesis_sources": state.get("hypothesis_sources") or [],
     }
 
     decision: str = interrupt(payload)
@@ -1015,22 +1328,164 @@ def example_router(state: RCAState) -> str:
     return "skip" if state.get("example_match") else "analyze"
 
 
-def confidence_router(state: RCAState) -> str:
+def _ingestion_failures(state: RCAState) -> list[str]:
+    """Return names of collectors that recorded fallback=True."""
+    stats = state.get("ingestion_stats") or {}
+    return [step for step, s in stats.items() if isinstance(s, dict) and s.get("fallback")]
+
+
+def log_confidence_decision_node(state: RCAState) -> dict:
     """
-    LOW + retries remaining       → retry (same hypothesis, wider BFS)
-    LOW + retries exhausted + more candidates → next_path (switch hypothesis)
-    everything else               → review (human gate)
+    Pre-router node: evaluates the confidence routing logic, writes the
+    decision and its full rationale into edge_log, then stores the chosen
+    edge in _confidence_edge so confidence_router stays a pure reader.
+
+    Probability-aware early switching:
+      If confidence is LOW for >= 2 consecutive retries on the same path,
+      the path probability is declining — switch to the next hypothesis
+      immediately rather than exhausting max_retries on a dead end.
+      This implements a beam-search-like strategy: abandon stagnant paths
+      early to reallocate the retry budget to more promising candidates.
     """
-    confidence = (state.get("confidence") or "").upper()
-    retry      = state.get("retry_count", 0)
+    confidence      = (state.get("confidence") or "").upper()
+    retry           = state.get("retry_count", 0)
+    candidates      = list(state.get("candidate_paths") or [])
+    failures        = _ingestion_failures(state)
+    conf_history    = list(state.get("path_confidence_history") or [])
+
+    # Append current confidence to per-path history
+    conf_history.append(confidence)
+
+    # Detect stagnant/declining probability: LOW on this retry AND previous retry
+    declining = (
+        confidence == "LOW"
+        and len(conf_history) >= 2
+        and conf_history[-2] == "LOW"
+    )
+
     if confidence == "LOW":
-        if retry < MAX_RETRIES:
-            return "retry"
-        if state.get("candidate_paths"):
-            return "next_path"
-    return "review"
+        if declining and candidates:
+            edge   = "next_path"
+            reason = (
+                f"probability declining — LOW×{conf_history.count('LOW')} on this path "
+                f"(retry {retry}), switching to next hypothesis ({len(candidates)} remaining)"
+                + (f"; ingestion failures: {failures}" if failures else "")
+            )
+        elif declining and not candidates:
+            edge   = "review"
+            reason = (
+                f"probability declining — LOW×{conf_history.count('LOW')} and no more "
+                f"candidates — escalating to human review"
+                + (f"; ingestion failures: {failures}" if failures else "")
+            )
+        elif retry < MAX_RETRIES:
+            edge   = "retry"
+            reason = (
+                f"confidence=LOW — retrying with wider context "
+                f"({retry + 1}/{MAX_RETRIES})"
+                + (f"; ingestion failures: {failures}" if failures else "")
+            )
+        elif candidates:
+            edge   = "next_path"
+            reason = (
+                f"confidence=LOW — retries exhausted ({retry}/{MAX_RETRIES}), "
+                f"switching to next hypothesis ({len(candidates)} remaining)"
+                + (f"; ingestion failures: {failures}" if failures else "")
+            )
+        else:
+            edge   = "review"
+            reason = (
+                f"confidence=LOW — retries exhausted ({retry}/{MAX_RETRIES}), "
+                f"no more candidates — escalating to human review"
+                + (f"; ingestion failures: {failures}" if failures else "")
+            )
+    else:
+        edge   = "review"
+        reason = f"confidence={confidence or 'UNKNOWN'} — forwarding to human review"
+
+    entry = {
+        "router":    "confidence",
+        "edge_taken": edge,
+        "reason":    reason,
+        "snapshot": {
+            "confidence":            confidence,
+            "retry_count":           retry,
+            "max_retries":           MAX_RETRIES,
+            "candidates_remaining":  len(candidates),
+            "ingestion_failures":    failures,
+            "path_conf_history":     list(conf_history),
+            "declining":             declining,
+        },
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
+    log.info(
+        "confidence_router → %s%s: %s",
+        edge, " [early-switch]" if declining else "", reason,
+    )
+    edge_log = list(state.get("edge_log") or [])
+    edge_log.append(entry)
+    return {
+        "edge_log":              edge_log,
+        "_confidence_edge":      edge,
+        "path_confidence_history": conf_history,
+    }
+
+
+def confidence_router(state: RCAState) -> str:
+    """Reads the pre-computed edge written by log_confidence_decision_node."""
+    return state.get("_confidence_edge") or "review"
+
+
+def log_human_decision_node(state: RCAState) -> dict:
+    """
+    Pre-router node: evaluates the human routing logic, writes the decision
+    and rationale into edge_log, stores the edge in _human_edge.
+    """
+    decision    = (state.get("human_decision") or "").strip().lower()
+    report_dict = state.get("report_dict") or {}
+    remediation = report_dict.get("remediation") or []
+    confidence  = state.get("confidence", "")
+    dry_runs    = state.get("dry_run_results") or []
+
+    failed_dry  = [r for r in dry_runs if r.get("exit_code", 0) != 0]
+
+    if decision == "approve":
+        edge   = "approve"
+        reason = (
+            f"operator approved {len(remediation)} remediation command(s)"
+            + (f"; {len(failed_dry)} dry-run warning(s)" if failed_dry else "")
+        )
+    else:
+        edge = "reject"
+        if not decision:
+            reason = "no human decision received — defaulting to reject"
+        elif failed_dry:
+            reason = (
+                f"operator rejected — {len(failed_dry)}/{len(dry_runs)} "
+                f"dry-run(s) failed: "
+                + "; ".join(r.get("dry_cmd", "?")[:80] for r in failed_dry[:3])
+            )
+        else:
+            reason = f"operator rejected (confidence={confidence})"
+
+    entry = {
+        "router":     "human",
+        "edge_taken":  edge,
+        "reason":     reason,
+        "snapshot": {
+            "human_decision":     decision or "(none)",
+            "confidence":         confidence,
+            "remediation_count":  len(remediation),
+            "dry_run_failures":   len(failed_dry),
+        },
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
+    log.info("human_router → %s: %s", edge, reason)
+    edge_log = list(state.get("edge_log") or [])
+    edge_log.append(entry)
+    return {"edge_log": edge_log, "_human_edge": edge}
 
 
 def human_router(state: RCAState) -> str:
-    """approve → remediation; anything else → end."""
-    return state.get("human_decision") or "reject"
+    """Reads the pre-computed edge written by log_human_decision_node."""
+    return state.get("_human_edge") or "reject"

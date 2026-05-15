@@ -1,0 +1,19 @@
+{
+  "kind": "Deployment",
+  "metadata": {
+    "name": "frontend",
+    "namespace": "staging",
+    "uid": "dep-staging-frontend-001",
+    "labels": {"app": "frontend", "helm.sh/chart": "frontend-1.5.0"}
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {"matchLabels": {"app": "frontend"}},
+    "strategy": {"type": "RollingUpdate"}
+  },
+  "status": {
+    "replicas": 1,
+    "readyReplicas": 1,
+    "availableReplicas": 1
+  }
+}

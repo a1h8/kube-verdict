@@ -1,0 +1,16 @@
+{
+  "kind": "Pod",
+  "metadata": {
+    "name": "frontend-6c9f8b7d4-xvk2p",
+    "namespace": "staging",
+    "uid": "pod-staging-frontend-6c9f8b7d4-xvk2p",
+    "labels": {"app": "frontend"},
+    "ownerReferences": [{"kind": "ReplicaSet", "name": "frontend-6c9f8b7d4", "controller": true}]
+  },
+  "spec": {"nodeName": "worker-node-01"},
+  "status": {
+    "phase": "Running",
+    "containerStatuses": [{"name": "frontend", "ready": true, "restartCount": 0, "state": {"running": {}}}],
+    "conditions": [{"type": "Ready", "status": "True"}]
+  }
+}

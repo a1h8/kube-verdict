@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka-2
+  namespace: data
+  uid: pod-data-kafka-2
+  labels:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/instance: kafka
+    statefulset.kubernetes.io/pod-name: kafka-2
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    name: kafka
+    uid: sts-data-kafka
+    controller: true
+    blockOwnerDeletion: true
+spec:
+  nodeName: ""
+  serviceAccountName: kafka
+  containers:
+  - name: kafka
+    image: confluentinc/cp-kafka:7.5.0
+    resources:
+      limits:
+        memory: 4Gi
+        cpu: "2"
+      requests:
+        memory: 2Gi
+        cpu: "1"
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: data-kafka-2
+status:
+  phase: Pending
+  containerStatuses: []
+  conditions:
+  - type: PodScheduled
+    status: "False"
+    reason: Unschedulable
+    message: "0/3 nodes are available: 1 node(s) had volume node affinity conflict, 2 node(s) were unschedulable."
+  - type: Ready
+    status: "False"
+    reason: PodNotScheduled
