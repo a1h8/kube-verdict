@@ -12,7 +12,6 @@ The workflow graph is still mocked so no K8s cluster / Ollama is required.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import threading
 import time
@@ -27,10 +26,7 @@ from api.app import app
 from api.models import SessionStatus
 from api.session_store import store as _store
 from tests.integration.api.conftest import (
-    COMPLETED_STATE,
-    REVIEW_PAYLOAD,
     _make_run_graph,
-    _wait_for_status,
 )
 
 # ── Server lifecycle ───────────────────────────────────────────────────────────

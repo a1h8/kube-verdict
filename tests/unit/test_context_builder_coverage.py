@@ -8,9 +8,8 @@ Targets:
 """
 from __future__ import annotations
 
-import pytest
 
-from ontology.entities import Pod, HelmRelease, ResourceKind
+from ontology.entities import Pod, HelmRelease
 from ontology.graph import OntologyGraph
 from rca.context_builder import (
     ContextWindow,

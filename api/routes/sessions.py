@@ -3,7 +3,6 @@ Session lifecycle: create → run → feedback → state / stream.
 """
 from __future__ import annotations
 import asyncio
-import json
 import uuid
 import logging
 from typing import AsyncIterator

@@ -8,12 +8,10 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import patch
 
-import pytest
 
 from api.models import SessionStatus
 from api.session_store import store as _store
 from tests.integration.api.conftest import (
-    COMPLETED_STATE, REVIEW_PAYLOAD,
     _make_run_graph, _wait_for_status,
 )
 
