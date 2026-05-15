@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: kafka-2.scheduling.failed.001
+    namespace: data
+    uid: evt-data-kafka-pvc-001
+  type: Warning
+  reason: FailedScheduling
+  message: "0/3 nodes are available: 1 node(s) had volume node affinity conflict, 2 node(s) were unschedulable."
+  involvedObject:
+    kind: Pod
+    name: kafka-2
+    namespace: data
+  count: 72
+  firstTimestamp: "2026-05-14T09:00:00Z"
+  lastTimestamp: "2026-05-14T13:00:00Z"
+  reportingComponent: default-scheduler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: kafka-2.pvc.affinity.001
+    namespace: data
+    uid: evt-data-kafka-pvc-002
+  type: Warning
+  reason: FailedScheduling
+  message: "persistentvolumeclaim \"data-kafka-2\" is bound to node \"worker-node-01\" which is cordoned and being drained; pod cannot be scheduled"
+  involvedObject:
+    kind: Pod
+    name: kafka-2
+    namespace: data
+  count: 72
+  firstTimestamp: "2026-05-14T09:00:01Z"
+  lastTimestamp: "2026-05-14T13:00:01Z"
+  reportingComponent: default-scheduler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: kafka.rollout.stuck.001
+    namespace: data
+    uid: evt-data-kafka-rollout-001
+  type: Warning
+  reason: ProgressDeadlineExceeded
+  message: "StatefulSet kafka: rolling update is blocked waiting for pod kafka-2 to become ready"
+  involvedObject:
+    kind: StatefulSet
+    name: kafka
+    namespace: data
+  count: 1
+  firstTimestamp: "2026-05-14T09:10:00Z"
+  lastTimestamp: "2026-05-14T09:10:00Z"
+  reportingComponent: statefulset-controller

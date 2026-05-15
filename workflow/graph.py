@@ -94,6 +94,8 @@ from workflow.nodes import (
     hypothesize_node,
     index_node,
     ingest_node,
+    log_confidence_decision_node,
+    log_human_decision_node,
     metrics_node,
     otel_node,
     prometheus_node,
@@ -140,8 +142,10 @@ def build_graph(checkpointer=None) -> StateGraph:
     builder.add_node("archive_path",     archive_path_node)
     builder.add_node("select_best",      select_best_node)
     builder.add_node("dry_run",          dry_run_node)
-    builder.add_node("human_review",     human_review_node)
-    builder.add_node("remediation",      remediation_node)
+    builder.add_node("human_review",             human_review_node)
+    builder.add_node("log_confidence_decision",  log_confidence_decision_node)
+    builder.add_node("log_human_decision",       log_human_decision_node)
+    builder.add_node("remediation",              remediation_node)
     builder.add_node("example_lookup",   example_lookup_node)
     builder.add_node("save_example",     save_example_node)
 
@@ -166,8 +170,9 @@ def build_graph(checkpointer=None) -> StateGraph:
     )
 
     # ── Analysis loop with multi-path fallback ───────────────────────────────
+    builder.add_edge("analyze", "log_confidence_decision")
     builder.add_conditional_edges(
-        "analyze",
+        "log_confidence_decision",
         confidence_router,
         {
             "retry":     "increment_retry",   # same hypothesis, wider BFS
@@ -179,8 +184,9 @@ def build_graph(checkpointer=None) -> StateGraph:
     builder.add_edge("archive_path",    "analyze")
 
     # ── Dry-run then human gate ───────────────────────────────────────────────
-    builder.add_edge("select_best", "dry_run")
-    builder.add_edge("dry_run",     "human_review")
+    builder.add_edge("select_best",  "dry_run")
+    builder.add_edge("dry_run",      "log_human_decision")
+    builder.add_edge("log_human_decision", "human_review")
     builder.add_conditional_edges(
         "human_review",
         human_router,
