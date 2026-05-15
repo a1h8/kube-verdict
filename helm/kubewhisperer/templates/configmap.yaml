@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubewhisperer.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubewhisperer.labels" . | nindent 4 }}
+data:
+  OLLAMA_URL:            {{ .Values.config.ollamaUrl | quote }}
+  OLLAMA_MODEL:          {{ .Values.config.ollamaModel | quote }}
+  OLLAMA_TIMEOUT:        {{ .Values.config.ollamaTimeout | quote }}
+  LOG_LEVEL:             {{ .Values.config.logLevel | quote }}
+  EMBEDDING_MODEL:       {{ .Values.config.embeddingModel | quote }}
+  BFS_MAX_DEPTH:         {{ .Values.config.bfsMaxDepth | quote }}
+  TFIDF_TOP_K:           {{ .Values.config.tfidfTopK | quote }}
+  PROMETHEUS_ENABLED:    {{ .Values.config.prometheusEnabled | quote }}
+  PROMETHEUS_URL:        {{ .Values.config.prometheusUrl | quote }}
+  OTEL_ENABLED:          {{ .Values.config.otelEnabled | quote }}
+  OTEL_BACKEND_URL:      {{ .Values.config.otelBackendUrl | quote }}
+  LOKI_ENABLED:          {{ .Values.config.lokiEnabled | quote }}
+  LOKI_URL:              {{ .Values.config.lokiUrl | quote }}
+  GITOPS_ENABLED:        {{ .Values.config.gitopsEnabled | quote }}
+  GITOPS_REPO_URL:       {{ .Values.config.gitopsRepoUrl | quote }}
+  GITOPS_BRANCH:         {{ .Values.config.gitopsBranch | quote }}
+  GITOPS_CHARTS_PATH:    {{ .Values.config.gitopsChartsPath | quote }}
+  VECTOR_STORE_PATH:     "/data/index.faiss"

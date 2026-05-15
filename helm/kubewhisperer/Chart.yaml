@@ -1,0 +1,12 @@
+apiVersion: v2
+name: kubewhisperer
+description: AI-assisted Kubernetes RCA — logs, traces, alerts, Helm correlation
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - observability
+  - rca
+  - incident-analysis
+home: https://github.com/a1h8/KubeWhisperer
