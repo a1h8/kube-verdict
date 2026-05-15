@@ -61,8 +61,9 @@ jobs:
           path: coverage.xml
 
   # ─────────────────────────────────────────────
-  # Integration tests (no real cluster needed —
-  # uses synthetic_graph fixture + mock LLM)
+  # Integration tests — offline only (no Ollama)
+  # Ollama-requiring tests are marked `integration`
+  # and excluded here; run them locally with Ollama.
   # ─────────────────────────────────────────────
   integration-tests:
     name: Integration tests
@@ -79,9 +80,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run integration tests
+      - name: Run integration tests (offline)
         run: |
-          python -m pytest tests/integration/ \
+          python -m pytest tests/integration/ -m "not integration" \
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
@@ -113,7 +114,7 @@ jobs:
 
       - name: Run all tests and enforce coverage threshold
         run: |
-          python -m pytest \
+          python -m pytest -m "not integration" \
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
