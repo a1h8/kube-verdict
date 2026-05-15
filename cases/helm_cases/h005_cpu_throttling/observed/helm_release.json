@@ -1,0 +1,10 @@
+{
+  "replicaCount": 2,
+  "image": {"repository": "ghcr.io/acme/api-gateway", "tag": "v4.2.0", "pullPolicy": "IfNotPresent"},
+  "resources": {
+    "limits": {"memory": "512Mi", "cpu": "2"},
+    "requests": {"memory": "256Mi", "cpu": "100m"}
+  },
+  "service": {"type": "ClusterIP", "port": 8080},
+  "autoscaling": {"enabled": true, "minReplicas": 2, "maxReplicas": 10, "targetCPUUtilizationPercentage": 70}
+}

@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backend-6b9f7c8d5-mn4pq
+  namespace: staging
+  uid: pod-staging-backend-6b9f7c8d5-mn4pq
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/instance: backend
+    pod-template-hash: 6b9f7c8d5
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: backend-6b9f7c8d5
+    uid: rs-staging-backend-6b9f7c8d5
+    controller: true
+    blockOwnerDeletion: true
+spec:
+  nodeName: worker-node-03
+  serviceAccountName: backend
+  initContainers:
+  - name: db-migrate
+    image: ghcr.io/acme/backend-migrate:5.3.2
+    command: ["alembic", "upgrade", "head"]
+    env:
+    - name: DATABASE_URL
+      value: "postgresql://backend:secret@db-primary.staging.svc.cluster.local:5432/backend"
+  containers:
+  - name: backend
+    image: ghcr.io/acme/backend:5.3.2
+    resources:
+      limits:
+        memory: 512Mi
+        cpu: "1"
+      requests:
+        memory: 256Mi
+        cpu: 100m
+status:
+  phase: Pending
+  initContainerStatuses:
+  - name: db-migrate
+    ready: false
+    restartCount: 3
+    state:
+      waiting:
+        reason: CrashLoopBackOff
+        message: "back-off 1m20s restarting failed container=db-migrate"
+    lastState:
+      terminated:
+        exitCode: 1
+        reason: Error
+        finishedAt: "2026-05-14T11:30:00Z"
+  containerStatuses: []
+  conditions:
+  - type: Initialized
+    status: "False"
+    reason: ContainersNotInitialized
+  - type: Ready
+    status: "False"

@@ -1,0 +1,12 @@
+{
+  "scenario": "ResourceQuota exceeded — pod stuck Pending because namespace quota is full",
+  "namespace": "staging",
+  "release": "worker-service",
+  "affected_resources": ["Pod/staging/worker-service-7d8f9c6b5-xp2qr"],
+  "root_cause_contains": ["quota", "resource", "limit", "pending", "exceeded"],
+  "fix_commands_contain": ["kubectl", "quota"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.35,
+  "fallback_expected": false,
+  "notes": "Namespace 'staging' has a ResourceQuota capping total CPU requests at 4 cores. Existing pods already consume 3.8 cores. worker-service requests 500m CPU per replica (replicaCount=2 → 1 CPU total). Pod stays Pending with FailedScheduling event citing exceeded quota. Fix: increase quota or reduce resource requests."
+}

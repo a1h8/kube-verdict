@@ -1,0 +1,12 @@
+{
+  "scenario": "Service port mismatch — targetPort drift (8080 declared, 9090 deployed)",
+  "namespace": "production",
+  "release": "order-service",
+  "affected_resources": ["Deployment/production/order-service"],
+  "root_cause_contains": ["port", "targetPort", "8080", "9090", "drift", "mismatch"],
+  "fix_commands_contain": ["helm upgrade", "service.targetPort"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.36,
+  "fallback_expected": false,
+  "notes": "Service targetPort drift: values.yaml declares 8080 but was overridden to 9090. Service routes traffic to wrong port → connection refused. Fix: helm upgrade restoring targetPort=8080."
+}

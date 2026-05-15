@@ -1,0 +1,25 @@
+{
+  "kind": "EventList",
+  "items": [
+    {
+      "metadata": {"name": "worker-pull.7x8y9z", "namespace": "production", "uid": "evt-imagepull-worker"},
+      "involvedObject": {"kind": "Pod", "name": "worker-59f7b6c4d-lm7nk", "namespace": "production"},
+      "reason": "Failed",
+      "message": "Failed to pull image \"ghcr.io/acme/worker:v9.9.9\": rpc error: code = NotFound desc = failed to pull and unpack image: not found",
+      "type": "Warning",
+      "count": 5,
+      "firstTimestamp": "2026-05-14T12:00:00Z",
+      "lastTimestamp": "2026-05-14T12:30:00Z"
+    },
+    {
+      "metadata": {"name": "worker-backoff.4d5e6f", "namespace": "production", "uid": "evt-imagepullbackoff-worker"},
+      "involvedObject": {"kind": "Pod", "name": "worker-59f7b6c4d-lm7nk", "namespace": "production"},
+      "reason": "BackOff",
+      "message": "Back-off pulling image \"ghcr.io/acme/worker:v9.9.9\"",
+      "type": "Warning",
+      "count": 5,
+      "firstTimestamp": "2026-05-14T12:05:00Z",
+      "lastTimestamp": "2026-05-14T12:30:00Z"
+    }
+  ]
+}

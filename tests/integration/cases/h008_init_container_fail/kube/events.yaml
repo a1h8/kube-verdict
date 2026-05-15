@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: backend-init.fail.001
+    namespace: staging
+    uid: evt-staging-init-fail-001
+  type: Warning
+  reason: BackOff
+  message: "Back-off restarting failed container db-migrate in pod backend-6b9f7c8d5-mn4pq_staging"
+  involvedObject:
+    kind: Pod
+    name: backend-6b9f7c8d5-mn4pq
+    namespace: staging
+  count: 3
+  firstTimestamp: "2026-05-14T11:00:00Z"
+  lastTimestamp: "2026-05-14T11:30:00Z"
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: backend-init.failed.002
+    namespace: staging
+    uid: evt-staging-init-fail-002
+  type: Warning
+  reason: Failed
+  message: "Error: container db-migrate in pod backend-6b9f7c8d5-mn4pq exited with code 1: FATAL: database migration failed — relation 'user_tokens' does not exist"
+  involvedObject:
+    kind: Pod
+    name: backend-6b9f7c8d5-mn4pq
+    namespace: staging
+  count: 3
+  firstTimestamp: "2026-05-14T11:00:05Z"
+  lastTimestamp: "2026-05-14T11:30:05Z"
+  reportingComponent: kubelet

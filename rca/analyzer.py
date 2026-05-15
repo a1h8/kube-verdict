@@ -133,6 +133,11 @@ class RCAReport:
                 "retrieval": self.context.retrieval_stats,
                 "jaccard": self.context.jaccard_stats,
             },
+            "events":            list(self.context.events),
+            "traces":            list(self.context.traces),
+            "alerts":            list(self.context.alerts),
+            "anchor_fixes":      list(self.context.anchor_fixes),
+            "policy_violations": list(self.context.policy_violations),
             "pre_llm_confidence": (
                 {
                     "score": self.context.pre_llm_confidence.score,

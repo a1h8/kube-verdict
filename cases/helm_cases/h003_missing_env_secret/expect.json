@@ -1,0 +1,12 @@
+{
+  "scenario": "CrashLoopBackOff — env var from missing Secret",
+  "namespace": "production",
+  "release": "payment-api",
+  "affected_resources": ["Pod/production/payment-api-7d9f6b8c5-qr3sx"],
+  "root_cause_contains": ["secret", "payment-db-creds", "not found", "env", "missing"],
+  "fix_commands_contain": ["kubectl", "secret"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.44,
+  "fallback_expected": false,
+  "notes": "Container references envFrom secretRef payment-db-creds which does not exist. Pod restart loop. No Helm drift — pure runtime secret management issue."
+}

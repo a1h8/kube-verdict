@@ -1,0 +1,25 @@
+{
+  "kind": "EventList",
+  "items": [
+    {
+      "metadata": {"name": "payment-api-secret.1z2y3x", "namespace": "production", "uid": "evt-secret-notfound"},
+      "involvedObject": {"kind": "Pod", "name": "payment-api-7d9f6b8c5-qr3sx", "namespace": "production"},
+      "reason": "Failed",
+      "message": "Error: secret \"payment-db-creds\" not found",
+      "type": "Warning",
+      "count": 12,
+      "firstTimestamp": "2026-05-14T10:00:00Z",
+      "lastTimestamp": "2026-05-14T11:00:00Z"
+    },
+    {
+      "metadata": {"name": "payment-api-backoff.4a5b6c", "namespace": "production", "uid": "evt-backoff-payment"},
+      "involvedObject": {"kind": "Pod", "name": "payment-api-7d9f6b8c5-qr3sx", "namespace": "production"},
+      "reason": "BackOff",
+      "message": "Back-off restarting failed container payment-api",
+      "type": "Warning",
+      "count": 12,
+      "firstTimestamp": "2026-05-14T10:01:00Z",
+      "lastTimestamp": "2026-05-14T11:00:00Z"
+    }
+  ]
+}

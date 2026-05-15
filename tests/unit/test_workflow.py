@@ -15,6 +15,7 @@ from workflow.graph import build_graph
 from workflow.nodes import (
     anchor_node, archive_path_node, confidence_router, human_router,
     hypothesize_node, select_best_node,
+    log_confidence_decision_node, log_human_decision_node,
     MAX_RETRIES, MAX_PATHS,
 )
 from workflow.state import RCAState
@@ -74,28 +75,25 @@ LOW — insufficient context.
 
 
 def _make_llm(response):
-    """LLM mock: first call (hypothesize) returns valid H1/H2/H3 lines;
-    all subsequent calls return the given analysis response."""
+    """LLM mock: all calls return the given analysis response.
+    hypothesize_node fills the pool from rules+ontology (no LLM needed)
+    when synthetic_graph has sufficient signals."""
     llm = MagicMock()
     llm.is_available.return_value = True
     llm.model_is_pulled.return_value = True
     llm.model = "mistral"
-    _n = [0]
-    def _gen(_prompt, **_kw):
-        _n[0] += 1
-        return _CANNED_HYPOTHESES if _n[0] == 1 else response
-    llm.generate.side_effect = _gen
+    llm.generate.return_value = response
     return llm
 
 
 def _make_llm_sequence(*responses):
-    """LLM mock: prepends a hypothesis response so hypothesize_node gets valid H1/H2/H3 lines;
-    the caller-supplied responses are then consumed by analyze_node calls."""
+    """LLM mock: responses are consumed in order by analyze_node calls.
+    hypothesize_node does not call the LLM when evidence fills the pool."""
     llm = MagicMock()
     llm.is_available.return_value = True
     llm.model_is_pulled.return_value = True
     llm.model = "mistral"
-    llm.generate.side_effect = [_CANNED_HYPOTHESES] + list(responses)
+    llm.generate.side_effect = list(responses)
     return llm
 
 
@@ -130,46 +128,137 @@ def _initial_state() -> RCAState:
 # Routing functions
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _route_confidence(state: dict) -> str:
+    """Helper: run log_confidence_decision_node then confidence_router (the real pipeline)."""
+    merged = {**state, **log_confidence_decision_node(state)}
+    return confidence_router(merged)
+
+
+def _route_human(state: dict) -> str:
+    """Helper: run log_human_decision_node then human_router (the real pipeline)."""
+    merged = {**state, **log_human_decision_node(state)}
+    return human_router(merged)
+
+
 class TestConfidenceRouter:
     def test_low_with_retries_remaining(self):
-        assert confidence_router({"confidence": "LOW", "retry_count": 0}) == "retry"
+        assert _route_confidence({"confidence": "LOW", "retry_count": 0}) == "retry"
 
     def test_low_at_max_retries_no_candidates(self):
-        assert confidence_router({"confidence": "LOW", "retry_count": MAX_RETRIES}) == "review"
+        assert _route_confidence({"confidence": "LOW", "retry_count": MAX_RETRIES}) == "review"
 
     def test_low_at_max_retries_with_candidates(self):
         state = {"confidence": "LOW", "retry_count": MAX_RETRIES, "candidate_paths": ["H2: something"]}
-        assert confidence_router(state) == "next_path"
+        assert _route_confidence(state) == "next_path"
 
     def test_low_at_max_retries_empty_candidates(self):
         state = {"confidence": "LOW", "retry_count": MAX_RETRIES, "candidate_paths": []}
-        assert confidence_router(state) == "review"
+        assert _route_confidence(state) == "review"
 
     def test_medium_goes_to_review(self):
-        assert confidence_router({"confidence": "MEDIUM", "retry_count": 0}) == "review"
+        assert _route_confidence({"confidence": "MEDIUM", "retry_count": 0}) == "review"
 
     def test_high_goes_to_review(self):
-        assert confidence_router({"confidence": "HIGH", "retry_count": 0}) == "review"
+        assert _route_confidence({"confidence": "HIGH", "retry_count": 0}) == "review"
 
     def test_empty_confidence_goes_to_review(self):
-        assert confidence_router({"confidence": "", "retry_count": 0}) == "review"
+        assert _route_confidence({"confidence": "", "retry_count": 0}) == "review"
 
     def test_low_just_before_max_still_retries(self):
-        assert confidence_router({"confidence": "LOW", "retry_count": MAX_RETRIES - 1}) == "retry"
+        assert _route_confidence({"confidence": "LOW", "retry_count": MAX_RETRIES - 1}) == "retry"
+
+    def test_log_node_writes_edge_log_entry(self):
+        result = log_confidence_decision_node({"confidence": "LOW", "retry_count": 0})
+        assert result["_confidence_edge"] == "retry"
+        assert len(result["edge_log"]) == 1
+        assert result["edge_log"][0]["router"] == "confidence"
+
+    # ── Probability-decline / early-switch tests ──────────────────────────────
+
+    def test_declining_probability_switches_early_with_candidates(self):
+        # LOW × 2 consecutive on same path → switch without exhausting max_retries
+        state = {
+            "confidence": "LOW",
+            "retry_count": 1,
+            "candidate_paths": ["H2: something"],
+            "path_confidence_history": ["LOW"],   # previous retry was also LOW
+        }
+        assert _route_confidence(state) == "next_path"
+
+    def test_declining_probability_goes_review_without_candidates(self):
+        state = {
+            "confidence": "LOW",
+            "retry_count": 1,
+            "candidate_paths": [],
+            "path_confidence_history": ["LOW"],
+        }
+        assert _route_confidence(state) == "review"
+
+    def test_single_low_still_retries(self):
+        # First LOW retry — no history yet, not declining
+        state = {
+            "confidence": "LOW",
+            "retry_count": 0,
+            "candidate_paths": ["H2: something"],
+            "path_confidence_history": [],
+        }
+        assert _route_confidence(state) == "retry"
+
+    def test_snapshot_includes_declining_flag(self):
+        state = {
+            "confidence": "LOW",
+            "retry_count": 1,
+            "candidate_paths": ["H2"],
+            "path_confidence_history": ["LOW"],
+        }
+        result = log_confidence_decision_node(state)
+        snapshot = result["edge_log"][-1]["snapshot"]
+        assert snapshot["declining"] is True
+
+    def test_path_confidence_history_appended(self):
+        state = {
+            "confidence": "LOW",
+            "retry_count": 0,
+            "path_confidence_history": ["LOW"],
+        }
+        result = log_confidence_decision_node(state)
+        assert result["path_confidence_history"] == ["LOW", "LOW"]
+
+    def test_path_confidence_history_reset_on_archive(self, synthetic_graph, store):
+        # archive_path_node resets path_confidence_history for the new path
+        state: RCAState = {
+            "current_hypothesis":      "H1: PVC stuck",
+            "candidate_paths":         ["H2: image drift"],
+            "confidence":              "LOW",
+            "retry_count":             1,
+            "path_confidence_history": ["LOW", "LOW"],
+            "reasoning_history":       [],
+            "report_dict":             {},
+            "raw_analysis":            "",
+        }
+        cfg_ = {"configurable": {"store": store}}
+        result = archive_path_node(state, cfg_)
+        assert result["path_confidence_history"] == []
 
 
 class TestHumanRouter:
     def test_approve(self):
-        assert human_router({"human_decision": "approve"}) == "approve"
+        assert _route_human({"human_decision": "approve"}) == "approve"
 
     def test_reject(self):
-        assert human_router({"human_decision": "reject"}) == "reject"
+        assert _route_human({"human_decision": "reject"}) == "reject"
 
     def test_empty_string_defaults_to_reject(self):
-        assert human_router({"human_decision": ""}) == "reject"
+        assert _route_human({"human_decision": ""}) == "reject"
 
     def test_missing_key_defaults_to_reject(self):
-        assert human_router({}) == "reject"
+        assert _route_human({}) == "reject"
+
+    def test_log_node_writes_edge_log_entry(self):
+        result = log_human_decision_node({"human_decision": "approve"})
+        assert result["_human_edge"] == "approve"
+        assert len(result["edge_log"]) == 1
+        assert result["edge_log"][0]["router"] == "human"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -264,8 +353,8 @@ class TestWorkflowRetry:
 
         list(compiled.stream(_initial_state(), config=cfg_))
 
-        # hypothesize(1) + analyze_low(1) + analyze_high(1) = 3 LLM calls
-        assert llm.generate.call_count == 3
+        # analyze_low(1) + analyze_high(1) = 2 LLM calls (hypothesize uses evidence-first)
+        assert llm.generate.call_count == 2
 
     def test_after_retry_confidence_is_high(self, synthetic_graph, store):
         llm = _make_llm_sequence(_CANNED_LOW, _CANNED_HIGH)
@@ -279,8 +368,8 @@ class TestWorkflowRetry:
 
     def test_max_retries_not_exceeded(self, synthetic_graph, store):
         # Always LOW — exhausts all paths then escalates to human_review.
-        # Budget: 1 hypothesize + (MAX_RETRIES+1) analyze calls × MAX_PATHS paths
-        budget = 1 + (MAX_RETRIES + 1) * MAX_PATHS
+        # Budget: (MAX_RETRIES+1) analyze calls × MAX_PATHS paths
+        budget = (MAX_RETRIES + 1) * MAX_PATHS
         llm = _make_llm_sequence(*([_CANNED_LOW] * (budget + 5)))
         compiled = build_graph()
         cfg_ = _config("t-max-retry", synthetic_graph, store, llm)
@@ -290,7 +379,6 @@ class TestWorkflowRetry:
 
         # Still reaches human_review despite persistent LOW confidence
         assert len(interrupt_events) == 1
-        # Total LLM calls bounded by 1 (hypothesize) + analysis budget
         assert llm.generate.call_count <= budget
 
 
@@ -389,11 +477,17 @@ class TestAnchorNode:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestHypothesizeNode:
+    """
+    hypothesize_node is evidence-first: KB examples → RemediationEngine →
+    ontology chains → LLM fill-in only when pool < MAX_PATHS.
+    """
 
-    def _cfg(self, graph, llm=None):
+    def _cfg(self, graph, llm=None, store=None):
         c = {"configurable": {"graph": graph}}
         if llm is not None:
             c["configurable"]["llm"] = llm
+        if store is not None:
+            c["configurable"]["store"] = store
         return c
 
     def _llm_with(self, response):
@@ -404,57 +498,92 @@ class TestHypothesizeNode:
         llm.generate.return_value = response
         return llm
 
-    def test_parses_h1_h2_h3_lines(self, synthetic_graph):
+    def _empty_graph(self):
+        """Graph with no unhealthy entities — rules find nothing, LLM is the only source."""
+        from ontology.graph import OntologyGraph
+        from ontology.entities import Pod
+        g = OntologyGraph()
+        g.add_entity(Pod(uid="p-ok", name="healthy", namespace="prod", phase="Running"))
+        return g
+
+    # ── Evidence-first behaviour ──────────────────────────────────────────────
+
+    def test_evidence_hypotheses_take_priority_over_llm(self, synthetic_graph):
+        """Rule engine finds drift/unhealthy entities → those hypotheses rank first."""
         llm = self._llm_with(_CANNED_HYPOTHESES)
         result = hypothesize_node({"query": "pods crashing"}, self._cfg(synthetic_graph, llm))
         assert result.get("current_hypothesis")
+        # Must not be the empty-result fallback
         assert "candidate_paths" in result
-        assert len(result["candidate_paths"]) == 2
-
-    def test_first_hypothesis_set_as_current(self, synthetic_graph):
-        llm = self._llm_with(_CANNED_HYPOTHESES)
-        result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
-        assert result["current_hypothesis"] == (
-            "Pod api-xyz CrashLoopBackOff — container cannot start due to missing volume mount"
-        )
 
     def test_candidate_paths_capped_at_max_paths(self, synthetic_graph):
-        extra = _CANNED_HYPOTHESES + "H4: extra hypothesis beyond cap\n"
-        llm = self._llm_with(extra)
+        llm = self._llm_with(_CANNED_HYPOTHESES)
         result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
         total = 1 + len(result.get("candidate_paths") or [])
         assert total <= MAX_PATHS
 
-    def test_skips_when_no_graph(self):
+    def test_hypothesis_sources_populated_when_rules_match(self, synthetic_graph):
+        """Rule engine hits are stored in hypothesis_sources for UI display."""
         llm = self._llm_with(_CANNED_HYPOTHESES)
-        assert hypothesize_node({}, {"configurable": {"llm": llm}}) == {}
+        result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
+        sources = result.get("hypothesis_sources") or []
+        assert isinstance(sources, list)
+        # synthetic_graph has drift annotations → at least one rule fires
+        assert len(sources) >= 1
+        assert "rule_id" in sources[0]
+        assert "weight" in sources[0]
 
     def test_resets_reasoning_history(self, synthetic_graph):
         llm = self._llm_with(_CANNED_HYPOTHESES)
         result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
         assert result["reasoning_history"] == []
 
-    def test_parses_numbered_list_format(self, synthetic_graph):
+    def test_skips_when_no_graph(self):
+        llm = self._llm_with(_CANNED_HYPOTHESES)
+        assert hypothesize_node({}, {"configurable": {"llm": llm}}) == {}
+
+    # ── LLM fill-in (empty graph — no evidence from rules/ontology) ───────────
+
+    def test_llm_used_when_no_evidence_available(self):
+        """With no unhealthy entities and no store, LLM provides all hypotheses."""
+        llm = self._llm_with(_CANNED_HYPOTHESES)
+        result = hypothesize_node({"query": "pods crashing"}, self._cfg(self._empty_graph(), llm))
+        assert result.get("current_hypothesis")
+        assert len(result.get("candidate_paths") or []) >= 1
+
+    def test_llm_fill_in_uses_h1_h2_h3_format(self):
+        """LLM-sourced hypotheses on empty graph: first parsed line becomes H1."""
+        llm = self._llm_with(_CANNED_HYPOTHESES)
+        result = hypothesize_node({"query": "q"}, self._cfg(self._empty_graph(), llm))
+        # H1 from canned response
+        assert result["current_hypothesis"] == (
+            "Pod api-xyz CrashLoopBackOff — container cannot start due to missing volume mount"
+        )
+
+    def test_llm_fill_in_parses_numbered_list(self):
         numbered = "1. OOM kill in api-xyz container\n2. PVC pending — no PV available\n3. Deployment replica drift"
         llm = self._llm_with(numbered)
-        result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
+        result = hypothesize_node({"query": "q"}, self._cfg(self._empty_graph(), llm))
         assert result.get("current_hypothesis") == "OOM kill in api-xyz container"
 
-    def test_parses_bullet_list_format(self, synthetic_graph):
+    def test_llm_fill_in_parses_bullet_list(self):
         bullets = "- CrashLoopBackOff in api container\n- Missing ConfigMap env vars\n- Image pull error"
         llm = self._llm_with(bullets)
-        result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
+        result = hypothesize_node({"query": "q"}, self._cfg(self._empty_graph(), llm))
         assert result.get("current_hypothesis") == "CrashLoopBackOff in api container"
 
-    def test_fallback_when_llm_returns_no_h_lines(self, synthetic_graph):
-        llm = self._llm_with("I cannot determine the root cause.")
-        result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
-        assert result == {}
-
-    def test_fallback_when_llm_raises(self, synthetic_graph):
+    def test_evidence_returned_even_when_llm_fails(self, synthetic_graph):
+        """LLM raises but rule engine found evidence — node still returns hypotheses."""
         llm = self._llm_with("")
         llm.generate.side_effect = RuntimeError("Ollama unavailable")
         result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
+        # synthetic_graph has drift entities → rules fire → result not empty
+        assert result.get("current_hypothesis")
+
+    def test_empty_graph_llm_garbage_returns_empty(self):
+        """No evidence + LLM returns unparseable output → single-path fallback."""
+        llm = self._llm_with("I cannot determine the root cause.")
+        result = hypothesize_node({"query": "q"}, self._cfg(self._empty_graph(), llm))
         assert result == {}
 
 
@@ -629,6 +758,25 @@ class TestWorkflowMultiPath:
         payload = [e for e in events if "__interrupt__" in e][0]["__interrupt__"][0].value
 
         assert payload["confidence"].upper().startswith("HIGH")
+
+    def test_interrupt_payload_contains_edge_log(self, synthetic_graph, store):
+        llm = _make_llm(_CANNED_HIGH)
+        compiled = build_graph()
+        cfg_ = _config("t-edge-log", synthetic_graph, store, llm)
+
+        events = list(compiled.stream(_initial_state(), config=cfg_))
+        payload = [e for e in events if "__interrupt__" in e][0]["__interrupt__"][0].value
+
+        assert "edge_log" in payload
+        assert isinstance(payload["edge_log"], list)
+        assert len(payload["edge_log"]) >= 1
+        # At least one confidence router decision must be present
+        conf_entries = [e for e in payload["edge_log"] if e["router"] == "confidence"]
+        assert len(conf_entries) >= 1
+        entry = conf_entries[0]
+        assert entry["edge_taken"] in ("retry", "next_path", "review")
+        assert "reason" in entry
+        assert "snapshot" in entry
 
 
 # ─────────────────────────────────────────────────────────────────────────────

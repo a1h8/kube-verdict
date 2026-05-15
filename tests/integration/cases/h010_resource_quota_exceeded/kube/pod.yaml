@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: worker-service-7d8f9c6b5-xp2qr
+  namespace: staging
+  uid: pod-staging-worker-service-7d8f9c6b5-xp2qr
+  labels:
+    app.kubernetes.io/name: worker-service
+    app.kubernetes.io/instance: worker-service
+    pod-template-hash: 7d8f9c6b5
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: worker-service-7d8f9c6b5
+    uid: rs-staging-worker-service-7d8f9c6b5
+    controller: true
+    blockOwnerDeletion: true
+spec:
+  nodeName: ""
+  serviceAccountName: worker-service
+  containers:
+  - name: worker-service
+    image: ghcr.io/acme/worker-service:1.4.0
+    resources:
+      limits:
+        memory: 256Mi
+        cpu: "1"
+      requests:
+        memory: 128Mi
+        cpu: 500m
+status:
+  phase: Pending
+  containerStatuses: []
+  conditions:
+  - type: PodScheduled
+    status: "False"
+    reason: Unschedulable
+    message: "0/3 nodes are available: 3 Insufficient cpu. preemption: 0/3 nodes are available: 3 No preemption victims found for incoming pod."
+  - type: Ready
+    status: "False"
+    reason: PodNotScheduled
