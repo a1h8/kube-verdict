@@ -1,0 +1,12 @@
+{
+  "scenario": "Replica mismatch — values.yaml declares 3 replicas, deployed with 1",
+  "namespace": "staging",
+  "release": "frontend",
+  "affected_resources": ["Deployment/staging/frontend"],
+  "root_cause_contains": ["replica", "replicaCount", "drift", "3", "1"],
+  "fix_commands_contain": ["helm upgrade", "replicaCount"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.38,
+  "fallback_expected": false,
+  "notes": "ReplicaCount drift (3 declared → 1 deployed). No pod failures — service is degraded."
+}

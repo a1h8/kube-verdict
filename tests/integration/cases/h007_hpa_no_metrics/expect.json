@@ -1,0 +1,12 @@
+{
+  "scenario": "HPA cannot scale — metrics-server not returning pod metrics",
+  "namespace": "production",
+  "release": "api-service",
+  "affected_resources": ["Deployment/production/api-service"],
+  "root_cause_contains": ["HPA", "metrics", "unavailable", "cpu", "autoscaling"],
+  "fix_commands_contain": ["kubectl", "metrics-server", "HorizontalPodAutoscaler"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.38,
+  "fallback_expected": false,
+  "notes": "HPA target is api-service but metrics-server cannot retrieve CPU metrics (pod-level metrics not available). HPA is stuck at minReplicas=2. Under load, pods are not scaled out. Fix: verify metrics-server is running, check RBAC, or re-deploy metrics-server."
+}

@@ -81,7 +81,18 @@ KubeWhisperer is a local, air-gapped Kubernetes RCA tool. No cluster data ever l
 │  Vector store                                                         │
 │                                                                       │
 │  Embedder (all-MiniLM-L6-v2)  →  FAISSStore (IndexFlatIP, L2 norm)    │
-│  Indexes entity text including anchor.*, gitops.*, signal.* tokens    │
+│  index_graph()          — all entities (anchor.*, gitops.*, signal.*) │
+│  index_anchor_violations() — each anchor drift field as a separate    │
+│                              doc_source="anchor" entry (×1.6 weight)  │
+│                                                                       │
+│  Hybrid retrieval:                                                    │
+│    hybrid_search(query) = FAISS dense + BM25Okapi sparse              │
+│                           → rrf_fuse() → SOURCE_WEIGHTS boost         │
+│    SOURCE_WEIGHTS: cluster=1.0  official=1.0  example=1.2             │
+│                    anchor=1.6   enterprise=1.5  runbook=1.8           │
+│                                                                       │
+│  BM25Retriever — Okapi BM25 over entity texts (k1=1.5, b=0.75)        │
+│  Anchor hits naturally surface above plain cluster entities           │
 └─────────────────────────────┬─────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼─────────────────────────────────────────┐
@@ -141,33 +152,102 @@ ingest          K8s API + Helm + Helmfile → OntologyGraph
   │
 metrics         MetricsServerCollector → metrics.cpu_m / metrics.memory_mi on pods
   │             (opt-in: METRICS_SERVER_ENABLED=true)
-prometheus      PrometheusCollector → firing alerts → alert.* annotations + PrometheusAlert nodes
+prometheus      PrometheusCollector → firing alerts → alert.* annotations
   │             (opt-in: PROMETHEUS_ENABLED=true)
 otel            OtelCollector (Tempo/Jaeger) + LokiSource → HAS_TRACE / HAS_LOG edges
   │             (opt-in: OTEL_ENABLED=true, LOKI_ENABLED=true)
 gitops          GitopsCollector → ManifestRenderer → ManifestDiffer
-  │             Stores GitProvider in config["configurable"]["provider"]
   │             (skipped when GITOPS_ENABLED=false or no GITOPS_REPO_URL)
 anchor          AnchorEngine → K8s schema + rendered manifests → anchor.*
-  │             Reuses provider from gitops (no second git clone)
-  │             Runs even when gitops is disabled (K8s schema anchors only)
+  │
 index           embed entities → FAISSStore
-  │             (anchor.*, gitops.*, drift.*, signal.* all indexed)
+  │             + index_anchor_violations() → doc_source="anchor" entries (×1.6 weight)
 signal_analysis PatchTST anomaly detection → signal.* annotations
   │
+hypothesize     Evidence-first — LLM only fills remaining slots (see below)
+  │
+example_lookup  hybrid_search → score ≥ 0.65 → skip analyze loop (known fix)
+  ├─ "skip"  ──────────────────────────────────────────────────► select_best
+  └─ "analyze"
+       │
 analyze   ◄─────────────────────────────────────────┐
   │                                                  │ retry
-confidence_router                                    │ (LOW confidence,
-  ├─ "retry" ──► increment_retry ────────────────────┘  < MAX_RETRIES)
-  │              (BFS depth widens by 1 each retry)
-  └─ "review"
+log_confidence_decision ──► confidence_router        │ (BFS depth widens by 1)
+  ├─ "retry"     LOW × 1, not yet declining ─────────┘
+  ├─ "next_path" LOW × 2 (declining) or retries exhausted + candidates remain
+  │                   ──► archive_path (re-rank candidates) ──► analyze (new H)
+  └─ "review"    HIGH/MEDIUM  or  LOW + no candidates left
        │
-human_review    [INTERRUPT — waits for operator decision]
+dry_run         Each remediation command executed in dry-run mode
   │
-human_router
-  ├─ "approve" ──► remediation ──► END
-  └─ "reject"  ──────────────────► END
+select_best     Restore highest-confidence path from reasoning_history
+  │
+human_review    [INTERRUPT — operator sees: report + dry-run + edge_log + sources]
+  │
+log_human_decision ──► human_router
+  ├─ "approve" ──► remediation ──► save_example ──► END
+  └─ "reject"  ──────────────────────────────────► END
 ```
+
+### Evidence-first hypothesis generation (`hypothesize_node`)
+
+The LLM is a **next-token predictor over the top-k context window** — it does not reason from scratch. Hypotheses are built from structured evidence in probability order:
+
+```
+Phase 1+2b  hybrid_search(query, top_k=10)          ← single FAISS+BM25+RRF call
+            ├─ uid starts with "example:"  → extract Hypothesis: field
+            │   weight = cosine_score + 1.0  (proven resolutions win)
+            └─ uid starts with "anchor:"   → _anchor_hit_to_hypothesis(text)
+                weight = 0.88             (manifest drift evidence)
+
+Phase 2     RemediationEngine.score(graph)[:5]
+            weight = rule.weight (0.60–0.95, deterministic)
+
+Phase 3     OntologyGraph causal chains
+            Pod → USES_PVC    → PVC Pending/Failed    weight=0.85+0.10
+            Pod → MOUNTS_SECRET → Secret missing      weight=0.82+0.10
+            Pod → MOUNTS_CONFIGMAP → CM missing       weight=0.80+0.10
+            Pod → DRIFTS_FROM → HelmRelease drift     weight=0.78
+            …
+
+Phase 4     LLM fill-in  ← only if pool < MAX_PATHS (3)
+```
+
+H1 = highest-probability path, H2/H3 = fallbacks explored if confidence declines.
+
+### Beam search confidence routing
+
+```
+path_confidence_history = []   ← reset at each path switch
+
+analyze → conf=LOW  → history=["LOW"]       → retry (BFS+1, context widens)
+analyze → conf=LOW  → history=["LOW","LOW"] → declining=True
+                                            → next_path IMMEDIATELY
+                                            (don't wait for max_retries)
+
+archive_path:
+  1. Archive failed hypothesis + analysis into reasoning_history
+  2. _rerank_candidates(): hybrid_search on failed raw_analysis
+     → signal tokens from top-k → re-score remaining candidates
+     → highest-overlap candidate becomes new H1
+  3. Reset path_confidence_history = []
+```
+
+The global probability is maximised by abandoning stagnant paths early and re-ranking remaining candidates with the evidence accumulated so far.
+
+### FastAPI REST API (`api/`)
+
+```
+POST   /api/v1/sessions              Create session
+POST   /api/v1/sessions/{id}/run     Start analysis (async, background task)
+GET    /api/v1/sessions/{id}/state   Poll current state
+GET    /api/v1/sessions/{id}/stream  SSE stream (one JSON event per state update)
+POST   /api/v1/sessions/{id}/feedback  approve | reject | extra_context re-run
+DELETE /api/v1/sessions/{id}         Clean up
+GET    /api/v1/health
+```
+
+`SessionState` response includes: `reasoning_history`, `hypothesis_sources`, `path_confidence_history`, `edge_log` (router decisions with `declining` flag), `dry_run_results`, `review_payload`.
 
 The `gitops` node auto-detects provider from `GITOPS_REPO_URL`:
 - `https://github.com/…` → `GithubProvider` (REST API, no local clone, needs `GITHUB_TOKEN`)
@@ -183,10 +263,18 @@ Heavy objects (`OntologyGraph`, `FAISSStore`, `GitProvider`) are **never stored 
 | `raw_analysis` | str | Full LLM response text |
 | `confidence` | str | `HIGH` / `MEDIUM` / `LOW` |
 | `report_dict` | dict | Parsed report fields |
-| `retry_count` | int | Incremented each retry loop |
+| `retry_count` | int | Incremented each retry on current path |
 | `human_decision` | str | `approve` or `reject` |
 | `kube_version` | str | Detected server version |
 | `error` | str | Node error (if any) |
+| `candidate_paths` | list[str] | Remaining hypotheses to explore (FIFO) |
+| `current_hypothesis` | str | Hypothesis under analysis |
+| `reasoning_history` | list[dict] | Archived paths: step, hypothesis, confidence, summary |
+| `hypothesis_sources` | list[dict] | Rule/anchor/ontology evidence behind each hypothesis |
+| `path_confidence_history` | list[str] | Confidence sequence for current path (beam search) |
+| `edge_log` | list[dict] | Router decisions: router, edge_taken, reason, snapshot, ts |
+| `dry_run_results` | list[dict] | Dry-run output per remediation command |
+| `example_match` | bool | True when example_lookup short-circuited the analyze loop |
 
 ## Key components
 
@@ -235,7 +323,9 @@ Heavy objects (`OntologyGraph`, `FAISSStore`, `GitProvider`) are **never stored 
 | File | Purpose |
 |---|---|
 | `embedder.py` | `sentence-transformers/all-MiniLM-L6-v2`, L2 normalisation |
-| `store.py` | `FAISSStore` — `IndexFlatIP` (cosine via inner product on normalised vecs), save/load |
+| `store.py` | `FAISSStore` — `IndexFlatIP`, `index_graph()`, `index_anchor_violations()`, `hybrid_search()`, `search()`, save/load |
+| `bm25_retriever.py` | `BM25Retriever` — Okapi BM25 (rank_bm25) over entity texts |
+| `rrf.py` | `rrf_fuse()` — Reciprocal Rank Fusion (Cormack et al. SIGIR 2009) |
 
 #### FAISS vs Weaviate — design decision
 

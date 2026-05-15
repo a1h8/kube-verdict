@@ -125,6 +125,7 @@ SOURCE_WEIGHTS: dict[str, float] = {
     "cluster":    _float("SOURCE_WEIGHT_CLUSTER",    1.0),
     "official":   _float("SOURCE_WEIGHT_OFFICIAL",   1.0),
     "example":    _float("SOURCE_WEIGHT_EXAMPLE",    1.2),
+    "anchor":     _float("SOURCE_WEIGHT_ANCHOR",     1.6),  # manifest drift = strong signal
     "enterprise": _float("SOURCE_WEIGHT_ENTERPRISE", 1.5),
     "runbook":    _float("SOURCE_WEIGHT_RUNBOOK",    1.8),
 }

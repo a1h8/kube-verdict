@@ -1,0 +1,12 @@
+{
+  "scenario": "ImagePullBackOff — wrong image tag in values.yaml",
+  "namespace": "production",
+  "release": "worker",
+  "affected_resources": ["Pod/production/worker-59f7b6c4d-lm7nk"],
+  "root_cause_contains": ["image", "tag", "v9.9.9", "ImagePullBackOff", "pull"],
+  "fix_commands_contain": ["helm upgrade", "image.tag"],
+  "confidence": "LOW",
+  "confidence_score_min": 0.25,
+  "fallback_expected": false,
+  "notes": "values.yaml declares image.tag=v9.9.9 which does not exist in the registry. Helm drift: deployed tag differs. Fix: helm upgrade --set image.tag=v2.1.0."
+}

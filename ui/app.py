@@ -375,21 +375,23 @@ if run_btn and st.session_state.status not in ("running",):
             stats["anchor"] = {"fallback": True, "error": str(exc)}
 
     # ── Index + build store ───────────────────────────────────────────────────
-    with st.spinner("Indexing entities + enterprise docs…"):
+    with st.spinner("Indexing entities + anchors + enterprise docs…"):
         from vectorstore.embedder import Embedder
         from vectorstore.store import FAISSStore
         from knowledge import DocStore, DocIndexer, ExampleStore, ExampleIndexer
         store = FAISSStore(embedder=Embedder())
         store.index_graph(graph)
+        anchor_viol_count = store.index_anchor_violations(graph)
         doc_store      = DocStore()
         doc_chunks     = DocIndexer(store).index_all(doc_store)
         example_store  = ExampleStore()
         example_count  = ExampleIndexer(store).index_all(example_store)
         stats["index"] = {
-            "vectors":       store.size,
-            "doc_chunks":    doc_chunks,
-            "examples":      example_count,
-            "fallback":      False,
+            "vectors":        store.size,
+            "anchor_viols":   anchor_viol_count,
+            "doc_chunks":     doc_chunks,
+            "examples":       example_count,
+            "fallback":       False,
         }
 
     # ── Signal analysis ───────────────────────────────────────────────────────
@@ -518,6 +520,8 @@ def _render_rca():
             elif key == "index" and not d.get("skipped"):
                 if "vectors" in d:
                     lines.append(f"{d['vectors']} vectors")
+                if d.get("anchor_viols"):
+                    lines.append(f"{d['anchor_viols']} anchor⚓")
                 if "doc_chunks" in d and d["doc_chunks"]:
                     lines.append(f"{d['doc_chunks']} doc chunks")
             elif key == "signals" and not d.get("skipped"):
@@ -578,6 +582,53 @@ def _render_rca():
     if ctx:
         st.divider()
 
+    # ── Router decisions (edge_log) ───────────────────────────────────────────
+    edge_log = (
+        payload.get("edge_log")
+        or (final.get("edge_log") if status == "done" else None)
+        or []
+    )
+    if edge_log:
+        _EDGE_COLORS = {
+            "retry":     ("🔄", "#fff3cd"),   # amber
+            "next_path": ("➡️",  "#cce5ff"),   # blue
+            "review":    ("👤", "#d4edda"),   # green
+        }
+        with st.expander(f"Router decisions — {len(edge_log)} step(s)", expanded=True):
+            for i, entry in enumerate(edge_log, start=1):
+                edge  = entry.get("edge_taken", "?")
+                emoji, bg = _EDGE_COLORS.get(edge, ("❓", "#f8f9fa"))
+                router   = entry.get("router", "?")
+                reason   = entry.get("reason", "")
+                snap     = entry.get("snapshot", {})
+                ts       = (entry.get("ts") or "")[:19].replace("T", " ")
+
+                st.markdown(
+                    f"<div style='background:{bg};border-radius:6px;"
+                    f"padding:8px 12px;margin-bottom:6px'>"
+                    f"<b>Step {i}</b> &nbsp; {emoji} <code>{router}</code> → "
+                    f"<b>{edge}</b> &nbsp; <span style='color:#666;font-size:0.85em'>{ts}</span>"
+                    f"<br><span style='font-size:0.9em'>{reason}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+                if snap:
+                    conf      = snap.get("confidence", "")
+                    retry     = snap.get("retry_count", 0)
+                    maxr      = snap.get("max_retries", 0)
+                    cands     = snap.get("candidates_remaining", 0)
+                    fails     = snap.get("ingestion_failures") or []
+                    declining = snap.get("declining", False)
+                    hist      = snap.get("path_conf_history") or []
+                    detail = f"conf={conf} · retry {retry}/{maxr} · {cands} candidate(s) left"
+                    if declining:
+                        hist_str = "→".join(hist) if hist else ""
+                        detail += f" · ⚡ early-switch (P↓ {hist_str})"
+                    if fails:
+                        detail += f" · ⚠ failures: {', '.join(fails)}"
+                    st.caption(detail)
+        st.divider()
+
     # Example match banner
     if payload.get("example_match"):
         ex_id = payload.get("matched_example_id", "")
@@ -616,22 +667,47 @@ def _render_rca():
     paths_explored = report.get("paths_explored", 1)
     confidence     = report.get("confidence", "")
 
-    st.subheader(f"Reasoning journey — {paths_explored} path(s) explored")
+    total_paths = paths_explored
+    no_solution = payload.get("no_solution", False)
+    journey_label = (
+        f"Reasoning journey — {total_paths} path(s) explored"
+        + (" — dead end (no actionable solution)" if no_solution else "")
+    )
+    st.subheader(journey_label)
+
     for entry in history:
-        conf  = (entry.get("confidence") or "").upper()
-        hyp   = entry.get("hypothesis") or "generic query"
+        conf    = (entry.get("confidence") or "").upper()
+        hyp     = entry.get("hypothesis") or "generic query"
+        retries = entry.get("retry_count", 0)
+        # Any archived LOW path is a dead end — may have been abandoned early (beam search)
+        dead_end = conf == "LOW"
+        early    = dead_end and retries < 2   # early-switch vs retries-exhausted
+        if dead_end:
+            label_suffix = "🔴 early-switch — P↓" if early else "🔴 dead end — retries exhausted"
+        else:
+            label_suffix = f"{_conf_icon(conf)} {conf} — exhausted"
         with st.expander(
-            f"Path {entry['step']}  ·  {hyp[:90]}  —  {_conf_icon(conf)} {conf}  ✗ exhausted",
+            f"Path {entry['step']}  ·  {hyp[:90]}  —  {label_suffix}",
             expanded=False,
         ):
             st.write(entry.get("summary") or "_No summary_")
-            st.caption(f"retries on this path: {entry.get('retry_count', 0)}")
+            retry_txt = f"{retries} retry(ies) on this path"
+            if early:
+                st.error(f"{retry_txt} — probability declining, switched to higher-probability path")
+            elif dead_end:
+                st.error(f"{retry_txt} — max retries reached, switched to next hypothesis")
+            else:
+                st.caption(retry_txt)
 
     cur_hyp  = report.get("current_hypothesis") or "generic query (no hypothesis extracted)"
     cur_conf = confidence
     cur_icon = _conf_icon(cur_conf)
+    final_label = (
+        "🔴 no solution — all paths exhausted" if no_solution
+        else f"{cur_icon} {cur_conf} — selected"
+    )
     with st.expander(
-        f"Path {paths_explored}  ·  {cur_hyp[:90]}  —  {cur_icon} {cur_conf}  ✓ selected",
+        f"Path {total_paths}  ·  {cur_hyp[:90]}  —  {final_label}",
         expanded=True,
     ):
         st.write(report.get("summary") or "_No summary_")
@@ -1712,6 +1788,25 @@ def _render_integration_tests():  # noqa: C901
 
     st.title("Integration Tests — Dialogue Simulation")
 
+    # ── Demo quick-start bar ────────────────────────────────────────────────
+    _demo_case = "h009_liveness_probe_loop"
+    _demo_idx  = next(
+        (i for i, (_, d) in enumerate(all_cases_meta) if d.name == _demo_case),
+        None,
+    )
+    if _demo_idx is not None:
+        dc1, dc2 = st.columns([5, 1])
+        dc1.info(
+            "**Demo scenario:** `h009_liveness_probe_loop` — liveness probe timeout drift 5s→1s, "
+            "pod restarts 18× with CrashLoopBackOff. Follow the path step by step, "
+            "hit a dead end, backtrack, and find the fix.",
+            icon="🎯",
+        )
+        if dc2.button("🎯 Load demo", type="primary", use_container_width=True):
+            st.session_state["it_case_select"] = _demo_idx
+            st.session_state["it_mode"] = "Manual (step-by-step)"
+            st.rerun()
+
     col_left, col_right = st.columns([1, 2], gap="large")
 
     # ── Left panel: selector + config ─────────────────────────────────────────
@@ -1823,12 +1918,13 @@ def _render_integration_tests():  # noqa: C901
 
     def _reset_state():
         st.session_state[state_key] = {
-            "mode":       "auto" if is_auto else ("pipeline" if is_pipeline else "manual"),
-            "case_type":  case_type,
-            "root_query": root_query,
-            "status":     "idle",
-            "payload":    None,   # auto mode: full sim JSON
-            "turns":      [],     # manual mode: list of turn dicts
+            "mode":        "auto" if is_auto else ("pipeline" if is_pipeline else "manual"),
+            "case_type":   case_type,
+            "root_query":  root_query,
+            "status":      "idle",
+            "payload":     None,   # auto mode: full sim JSON
+            "turns":       [],     # manual mode: list of turn dicts
+            "path_labels": [],     # breadcrumb labels for path taken
         }
 
     if state_key not in st.session_state:
@@ -2097,19 +2193,34 @@ def _render_integration_tests():  # noqa: C901
                 st.info(
                     "Click **▶ Run simulation** to begin step-by-step dialogue.\n\n"
                     "At each turn you choose which proposal to follow, see the full LLM "
-                    "response, and decide how to proceed.",
+                    "response, and decide how to proceed. Dead ends let you backtrack "
+                    "and try a different path.",
                     icon="🧪",
                 )
             else:
-                # ── Render completed turns ─────────────────────────────────
+                # ── Path breadcrumb ────────────────────────────────────────
+                crumbs = []
                 for t in turns:
+                    status = t["status"]
+                    icon_c = {"resolved": "✅", "dead_end": "✗", "pending": "…"}.get(status, "?")
+                    if t["turn"] == 0:
+                        crumbs.append(f"**Root** ({t['score']:.2f})")
+                    else:
+                        prop = t.get("chosen_label", "?")
+                        crumbs.append(f"[{prop}] {icon_c} ({t['score']:.2f})")
+                st.markdown("**Path:** " + "  →  ".join(crumbs))
+                st.divider()
+
+                # ── Render completed turns ─────────────────────────────────
+                for t_idx, t in enumerate(turns):
                     turn_n = t["turn"]
-                    icon   = {"resolved": "✓", "dead_end": "✗", "pending": "…"}.get(t["status"], "?")
+                    icon   = {"resolved": "✅", "dead_end": "✗", "pending": "…"}.get(t["status"], "?")
                     conf_i = _conf_icon(t.get("label", ""))
+                    dead_sfx = f"  ·  🚫 dead end ({t['dead_end_reason']})" if t["status"] == "dead_end" else ""
+                    res_sfx  = "  ✅ resolved" if t["status"] == "resolved" else ""
                     header = (
                         f"Turn {turn_n} — score={t['score']:.2f} {conf_i} {t.get('label','?')} {icon}"
-                        + (f"  ·  dead end ({t['dead_end_reason']})" if t["status"] == "dead_end" else "")
-                        + (" ✓ resolved" if t["status"] == "resolved" else "")
+                        + dead_sfx + res_sfx
                     )
                     with st.expander(header, expanded=(turn_n == len(turns) - 1)):
                         st.markdown(f"**Query:** _{t['query'][:200]}_")
@@ -2135,15 +2246,65 @@ def _render_integration_tests():  # noqa: C901
                             for cmd in cmds:
                                 st.code(cmd, language="bash")
 
-                # ── Proposal chooser for last pending turn ─────────────────
+                        # Backtrack button (available on every non-root turn)
+                        if turn_n > 0 and t_idx < len(turns) - 1:
+                            if st.button(
+                                f"↩ Backtrack to here",
+                                key=f"man_backtrack_{case_name}_{turn_n}_{t_idx}",
+                                help="Remove all turns after this one and try a different path",
+                            ):
+                                dlg["turns"] = turns[:t_idx + 1]
+                                dlg["turns"][-1]["status"] = "pending"
+                                st.rerun()
+
+                # ── Dead end panel ─────────────────────────────────────────
                 last = turns[-1]
+                if last["status"] == "dead_end":
+                    st.divider()
+                    st.error(
+                        f"**Dead end** — {last.get('dead_end_reason', 'unknown reason')}  "
+                        f"(score={last['score']:.2f})  \n"
+                        "The confidence did not improve enough. "
+                        "Choose a different path by backtracking to a previous turn.",
+                        icon="🚫",
+                    )
+                    # Quick backtrack buttons for each prior turn that has unchosen proposals
+                    backtrack_targets = [
+                        t for t in turns[:-1]
+                        if len(t.get("proposals", [])) > 1
+                    ]
+                    if backtrack_targets:
+                        st.markdown("**Backtrack to a turn with unexplored proposals:**")
+                        cols_bt = st.columns(min(len(backtrack_targets), 4))
+                        for bi, bt in enumerate(backtrack_targets):
+                            label = f"↩ Turn {bt['turn']}"
+                            if cols_bt[bi % len(cols_bt)].button(
+                                label,
+                                key=f"man_bt_dead_{case_name}_{bt['turn']}_{bi}",
+                                use_container_width=True,
+                            ):
+                                bt_idx = next(i for i, t in enumerate(turns) if t["turn"] == bt["turn"])
+                                dlg["turns"] = turns[:bt_idx + 1]
+                                dlg["turns"][-1]["status"] = "pending"
+                                st.rerun()
+                    else:
+                        st.info("No earlier turns with multiple unexplored proposals. Start a new run.", icon="ℹ️")
+
+                # ── Proposal chooser for last pending turn ─────────────────
                 max_turns_reached = last["turn"] >= max_turns
 
                 if last["status"] == "pending" and not max_turns_reached and last.get("proposals"):
                     st.divider()
                     st.subheader(f"Turn {last['turn'] + 1} — Choose a proposal")
+                    st.caption(
+                        "Each proposal explores a different diagnostic angle. "
+                        "If you reach a dead end, you can backtrack and try another."
+                    )
                     proposals = last["proposals"]
-                    prop_labels = [f"[{p['label']}] {p['description']}" for p in proposals]
+                    prop_labels = [
+                        f"[{p['label']}]  {p['description']}"
+                        for p in proposals
+                    ]
                     chosen_idx = st.radio(
                         "Follow-up proposals",
                         range(len(prop_labels)),
@@ -2188,22 +2349,30 @@ def _render_integration_tests():  # noqa: C901
                                 ]
 
                             turns.append({
-                                "turn":         last["turn"] + 1,
-                                "query":        chosen["query"],
-                                "score":        score,
-                                "label":        report.context.pre_llm_confidence.label if report.context and report.context.pre_llm_confidence else "LOW",
-                                "retrieval":    report.context.retrieval_stats if report.context else {},
-                                "raw_analysis": (report.raw_analysis or "")[:1500],
-                                "root_cause":   report.root_cause or "",
-                                "remediation":  list(report.remediation or []),
-                                "proposals":    next_props,
-                                "status":       new_status,
+                                "turn":            last["turn"] + 1,
+                                "query":           chosen["query"],
+                                "chosen_label":    chosen["label"],
+                                "score":           score,
+                                "label":           report.context.pre_llm_confidence.label if report.context and report.context.pre_llm_confidence else "LOW",
+                                "retrieval":       report.context.retrieval_stats if report.context else {},
+                                "raw_analysis":    (report.raw_analysis or "")[:1500],
+                                "root_cause":      report.root_cause or "",
+                                "remediation":     list(report.remediation or []),
+                                "proposals":       next_props,
+                                "status":          new_status,
                                 "dead_end_reason": ded_reason,
                             })
                         st.rerun()
 
                 elif max_turns_reached and last["status"] == "pending":
                     st.info(f"Max turns ({max_turns}) reached — simulation complete.", icon="🏁")
+
+                elif last["status"] == "resolved":
+                    st.success(
+                        f"**Resolution found** at Turn {last['turn']} — "
+                        f"confidence score {last['score']:.2f} ({last.get('label','?')})",
+                        icon="✅",
+                    )
 
                 # ── Remediation panel (manual mode) ───────────────────────
                 all_cmds = list(dict.fromkeys(
@@ -2759,11 +2928,400 @@ def _render_pipeline_trace(run_btn, case_name, root_query, inp, case_type, data)
         st.text_area("Prompt preview", value=prompt[:3000], height=400, disabled=True)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# API Session tab
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _api(method: str, path: str, api_url: str, **kwargs):
+    """Minimal requests wrapper — surfaces HTTP errors as st.error."""
+    import requests
+    url = api_url.rstrip("/") + path
+    try:
+        r = getattr(requests, method)(url, timeout=10, **kwargs)
+        r.raise_for_status()
+        return r.json()
+    except requests.exceptions.ConnectionError:
+        st.error(f"Cannot reach API at {api_url} — is `uvicorn api.app:app` running?")
+        return None
+    except requests.exceptions.HTTPError as exc:
+        st.error(f"API error {exc.response.status_code}: {exc.response.text[:200]}")
+        return None
+
+
+def _badge_status(status: str) -> str:
+    colours = {
+        "IDLE": "🔵", "RUNNING": "🟡", "AWAITING_REVIEW": "🟠",
+        "COMPLETED": "🟢", "FAILED": "🔴",
+    }
+    return f"{colours.get(status, '⚪')} {status}"
+
+
+def _render_api_tab():  # noqa: C901
+    st.subheader("API Session", divider="blue")
+    st.caption("Interacts with the KubeWhisperer FastAPI backend (uvicorn api.app:app).")
+
+    # ── Config ────────────────────────────────────────────────────────────────
+    api_url = st.text_input("API base URL", value="http://localhost:8000", key="api_url")
+
+    col_health, _ = st.columns([1, 4])
+    if col_health.button("Check /health"):
+        r = _api("get", "/health", api_url)
+        if r:
+            st.success(f"API is up — {r}")
+
+    st.divider()
+
+    # ── Session management ────────────────────────────────────────────────────
+    if "api_session_id" not in st.session_state:
+        st.session_state.api_session_id = ""
+
+    col_new, col_clear = st.columns(2)
+    if col_new.button("➕ New session", use_container_width=True):
+        r = _api("post", "/api/v1/sessions", api_url)
+        if r:
+            st.session_state.api_session_id = r["session_id"]
+            st.success(f"Session created: `{r['session_id']}`")
+
+    if col_clear.button("🗑 Delete session", use_container_width=True,
+                         disabled=not st.session_state.api_session_id):
+        sid = st.session_state.api_session_id
+        _api("delete", f"/api/v1/sessions/{sid}", api_url)
+        st.session_state.api_session_id = ""
+        st.rerun()
+
+    if not st.session_state.api_session_id:
+        st.info("Create a session to continue.")
+        return
+
+    sid = st.session_state.api_session_id
+    st.code(sid, language=None)
+
+    # ── Run ───────────────────────────────────────────────────────────────────
+    with st.expander("▶ Run analysis", expanded=True):
+        api_query = st.text_area("Query", key="api_query",
+                                 value="pods are crashlooping in namespace production", height=80)
+        api_ns    = st.text_input("Namespaces (comma-separated)", key="api_ns", value="production")
+        if st.button("Run", type="primary"):
+            r = _api("post", f"/api/v1/sessions/{sid}/run", api_url, json={
+                "query": api_query,
+                "namespaces": [n.strip() for n in api_ns.split(",") if n.strip()],
+            })
+            if r:
+                st.rerun()
+
+    # ── State ─────────────────────────────────────────────────────────────────
+    if st.button("↻ Refresh state"):
+        st.rerun()
+
+    state = _api("get", f"/api/v1/sessions/{sid}/state", api_url)
+    if not state:
+        return
+
+    status = state.get("status", "")
+    st.markdown(f"**Status** {_badge_status(status)}")
+
+    if state.get("confidence"):
+        conf_icon = {"HIGH": "🟢", "MEDIUM": "🟡", "LOW": "🔴"}.get(state["confidence"], "⚪")
+        st.markdown(f"**Confidence** {conf_icon} {state['confidence']}")
+
+    # ── AWAITING_REVIEW ───────────────────────────────────────────────────────
+    if status == "AWAITING_REVIEW" and state.get("review_payload"):
+        payload = state["review_payload"]
+        st.warning("⚠️ Human review required before remediation is applied.")
+
+        with st.expander("📋 Review payload", expanded=True):
+            st.markdown(f"**Summary** — {payload.get('summary', '')}")
+            st.markdown(f"**Root cause** — {payload.get('root_cause', '')}")
+            if payload.get("no_solution"):
+                st.error("No actionable solution found across all hypothesis paths.")
+            cmds = payload.get("remediation") or []
+            if cmds:
+                st.markdown("**Remediation commands**")
+                for cmd in cmds:
+                    st.code(cmd, language="bash")
+            dry = payload.get("dry_run_results") or []
+            if dry:
+                st.markdown("**Dry-run results**")
+                for dr in dry:
+                    icon = "✅" if dr.get("exit_code", 0) == 0 else "❌"
+                    st.markdown(f"{icon} `{dr.get('dry_cmd', '')}`")
+                    if dr.get("output"):
+                        st.text(dr["output"][:300])
+
+        col_app, col_rej = st.columns(2)
+        if col_app.button("✅ Approve", type="primary", use_container_width=True):
+            _api("post", f"/api/v1/sessions/{sid}/feedback", api_url,
+                 json={"human_decision": "approve"})
+            st.rerun()
+        if col_rej.button("❌ Reject", use_container_width=True):
+            _api("post", f"/api/v1/sessions/{sid}/feedback", api_url,
+                 json={"human_decision": "reject"})
+            st.rerun()
+
+    # ── Signals ───────────────────────────────────────────────────────────────
+    sig_tabs = st.tabs(["🚨 Alerts", "⚠️ Events", "🔍 Traces",
+                         "⚓ Anchor fixes", "🛡 Policy", "💡 Suggestions", "🧠 Reasoning", "🔀 Edge log"])
+
+    with sig_tabs[0]:
+        alerts = state.get("alerts") or []
+        if alerts:
+            for a in alerts:
+                st.error(a)
+        else:
+            st.info("No firing alerts.")
+
+    with sig_tabs[1]:
+        events = state.get("events") or []
+        if events:
+            for e in events:
+                st.warning(e)
+        else:
+            st.info("No warning events.")
+
+    with sig_tabs[2]:
+        traces = state.get("traces") or []
+        if traces:
+            for t in traces:
+                st.code(t, language=None)
+        else:
+            st.info("No error traces.")
+
+    with sig_tabs[3]:
+        fixes = state.get("anchor_fixes") or []
+        if fixes:
+            for f in fixes:
+                st.code(f, language="bash")
+        else:
+            st.info("No drift anchor fixes.")
+
+    with sig_tabs[4]:
+        violations = state.get("policy_violations") or []
+        if violations:
+            for v in violations:
+                st.error(v)
+        else:
+            st.info("No policy violations.")
+
+    with sig_tabs[5]:
+        causal = state.get("causal_chain") or []
+        if causal:
+            st.markdown("**Causal chain**")
+            for i, step in enumerate(causal, 1):
+                st.markdown(f"{i}. {step}")
+        suggestions = state.get("suggestions") or []
+        if suggestions:
+            st.markdown("**Remediation commands**")
+            for cmd in suggestions:
+                st.code(cmd, language="bash")
+        if not causal and not suggestions:
+            st.info("No suggestions yet.")
+
+    with sig_tabs[6]:
+        history = state.get("reasoning_history") or []
+        if history:
+            for entry in history:
+                conf_icon = {"HIGH": "🟢", "MEDIUM": "🟡", "LOW": "🔴"}.get(
+                    entry.get("confidence", ""), "⚪")
+                with st.expander(
+                    f"Step {entry.get('step')} — {entry.get('hypothesis', '')[:60]} "
+                    f"{conf_icon} {entry.get('confidence', '')}",
+                    expanded=False,
+                ):
+                    st.markdown(f"**Retries:** {entry.get('retry_count', 0)}")
+                    if entry.get("summary"):
+                        st.markdown(entry["summary"])
+        else:
+            st.info("No reasoning history — single-path run or not yet completed.")
+
+    with sig_tabs[7]:
+        edge_log = state.get("edge_log") or []
+        if edge_log:
+            for entry in edge_log:
+                router = entry.get("router", "")
+                edge   = entry.get("edge_taken", "")
+                reason = entry.get("reason", "")
+                snap   = entry.get("snapshot", {})
+                icon   = {"retry": "🔁", "next_path": "➡️", "review": "👁",
+                          "approve": "✅", "reject": "❌"}.get(edge, "❓")
+                with st.expander(f"{icon} [{router}] → **{edge}**  —  {reason[:80]}", expanded=False):
+                    st.markdown(f"**Full reason:** {reason}")
+                    st.json(snap)
+                    st.caption(entry.get("ts", ""))
+        else:
+            st.info("No routing decisions yet.")
+
+    # ── Ingestion KOs ─────────────────────────────────────────────────────────
+    ing = state.get("ingestion_stats") or {}
+    failures = {k: v for k, v in ing.items() if isinstance(v, dict) and v.get("fallback")}
+    if failures:
+        with st.expander(f"⚡ {len(failures)} ingestion failure(s)", expanded=False):
+            for step, stats in failures.items():
+                st.error(f"**{step}** — {stats.get('error', 'unknown error')}")
+
+    # ── Extra context re-run ──────────────────────────────────────────────────
+    if status in ("COMPLETED", "FAILED"):
+        st.divider()
+        with st.expander("🔄 Re-run with extra context"):
+            extra = st.text_area("Extra context", key="api_extra_context",
+                                  placeholder="e.g. focus on networking — not a memory issue")
+            if st.button("Re-run", disabled=not extra):
+                _api("post", f"/api/v1/sessions/{sid}/feedback", api_url,
+                     json={"extra_context": extra})
+                st.rerun()
+
+    # ── Live API integration tests ────────────────────────────────────────────
+    st.divider()
+    st.subheader("🧪 Live API integration tests", divider="gray")
+    st.caption(
+        "Runs the full API test suite against the configured base URL above. "
+        "The server must be running (`uvicorn api.app:app --port 8000`)."
+    )
+    if st.button("▶ Run integration tests", key="api_run_tests"):
+        _run_live_api_tests(api_url)
+
+
+def _run_live_api_tests(api_url: str) -> None:
+    """Run a set of live HTTP checks against `api_url` and display results inline."""
+    import time as _time
+    import requests as _req
+
+    _PASS = "✅"
+    _FAIL = "❌"
+    _SKIP = "⏭"
+
+    results: list[dict] = []
+
+    def _check(name: str, fn):
+        t0 = _time.perf_counter()
+        try:
+            fn()
+            elapsed = (_time.perf_counter() - t0) * 1000
+            results.append({"name": name, "ok": True, "ms": elapsed, "err": ""})
+        except Exception as exc:
+            elapsed = (_time.perf_counter() - t0) * 1000
+            results.append({"name": name, "ok": False, "ms": elapsed, "err": str(exc)})
+
+    base = api_url.rstrip("/")
+
+    # ── 1. Health ────────────────────────────────────────────────────────────
+    def _t_health():
+        r = _req.get(f"{base}/health", timeout=5)
+        assert r.status_code == 200, f"expected 200, got {r.status_code}"
+        assert r.json().get("status") == "ok", f"unexpected body: {r.json()}"
+
+    _check("GET /health → 200 {status: ok}", _t_health)
+
+    # ── 2. Session creation ──────────────────────────────────────────────────
+    sid = None
+
+    def _t_create():
+        nonlocal sid
+        r = _req.post(f"{base}/api/v1/sessions", timeout=5)
+        assert r.status_code == 201, f"expected 201, got {r.status_code}"
+        body = r.json()
+        assert "session_id" in body
+        assert len(body["session_id"]) == 36, "session_id not UUID4"
+        sid = body["session_id"]
+
+    _check("POST /api/v1/sessions → 201 UUID", _t_create)
+
+    if not sid:
+        st.error("Session creation failed — stopping tests.")
+        return
+
+    # ── 3. IDLE state after creation ─────────────────────────────────────────
+    def _t_idle_state():
+        r = _req.get(f"{base}/api/v1/sessions/{sid}/state", timeout=5)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["status"] == "IDLE", f"expected IDLE, got {body['status']}"
+        assert body["query"] is None
+
+    _check("GET /state after create → IDLE", _t_idle_state)
+
+    # ── 4. 404 on unknown session ────────────────────────────────────────────
+    def _t_404():
+        r = _req.get(f"{base}/api/v1/sessions/no-such-session/state", timeout=5)
+        assert r.status_code == 404, f"expected 404, got {r.status_code}"
+
+    _check("GET /state unknown session → 404", _t_404)
+
+    # ── 5. 409 on double-run (RUNNING session) ───────────────────────────────
+    def _t_409_double_run():
+        from api.session_store import store as _s
+        from api.models import SessionStatus as _SS
+        sess = _s.get(sid)
+        if sess:
+            sess.status = _SS.RUNNING
+        r = _req.post(f"{base}/api/v1/sessions/{sid}/run",
+                      json={"query": "x"}, timeout=5)
+        assert r.status_code == 409, f"expected 409, got {r.status_code}"
+        if sess:
+            sess.status = _SS.IDLE
+
+    _check("POST /run on RUNNING session → 409", _t_409_double_run)
+
+    # ── 6. 409 on feedback on IDLE session ───────────────────────────────────
+    def _t_409_feedback_idle():
+        r = _req.post(f"{base}/api/v1/sessions/{sid}/feedback",
+                      json={"human_decision": "approve"}, timeout=5)
+        assert r.status_code == 409, f"expected 409, got {r.status_code}"
+
+    _check("POST /feedback on IDLE session → 409", _t_409_feedback_idle)
+
+    # ── 7. OpenAPI schema present and complete ───────────────────────────────
+    def _t_openapi():
+        r = _req.get(f"{base}/openapi.json", timeout=5)
+        assert r.status_code == 200
+        paths = r.json().get("paths", {})
+        for route in ("/health", "/api/v1/sessions",
+                      "/api/v1/sessions/{session_id}/run",
+                      "/api/v1/sessions/{session_id}/state"):
+            assert route in paths, f"missing route: {route}"
+
+    _check("GET /openapi.json → all routes present", _t_openapi)
+
+    # ── 8. SSE stream content-type ───────────────────────────────────────────
+    def _t_sse_ct():
+        r = _req.get(f"{base}/api/v1/sessions/{sid}/stream",
+                     stream=True, timeout=5)
+        ct = r.headers.get("content-type", "")
+        assert "text/event-stream" in ct, f"bad content-type: {ct}"
+        r.close()
+
+    _check("GET /stream → Content-Type: text/event-stream", _t_sse_ct)
+
+    # ── 9. Delete session ────────────────────────────────────────────────────
+    def _t_delete():
+        r = _req.delete(f"{base}/api/v1/sessions/{sid}", timeout=5)
+        assert r.status_code == 204, f"expected 204, got {r.status_code}"
+        r2 = _req.get(f"{base}/api/v1/sessions/{sid}/state", timeout=5)
+        assert r2.status_code == 404
+
+    _check("DELETE /sessions/{id} → 204 then 404", _t_delete)
+
+    # ── Render results ───────────────────────────────────────────────────────
+    passed = sum(1 for r in results if r["ok"])
+    total  = len(results)
+    badge  = "🟢" if passed == total else "🟡" if passed > total // 2 else "🔴"
+    st.markdown(f"### {badge} {passed}/{total} tests passed")
+
+    for r in results:
+        icon = _PASS if r["ok"] else _FAIL
+        ms   = f"{r['ms']:.0f} ms"
+        if r["ok"]:
+            st.success(f"{icon}  **{r['name']}**  —  {ms}")
+        else:
+            with st.expander(f"{icon}  **{r['name']}**  —  {ms}"):
+                st.error(r["err"])
+
+
 # Tab layout — entry point
 # ─────────────────────────────────────────────────────────────────────────────
 
-tab_rca, tab_kb, tab_dash, tab_it = st.tabs([
-    "🔍 Root Cause Analysis", "📚 Knowledge Base", "📊 Dashboard", "🧪 Integration Tests",
+tab_rca, tab_kb, tab_dash, tab_it, tab_api = st.tabs([
+    "🔍 Root Cause Analysis", "📚 Knowledge Base", "📊 Dashboard",
+    "🧪 Integration Tests", "🌐 API Session",
 ])
 
 with tab_rca:
@@ -2777,3 +3335,6 @@ with tab_dash:
 
 with tab_it:
     _render_integration_tests()
+
+with tab_api:
+    _render_api_tab()

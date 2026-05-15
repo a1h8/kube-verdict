@@ -1,0 +1,27 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/acme/search-service
+  tag: "3.0.1"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    memory: 1Gi
+    cpu: "2"
+  requests:
+    memory: 512Mi
+    cpu: 500m
+
+service:
+  type: ClusterIP
+  port: 9200
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 9200
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3

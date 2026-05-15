@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: search-service-5c9b7d6f4-rk8st
+  namespace: production
+  uid: pod-prod-search-service-5c9b7d6f4-rk8st
+  labels:
+    app.kubernetes.io/name: search-service
+    app.kubernetes.io/instance: search-service
+    pod-template-hash: 5c9b7d6f4
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: search-service-5c9b7d6f4
+    uid: rs-prod-search-service-5c9b7d6f4
+    controller: true
+    blockOwnerDeletion: true
+spec:
+  nodeName: worker-node-02
+  serviceAccountName: search-service
+  containers:
+  - name: search-service
+    image: ghcr.io/acme/search-service:3.0.1
+    resources:
+      limits:
+        memory: 1Gi
+        cpu: "2"
+      requests:
+        memory: 512Mi
+        cpu: 500m
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 9200
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 1
+      failureThreshold: 3
+status:
+  phase: Running
+  containerStatuses:
+  - name: search-service
+    ready: false
+    restartCount: 18
+    state:
+      waiting:
+        reason: CrashLoopBackOff
+    lastState:
+      terminated:
+        exitCode: 137
+        reason: Error
+        finishedAt: "2026-05-14T14:00:00Z"
+  conditions:
+  - type: Ready
+    status: "False"
+    reason: ContainersNotReady

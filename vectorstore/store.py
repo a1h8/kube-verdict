@@ -75,6 +75,51 @@ class FAISSStore:
         self._bm25_dirty = False
         log.info("Index built: %d vectors (dim=%d)", self._index.ntotal, self._embedder.dim)
 
+    def index_anchor_violations(self, graph: OntologyGraph) -> int:
+        """
+        Index manifest anchor violations as separate doc_source='anchor' documents.
+
+        Each violated field (anchor.* annotation with [manifest] drift) is indexed
+        as an individual entry so the RRF naturally boosts them via SOURCE_WEIGHTS["anchor"].
+        Returns the number of anchor violation docs added.
+        """
+        count = 0
+        for entity in graph.entities():
+            ann = getattr(entity, "annotations", {}) or {}
+            kind_str = entity.kind.value if hasattr(entity.kind, "value") else str(entity.kind)
+            ns = entity.namespace or ""
+            for ann_key, ann_val in ann.items():
+                if not ann_key.startswith("anchor.") or "[manifest]" not in str(ann_val):
+                    continue
+                field_path = ann_key[len("anchor."):]
+                uid = f"anchor:{entity.uid}:{field_path}"
+                if uid in self._uid_to_row:
+                    continue  # already indexed (idempotent)
+                text = (
+                    f"ANCHOR VIOLATION: {kind_str}/{ns}/{entity.name} "
+                    f"field={field_path} {ann_val}"
+                )
+                vec = self._embedder.embed([text])
+                if self._index is None:
+                    self._index = faiss.IndexFlatIP(self._embedder.dim)
+                self._index.add(vec)
+                row = len(self._metadata)
+                self._metadata.append({
+                    "uid":         uid,
+                    "name":        entity.name,
+                    "kind":        kind_str,
+                    "namespace":   ns,
+                    "text":        text,
+                    "kube_version": str(graph.server_version) if graph.server_version else "",
+                    "doc_source":  "anchor",
+                })
+                self._uid_to_row[uid] = row
+                self._bm25_dirty = True
+                count += 1
+        if count:
+            log.info("index_anchor_violations: %d anchor violation doc(s) added", count)
+        return count
+
     def add_entity(
         self,
         entity: K8sEntity,

@@ -1,0 +1,21 @@
+{
+  "kind": "Pod",
+  "metadata": {
+    "name": "api-gateway-8c7d9f6b5-tz5kp",
+    "namespace": "production",
+    "uid": "pod-production-api-gateway-8c7d9f6b5-tz5kp",
+    "labels": {"app": "api-gateway"},
+    "ownerReferences": [{"kind": "ReplicaSet", "name": "api-gateway-8c7d9f6b5", "controller": true}],
+    "annotations": {
+      "cpu_throttle_ratio": "0.83",
+      "metrics_server/cpu_millicores": "420",
+      "metrics_server/cpu_limit_millicores": "2000"
+    }
+  },
+  "spec": {"nodeName": "worker-node-03"},
+  "status": {
+    "phase": "Running",
+    "containerStatuses": [{"name": "api-gateway", "ready": true, "restartCount": 0, "state": {"running": {}}}],
+    "conditions": [{"type": "Ready", "status": "True"}]
+  }
+}

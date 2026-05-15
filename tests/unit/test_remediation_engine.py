@@ -695,3 +695,117 @@ class TestRemediationEngineFaultTolerance:
         assert "crashloop_db"        in rule_ids
         assert "missing_config"      in rule_ids
         assert "degraded_deployment" in rule_ids
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Missing coverage — edge cases
+# ─────────────────────────────────────────────────────────────────────────────
+
+from rca.remediation_engine import RemediationHypothesis, _Rule  # noqa: E402
+
+
+class TestRemediationHypothesisStr:
+    def test_str_with_explanation_and_commands(self):
+        h = RemediationHypothesis(
+            rule_id="oom_kill",
+            symptom="Container OOMKilled",
+            affected="Pod/prod/worker-0",
+            weight=0.9,
+            commands=["kubectl top pod worker-0 -n prod"],
+            explanation="Increase memory limit.",
+        )
+        s = str(h)
+        assert "[0.90]" in s
+        assert "Container OOMKilled" in s
+        assert "Increase memory limit." in s
+        assert "kubectl top pod" in s
+
+    def test_str_no_explanation_no_commands(self):
+        h = RemediationHypothesis(
+            rule_id="x", symptom="symptom", affected="a", weight=0.5, commands=[],
+        )
+        s = str(h)
+        assert "[0.50]" in s
+        assert "symptom" in s
+
+
+class TestRuleBaseDefaults:
+    def test_base_rule_match_returns_false(self):
+        r = _Rule()
+        assert r.match(Pod(uid="p1", name="p"), OntologyGraph()) is False
+
+    def test_base_rule_commands_returns_empty(self):
+        r = _Rule()
+        assert r.commands(Pod(uid="p1", name="p"), OntologyGraph()) == []
+
+    def test_base_rule_evidence_boosts_returns_empty(self):
+        r = _Rule()
+        assert r.evidence_boosts(Pod(uid="p1", name="p"), OntologyGraph()) == []
+
+
+class TestCrashLoopDBCommandsWithAnnotation:
+    def test_commands_include_db_service_when_env_db_host_set(self):
+        pod = _crashloop_pod(restarts=8)
+        pod.annotations["env.DB_HOST"] = "postgres.db-ns.svc.cluster.local"
+        g = _graph(pod)
+        cmds = _CrashLoopDBRule().commands(pod, g)
+        assert any("postgres" in c for c in cmds)
+        assert any("get pods" in c for c in cmds)
+
+    def test_evidence_boost_restart_anomaly_annotation(self):
+        pod = _crashloop_pod(restarts=8)
+        pod.annotations["signal.restart_count"] = "anomaly=high"
+        g = _graph(pod)
+        boosts = _CrashLoopDBRule().evidence_boosts(pod, g)
+        boost_descs = [d for d, _ in boosts]
+        assert any("restart anomaly" in d for d in boost_descs)
+
+    def test_evidence_boost_high_restart_count(self):
+        pod = _crashloop_pod(restarts=12)
+        g = _graph(pod)
+        boosts = _CrashLoopDBRule().evidence_boosts(pod, g)
+        boost_descs = [d for d, _ in boosts]
+        assert any("10" in d for d in boost_descs)
+
+
+class TestPendingSchedulingCommandsWithOwner:
+    def test_commands_include_patch_when_owner_present(self):
+        pod = Pod(uid="p1", name="api-xyz-abc", namespace="prod", phase="Pending",
+                  owner_ref_kind="Deployment", owner_ref_name="api")
+        dep = Deployment(uid="d1", name="api", namespace="prod",
+                         replicas=2, ready_replicas=0)
+        ev  = _warning_event("api-xyz-abc", "Unschedulable", "no nodes available")
+        g = _graph(pod, dep, ev)
+        cmds = _PendingSchedulingRule().commands(pod, g)
+        assert any("nodeSelector" in c for c in cmds)
+
+    def test_evidence_boost_unschedulable_event(self):
+        pod = Pod(uid="p1", name="api-xyz", namespace="prod", phase="Pending")
+        ev  = _warning_event("api-xyz", "Unschedulable", "0/3 nodes available")
+        g = _graph(pod, ev)
+        boosts = _PendingSchedulingRule().evidence_boosts(pod, g)
+        assert any("Unschedulable" in d for d, _ in boosts)
+
+
+class TestOwnerNameReplicaSetWalkUp:
+    def test_replicaset_pod_walks_up_to_deployment(self):
+        from rca.remediation_engine import _owner_name
+        from ontology.entities import ResourceKind
+        pod = Pod(uid="p1", name="api-xyz-abc12", namespace="prod",
+                  owner_ref_kind="ReplicaSet", owner_ref_name="api-xyz")
+        dep = Deployment(uid="d1", name="api-xyz", namespace="prod",
+                         replicas=2, ready_replicas=1)
+        g = _graph(pod, dep)
+        g.add_entity(dep)
+        assert _owner_name(pod, g) == "api-xyz"
+
+    def test_non_pod_returns_empty(self):
+        from rca.remediation_engine import _owner_name
+        dep = Deployment(uid="d1", name="api", namespace="prod",
+                         replicas=1, ready_replicas=1)
+        assert _owner_name(dep, OntologyGraph()) == ""
+
+    def test_pod_no_owner_returns_empty(self):
+        from rca.remediation_engine import _owner_name
+        pod = Pod(uid="p1", name="standalone", namespace="prod", owner_ref_kind="")
+        assert _owner_name(pod, OntologyGraph()) == ""

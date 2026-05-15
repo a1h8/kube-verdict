@@ -1,0 +1,23 @@
+{
+  "kind": "Deployment",
+  "metadata": {
+    "name": "payment-api",
+    "namespace": "production",
+    "uid": "dep-production-payment-api-001",
+    "labels": {"app": "payment-api"}
+  },
+  "spec": {
+    "replicas": 2,
+    "selector": {"matchLabels": {"app": "payment-api"}},
+    "strategy": {"type": "RollingUpdate"},
+    "template": {
+      "spec": {
+        "containers": [{
+          "name": "payment-api",
+          "envFrom": [{"secretRef": {"name": "payment-db-creds"}}]
+        }]
+      }
+    }
+  },
+  "status": {"replicas": 2, "readyReplicas": 0, "availableReplicas": 0}
+}

@@ -47,6 +47,26 @@ cp .env.example .env
 | `TFIDF_TOP_K` | `20` | Maximum number of context chunks passed to the LLM after ranking. |
 | `TFIDF_NGRAM_MAX` | `3` | Upper bound of TF-IDF n-gram range. `3` = trigrams (recommended). |
 
+## Hybrid retrieval (BM25 + FAISS → RRF)
+
+| Variable | Default | Description |
+|---|---|---|
+| `RRF_K` | `60` | RRF damping constant from the original paper. Higher = more uniform fusion. |
+| `RRF_FETCH_MULTIPLIER` | `3` | Over-fetch factor per source before RRF fusion (fetch `top_k × N`, fuse to `top_k`). |
+
+## Document source weights
+
+Applied as a score multiplier in `FAISSStore.hybrid_search()`. Override any source with `SOURCE_WEIGHT_<SOURCE_UPPER>=<float>` in `.env`.
+
+| Variable | Default | Source | Rationale |
+|---|---|---|---|
+| `SOURCE_WEIGHT_CLUSTER` | `1.0` | Live K8s entities | Baseline |
+| `SOURCE_WEIGHT_OFFICIAL` | `1.0` | K8s/Helm upstream docs | Baseline |
+| `SOURCE_WEIGHT_EXAMPLE` | `1.2` | Past resolved incidents | Proven resolutions slightly favoured |
+| `SOURCE_WEIGHT_ANCHOR` | `1.6` | Manifest drift violations | Strong diagnostic signal — declared ≠ observed |
+| `SOURCE_WEIGHT_ENTERPRISE` | `1.5` | Internal runbooks/SOPs | Organisation-specific knowledge |
+| `SOURCE_WEIGHT_RUNBOOK` | `1.8` | Operational procedures | Highest trust: explicit remediation steps |
+
 ## Runtime
 
 | Variable | Default | Description |
