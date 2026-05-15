@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import logging
 import os
 from pathlib import Path
@@ -44,10 +45,30 @@ HELMFILE_USE_CLI: bool = os.getenv("HELMFILE_USE_CLI", "false").lower() == "true
 
 # ── GitOps ─────────────────────────────────────────────────────────────────────
 GITOPS_ENABLED: bool = os.getenv("GITOPS_ENABLED", "false").lower() == "true"
-GITOPS_REPO_URL: str | None = os.getenv("GITOPS_REPO_URL") or None
+GITOPS_REPO_URL: str | None = os.getenv("GITOPS_REPO_URL") or None   # legacy single-repo
 GITOPS_BRANCH: str = os.getenv("GITOPS_BRANCH", "main")
 GITOPS_CHARTS_PATH: str = os.getenv("GITOPS_CHARTS_PATH", "charts")
-GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN") or None
+GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN") or None          # legacy
+
+# Multi-repo registry — any git endpoint (GitHub, GitLab, Gist, self-hosted…)
+# GIT_REPOS_JSON = '[{"url":"https://github.com/org/infra.git","branch":"main","token":"ghp_xxx","label":"infra","charts_path":"charts"}]'
+# Seed from legacy single-repo config if present.
+def _git_repos() -> list[dict]:
+    raw = os.getenv("GIT_REPOS_JSON", "")
+    if raw:
+        try:
+            repos = json.loads(raw)
+            if isinstance(repos, list):
+                return [r for r in repos if isinstance(r, dict) and r.get("url")]
+        except Exception:
+            pass
+    if os.getenv("GITOPS_REPO_URL"):
+        return [{"url": os.getenv("GITOPS_REPO_URL"), "branch": GITOPS_BRANCH,
+                 "token": GITHUB_TOKEN or "", "label": "", "charts_path": GITOPS_CHARTS_PATH}]
+    return []
+
+GIT_REPOS: list[dict] = _git_repos()
+# Each entry: {"url": str, "branch": str, "token": str, "label": str, "charts_path": str}
 
 # ── OpenTelemetry (traces) ─────────────────────────────────────────────────────
 OTEL_ENABLED: bool = os.getenv("OTEL_ENABLED", "false").lower() == "true"
