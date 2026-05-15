@@ -1,5 +1,4 @@
 """Unit tests for log_confidence_decision_node and log_human_decision_node."""
-import pytest
 from workflow.nodes import (
     log_confidence_decision_node,
     log_human_decision_node,

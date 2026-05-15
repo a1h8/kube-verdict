@@ -2249,7 +2249,7 @@ def _render_integration_tests():  # noqa: C901
                         # Backtrack button (available on every non-root turn)
                         if turn_n > 0 and t_idx < len(turns) - 1:
                             if st.button(
-                                f"↩ Backtrack to here",
+                                "↩ Backtrack to here",
                                 key=f"man_backtrack_{case_name}_{turn_n}_{t_idx}",
                                 help="Remove all turns after this one and try a different path",
                             ):

@@ -10,13 +10,9 @@ Strategy:
 """
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from ontology.graph import OntologyGraph
-from vectorstore.embedder import Embedder
-from vectorstore.store import FAISSStore
 from workflow.nodes import (
     ingest_node,
     prometheus_node,

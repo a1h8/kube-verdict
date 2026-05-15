@@ -790,7 +790,6 @@ class TestPendingSchedulingCommandsWithOwner:
 class TestOwnerNameReplicaSetWalkUp:
     def test_replicaset_pod_walks_up_to_deployment(self):
         from rca.remediation_engine import _owner_name
-        from ontology.entities import ResourceKind
         pod = Pod(uid="p1", name="api-xyz-abc12", namespace="prod",
                   owner_ref_kind="ReplicaSet", owner_ref_name="api-xyz")
         dep = Deployment(uid="d1", name="api-xyz", namespace="prod",
