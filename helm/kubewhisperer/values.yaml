@@ -1,0 +1,72 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/a1h8/kubewhisperer
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8501
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: kubewhisperer.local
+  tls: []
+
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 2Gi
+  accessMode: ReadWriteOnce
+
+# Kubeconfig access: mount the in-cluster ServiceAccount (default) or an external secret
+rbac:
+  create: true          # create ClusterRole + ClusterRoleBinding
+
+# Non-secret config — all become env vars
+config:
+  ollamaUrl: "http://ollama:11434"
+  ollamaModel: "mistral"
+  ollamaTimeout: "120"
+  logLevel: "INFO"
+  embeddingModel: "all-MiniLM-L6-v2"
+  bfsMaxDepth: "3"
+  tfidfTopK: "20"
+  prometheusEnabled: "false"
+  prometheusUrl: ""
+  otelEnabled: "false"
+  otelBackendUrl: ""
+  lokiEnabled: "false"
+  lokiUrl: ""
+  gitopsEnabled: "false"
+  gitopsRepoUrl: ""
+  gitopsBranch: "main"
+  gitopsChartsPath: "charts"
+
+# Sensitive config — stored in a Secret
+secrets:
+  create: true
+  githubToken: ""
+  prometheusToken: ""
+  otelToken: ""
+  lokiToken: ""
+  # existingSecret: "my-kw-secret"   # use an existing secret instead
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
