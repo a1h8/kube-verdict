@@ -252,6 +252,8 @@ class TestKeywordCoverage:
             + " ".join(ctx.anchor_fixes)
             + " ".join(ctx.related)
             + " ".join(ctx.policy_violations)
+            + " ".join(ctx.alerts)
+            + " ".join(ctx.traces)
         ).lower()
 
         matched   = [kw for kw in keywords if kw.lower() in all_text]
