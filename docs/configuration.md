@@ -67,6 +67,12 @@ Applied as a score multiplier in `FAISSStore.hybrid_search()`. Override any sour
 | `SOURCE_WEIGHT_ENTERPRISE` | `1.5` | Internal runbooks/SOPs | Organisation-specific knowledge |
 | `SOURCE_WEIGHT_RUNBOOK` | `1.8` | Operational procedures | Highest trust: explicit remediation steps |
 
+## Persistence
+
+| Variable | Default | Description |
+|---|---|---|
+| `KUBEWHISPERER_DB` | `kubewhisperer.db` | Path to the SQLite database. Stores session metadata, LangGraph checkpoints, and raw entity texts for FAISS reconstruction. Swap for a Postgres URL when scaling beyond a single pod. |
+
 ## Runtime
 
 | Variable | Default | Description |

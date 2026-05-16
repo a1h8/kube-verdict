@@ -253,6 +253,45 @@ class FAISSStore:
     # Persistence
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Text persistence (Option B — DB-backed reconstruction)
+    # ------------------------------------------------------------------
+
+    def persist_texts(self, conn) -> int:
+        """
+        Upsert all indexed texts into vector_store_docs.
+        Call this after index_graph() so the DB always mirrors the index.
+        Returns the number of rows written.
+        """
+        from persistence.vector_store_repo import persist_texts
+        n = persist_texts(conn, self._metadata)
+        log.info("persist_texts: %d docs written to DB", n)
+        return n
+
+    def rebuild_from_db(self, conn) -> None:
+        """
+        Reconstruct the FAISS index from texts stored in vector_store_docs.
+        Use when index.faiss is absent but the DB has rows (e.g. after a
+        fresh pod restart without a mounted volume).
+        """
+        from persistence.vector_store_repo import load_texts
+        metadata = load_texts(conn)
+        if not metadata:
+            log.warning("rebuild_from_db: no rows in vector_store_docs — index stays empty")
+            return
+
+        texts = [m["text"] for m in metadata]
+        log.info("rebuild_from_db: re-embedding %d docs…", len(texts))
+        vectors = self._embedder.embed(texts)
+
+        self._index = faiss.IndexFlatIP(self._embedder.dim)
+        self._index.add(vectors)
+        self._metadata = metadata
+        self._uid_to_row = {m["uid"]: i for i, m in enumerate(metadata)}
+        self._bm25.build(self._metadata)
+        self._bm25_dirty = False
+        log.info("rebuild_from_db: index rebuilt — %d vectors", self._index.ntotal)
+
     def save(self, path: Path | str | None = None) -> None:
         dest = Path(path or cfg.VECTOR_STORE_PATH)
         dest.parent.mkdir(parents=True, exist_ok=True)

@@ -2,6 +2,7 @@
 Shared fixtures for FastAPI integration tests.
 
 Graph execution is mocked — no K8s cluster nor Ollama required.
+Each test gets a fresh in-memory SQLite session store for full isolation.
 """
 from __future__ import annotations
 import asyncio
@@ -14,7 +15,7 @@ from httpx import ASGITransport, AsyncClient
 
 from api.app import app
 from api.models import SessionStatus
-from api.session_store import Session, store as _store
+from api.session_store import Session
 
 # ── canned workflow state ─────────────────────────────────────────────────────
 
@@ -87,12 +88,18 @@ REVIEW_PAYLOAD: dict[str, Any] = {
 
 def _make_run_graph(target_status: SessionStatus, review_payload=None, state_override=None):
     """Return an async mock that directly sets session state (no real LangGraph)."""
+    import api.session_store as _ss_mod
+
     async def _fake_run_graph(session: Session, initial_state: dict, resume_cmd=None):
-        await asyncio.sleep(0)   # yield to event loop so create_task is scheduled
-        session.last_state = {**COMPLETED_STATE, **(state_override or {})}
+        await asyncio.sleep(0)
+        _ss_mod.get_store().set_last_state(
+            session.session_id, {**COMPLETED_STATE, **(state_override or {})}
+        )
         if target_status == SessionStatus.AWAITING_REVIEW:
-            session.review_payload = review_payload or REVIEW_PAYLOAD
-        session.status = target_status
+            _ss_mod.get_store().set_review_payload(
+                session.session_id, review_payload or REVIEW_PAYLOAD
+            )
+        _ss_mod.get_store().set_status(session.session_id, target_status)
 
     return _fake_run_graph
 
@@ -101,10 +108,11 @@ def _make_run_graph(target_status: SessionStatus, review_payload=None, state_ove
 
 @pytest.fixture(autouse=True)
 def clean_store():
-    """Wipe the session store between tests."""
-    _store._sessions.clear()
+    """Give each test a fresh in-memory session store."""
+    import api.session_store as _ss_mod
+    _ss_mod.init_store(":memory:")
     yield
-    _store._sessions.clear()
+    # no teardown needed — in-memory DB is discarded automatically
 
 
 @pytest_asyncio.fixture
@@ -115,14 +123,12 @@ async def client():
 
 @pytest_asyncio.fixture
 async def session_id(client):
-    """Create a fresh session and return its ID."""
     r = await client.post("/api/v1/sessions")
     assert r.status_code == 201
     return r.json()["session_id"]
 
 
 async def _wait_for_status(client, session_id: str, *statuses: SessionStatus, timeout: float = 3.0):
-    """Poll /state until session reaches one of the expected statuses."""
     deadline = asyncio.get_event_loop().time() + timeout
     while asyncio.get_event_loop().time() < deadline:
         r = await client.get(f"/api/v1/sessions/{session_id}/state")
@@ -134,7 +140,6 @@ async def _wait_for_status(client, session_id: str, *statuses: SessionStatus, ti
 
 @pytest_asyncio.fixture
 async def completed_session(client, session_id):
-    """Session that has completed a full RCA run (mocked)."""
     with patch("api.routes.sessions._run_graph", side_effect=_make_run_graph(SessionStatus.COMPLETED)):
         r = await client.post(f"/api/v1/sessions/{session_id}/run",
                               json={"query": "pods crashlooping in production",
@@ -146,7 +151,6 @@ async def completed_session(client, session_id):
 
 @pytest_asyncio.fixture
 async def awaiting_review_session(client, session_id):
-    """Session paused at human_review interrupt."""
     with patch("api.routes.sessions._run_graph", side_effect=_make_run_graph(SessionStatus.AWAITING_REVIEW)):
         r = await client.post(f"/api/v1/sessions/{session_id}/run",
                               json={"query": "pods crashlooping in production"})

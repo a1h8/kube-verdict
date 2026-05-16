@@ -21,7 +21,18 @@ from workflow.graph import build_graph
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
 
-_graph = build_graph()
+
+def _build_graph(checkpointer=None):
+    return build_graph(checkpointer=checkpointer)
+
+
+# Default in-memory graph — replaced at startup by app.py lifespan with a
+# SqliteSaver-backed instance.
+_graph = _build_graph()
+
+# Pre-loaded FAISS store — set by app.py lifespan if index.faiss exists on disk.
+# When set, index_node skips re-embedding and uses this store directly.
+_faiss_store = None
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -44,13 +55,11 @@ def _state_to_response(session: Session) -> SessionState:
         edge_log                 = [EdgeEntry(**e) for e in raw_log],
         ingestion_stats    = s.get("ingestion_stats") or {},
         report             = report or None,
-        # Signal content
         events             = report.get("events") or [],
         traces             = report.get("traces") or [],
         alerts             = report.get("alerts") or [],
         anchor_fixes       = report.get("anchor_fixes") or [],
         policy_violations  = report.get("policy_violations") or [],
-        # Suggestions
         causal_chain       = report.get("causal_chain") or [],
         suggestions        = report.get("remediation") or [],
         dry_run_results    = s.get("dry_run_results") or [],
@@ -61,37 +70,39 @@ def _state_to_response(session: Session) -> SessionState:
 
 async def _run_graph(session: Session, initial_state: dict, resume_cmd: Command | None = None) -> None:
     """Run (or resume) the LangGraph workflow in a background task."""
-    cfg = {"configurable": {"thread_id": session.session_id}}
+    configurable: dict = {"thread_id": session.session_id}
+    if _faiss_store is not None:
+        configurable["store"] = _faiss_store
+    cfg = {"configurable": configurable}
     try:
-        session.status = SessionStatus.RUNNING
+        store.set_status(session.session_id, SessionStatus.RUNNING)
         if resume_cmd is not None:
             events = _graph.astream(resume_cmd, cfg, stream_mode="values")
         else:
             events = _graph.astream(initial_state, cfg, stream_mode="values")
 
         async for state in events:
-            session.last_state = dict(state)
+            store.set_last_state(session.session_id, dict(state))
 
         # Graph finished — check for interrupt (AWAITING_REVIEW) or completion
         snapshot = _graph.get_state(cfg)
         if snapshot.next:
-            # Interrupted at human_review
             interrupt_data = None
             for task in (snapshot.tasks or []):
                 if getattr(task, "interrupts", None):
                     interrupt_data = task.interrupts[0].value
                     break
-            session.review_payload = interrupt_data
-            session.status = SessionStatus.AWAITING_REVIEW
+            store.set_review_payload(session.session_id, interrupt_data)
+            store.set_status(session.session_id, SessionStatus.AWAITING_REVIEW)
         else:
-            session.status = SessionStatus.COMPLETED
+            store.set_status(session.session_id, SessionStatus.COMPLETED)
 
     except asyncio.CancelledError:
         pass
     except Exception as exc:
         log.exception("session %s failed", session.session_id)
-        session.error = str(exc)
-        session.status = SessionStatus.FAILED
+        store.set_error(session.session_id, str(exc))
+        store.set_status(session.session_id, SessionStatus.FAILED)
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
@@ -116,10 +127,9 @@ async def run_session(session_id: str, body: RunRequest) -> SessionState:
         "kube_context": body.kube_context,
         "edge_log":     [],
     }
-    session.last_state = initial_state
-    session.review_payload = None
-    session.error = None
-    session.status = SessionStatus.RUNNING
+    store.set_last_state(session_id, initial_state)
+    store.set_review_payload(session_id, None)
+    store.set_status(session_id, SessionStatus.RUNNING)
 
     task = asyncio.create_task(_run_graph(session, initial_state))
     session.task = task
@@ -131,14 +141,12 @@ async def feedback(session_id: str, body: FeedbackRequest) -> SessionState:
     session = store.get_or_404(session_id)
 
     if session.status == SessionStatus.AWAITING_REVIEW:
-        # Human approve/reject: resume the LangGraph interrupt
         decision = (body.human_decision or "reject").lower()
         resume = Command(resume=decision)
         task = asyncio.create_task(_run_graph(session, {}, resume_cmd=resume))
         session.task = task
 
     elif session.status in (SessionStatus.COMPLETED, SessionStatus.FAILED):
-        # Extra context injection: re-run with enriched query
         if not body.extra_context:
             raise HTTPException(400, "extra_context required to re-run a completed/failed session")
         base = dict(session.last_state)
@@ -166,7 +174,7 @@ async def stream_session(session_id: str) -> StreamingResponse:
     async def _generate() -> AsyncIterator[str]:
         cfg = {"configurable": {"thread_id": session_id}}
         async for event in _graph.astream(None, cfg, stream_mode="values"):
-            session.last_state = dict(event)
+            store.set_last_state(session_id, dict(event))
             data = _state_to_response(session).model_dump_json()
             yield f"data: {data}\n\n"
         yield "data: {\"done\": true}\n\n"
