@@ -23,6 +23,10 @@ torch>=2.0.0             # PatchTST training + sentence-transformers
 scikit-learn>=1.4.0
 rank-bm25>=0.2.2
 
+# LLM providers (optional — install only what you use)
+openai>=1.30.0
+anthropic>=0.25.0
+
 # Utilities
 requests>=2.31.0
 pyyaml>=6.0.1

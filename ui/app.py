@@ -1754,6 +1754,7 @@ def _render_integration_tests():  # noqa: C901
     from tests.integration.use_cases.proposal_engine import generate_proposals
     from tools.case_contract import update_expect_from_sim, update_input_from_sim, recalibrate_all
     from rca.analyzer import RCAAnalyzer
+    from llm import build_llm_client
     from llm.ollama_client import OllamaClient
     from vectorstore.embedder import Embedder
     from vectorstore.store import FAISSStore
@@ -1889,21 +1890,30 @@ def _render_integration_tests():  # noqa: C901
 
         st.divider()
 
-        client    = OllamaClient()
-        ollama_ok = client.is_available() and client.model_is_pulled()
+        client    = build_llm_client()
         if is_pipeline:
-            st.success("Pipeline trace — no Ollama required", icon="🔬")
-        elif not client.is_available():
-            st.error("Ollama not reachable — run `ollama serve`", icon="🔴")
-        elif not client.model_is_pulled():
-            st.warning(f"Model `{client.model}` not pulled", icon="⚠️")
+            llm_ok = True
+            st.success("Pipeline trace — no LLM required", icon="🔬")
+        elif isinstance(client, OllamaClient):
+            if not client.is_available():
+                llm_ok = False
+                st.error("Ollama not reachable — run `ollama serve`", icon="🔴")
+            elif not client.model_is_pulled():
+                llm_ok = False
+                st.warning(f"Model `{client.model}` not pulled — run `ollama pull {client.model}`", icon="⚠️")
+            else:
+                llm_ok = True
+                st.success(f"Ollama: `{client.model}`", icon="🟢")
         else:
-            st.success(f"Ollama: `{client.model}`", icon="🟢")
+            llm_ok = client.is_available()
+            provider = type(client).__name__.replace("Client", "")
+            model = getattr(client, "model", "")
+            st.success(f"{provider}: `{model}`", icon="🟢")
 
         run_label = "▶ Run trace" if is_pipeline else "▶ Run simulation"
         run_btn = st.button(
             run_label, type="primary",
-            use_container_width=True, disabled=(not ollama_ok and not is_pipeline),
+            use_container_width=True, disabled=(not llm_ok and not is_pipeline),
         )
 
         sim_path  = SIM_RESULTS / f"{case_name}.json"

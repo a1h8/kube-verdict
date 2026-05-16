@@ -15,7 +15,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
 import config as cfg
-from llm.ollama_client import OllamaClient
+from llm import LLMClient, build_llm_client
 from rca.analyzer import RCAAnalyzer
 from rca.context_builder import ContextBuilder
 from vectorstore.embedder import Embedder
@@ -51,9 +51,9 @@ def _get_provider(config: RunnableConfig):
     return config.get("configurable", {}).get("provider")
 
 
-def _get_llm(config: RunnableConfig) -> OllamaClient:
-    """Return injected LLM (tests) or a fresh OllamaClient."""
-    return config.get("configurable", {}).get("llm") or OllamaClient()
+def _get_llm(config: RunnableConfig) -> LLMClient:
+    """Return injected LLM (tests) or the client selected by LLM_PROVIDER."""
+    return config.get("configurable", {}).get("llm") or build_llm_client()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

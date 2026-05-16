@@ -95,10 +95,23 @@ PROMETHEUS_URL: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 PROMETHEUS_TOKEN: str | None = os.getenv("PROMETHEUS_TOKEN") or None
 PROMETHEUS_TIMEOUT: int = _int("PROMETHEUS_TIMEOUT", 30)
 
-# ── Ollama / Mistral ────────────────────────────────────────────────────────────
+# ── LLM provider ───────────────────────────────────────────────────────────────
+LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "ollama")  # ollama | openai | anthropic
+
+# Ollama (local)
 OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "mistral")
 OLLAMA_TIMEOUT: int = _int("OLLAMA_TIMEOUT", 120)
+
+# OpenAI
+OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_TIMEOUT: int = _int("OPENAI_TIMEOUT", 60)
+
+# Anthropic
+ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_TIMEOUT: int = _int("ANTHROPIC_TIMEOUT", 60)
 
 # ── Vector store ───────────────────────────────────────────────────────────────
 VECTOR_STORE_TYPE: str = os.getenv("VECTOR_STORE_TYPE", "faiss")

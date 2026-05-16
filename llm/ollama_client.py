@@ -5,6 +5,7 @@ from typing import Iterator
 import requests
 
 import config as cfg
+from llm.base import LLMClient
 
 log = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ _CHAT_PATH = "/api/chat"
 _TAGS_PATH = "/api/tags"
 
 
-class OllamaClient:
+class OllamaClient(LLMClient):
     """
     HTTP client for the Ollama local inference API.
     Supports both /api/generate (single prompt) and /api/chat (messages list).

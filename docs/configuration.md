@@ -23,13 +23,35 @@ cp .env.example .env
 | `HELMFILE_ENVIRONMENT` | `default` | Helmfile environment to resolve environment-specific values for. |
 | `HELMFILE_USE_CLI` | `false` | Set to `true` to run `helmfile build` for full Go-template rendering. Requires `helmfile` binary. |
 
-## Ollama / Mistral
+## LLM provider
+
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_PROVIDER` | `ollama` | Active LLM backend: `ollama`, `openai`, or `anthropic`. |
+
+### Ollama (local)
 
 | Variable | Default | Description |
 |---|---|---|
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama API base URL. Set to `http://ollama:11434` in K8s. |
 | `OLLAMA_MODEL` | `mistral` | Model to use. Any Ollama-compatible model works (e.g. `llama3`, `mixtral`). |
 | `OLLAMA_TIMEOUT` | `120` | HTTP timeout in seconds for LLM calls. Increase for large contexts. |
+
+### OpenAI
+
+| Variable | Default | Description |
+|---|---|---|
+| `OPENAI_API_KEY` | _(none)_ | OpenAI API key. Required when `LLM_PROVIDER=openai`. |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Model name (e.g. `gpt-4o`, `gpt-4-turbo`). |
+| `OPENAI_TIMEOUT` | `60` | HTTP timeout in seconds. |
+
+### Anthropic
+
+| Variable | Default | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | _(none)_ | Anthropic API key. Required when `LLM_PROVIDER=anthropic`. |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Model ID (e.g. `claude-opus-4-7`, `claude-haiku-4-5-20251001`). |
+| `ANTHROPIC_TIMEOUT` | `60` | HTTP timeout in seconds. |
 
 ## Vector store
 

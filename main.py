@@ -21,7 +21,7 @@ import argparse
 
 import config as cfg  # loads .env
 from ingestion import K8sCollector, HelmCollector, HelmfileCollector, HelmDriftDetector, PolicyCollector
-from llm import OllamaClient
+from llm import build_llm_client
 from rca import RCAAnalyzer
 from vectorstore import Embedder, FAISSStore
 
@@ -102,7 +102,7 @@ def main() -> None:
     print(store.summary())
     print()
 
-    llm = OllamaClient()
+    llm = build_llm_client()
     analyzer = RCAAnalyzer(graph=graph, store=store, llm=llm)
 
     if args.stream:

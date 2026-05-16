@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Iterator
 
-from llm.ollama_client import OllamaClient
+from llm.base import LLMClient
 from ontology.graph import OntologyGraph
 from rca.context_builder import ContextBuilder, ContextWindow
 from vectorstore.store import FAISSStore
@@ -171,11 +171,12 @@ class RCAAnalyzer:
         self,
         graph: OntologyGraph,
         store: FAISSStore,
-        llm: OllamaClient | None = None,
+        llm: LLMClient | None = None,
     ) -> None:
         self.graph = graph
         self.store = store
-        self.llm = llm or OllamaClient()
+        from llm import build_llm_client
+        self.llm = llm or build_llm_client()
         self._ctx_builder = ContextBuilder(graph, store)
         self._check_llm()
 
@@ -236,12 +237,8 @@ class RCAAnalyzer:
 
     def _check_llm(self) -> None:
         if not self.llm.is_available():
-            log.warning("Ollama not reachable at %s — run: ollama serve", self.llm.url)
-        elif not self.llm.model_is_pulled():
-            log.warning(
-                "Model '%s' not pulled — run: ollama pull %s",
-                self.llm.model, self.llm.model,
-            )
+            model = getattr(self.llm, "model", "unknown")
+            log.warning("LLM not reachable (model=%s) — check provider config", model)
 
 
 # ---------------------------------------------------------------------------
