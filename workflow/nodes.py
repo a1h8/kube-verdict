@@ -788,8 +788,8 @@ def hypothesize_node(state: RCAState, config: RunnableConfig) -> dict:
     first, *rest = final
     llm_used = len(pool) < MAX_PATHS
     log.info(
-        "hypothesize: %d path(s) — H1='%s'  sources: rules=%d pool=%d llm_fill=%s",
-        len(final), first[:60], len(rule_sources), len(pool), llm_used,
+        "hypothesize: %d path(s) computed; sources: rules=%d pool=%d llm_fill=%s",
+        len(final), len(rule_sources), len(pool), llm_used,
     )
     return {
         "current_hypothesis": first,
