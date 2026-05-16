@@ -24,7 +24,7 @@ import uvicorn
 
 from api.app import app
 from api.models import SessionStatus
-from api.session_store import store as _store
+from api.session_store import get_store
 from tests.integration.api.conftest import (
     _make_run_graph,
 )
@@ -63,12 +63,6 @@ def live_server():
     server.should_exit = True
     thread.join(timeout=5)
 
-
-@pytest.fixture(autouse=True)
-def _clean_store():
-    _store._sessions.clear()
-    yield
-    _store._sessions.clear()
 
 
 def _post(url: str, path: str, **kw) -> httpx.Response:
@@ -208,8 +202,7 @@ def test_live_http_error_codes(live_server):
 
     # 409 — double start
     sid = _create_session(live_server)
-    sess = _store.get(sid)
-    sess.status = SessionStatus.RUNNING
+    get_store().set_status(sid, SessionStatus.RUNNING)
     r409 = _post(live_server, f"/api/v1/sessions/{sid}/run", json={"query": "x"})
     assert r409.status_code == 409
 

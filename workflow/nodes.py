@@ -355,6 +355,14 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
     built_store.index_graph(graph)
     anchor_count = built_store.index_anchor_violations(graph)
     built_store.save()
+
+    from persistence.db import get_db
+    conn = get_db()
+    try:
+        built_store.persist_texts(conn)
+    finally:
+        conn.close()
+
     log.info("index: %d vectors, %d anchor violation(s)", built_store.size, anchor_count)
 
     config.setdefault("configurable", {})["store"] = built_store
