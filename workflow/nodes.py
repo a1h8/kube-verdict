@@ -355,6 +355,14 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
     built_store.index_graph(graph)
     anchor_count = built_store.index_anchor_violations(graph)
     built_store.save()
+
+    from persistence.db import get_db
+    conn = get_db()
+    try:
+        built_store.persist_texts(conn)
+    finally:
+        conn.close()
+
     log.info("index: %d vectors, %d anchor violation(s)", built_store.size, anchor_count)
 
     config.setdefault("configurable", {})["store"] = built_store
@@ -780,8 +788,8 @@ def hypothesize_node(state: RCAState, config: RunnableConfig) -> dict:
     first, *rest = final
     llm_used = len(pool) < MAX_PATHS
     log.info(
-        "hypothesize: %d path(s) — H1='%s'  sources: rules=%d pool=%d llm_fill=%s",
-        len(final), first[:60], len(rule_sources), len(pool), llm_used,
+        "hypothesize: %d path(s) computed; sources: rules=%d pool=%d llm_fill=%s",
+        len(final), len(rule_sources), len(pool), llm_used,
     )
     return {
         "current_hypothesis": first,
