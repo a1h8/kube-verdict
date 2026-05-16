@@ -335,6 +335,7 @@ def test_anchor_field_map_covers_all_entries():
 def test_index_node_calls_anchor_violations(synthetic_graph):
     """index_node should call index_anchor_violations after index_graph."""
     with patch("vectorstore.store.FAISSStore.save"), \
+         patch("vectorstore.store.FAISSStore.persist_texts"), \
          patch("vectorstore.store.FAISSStore.index_anchor_violations", return_value=0) as mock_av:
         index_node(_state(), _config(graph=synthetic_graph))
     mock_av.assert_called_once_with(synthetic_graph)
