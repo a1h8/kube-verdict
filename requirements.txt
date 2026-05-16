@@ -10,6 +10,8 @@ kubernetes>=29.0.0
 
 # LangGraph workflow (RCA as a stateful, human-in-the-loop graph)
 langgraph>=0.2.14
+langgraph-checkpoint-sqlite>=2.0.0  # SQLite-backed LangGraph checkpointer
+aiosqlite>=0.19.0                   # async SQLite for SqliteSaver
 
 # Vector search + signal analysis
 faiss-cpu>=1.8.0
