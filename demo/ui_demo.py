@@ -235,14 +235,11 @@ if st.session_state.final_report is not None:
     _conf_raw  = (r.get("confidence") or "").strip()
     _conf_word = (_conf_raw.split()[0] if _conf_raw else "?").upper()
     _conf_badge = {"HIGH": "🟢 HIGH", "MEDIUM": "🟡 MEDIUM", "LOW": "🔴 LOW"}.get(_conf_word, f"⚪ {_conf_word}")
-    # Root causes = anchor violations (patches) + ml-inference GPU constraint (no patch)
-    # payment-api is a cascade from db-primary, not counted as a root cause
-    _patches_count = len(st.session_state.expected_patches)
-    _root_causes = _patches_count + 1  # +1 for ml-inference GPU constraint
+    _anchor_count = len(st.session_state.expected_patches)
     meta_cols = st.columns(3)
     meta_cols[0].metric("Confidence", _conf_badge)
     meta_cols[1].metric("K8s version", r.get("kube_version") or "demo")
-    meta_cols[2].metric("Root causes identified", _root_causes)
+    meta_cols[2].metric("Anchor violations", _anchor_count)
 
     if r.get("causal_chain"):
         st.markdown("**Causal chain:**")
