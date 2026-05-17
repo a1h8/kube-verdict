@@ -2,17 +2,33 @@
 
 > Correlate Kubernetes signals, detect GitOps drift, and get validated remediation patches — with a human approval gate before anything touches production.
 
-[![Tests](https://img.shields.io/badge/tests-2282%2B%20passed-brightgreen)](#validated-demo-scope)
+[![CI](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml)
+[![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h006-blue)](#validated-scenarios)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
-KubeWhisperer identifies cascading Kubernetes failures by correlating events, Prometheus alerts, OTel/Loki traces, and Helm drift — then proposes git-diff-style remediation patches validated by dry-run and gated behind human approval before commit.
+KubeWhisperer is designed to correlate Kubernetes events, Helm drift, Prometheus alerts, OTel traces and Loki logs. The current CI demo validates the deterministic RCA pipeline offline on Kubernetes/Helm incident fixtures — no live cluster, no LLM required.
 
 **By default it runs entirely local** — Ollama + Mistral, no data leaves your infrastructure. Cloud providers (Groq, Anthropic, OpenAI, Google Gemini) are drop-in replacements via `LLM_PROVIDER`.
 
 ```
 Signals → Correlation → Hypotheses → Dry-run validation → Human gate → GitOps patch
 ```
+
+---
+
+## Why it matters
+
+Kubernetes incidents are rarely single-signal failures. KubeWhisperer separates root causes from cascades, detects GitOps drift between Helm values and running state, proposes a safe remediation path, and keeps a human approval gate before production changes.
+
+## What is proven today
+
+| Capability | Status |
+|---|---|
+| Offline deterministic RCA pipeline | Proven in CI (h001–h006) |
+| Multi-signal collectors (Prometheus, OTel, Loki) | Implemented / configurable |
+| Live cluster usage | Available with kubeconfig |
+| GitOps patching | Human-gated, dry-run first |
 
 ---
 
@@ -96,7 +112,7 @@ Each case runs the full pre-LLM pipeline: graph construction → hybrid retrieva
 
 ## How it works
 
-The LLM is a **next-token predictor over top-k retrieved context** — it does not reason from scratch. Hypotheses are generated from deterministic evidence (ontology topology, anchor violations, RemediationEngine rules, past resolved incidents) before the LLM is invoked.
+The LLM is constrained by retrieved evidence. KubeWhisperer ranks hypotheses from deterministic signals first — ontology topology, anchor violations, drift, policies and resolved incidents — then uses the LLM only to produce an evidence-grounded RCA.
 
 Confidence routing uses beam search: two consecutive LOW results on the same hypothesis path trigger an immediate switch to the next candidate, and archived paths re-rank remaining candidates using signals from the failed analysis.
 
@@ -124,7 +140,7 @@ Dry-run validation → human review gate → GitOps patch
 |---|---|
 | [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, beam search routing, anchor system design, drift detection, PatchTST |
 | [UI reference](docs/ui.md) | Streamlit tabs, pipeline trace steps, anchor pivot table, reasoning journey, router decisions |
-| [Test cases](docs/test-cases.md) | h001–h011 format, adding a new case, validated scope, CI coverage |
+| [Test cases](docs/test-cases.md) | h001–h006 validated scenarios, case format, adding a new case, CI coverage |
 | [Project layout](docs/project-layout.md) | Full directory tree, RBAC |
 | [Roadmap](docs/roadmap.md) | Done and next |
 | [Configuration](docs/configuration.md) | All `.env` variables, hybrid retrieval tuning, source weights |
