@@ -51,9 +51,13 @@ def _get_provider(config: RunnableConfig):
     return config.get("configurable", {}).get("provider")
 
 
-def _get_llm(config: RunnableConfig) -> OllamaClient:
-    """Return injected LLM (tests) or a fresh OllamaClient."""
-    return config.get("configurable", {}).get("llm") or OllamaClient()
+def _get_llm(config: RunnableConfig):
+    """Return injected LLM (tests) or the provider configured by LLM_PROVIDER."""
+    injected = config.get("configurable", {}).get("llm")
+    if injected is not None:
+        return injected
+    from llm import build_llm_client
+    return build_llm_client()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1019,6 +1023,10 @@ def human_review_node(state: RCAState, config: RunnableConfig) -> dict:
         "edge_log":           list(state.get("edge_log") or []),
         "hypothesis_sources": state.get("hypothesis_sources") or [],
     }
+
+    if config.get("configurable", {}).get("auto_approve"):
+        log.info("human_review: auto-approve mode — skipping interrupt")
+        return {"human_decision": "approve"}
 
     decision: str = interrupt(payload)
 

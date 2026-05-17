@@ -39,3 +39,7 @@ helm/**/values-local.yaml
 demo/.env.demo
 data/
 tests/integration/use_cases/sim_results/*.json
+
+# ── Demo recordings (binaries — tracked only if explicitly added) ─────────────
+demo/*.mp4
+demo/*.mov

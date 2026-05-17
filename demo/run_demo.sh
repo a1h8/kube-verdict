@@ -3,9 +3,9 @@
 # No Kubernetes cluster required.
 #
 # Usage:
-#   bash demo/run_demo.sh                  # Ollama (default)
-#   LLM_PROVIDER=anthropic bash demo/run_demo.sh
-#   LLM_PROVIDER=openai    bash demo/run_demo.sh
+#   bash demo/run_demo.sh                                         # Ollama (default, ~60-120s per analysis)
+#   LLM_PROVIDER=anthropic bash demo/run_demo.sh                  # Anthropic claude-sonnet-4-6 (~5-8s)
+#   LLM_PROVIDER=openai    bash demo/run_demo.sh                  # OpenAI gpt-4o-mini (~5-10s)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,10 +31,26 @@ if [[ "$PROVIDER" == "ollama" ]]; then
     OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
     if ! curl -sf "$OLLAMA_URL/api/tags" >/dev/null 2>&1; then
         warn "Ollama not reachable at $OLLAMA_URL — start it with: ollama serve"
-        warn "Or switch provider: LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... bash demo/run_demo.sh"
+        warn "For a faster demo: LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... bash demo/run_demo.sh"
         exit 1
     fi
-    info "Ollama reachable at $OLLAMA_URL"
+    info "Ollama reachable at $OLLAMA_URL (analysis ~60-120s)"
+fi
+
+if [[ "$PROVIDER" == "anthropic" ]]; then
+    if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+        warn "ANTHROPIC_API_KEY not set — set it in .env or export it before running"
+        exit 1
+    fi
+    info "Anthropic configured (model: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}, analysis ~5-8s)"
+fi
+
+if [[ "$PROVIDER" == "openai" ]]; then
+    if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+        warn "OPENAI_API_KEY not set — set it in .env or export it before running"
+        exit 1
+    fi
+    info "OpenAI configured (model: ${OPENAI_MODEL:-gpt-4o-mini}, analysis ~5-10s)"
 fi
 
 # ── Launch ────────────────────────────────────────────────────────────────────

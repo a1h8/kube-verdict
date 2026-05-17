@@ -1,4 +1,4 @@
-[build-system]
+brew install --cask kap[build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.backends.legacy:build"
 

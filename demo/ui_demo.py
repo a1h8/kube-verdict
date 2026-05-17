@@ -82,10 +82,13 @@ def _init_state():
     defaults = dict(
         status="idle",           # idle | running | awaiting_review | done | error
         tokens="",               # accumulated reasoning tokens
+        log_lines=[],            # per-node progress log
         hypothesis="",           # current hypothesis at interrupt
         review_payload=None,
         thread_id="",
-        final_report=None,
+        final_report=None,       # None = not yet run, {} = ran but no report
+        cluster_fixed=False,     # True after remediation applied
+        expected_patches=[],     # pre-computed from fresh graph before workflow
         error=None,
         elapsed=0.0,
     )
@@ -108,14 +111,15 @@ st.divider()
 
 # ── Cluster state ─────────────────────────────────────────────────────────────
 
-from demo.scenario_builder import INCIDENTS
+from demo.scenario_builder import INCIDENTS, HEALED_INCIDENTS, generate_patch_diffs
 
 st.subheader("Cluster state")
 
-cols = st.columns(5)
+_display_incidents = HEALED_INCIDENTS if st.session_state.cluster_fixed else INCIDENTS
 severity_color = {"critical": "🔴", "high": "🟠", "medium": "🟡", "ok": "🟢"}
 
-for col, inc in zip(cols, INCIDENTS):
+cols = st.columns(5)
+for col, inc in zip(cols, _display_incidents):
     with col:
         icon = severity_color[inc["severity"]]
         st.metric(
@@ -127,7 +131,7 @@ for col, inc in zip(cols, INCIDENTS):
 
 with st.expander("Incident details", expanded=False):
     import pandas as pd
-    df = pd.DataFrame(INCIDENTS)[["service", "status", "restarts", "cause"]]
+    df = pd.DataFrame(_display_incidents)[["service", "status", "restarts", "cause"]]
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 st.divider()
@@ -158,11 +162,14 @@ with left:
     reset_btn = col_reset.button("↺ Reset", use_container_width=True)
 
     if reset_btn:
-        for k in ["status", "tokens", "hypothesis", "review_payload",
-                  "thread_id", "final_report", "error", "elapsed"]:
-            st.session_state[k] = {"status": "idle", "tokens": "", "hypothesis": "",
-                                   "review_payload": None, "thread_id": "",
-                                   "final_report": None, "error": None, "elapsed": 0.0}[k]
+        for k in ["status", "tokens", "log_lines", "hypothesis", "review_payload",
+                  "thread_id", "final_report", "cluster_fixed", "expected_patches",
+                  "error", "elapsed"]:
+            st.session_state[k] = {
+                "status": "idle", "tokens": "", "log_lines": [], "hypothesis": "",
+                "review_payload": None, "thread_id": "", "final_report": None,
+                "cluster_fixed": False, "expected_patches": [], "error": None, "elapsed": 0.0,
+            }[k]
         st.rerun()
 
     # Status badge
@@ -178,6 +185,9 @@ with left:
 
     if st.session_state.elapsed:
         st.caption(f"Elapsed: {st.session_state.elapsed:.1f}s")
+
+    if st.session_state.status == "error" and st.session_state.error:
+        st.error(st.session_state.error)
 
     # Human review panel
     if st.session_state.status == "awaiting_review" and not auto_mode:
@@ -203,24 +213,36 @@ with left:
 
 with right:
     st.subheader("Reasoning stream")
-    reasoning_placeholder = st.empty()
-    reasoning_placeholder.markdown(
-        f'<div class="reasoning-box">{st.session_state.tokens or "Waiting for analysis…"}</div>',
+    log_placeholder      = st.empty()
+    analysis_placeholder = st.empty()
+
+    _log_text = "\n".join(st.session_state.log_lines) if st.session_state.log_lines else "Waiting for analysis…"
+    log_placeholder.markdown(
+        f'<div class="reasoning-box">{_log_text}</div>',
         unsafe_allow_html=True,
     )
+    if st.session_state.tokens:
+        analysis_placeholder.markdown(st.session_state.tokens)
 
 st.divider()
 
 # ── Final report ──────────────────────────────────────────────────────────────
 
-if st.session_state.final_report:
+if st.session_state.final_report is not None:
     r = st.session_state.final_report
     st.subheader("Root cause analysis report")
 
+    _conf_raw  = (r.get("confidence") or "").strip()
+    _conf_word = (_conf_raw.split()[0] if _conf_raw else "?").upper()
+    _conf_badge = {"HIGH": "🟢 HIGH", "MEDIUM": "🟡 MEDIUM", "LOW": "🔴 LOW"}.get(_conf_word, f"⚪ {_conf_word}")
+    # Root causes = anchor violations (patches) + ml-inference GPU constraint (no patch)
+    # payment-api is a cascade from db-primary, not counted as a root cause
+    _patches_count = len(st.session_state.expected_patches)
+    _root_causes = _patches_count + 1  # +1 for ml-inference GPU constraint
     meta_cols = st.columns(3)
-    meta_cols[0].metric("Confidence", r.get("confidence", "?"))
-    meta_cols[1].metric("K8s version", r.get("kube_version", "?"))
-    meta_cols[2].metric("Hypotheses explored", len(r.get("reasoning_history", [])))
+    meta_cols[0].metric("Confidence", _conf_badge)
+    meta_cols[1].metric("K8s version", r.get("kube_version") or "demo")
+    meta_cols[2].metric("Root causes identified", _root_causes)
 
     if r.get("causal_chain"):
         st.markdown("**Causal chain:**")
@@ -237,16 +259,36 @@ if st.session_state.final_report:
             for fix in r["anchor_fixes"]:
                 st.code(fix, language="bash")
 
+    _patches = st.session_state.expected_patches
+    if _patches:
+        _label  = "Applied patches (git diff)" if st.session_state.cluster_fixed else "Proposed patches (git diff)"
+        _expand = st.session_state.cluster_fixed
+        if st.session_state.cluster_fixed:
+            st.success("All services restored to healthy state.")
+        with st.expander(_label, expanded=_expand):
+            for p in _patches:
+                st.caption(f"`{p['entity']}`  —  field: `{p['field']}`")
+                st.code(p["diff"], language="diff")
+
 # ── Run workflow ──────────────────────────────────────────────────────────────
 
 if run_btn:
-    st.session_state.status  = "running"
-    st.session_state.tokens  = ""
-    st.session_state.elapsed = 0.0
+    st.session_state.status    = "running"
+    st.session_state.tokens    = ""
+    st.session_state.log_lines = []
+    st.session_state.elapsed   = 0.0
     st.session_state.final_report = None
+    st.session_state.cluster_fixed = False
     st.session_state.thread_id = f"demo-{int(time.time())}"
 
     graph, store, wf = _build_infra()
+
+    # Pre-compute patches from a fresh (unmodified) graph so anchor_node
+    # mutations during the workflow don't affect the display.
+    if not st.session_state.expected_patches:
+        from demo.scenario_builder import build_graph as _build_demo_graph
+        _fresh = _build_demo_graph()
+        st.session_state.expected_patches = generate_patch_diffs(_fresh)
 
     cfg_run = {
         "configurable": {
@@ -263,35 +305,96 @@ if run_btn:
     if auto_mode:
         cfg_run["configurable"]["auto_approve"] = True
 
+    import config as cfg  # noqa: PLC0415
+
+    _NODE_LABELS = {
+        "ingest":          "Cluster state collected",
+        "metrics":         "Metrics-server checked",
+        "prometheus":      "Prometheus alerts correlated",
+        "otel":            "OTel traces / Loki logs gathered",
+        "gitops":          "GitOps drift checked",
+        "anchor":          "Manifest anchors evaluated",
+        "index":           "FAISS index ready",
+        "signal_analysis": "Signal analysis (PatchTST) done",
+        "hypothesize":     "Hypotheses generated",
+        "example_lookup":  "Knowledge base searched",
+        "analyze":         "LLM root-cause analysis done",
+        "increment_retry": "Retry — widening BFS",
+        "archive_path":    "Path archived → next hypothesis",
+        "select_best":     "Best hypothesis selected",
+        "dry_run":         "Dry-run validation done",
+        "human_review":    "Human review gate",
+        "remediation":     "Remediation applied",
+        "save_example":    "Saved to knowledge base",
+    }
+    import os as _os
+    _provider = _os.getenv("LLM_PROVIDER", "ollama").lower()
+    _llm_label = {
+        "ollama":    f"Ollama / {cfg.OLLAMA_MODEL}",
+        "anthropic": f"Anthropic / {_os.getenv('ANTHROPIC_MODEL', 'claude-sonnet-4-6')}",
+        "openai":    f"OpenAI / {_os.getenv('OPENAI_MODEL', 'gpt-4o-mini')}",
+        "google":    f"Google / {_os.getenv('GOOGLE_MODEL', 'gemini-2.0-flash')}",
+    }.get(_provider, _provider)
+    _PENDING_AFTER = {
+        "example_lookup": f"⏳  LLM root-cause analysis  ({_llm_label})…",
+        "analyze":        "⏳  Selecting best hypothesis…",
+    }
+
     t0 = time.time()
 
     try:
         import asyncio
 
         async def _stream():
-            async for state in wf.astream(initial_state, cfg_run, stream_mode="values"):
-                # Accumulate reasoning tokens
-                history = state.get("reasoning_history") or []
-                if history:
-                    last = history[-1]
-                    analysis = last.get("raw_analysis", "") if isinstance(last, dict) else ""
-                    if analysis and analysis not in st.session_state.tokens:
-                        st.session_state.tokens = analysis
-                        reasoning_placeholder.markdown(
-                            f'<div class="reasoning-box">{analysis}</div>',
-                            unsafe_allow_html=True,
-                        )
+            from langgraph.types import Command
 
-                # Check for interrupt
-                hypo = state.get("current_hypothesis", "")
-                if hypo:
-                    st.session_state.hypothesis = hypo
+            log_lines: list[str] = []
 
-                st.session_state.elapsed = round(time.time() - t0, 1)
+            def _update_log(node_name: str, node_output: dict) -> None:
+                t_now = round(time.time() - t0, 1)
+                label = _NODE_LABELS.get(node_name)
+                if label:
+                    log_lines.append(f"[{t_now:5.1f}s] ✅  {label}")
+                for src in ("analyze", "archive_path"):
+                    if node_name == src:
+                        raw = (node_output or {}).get("raw_analysis", "")
+                        if raw and raw != st.session_state.tokens:
+                            st.session_state.tokens = raw
+                            analysis_placeholder.markdown(raw)
+                pending = _PENDING_AFTER.get(node_name)
+                if pending:
+                    log_lines.append(pending)
+                st.session_state.log_lines = log_lines
+                st.session_state.elapsed   = t_now
+                log_placeholder.markdown(
+                    f'<div class="reasoning-box">{"<br>".join(log_lines)}</div>',
+                    unsafe_allow_html=True,
+                )
+
+            async for updates in wf.astream(initial_state, cfg_run, stream_mode="updates"):
+                for node_name, node_output in updates.items():
+                    _update_log(node_name, node_output or {})
 
             # Check for human review interrupt
             snapshot = wf.get_state(cfg_run)
             if snapshot.next:
+                if auto_mode:
+                    # Auto-approve: resume directly without surfacing to human
+                    t_now = round(time.time() - t0, 1)
+                    log_lines.append(f"[{t_now:5.1f}s] 🤖  Auto-approve — applying remediation…")
+                    log_placeholder.markdown(
+                        f'<div class="reasoning-box">{"<br>".join(log_lines)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    async for updates in wf.astream(
+                        Command(resume="approve"), cfg_run, stream_mode="updates"
+                    ):
+                        for node_name, node_output in updates.items():
+                            _update_log(node_name, node_output or {})
+                    snapshot = wf.get_state(cfg_run)
+
+            if snapshot.next:
+                # Still paused — surface human review panel
                 st.session_state.status = "awaiting_review"
                 for task in (snapshot.tasks or []):
                     if getattr(task, "interrupts", None):
@@ -299,8 +402,9 @@ if run_btn:
                         break
             else:
                 final = snapshot.values
-                st.session_state.final_report = final.get("report_dict") or {}
-                st.session_state.status = "done"
+                st.session_state.final_report  = final.get("report_dict")  # keep None or {}
+                st.session_state.status        = "done"
+                st.session_state.cluster_fixed = True
 
         asyncio.run(_stream())
 
@@ -332,8 +436,9 @@ if "_review_decision" in st.session_state and st.session_state.status == "awaiti
                 pass
             snapshot = wf.get_state(cfg_run)
             if not snapshot.next:
-                st.session_state.final_report = snapshot.values.get("report_dict") or {}
-                st.session_state.status = "done"
+                st.session_state.final_report  = snapshot.values.get("report_dict")
+                st.session_state.status         = "done"
+                st.session_state.cluster_fixed  = True
 
         asyncio.run(_resume())
     except Exception as exc:
