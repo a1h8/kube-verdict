@@ -21,7 +21,6 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
-from rich.rule import Rule
 
 console = Console()
 

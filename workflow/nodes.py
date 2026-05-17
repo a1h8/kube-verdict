@@ -15,7 +15,6 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
 import config as cfg
-from llm.ollama_client import OllamaClient
 from rca.analyzer import RCAAnalyzer
 from rca.context_builder import ContextBuilder
 from vectorstore.embedder import Embedder
