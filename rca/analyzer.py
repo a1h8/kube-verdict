@@ -30,6 +30,14 @@ _SYSTEM_PROMPT = textwrap.dedent("""\
       not as root causes on their own.
     - If context is insufficient, state clearly what additional information is needed.
     - All data is from a local, air-gapped cluster. No data leaves the machine.
+
+    Confidence calibration:
+    - HIGH: anchor violations or CRITICAL drift are present AND the causal chain is
+      fully traceable from context. Use HIGH when the evidence is unambiguous.
+    - MEDIUM: root cause is probable but one link in the causal chain is inferred
+      rather than directly observed in the context.
+    - LOW: context is sparse, contradictory, or the query cannot be answered
+      without additional cluster data.
 """)
 
 # ---------------------------------------------------------------------------
@@ -70,7 +78,12 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
     Concrete commands. Prefer `kubectl` and `helm`/`helmfile` commands over prose.
 
     ### 6. Confidence
-    LOW | MEDIUM | HIGH — one sentence justification.
+    Choose LOW | MEDIUM | HIGH using this rule:
+    - If the context quality score above is HIGH and anchor violations or CRITICAL
+      drift are present with a complete causal chain, you MUST answer HIGH.
+    - If one causal link is inferred rather than observed, answer MEDIUM.
+    - If context is sparse or contradictory, answer LOW.
+    Start your answer with exactly one word: HIGH, MEDIUM, or LOW.
 """)
 
 # ---------------------------------------------------------------------------
@@ -236,12 +249,10 @@ class RCAAnalyzer:
 
     def _check_llm(self) -> None:
         if not self.llm.is_available():
-            log.warning("Ollama not reachable at %s — run: ollama serve", self.llm.url)
+            url = getattr(self.llm, "url", "remote API")
+            log.warning("LLM not reachable (%s) — check credentials/connectivity", url)
         elif not self.llm.model_is_pulled():
-            log.warning(
-                "Model '%s' not pulled — run: ollama pull %s",
-                self.llm.model, self.llm.model,
-            )
+            log.warning("Model '%s' not available", self.llm.model)
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 # KubeWhisperer
 
-> Automated Root Cause Analysis for Kubernetes — multi-path LLM reasoning, fully local, no data leaves your infrastructure.
+> Automated Root Cause Analysis for Kubernetes — runs fully local (no data leaves your infrastructure), with optional cloud LLM providers for speed.
 
 [![Tests](https://img.shields.io/badge/tests-1372%2B%20passed-brightgreen)](#validated-demo-scope)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
@@ -14,7 +14,7 @@ The LLM is a **next-token predictor over the top-k retrieved context** — it do
 
 ## Quick start
 
-**Prerequisites:** Python 3.11+, a Kubernetes cluster reachable via kubeconfig, Ollama with `mistral` pulled.
+**Prerequisites:** Python 3.11+, a Kubernetes cluster reachable via kubeconfig, and one LLM provider configured in `.env`.
 
 ```bash
 git clone https://github.com/a1h8/KubeWhisperer.git
@@ -22,9 +22,11 @@ cd KubeWhisperer
 pip install -r requirements.txt
 
 cp .env.example .env
-# Edit .env: KUBECONFIG, OLLAMA_URL, KUBE_NAMESPACES, etc.
+# Edit .env: KUBECONFIG, LLM_PROVIDER, KUBE_NAMESPACES
+# LLM_PROVIDER=ollama  → ollama pull mistral  (local, no data leaves infra)
+# LLM_PROVIDER=groq    → set GROQ_API_KEY     (fast, free tier)
+# LLM_PROVIDER=anthropic|openai|google → set corresponding API key
 
-ollama pull mistral
 streamlit run ui/app.py
 ```
 
@@ -59,22 +61,32 @@ Each case runs the full pre-LLM pipeline: graph construction → hybrid retrieva
 
 ## Demo
 
-A local demo deploys incident scenarios on a k3d cluster — no external dependencies.
+![KubeWhisperer demo](demo/demo_kubeWhisperer.gif)
+
+No real Kubernetes cluster required. The demo runs entirely offline against a pre-built incident scenario.
 
 ```bash
-bash demo/setup.sh
-streamlit run ui/app.py
-# Analyse namespace: kubewhisperer-demo
+# Default: LLM_PROVIDER=ollama (local, no data leaves infra)
+# Alternatives: groq | anthropic | openai | google | demo
+bash demo/kap_record.sh   # starts Streamlit + opens browser
 ```
+
+The scenario injects three independent root causes and one cascading failure into a fake `kubewhisperer-demo` namespace:
 
 | Service | Failure | Root cause |
 |---|---|---|
-| `payment-service` | CrashLoopBackOff | Missing `db-primary` service — DB connection refused |
-| `notification-service` | CreateContainerConfigError | Missing `notification-config` ConfigMap |
-| `ml-inference` | ImagePullBackOff | Image tag drift pointing to private registry |
-| `analytics-worker` | OOMKilled / Pending | Memory limit drift: 512Mi → 50Mi |
-| `gpu-worker` | Pending | GPU node affinity unsatisfiable |
+| `db-primary` | 0 replicas | Helm drift — chart declares `replicas: 1`, cluster running `replicas: 0` |
+| `payment-api` | CrashLoopBackOff | Cascade — DB connection refused (db-primary has 0 endpoints) |
+| `analytics-worker` | OOMKilled | Memory limit drift: deployed 50Mi vs Helm chart 256Mi |
+| `notification-svc` | ImagePullBackOff | Image tag drift: manifest `v3.2.1`, cluster resolved `:latest` (removed) |
+| `ml-inference` | Pending | GPU scheduling delay — node temporarily at capacity |
 | `api-gateway` | Running ✓ | Healthy baseline |
+
+**What the analysis produces:**
+- Confidence: HIGH (LLM-evaluated from anchor violations + causal chain evidence)
+- Git diffs computed from Helm/manifest anchor annotations — not hardcoded
+- Remediation commands validated by dry-run before display
+- Human review gate — auto-approvable or manual
 
 ---
 
