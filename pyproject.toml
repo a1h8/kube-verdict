@@ -38,6 +38,9 @@ target-version = "py311"
 select = ["E", "W", "F"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+"demo/*.py" = ["E402"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
