@@ -1,14 +1,65 @@
 # KubeWhisperer
 
-> Automated Root Cause Analysis for Kubernetes — runs fully local (no data leaves your infrastructure), with optional cloud LLM providers for speed.
+> Correlate Kubernetes signals, detect GitOps drift, and get validated remediation patches — with a human approval gate before anything touches production.
 
-[![Tests](https://img.shields.io/badge/tests-1372%2B%20passed-brightgreen)](#validated-demo-scope)
+[![CI](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml)
+[![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h006-blue)](#validated-scenarios)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
-KubeWhisperer combines a typed Kubernetes ontology, a GitOps drift engine, real-time observability ingestion (Prometheus, OTel/Tempo/Jaeger, Loki), an evidence-first multi-path reasoning workflow (LangGraph + beam search), a hybrid BM25+FAISS+RRF retrieval pipeline, anchor-driven manifest drift detection, a FastAPI REST API, and SQLite-backed persistence (sessions, checkpoints, FAISS reconstruction) — all running locally with Mistral via Ollama.
+KubeWhisperer is designed to correlate Kubernetes events, Helm drift, Prometheus alerts, OTel traces and Loki logs. The current CI demo validates the deterministic RCA pipeline offline on Kubernetes/Helm incident fixtures — no live cluster, no LLM required.
 
-The LLM is a **next-token predictor over the top-k retrieved context** — it does not reason from scratch. Hypotheses are generated from deterministic evidence (ontology topology, anchor violations, RemediationEngine rules, past resolved incidents) before the LLM is invoked. Confidence routing uses a beam-search strategy: two consecutive LOW results on the same path trigger an immediate switch to the next candidate, and archived paths re-rank remaining candidates using signals from the failed analysis.
+**By default it runs entirely local** — Ollama + Mistral, no data leaves your infrastructure. Cloud providers (Groq, Anthropic, OpenAI, Google Gemini) are drop-in replacements via `LLM_PROVIDER`.
+
+```
+Signals → Correlation → Hypotheses → Dry-run validation → Human gate → GitOps patch
+```
+
+---
+
+## Why it matters
+
+Kubernetes incidents are rarely single-signal failures. KubeWhisperer separates root causes from cascades, detects GitOps drift between Helm values and running state, proposes a safe remediation path, and keeps a human approval gate before production changes.
+
+## What is proven today
+
+| Capability | Status |
+|---|---|
+| Offline deterministic RCA pipeline | Proven in CI (h001–h006) |
+| Multi-signal collectors (Prometheus, OTel, Loki) | Implemented / configurable |
+| Live cluster usage | Available with kubeconfig |
+| GitOps patching | Human-gated, dry-run first |
+
+---
+
+## Demo
+
+![KubeWhisperer demo](demo/demo_kubeWhisperer.gif)
+
+No real Kubernetes cluster required. The demo runs entirely offline against a pre-built incident scenario.
+
+The scenario injects three independent root causes and one cascading failure:
+
+| Service | Failure | Root cause |
+|---|---|---|
+| `db-primary` | 0 replicas | Helm drift — chart declares `replicas: 1`, cluster running `replicas: 0` |
+| `payment-api` | CrashLoopBackOff | Cascade — DB connection refused (db-primary has 0 endpoints) |
+| `analytics-worker` | OOMKilled | Memory limit drift: deployed 50Mi vs Helm chart 256Mi |
+| `notification-svc` | ImagePullBackOff | Image tag drift: manifest `v3.2.1`, cluster resolved `:latest` (removed) |
+| `ml-inference` | Pending | GPU scheduling delay — resolves automatically once capacity frees |
+| `api-gateway` | Running ✓ | Healthy baseline |
+
+**What the analysis produces:**
+- Root causes ranked by evidence weight, cascades identified separately
+- Git diffs computed from Helm/manifest anchor annotations — not hardcoded
+- Immediate kubectl mitigation + GitOps remediation split explicitly
+- Dry-run validated before display, human review gate before apply
+
+```bash
+# Default: LLM_PROVIDER=ollama (local, no data leaves infra)
+# Alternatives: groq | anthropic | openai | google | demo (offline)
+bash demo/kap_record.sh   # starts Streamlit + opens browser
+```
 
 ---
 
@@ -42,9 +93,9 @@ The **Integration Tests** tab runs entirely offline — no cluster, no Ollama ne
 
 ---
 
-## Validated demo scope
+## Validated scenarios
 
-Six scenarios are proven end-to-end in CI — no cluster, no Ollama required.
+Six failure patterns proven end-to-end in CI — no cluster, no Ollama required.
 
 | Scenario | Case | What it proves |
 |---|---|---|
@@ -59,34 +110,27 @@ Each case runs the full pre-LLM pipeline: graph construction → hybrid retrieva
 
 ---
 
-## Demo
+## How it works
 
-![KubeWhisperer demo](demo/demo_kubeWhisperer.gif)
+The LLM is constrained by retrieved evidence. KubeWhisperer ranks hypotheses from deterministic signals first — ontology topology, anchor violations, drift, policies and resolved incidents — then uses the LLM only to produce an evidence-grounded RCA.
 
-No real Kubernetes cluster required. The demo runs entirely offline against a pre-built incident scenario.
+Confidence routing uses beam search: two consecutive LOW results on the same hypothesis path trigger an immediate switch to the next candidate, and archived paths re-rank remaining candidates using signals from the failed analysis.
 
-```bash
-# Default: LLM_PROVIDER=ollama (local, no data leaves infra)
-# Alternatives: groq | anthropic | openai | google | demo
-bash demo/kap_record.sh   # starts Streamlit + opens browser
+**Pipeline:**
+
 ```
-
-The scenario injects three independent root causes and one cascading failure into a fake `kubewhisperer-demo` namespace:
-
-| Service | Failure | Root cause |
-|---|---|---|
-| `db-primary` | 0 replicas | Helm drift — chart declares `replicas: 1`, cluster running `replicas: 0` |
-| `payment-api` | CrashLoopBackOff | Cascade — DB connection refused (db-primary has 0 endpoints) |
-| `analytics-worker` | OOMKilled | Memory limit drift: deployed 50Mi vs Helm chart 256Mi |
-| `notification-svc` | ImagePullBackOff | Image tag drift: manifest `v3.2.1`, cluster resolved `:latest` (removed) |
-| `ml-inference` | Pending | GPU scheduling delay — node temporarily at capacity |
-| `api-gateway` | Running ✓ | Healthy baseline |
-
-**What the analysis produces:**
-- Confidence: HIGH (LLM-evaluated from anchor violations + causal chain evidence)
-- Git diffs computed from Helm/manifest anchor annotations — not hardcoded
-- Remediation commands validated by dry-run before display
-- Human review gate — auto-approvable or manual
+K8s events + Prometheus + OTel/Loki + Helm values
+        ↓
+Ontology graph + anchor drift detection
+        ↓
+BM25 + FAISS + RRF hybrid retrieval
+        ↓
+Beam-search hypothesis ranking
+        ↓
+LLM root-cause analysis (evidence-grounded)
+        ↓
+Dry-run validation → human review gate → GitOps patch
+```
 
 ---
 
@@ -96,7 +140,7 @@ The scenario injects three independent root causes and one cascading failure int
 |---|---|
 | [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, beam search routing, anchor system design, drift detection, PatchTST |
 | [UI reference](docs/ui.md) | Streamlit tabs, pipeline trace steps, anchor pivot table, reasoning journey, router decisions |
-| [Test cases](docs/test-cases.md) | h001–h011 format, adding a new case, validated scope, CI coverage |
+| [Test cases](docs/test-cases.md) | h001–h006 validated scenarios, case format, adding a new case, CI coverage |
 | [Project layout](docs/project-layout.md) | Full directory tree, RBAC |
 | [Roadmap](docs/roadmap.md) | Done and next |
 | [Configuration](docs/configuration.md) | All `.env` variables, hybrid retrieval tuning, source weights |
