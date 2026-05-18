@@ -74,7 +74,7 @@ Three scenarios on a real k3d cluster — no mocks, no hardcoded answers.
 
 Five services down simultaneously. KubeWhisperer identifies each root cause independently, ranks them by evidence weight, and separates root causes from cascades — entirely local, no data leaves the machine.
 
-<video src="https://github.com/a1h8/KubeWhisperer/raw/main/demo/demo_mistral2.mp4" autoplay loop muted playsinline width="100%"></video>
+<video src="https://github.com/user-attachments/assets/e12bae15-eaea-44f5-9e34-5767b041962" autoplay loop muted playsinline width="100%"></video>
 
 ---
 
@@ -82,7 +82,7 @@ Five services down simultaneously. KubeWhisperer identifies each root cause inde
 
 The LLM proposes remediation commands. Execution is gated: the SRE reviews the evidence, types `approve` or `reject`. Nothing touches the cluster without explicit sign-off.
 
-<video src="https://github.com/a1h8/KubeWhisperer/raw/main/demo/demo_approve.mp4" autoplay loop muted playsinline width="100%"></video>
+<video src="https://github.com/user-attachments/assets/c0ad7270-5dcb-4783-9221-a3efb523212b" autoplay loop muted playsinline width="100%"></video>
 
 ---
 
@@ -90,7 +90,7 @@ The LLM proposes remediation commands. Execution is gated: the SRE reviews the e
 
 `api-gateway` is running normally. KubeWhisperer queries the same pipeline and correctly returns HIGH confidence with no remediation needed. Signal-to-noise ratio matters.
 
-<video src="https://github.com/a1h8/KubeWhisperer/raw/main/demo/demo_question.mp4" autoplay loop muted playsinline width="100%"></video>
+<video src="https://github.com/user-attachments/assets/0e884e44-a083-46ab-a3aa-8396e7a70cd0" autoplay loop muted playsinline width="100%"></video>
 
 ---
 
