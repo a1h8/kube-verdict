@@ -108,7 +108,7 @@ VECTOR_STORE_PATH: Path = Path(os.getenv("VECTOR_STORE_PATH", "./data/index.fais
 EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
 # ── Deduplication ──────────────────────────────────────────────────────────────
-BFS_MAX_DEPTH: int = _int("BFS_MAX_DEPTH", 2)
+BFS_MAX_DEPTH: int = _int("BFS_MAX_DEPTH", 3)
 JACCARD_THRESHOLD: float = _float("JACCARD_THRESHOLD", 0.7)
 TFIDF_TOP_K: int = _int("TFIDF_TOP_K", 10)
 TFIDF_NGRAM_MAX: int = _int("TFIDF_NGRAM_MAX", 3)   # (1, N) — 3 = trigrams
