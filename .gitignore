@@ -40,10 +40,11 @@ demo/.env.demo
 data/
 tests/integration/use_cases/sim_results/*.json
 
-# ── Demo recordings (binaries — tracked only if explicitly added) ─────────────
-demo/*.mp4
+# ── Demo recordings — large originals ignored, compressed MP4s committed ────────
 demo/*.mov
+demo/*_original.mp4
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 dashboard/node_modules/
 dashboard/dist/
+.python-version
