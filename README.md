@@ -9,7 +9,9 @@
 
 KubeWhisperer correlates Kubernetes events, Helm drift, Prometheus alerts, OTel traces and Loki logs into a single evidence-grounded root cause analysis. Six failure patterns are validated end-to-end in CI — no live cluster, no LLM required.
 
-**Runs entirely local by default** — Ollama + Mistral, no data leaves your infrastructure. Groq, Anthropic, OpenAI and Google Gemini are drop-in via `LLM_PROVIDER`.
+**Air-gapped by default** — Ollama + Mistral, no data leaves your infrastructure. Groq, Anthropic, OpenAI and Google Gemini are drop-in via `LLM_PROVIDER`.
+
+![KubeWhisperer shell demo](demo/shell_demo.gif)
 
 ---
 
@@ -182,12 +184,27 @@ Dry-run validation → human review gate → GitOps patch
 | Document | Content |
 |---|---|
 | [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, beam search routing, anchor system design, drift detection, PatchTST |
+| [REST API](docs/api.md) | FastAPI endpoints, session lifecycle, request/response examples, SSE stream |
 | [UI reference](docs/ui.md) | Streamlit tabs, pipeline trace steps, anchor pivot table, reasoning journey, router decisions |
 | [Test cases](docs/test-cases.md) | h001–h006 validated scenarios, case format, adding a new case, CI coverage |
 | [Project layout](docs/project-layout.md) | Full directory tree, RBAC |
 | [Roadmap](docs/roadmap.md) | Done and next |
 | [Configuration](docs/configuration.md) | All `.env` variables, hybrid retrieval tuning, source weights |
 | [Deployment](docs/deployment.md) | Docker, k3d, production K8s |
+
+---
+
+## Current limitations
+
+This is a portfolio-grade prototype. It demonstrates real engineering decisions, but several constraints are intentional or known:
+
+- **Validated cases: h001–h006 only.** h007–h012+ (Helmfile multi-release, MCTS routing, Slack/PagerDuty, RBAC-aware scoping) are in the roadmap, not yet implemented.
+- **Single-cluster.** Multi-cluster support is not yet wired end-to-end.
+- **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
+- **LLM performance is local-hardware-dependent.** Mistral via Ollama is functional on a MacBook M-series; slower on CPU-only machines.
+- **No real-time alerting integration.** Prometheus and Loki data is pulled on demand, not streamed.
+
+See [Roadmap](docs/roadmap.md) for what's next.
 
 ---
 
