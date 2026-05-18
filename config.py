@@ -99,6 +99,8 @@ PROMETHEUS_TIMEOUT: int = _int("PROMETHEUS_TIMEOUT", 30)
 OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "mistral")
 OLLAMA_TIMEOUT: int = _int("OLLAMA_TIMEOUT", 120)
+OLLAMA_NUM_CTX: int = _int("OLLAMA_NUM_CTX", 2048)
+OLLAMA_NUM_PREDICT: int = _int("OLLAMA_NUM_PREDICT", 512)
 
 # ── Vector store ───────────────────────────────────────────────────────────────
 VECTOR_STORE_TYPE: str = os.getenv("VECTOR_STORE_TYPE", "faiss")
@@ -106,9 +108,9 @@ VECTOR_STORE_PATH: Path = Path(os.getenv("VECTOR_STORE_PATH", "./data/index.fais
 EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
 # ── Deduplication ──────────────────────────────────────────────────────────────
-BFS_MAX_DEPTH: int = _int("BFS_MAX_DEPTH", 3)
+BFS_MAX_DEPTH: int = _int("BFS_MAX_DEPTH", 2)
 JACCARD_THRESHOLD: float = _float("JACCARD_THRESHOLD", 0.7)
-TFIDF_TOP_K: int = _int("TFIDF_TOP_K", 20)
+TFIDF_TOP_K: int = _int("TFIDF_TOP_K", 10)
 TFIDF_NGRAM_MAX: int = _int("TFIDF_NGRAM_MAX", 3)   # (1, N) — 3 = trigrams
 
 # ── Hybrid retrieval (BM25 + FAISS → RRF) ──────────────────────────────────────
