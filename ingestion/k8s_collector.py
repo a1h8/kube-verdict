@@ -88,8 +88,9 @@ class K8sCollector:
 
         # 1. Typed core resources (rich field extraction + relationship wiring)
         log.info("Collecting core typed resources…")
-        self._collect_namespaces(graph)
-        self._collect_nodes(graph)
+        self._collect_namespaces(graph, ns_filter=ns_filter)
+        if not ns_filter:
+            self._collect_nodes(graph)
 
         all_ns = ns_filter or [ns.name for ns in graph.entities("Namespace")]
         for ns in all_ns:
@@ -144,9 +145,11 @@ class K8sCollector:
     # Typed collectors (unchanged logic, now use cfg for auth)
     # ------------------------------------------------------------------
 
-    def _collect_namespaces(self, graph: OntologyGraph) -> list:
+    def _collect_namespaces(self, graph: OntologyGraph, ns_filter: list[str] | None = None) -> list:
         entities = []
         for item in self._core.list_namespace().items:
+            if ns_filter and item.metadata.name not in ns_filter:
+                continue
             e = Namespace(
                 uid=item.metadata.uid,
                 name=item.metadata.name,

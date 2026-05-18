@@ -25,10 +25,14 @@ class OllamaClient:
         url: str | None = None,
         model: str | None = None,
         timeout: int | None = None,
+        num_ctx: int | None = None,
+        num_predict: int | None = None,
     ) -> None:
         self.url = (url or cfg.OLLAMA_URL).rstrip("/")
         self.model = model or cfg.OLLAMA_MODEL
         self.timeout = timeout or cfg.OLLAMA_TIMEOUT
+        self.num_ctx = num_ctx if num_ctx is not None else cfg.OLLAMA_NUM_CTX
+        self.num_predict = num_predict if num_predict is not None else cfg.OLLAMA_NUM_PREDICT
 
     # ------------------------------------------------------------------
     # Health / model availability
@@ -71,7 +75,11 @@ class OllamaClient:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "options": {"temperature": temperature},
+            "options": {
+                "temperature": temperature,
+                "num_ctx": self.num_ctx,
+                "num_predict": self.num_predict,
+            },
         }
         if system:
             payload["system"] = system
@@ -106,7 +114,11 @@ class OllamaClient:
             "model": self.model,
             "messages": messages,
             "stream": False,
-            "options": {"temperature": temperature},
+            "options": {
+                "temperature": temperature,
+                "num_ctx": self.num_ctx,
+                "num_predict": self.num_predict,
+            },
         }
         log.debug(
             "Ollama chat: model=%s messages=%d",
@@ -134,6 +146,10 @@ class OllamaClient:
             "model": self.model,
             "prompt": prompt,
             "stream": True,
+            "options": {
+                "num_ctx": self.num_ctx,
+                "num_predict": self.num_predict,
+            },
         }
         if system:
             payload["system"] = system
