@@ -281,12 +281,12 @@ def main() -> None:
         emit(f"  Confidence  : {conf_word}")
         emit(f"  Impacted    : {', '.join(impacted[:5]) or 'see below'}")
         emit("")
-        emit(f"  Root cause  :")
+        emit("  Root cause  :")
         root_cause = interrupt_payload.get("root_cause") or "(not identified)"
         for line in root_cause.splitlines()[:3]:
             emit(f"    {line.strip()}")
         emit("")
-        emit(f"  Key evidence:")
+        emit("  Key evidence:")
         # Pull top 3 warning events as evidence
         for ev in events[:3]:
             emit(f"    • [{ev.count}×] {ev.reason} on {ev.involved_kind}/{ev.involved_name}")
@@ -295,7 +295,7 @@ def main() -> None:
             for d in drift_items[:2]:
                 emit(f"    • Helm drift: {d}")
         emit("")
-        emit(f"  Proposed fix:")
+        emit("  Proposed fix:")
         for cmd in remediation_cmds[:3]:
             emit(f"    $ {cmd}")
 
@@ -346,21 +346,21 @@ def main() -> None:
                 key=lambda e: e.count, reverse=True,
             )[:5]
             if matched_events:
-                emit(f"    Events  :")
+                emit("    Events  :")
                 for ev in matched_events:
                     emit(f"      [{ev.count:>3}×] {ev.reason:<18} {ev.message[:70]}")
             else:
-                emit(f"    Events  : (none)")
+                emit("    Events  : (none)")
 
             # Signal anomalies for this entity
             uid = getattr(entity, "uid", None)
             entity_signals = [r for r in signal_by_uid.get(uid or "", []) if r.is_anomalous]
             if entity_signals:
-                emit(f"    Signals :")
+                emit("    Signals :")
                 for r in entity_signals:
                     emit(f"      ⚠ {r.metric_name:<20} {r.severity:<8} score={r.score:.3f}")
             else:
-                emit(f"    Signals : (none)")
+                emit("    Signals : (none)")
 
         if not unhealthy_entities:
             emit("  (no unhealthy resources found)")
