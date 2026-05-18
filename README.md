@@ -74,7 +74,7 @@ Three scenarios on a real k3d cluster — no mocks, no hardcoded answers.
 
 Five services down simultaneously. KubeWhisperer identifies each root cause independently, ranks them by evidence weight, and separates root causes from cascades — entirely local, no data leaves the machine.
 
-<video src="https://github.com/user-attachments/assets/e12bae15-eaea-44f5-9e34-5767b041962" autoplay loop muted playsinline width="100%"></video>
+<video src="https://github.com/user-attachments/assets/02a5d62b-d61e-4a70-b081-4d98d168366a" autoplay loop muted playsinline width="100%"></video>
 
 ---
 
