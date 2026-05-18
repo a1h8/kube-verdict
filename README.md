@@ -7,19 +7,19 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
-KubeWhisperer is designed to correlate Kubernetes events, Helm drift, Prometheus alerts, OTel traces and Loki logs. The current CI demo validates the deterministic RCA pipeline offline on Kubernetes/Helm incident fixtures — no live cluster, no LLM required.
+KubeWhisperer correlates Kubernetes events, Helm drift, Prometheus alerts, OTel traces and Loki logs into a single evidence-grounded root cause analysis. Six failure patterns are validated end-to-end in CI — no live cluster, no LLM required.
 
-**By default it runs entirely local** — Ollama + Mistral, no data leaves your infrastructure. Cloud providers (Groq, Anthropic, OpenAI, Google Gemini) are drop-in replacements via `LLM_PROVIDER`.
-
-```
-Signals → Correlation → Hypotheses → Dry-run validation → Human gate → GitOps patch
-```
+**Runs entirely local by default** — Ollama + Mistral, no data leaves your infrastructure. Groq, Anthropic, OpenAI and Google Gemini are drop-in via `LLM_PROVIDER`.
 
 ---
 
 ## Why it matters
 
-Kubernetes incidents are rarely single-signal failures. KubeWhisperer separates root causes from cascades, detects GitOps drift between Helm values and running state, proposes a safe remediation path, and keeps a human approval gate before production changes.
+Most Kubernetes outages are not caused by a single failing pod.
+
+When payment-service crashes, the on-call engineer opens five tabs simultaneously: pod logs, Kubernetes events, Helm history, Prometheus graphs, and the GitOps repo. Under pressure, at 2 AM, with three Slack threads open. The root cause is rarely where the alert fired — it's three hops away in a misconfigured Helm value or a drift between what was declared and what actually runs.
+
+KubeWhisperer reduces that cognitive load. It correlates events, Helm drift, Prometheus signals and OTel traces into a single evidence-grounded root cause analysis — ranked by confidence, with a human approval gate before any remediation command touches production.
 
 ## Current status
 
@@ -35,32 +35,74 @@ Kubernetes incidents are rarely single-signal failures. KubeWhisperer separates 
 
 ## Demo
 
-![KubeWhisperer demo](demo/demo_kubeWhisperer.gif)
+Three scenarios on a real k3d cluster — no mocks, no hardcoded answers.
 
-No real Kubernetes cluster required. The demo runs entirely offline against a pre-built incident scenario.
+**What the output looks like:**
 
-The scenario injects three independent root causes and one cascading failure:
+```
+════════════════════════════════════════════════════════════════════
+  INCIDENT SUMMARY
+════════════════════════════════════════════════════════════════════
+  Severity    : HIGH
+  Namespace   : kubewhisperer-demo
+  Confidence  : MEDIUM
+  Impacted    : payment-service, ml-inference, notification-service
 
-| Service | Failure | Root cause |
-|---|---|---|
-| `db-primary` | 0 replicas | Helm drift — chart declares `replicas: 1`, cluster running `replicas: 0` |
-| `payment-api` | CrashLoopBackOff | Cascade — DB connection refused (db-primary has 0 endpoints) |
-| `analytics-worker` | OOMKilled | Memory limit drift: deployed 50Mi vs Helm chart 256Mi |
-| `notification-svc` | ImagePullBackOff | Image tag drift: manifest `v3.2.1`, cluster resolved `:latest` (removed) |
-| `ml-inference` | Pending | GPU scheduling delay — resolves automatically once capacity frees |
-| `api-gateway` | Running ✓ | Healthy baseline |
+  Root cause  :
+    payment-service is in CrashLoopBackOff due to repeated container
+    failures. ml-inference cannot pull its image (ImagePullBackOff).
+    notification-service is missing a required environment variable.
 
-**What the analysis produces:**
-- Root causes ranked by evidence weight, cascades identified separately
-- Git diffs computed from Helm/manifest anchor annotations — not hardcoded
-- Immediate kubectl mitigation + GitOps remediation split explicitly
-- Dry-run validated before display, human review gate before apply
+  Key evidence:
+    • [447×] BackOff on Pod/payment-service-58555ff9b6-4bxv2
+      "Back-off restarting failed container payment-service"
+    • [  1×] Failed on Pod/ml-inference-6c7dbf6d5f-2nlsr
+      "Failed to pull image: not found"
+
+  Proposed fix:
+    $ kubectl rollout restart deployment/payment-service -n kubewhisperer-demo
+    $ kubectl set image deployment/ml-inference ml-inference=<correct-image>
+════════════════════════════════════════════════════════════════════
+  Confidence: MEDIUM
+  Approve and apply remediation? [approve/reject]: approve
+  ✓ Remediation approved — commands above should be applied.
+```
+
+---
+
+### 1 · Multi-failure RCA (air-gapped, Mistral)
+
+Five services down simultaneously. KubeWhisperer identifies each root cause independently, ranks them by evidence weight, and separates root causes from cascades — entirely local, no data leaves the machine.
+
+<video src="https://github.com/a1h8/KubeWhisperer/raw/main/demo/demo_mistral2.mp4" autoplay loop muted playsinline width="100%"></video>
+
+---
+
+### 2 · Human approval gate
+
+The LLM proposes remediation commands. Execution is gated: the SRE reviews the evidence, types `approve` or `reject`. Nothing touches the cluster without explicit sign-off.
+
+<video src="https://github.com/a1h8/KubeWhisperer/raw/main/demo/demo_approve.mp4" autoplay loop muted playsinline width="100%"></video>
+
+---
+
+### 3 · No false positives — healthy service confirmed
+
+`api-gateway` is running normally. KubeWhisperer queries the same pipeline and correctly returns HIGH confidence with no remediation needed. Signal-to-noise ratio matters.
+
+<video src="https://github.com/a1h8/KubeWhisperer/raw/main/demo/demo_question.mp4" autoplay loop muted playsinline width="100%"></video>
+
+---
 
 ```bash
-# Default: LLM_PROVIDER=ollama (local, no data leaves infra)
-# Alternatives: groq | anthropic | openai | google | demo (offline)
-bash demo/kap_record.sh   # starts Streamlit + opens browser
+# Air-gapped (local Mistral)
+LLM_PROVIDER=ollama python demo/run_rca.py --yes
+
+# Connected demo (Groq, faster)
+LLM_PROVIDER=groq python demo/run_rca.py --yes
 ```
+
+→ [Full demo guide](docs/demo.md)
 
 ---
 

@@ -149,7 +149,10 @@ class APIServerDiscovery:
             target_ns = namespaces or [None]
             for ns in target_ns:
                 yield from self._list_namespaced(resource, ns)
-        else:
+        elif not namespaces:
+            # Only fetch cluster-scoped resources when no namespace filter is set.
+            # When a namespace filter is active, cluster-scoped resources (ClusterRole,
+            # APIService, FlowSchema, etc.) are irrelevant and just add noise.
             yield from self._list_cluster_scoped(resource)
 
     def _list_namespaced(
