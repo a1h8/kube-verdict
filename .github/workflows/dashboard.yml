@@ -28,6 +28,7 @@ jobs:
         working-directory: dashboard
       - run: npm run build
         working-directory: dashboard
+      - run: touch dashboard/dist/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dashboard/dist
