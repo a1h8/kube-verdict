@@ -21,11 +21,12 @@ Signals → Correlation → Hypotheses → Dry-run validation → Human gate →
 
 Kubernetes incidents are rarely single-signal failures. KubeWhisperer separates root causes from cascades, detects GitOps drift between Helm values and running state, proposes a safe remediation path, and keeps a human approval gate before production changes.
 
-## What is proven today
+## Current status
 
 | Capability | Status |
 |---|---|
 | Offline deterministic RCA pipeline | Proven in CI (h001–h006) |
+| SQLite-backed session + FAISS persistence | Shipped — survives server restarts |
 | Multi-signal collectors (Prometheus, OTel, Loki) | Implemented / configurable |
 | Live cluster usage | Available with kubeconfig |
 | GitOps patching | Human-gated, dry-run first |
