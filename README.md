@@ -11,9 +11,9 @@ KubeWhisperer correlates Kubernetes events, Helm drift, Prometheus alerts, OTel 
 
 **Air-gapped by default** — Ollama + Mistral, no data leaves your infrastructure. Groq, Anthropic, OpenAI and Google Gemini are drop-in via `LLM_PROVIDER`.
 
-![KubeWhisperer shell demo](demo/shell_demo.gif)
+![KubeWhisperer demo_kubeWhisperer](demo/demo_kubeWhisperer.gif)
 
----
+--- 
 
 ## Why it matters
 
