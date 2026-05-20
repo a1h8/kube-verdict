@@ -236,7 +236,7 @@ function Hero() {
     >
       <div style={T.wrap}>
         <div style={{ ...T.badge, marginBottom: 16 }}>
-          AI-assisted Kubernetes RCA
+          Open-source Kubernetes RCA & Remediation Copilot
         </div>
         <h1
           style={{
@@ -639,7 +639,7 @@ function Footer() {
         }}
       >
         <span style={{ fontSize: 12, color: "#334155" }}>
-          KubeWhisperer — AI-assisted Kubernetes RCA. Apache 2.0.
+          KubeWhisperer — Open-source Kubernetes RCA & Remediation Copilot. Apache 2.0.
         </span>
         <div style={{ display: "flex", gap: 16 }}>
           <a
