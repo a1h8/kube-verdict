@@ -4,7 +4,7 @@ import { useState } from "react";
 
 const GITHUB = "https://github.com/a1h8/KubeWhisperer";
 const GIF_URL =
-  "https://raw.githubusercontent.com/a1h8/KubeWhisperer/main/demo/shell_demo.gif";
+  "https://raw.githubusercontent.com/a1h8/KubeWhisperer/main/demo/demo_kubeWhisperer.gif";
 
 const SCENARIOS = [
   {
@@ -236,7 +236,7 @@ function Hero() {
     >
       <div style={T.wrap}>
         <div style={{ ...T.badge, marginBottom: 16 }}>
-          Portfolio-grade AI Ops prototype
+          AI-assisted Kubernetes RCA
         </div>
         <h1
           style={{
@@ -348,7 +348,7 @@ function DemoSection() {
 
         <img
           src={GIF_URL}
-          alt="KubeWhisperer shell demo"
+          alt="KubeWhisperer demo"
           style={{
             width: "100%",
             borderRadius: 10,
@@ -476,8 +476,7 @@ function Limitations() {
       <div style={T.wrap}>
         <h2 style={T.h2}>Current limitations</h2>
         <p style={T.sub}>
-          This is a portfolio-grade prototype. These constraints are known and
-          intentional — not hidden.
+          These constraints are known and intentional — not hidden.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {LIMITATIONS.map((l, i) => (
@@ -640,7 +639,7 @@ function Footer() {
         }}
       >
         <span style={{ fontSize: 12, color: "#334155" }}>
-          KubeWhisperer — portfolio-grade AI Ops prototype. Apache 2.0.
+          KubeWhisperer — AI-assisted Kubernetes RCA. Apache 2.0.
         </span>
         <div style={{ display: "flex", gap: 16 }}>
           <a

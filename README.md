@@ -196,7 +196,7 @@ Dry-run validation → human review gate → GitOps patch
 
 ## Current limitations
 
-This is a portfolio-grade prototype. It demonstrates real engineering decisions, but several constraints are intentional or known:
+Several constraints are intentional or known:
 
 - **Validated cases: h001–h006 only.** h007–h012+ (Helmfile multi-release, MCTS routing, Slack/PagerDuty, RBAC-aware scoping) are in the roadmap, not yet implemented.
 - **Single-cluster.** Multi-cluster support is not yet wired end-to-end.
