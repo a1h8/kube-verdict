@@ -1,17 +1,20 @@
 # KubeWhisperer
 
-> Correlate Kubernetes signals, detect GitOps drift, and get validated remediation patches — with a human approval gate before anything touches production.
+Open-source AI Ops for Kubernetes root-cause analysis.
+
+KubeWhisperer correlates Kubernetes events, Helm drift, Prometheus alerts, OTel traces and Loki logs into an evidence-grounded incident summary, then proposes human-approved remediation commands.
+
+✅ Air-gapped by default — Ollama + Mistral, no data leaves your infrastructure  
+✅ No auto-remediation without explicit approval  
+✅ Six validated failure scenarios proven end-to-end in CI  
+✅ Try it without a live cluster  
+
+![KubeWhisperer demo](demo/demo_kubeWhisperer.gif)
 
 [![CI](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml)
 [![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h006-blue)](#validated-scenarios)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
-
-KubeWhisperer correlates Kubernetes events, Helm drift, Prometheus alerts, OTel traces and Loki logs into a single evidence-grounded root cause analysis. Six failure patterns are validated end-to-end in CI — no live cluster, no LLM required.
-
-**Air-gapped by default** — Ollama + Mistral, no data leaves your infrastructure. Groq, Anthropic, OpenAI and Google Gemini are drop-in via `LLM_PROVIDER`.
-
-![KubeWhisperer demo_kubeWhisperer](demo/demo_kubeWhisperer.gif)
 
 --- 
 
@@ -205,6 +208,18 @@ Several constraints are intentional or known:
 - **No real-time alerting integration.** Prometheus and Loki data is pulled on demand, not streamed.
 
 See [Roadmap](docs/roadmap.md) for what's next.
+
+---
+
+## Why star this project?
+
+Star KubeWhisperer if you are working on or interested in:
+
+- Kubernetes troubleshooting automation
+- Evidence-first AI Ops and incident investigation
+- Helm drift detection and GitOps validation
+- Human-gated remediation workflows
+- Local / air-gapped LLM operations with Ollama
 
 ---
 
