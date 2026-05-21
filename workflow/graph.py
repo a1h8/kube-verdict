@@ -85,6 +85,7 @@ from workflow.nodes import (
     anchor_node,
     archive_path_node,
     confidence_router,
+    blast_radius_node,
     dry_run_node,
     example_lookup_node,
     example_router,
@@ -141,6 +142,7 @@ def build_graph(checkpointer=None) -> StateGraph:
     builder.add_node("increment_retry",  _increment_retry)
     builder.add_node("archive_path",     archive_path_node)
     builder.add_node("select_best",      select_best_node)
+    builder.add_node("blast_radius",     blast_radius_node)
     builder.add_node("dry_run",          dry_run_node)
     builder.add_node("human_review",             human_review_node)
     builder.add_node("log_confidence_decision",  log_confidence_decision_node)
@@ -184,7 +186,8 @@ def build_graph(checkpointer=None) -> StateGraph:
     builder.add_edge("archive_path",    "analyze")
 
     # ── Dry-run then human gate ───────────────────────────────────────────────
-    builder.add_edge("select_best",  "dry_run")
+    builder.add_edge("select_best",  "blast_radius")
+    builder.add_edge("blast_radius", "dry_run")
     builder.add_edge("dry_run",      "log_human_decision")
     builder.add_edge("log_human_decision", "human_review")
     builder.add_conditional_edges(

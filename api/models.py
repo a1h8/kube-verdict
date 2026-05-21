@@ -35,6 +35,28 @@ class EdgeEntry(BaseModel):
     ts: str
 
 
+# ── Patch safety ──────────────────────────────────────────────────────────────
+
+class BlastRadius(BaseModel):
+    risk:           str
+    summary:        str
+    resources:      list[str]
+    namespaces:     list[str]
+    cluster_scoped: bool = False
+    command_count:  int = 0
+
+
+class IncidentReport(BaseModel):
+    """Canonical structured output for a completed RCA."""
+    severity:    str
+    confidence:  str
+    root_cause:  str
+    impact:      list[str]
+    evidence:    list[str]
+    remediation: list[str]
+    rollback:    list[str]
+
+
 # ── State response ────────────────────────────────────────────────────────────
 
 class SessionState(BaseModel):
@@ -61,18 +83,21 @@ class SessionState(BaseModel):
     report: dict[str, Any] | None = None
 
     # Signal content — full text surfaced from ContextWindow
-    events:            list[str] = Field(default_factory=list)   # K8s Warning events
-    traces:            list[str] = Field(default_factory=list)   # OTel error traces
-    alerts:            list[str] = Field(default_factory=list)   # Prometheus firing alerts
-    anchor_fixes:      list[str] = Field(default_factory=list)   # helm commands (declared→observed drift)
-    policy_violations: list[str] = Field(default_factory=list)   # OPA / Kyverno violations
+    events:            list[str] = Field(default_factory=list)
+    traces:            list[str] = Field(default_factory=list)
+    alerts:            list[str] = Field(default_factory=list)
+    anchor_fixes:      list[str] = Field(default_factory=list)
+    policy_violations: list[str] = Field(default_factory=list)
 
     # Suggestions from report (causal chain + remediation)
     causal_chain: list[str] = Field(default_factory=list)
-    suggestions:  list[str] = Field(default_factory=list)        # remediation commands
+    suggestions:  list[str] = Field(default_factory=list)
 
     # Dry-run validation
     dry_run_results: list[dict[str, Any]] = Field(default_factory=list)
+
+    # Blast radius (populated before human gate)
+    blast_radius: BlastRadius | None = None
 
     # Canonical incident report (populated when status=COMPLETED or AWAITING_REVIEW)
     incident_report: IncidentReport | None = None
@@ -81,17 +106,6 @@ class SessionState(BaseModel):
     review_payload: dict[str, Any] | None = None
 
     error: str | None = None
-
-
-class IncidentReport(BaseModel):
-    """Canonical structured output for a completed RCA."""
-    severity:    str
-    confidence:  str
-    root_cause:  str
-    impact:      list[str]
-    evidence:    list[str]
-    remediation: list[str]
-    rollback:    list[str]
 
 
 class SessionCreated(BaseModel):
