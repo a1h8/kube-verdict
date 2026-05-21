@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 
 from api.models import (
-    EdgeEntry, FeedbackRequest, RunRequest,
+    EdgeEntry, FeedbackRequest, IncidentReport, RunRequest,
     SessionCreated, SessionState, SessionStatus,
 )
 from api.session_store import Session, store
@@ -63,8 +63,30 @@ def _state_to_response(session: Session) -> SessionState:
         causal_chain       = report.get("causal_chain") or [],
         suggestions        = report.get("remediation") or [],
         dry_run_results    = s.get("dry_run_results") or [],
+        incident_report    = _build_incident_report(report),
         review_payload     = session.review_payload,
         error              = session.error,
+    )
+
+
+def _build_incident_report(report: dict) -> IncidentReport | None:
+    if not report or not report.get("root_cause"):
+        return None
+    confidence = report.get("confidence", "")
+    evidence = (
+        report.get("events", []) +
+        report.get("alerts", []) +
+        report.get("traces", []) +
+        report.get("policy_violations", [])
+    )
+    return IncidentReport(
+        severity    = confidence,
+        confidence  = confidence,
+        root_cause  = report.get("root_cause", ""),
+        impact      = report.get("affected", []),
+        evidence    = evidence,
+        remediation = report.get("remediation", []),
+        rollback    = report.get("rollback", []),
     )
 
 
