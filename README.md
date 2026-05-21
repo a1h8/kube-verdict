@@ -208,7 +208,7 @@ Several constraints are intentional or known:
 - **Validated cases: h001–h006 only.** h007–h012+ (Helmfile multi-release, MCTS routing, Slack/PagerDuty, RBAC-aware scoping) are in the roadmap, not yet implemented.
 - **Single-cluster.** Multi-cluster support is not yet wired end-to-end.
 - **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
-- **LLM performance is local-hardware-dependent.** Mistral via Ollama is functional on a MacBook M-series; slower on CPU-only machines.
+- **LLM performance is local-hardware-dependent.** Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.
 - **No real-time alerting integration.** Prometheus and Loki data is pulled on demand, not streamed.
 
 See [Roadmap](docs/roadmap.md) for what's next.
