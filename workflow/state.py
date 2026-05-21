@@ -33,6 +33,9 @@ class RCAState(TypedDict, total=False):
     hypothesis_sources: list[dict] # rule-based evidence that grounded each hypothesis
     path_confidence_history: list[str]  # confidence sequence for current path ["LOW","LOW",…]
 
+    # ── Blast radius ─────────────────────────────────────────────────────────
+    blast_radius: dict[str, Any]  # {risk, summary, resources, namespaces, cluster_scoped, command_count}
+
     # ── Dry-run validation ────────────────────────────────────────────────────
     dry_run_results: list[dict]   # [{original_cmd, dry_cmd, output, exit_code}]
 
