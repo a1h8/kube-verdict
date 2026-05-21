@@ -74,10 +74,24 @@ class SessionState(BaseModel):
     # Dry-run validation
     dry_run_results: list[dict[str, Any]] = Field(default_factory=list)
 
+    # Canonical incident report (populated when status=COMPLETED or AWAITING_REVIEW)
+    incident_report: IncidentReport | None = None
+
     # Human review payload (only set when status=AWAITING_REVIEW)
     review_payload: dict[str, Any] | None = None
 
     error: str | None = None
+
+
+class IncidentReport(BaseModel):
+    """Canonical structured output for a completed RCA."""
+    severity:    str
+    confidence:  str
+    root_cause:  str
+    impact:      list[str]
+    evidence:    list[str]
+    remediation: list[str]
+    rollback:    list[str]
 
 
 class SessionCreated(BaseModel):
