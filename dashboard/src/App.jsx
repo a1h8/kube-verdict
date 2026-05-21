@@ -52,7 +52,7 @@ const LIMITATIONS = [
   "Validated cases: h001–h006 only — h007–h012+ are roadmap, not yet shipped.",
   "Single-cluster — multi-cluster not yet wired end-to-end.",
   "No auto-remediation in production — human approval gate is by design.",
-  "LLM performance is local-hardware-dependent (Mistral via Ollama, M-series Mac optimal).",
+  "LLM performance is local-hardware-dependent — Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.",
   "No real-time alerting integration — Prometheus and Loki are pulled on demand, not streamed.",
 ];
 
