@@ -1,6 +1,6 @@
 # KubeWhisperer
 
-Open-source AI Ops for Kubernetes root-cause analysis.
+Open-source Kubernetes incident investigation platform.
 
 KubeWhisperer correlates Kubernetes events, Helm drift, Prometheus alerts, OTel traces and Loki logs into an evidence-grounded incident summary, then proposes human-approved remediation commands.
 
@@ -16,7 +16,7 @@ KubeWhisperer correlates Kubernetes events, Helm drift, Prometheus alerts, OTel 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
---- 
+---
 
 ## Why it matters
 
@@ -26,15 +26,17 @@ When payment-service crashes, the on-call engineer opens five tabs simultaneousl
 
 KubeWhisperer reduces that cognitive load. It correlates events, Helm drift, Prometheus signals and OTel traces into a single evidence-grounded root cause analysis — ranked by confidence, with a human approval gate before any remediation command touches production.
 
-## Current status
+---
 
-| Capability | Status |
-|---|---|
-| Offline deterministic RCA pipeline | Proven in CI (h001–h006) |
-| SQLite-backed session + FAISS persistence | Shipped — survives server restarts |
-| Multi-signal collectors (Prometheus, OTel, Loki) | Implemented / configurable |
-| Live cluster usage | Available with kubeconfig |
-| GitOps patching | Human-gated, dry-run first |
+## Try without a cluster
+
+The **Integration Tests** tab runs entirely offline — no cluster, no Ollama needed:
+
+1. `streamlit run ui/app.py`
+2. Go to **🧪 Integration Tests**
+3. Select any `h00N_*` case from the dropdown
+4. Mode defaults to **🔬 Pipeline trace** — pipeline runs automatically
+5. Explore all 10 steps: tokenizer → retrieval → anchors → drift → confidence → proposed fixes
 
 ---
 
@@ -111,50 +113,15 @@ LLM_PROVIDER=groq python demo/run_rca.py --yes
 
 ---
 
-## Quick start
+## Safety model
 
-**Prerequisites:** Python 3.11+, a Kubernetes cluster reachable via kubeconfig, and one LLM provider configured in `.env`.
+Every remediation command goes through three gates before execution:
 
-```bash
-git clone https://github.com/a1h8/KubeWhisperer.git
-cd KubeWhisperer
-pip install -r requirements.txt
+1. **Dry-run** — command is validated against the cluster API without applying changes
+2. **Human approval** — the SRE reviews evidence, root cause and proposed fix, then types `approve` or `reject`
+3. **Rollback hint** — KubeWhisperer generates the inverse command (`helm rollback`, `kubectl rollout undo`) alongside every fix proposal
 
-cp .env.example .env
-# Edit .env: KUBECONFIG, LLM_PROVIDER, KUBE_NAMESPACES
-# LLM_PROVIDER=ollama  → ollama pull mistral  (local, no data leaves infra)
-# LLM_PROVIDER=groq    → set GROQ_API_KEY     (fast, free tier)
-# LLM_PROVIDER=anthropic|openai|google → set corresponding API key
-
-streamlit run ui/app.py
-```
-
-### Try without a cluster
-
-The **Integration Tests** tab runs entirely offline — no cluster, no Ollama needed:
-
-1. `streamlit run ui/app.py`
-2. Go to **🧪 Integration Tests**
-3. Select any `h00N_*` case from the dropdown
-4. Mode defaults to **🔬 Pipeline trace** — pipeline runs automatically
-5. Explore all 10 steps: tokenizer → retrieval → anchors → drift → confidence → proposed fixes
-
----
-
-## Validated scenarios
-
-Six failure patterns proven end-to-end in CI — no cluster, no Ollama required.
-
-| Scenario | Case | What it proves |
-|---|---|---|
-| CrashLoopBackOff — missing dependency | h001 | BFS graph traversal, BM25+FAISS retrieval, anchor detection, confidence scoring, fix proposals |
-| ImagePullBackOff — registry auth / tag drift | h002 | Helm drift detection, `drift.*` annotations, image proposal generation |
-| OOMKilled — memory limit drift | h003 | Helm declared-vs-observed diff, `anchor_fix_hints()` → `helm upgrade --set` |
-| Missing ConfigMap / Secret at pod start | h004 | `DeploymentReadinessDetector`, `missing.*` annotations, `kubectl create` hints |
-| NetworkPolicy egress block | h005 | `netpol.*` annotations, `kubectl edit networkpolicy` hints |
-| RBAC — missing ClusterRoleBinding | h006 | SA exists but no binding detected, `kubectl create clusterrolebinding` hint |
-
-Each case runs the full pre-LLM pipeline: graph construction → hybrid retrieval (BM25 + FAISS + RRF) → context building → anchor/drift/policy scoring → proposal generation.
+Nothing touches the cluster without explicit sign-off. Autonomous execution is not implemented by design.
 
 ---
 
@@ -178,6 +145,43 @@ Beam-search hypothesis ranking
 LLM root-cause analysis (evidence-grounded)
         ↓
 Dry-run validation → human review gate → GitOps patch
+```
+
+---
+
+## Validated scenarios
+
+Six failure patterns proven end-to-end in CI — no cluster, no Ollama required.
+
+| Scenario | Case | What it proves |
+|---|---|---|
+| CrashLoopBackOff — missing dependency | h001 | BFS graph traversal, BM25+FAISS retrieval, anchor detection, confidence scoring, fix proposals |
+| ImagePullBackOff — registry auth / tag drift | h002 | Helm drift detection, `drift.*` annotations, image proposal generation |
+| OOMKilled — memory limit drift | h003 | Helm declared-vs-observed diff, `anchor_fix_hints()` → `helm upgrade --set` |
+| Missing ConfigMap / Secret at pod start | h004 | `DeploymentReadinessDetector`, `missing.*` annotations, `kubectl create` hints |
+| RBAC — missing ClusterRoleBinding | h005 | SA exists but no binding detected, `kubectl create clusterrolebinding` hint |
+| NetworkPolicy egress block | h006 | `netpol.*` annotations, `kubectl edit networkpolicy` hints |
+
+Each case runs the full pre-LLM pipeline: graph construction → hybrid retrieval (BM25 + FAISS + RRF) → context building → anchor/drift/policy scoring → proposal generation.
+
+---
+
+## Quick start
+
+**Prerequisites:** Python 3.11+, a Kubernetes cluster reachable via kubeconfig, and one LLM provider configured in `.env`.
+
+```bash
+git clone https://github.com/a1h8/KubeWhisperer.git
+cd KubeWhisperer
+pip install -r requirements.txt
+
+cp .env.example .env
+# Edit .env: KUBECONFIG, LLM_PROVIDER, KUBE_NAMESPACES
+# LLM_PROVIDER=ollama  → ollama pull mistral  (local, no data leaves infra)
+# LLM_PROVIDER=groq    → set GROQ_API_KEY     (fast, free tier)
+# LLM_PROVIDER=anthropic|openai|google → set corresponding API key
+
+streamlit run ui/app.py
 ```
 
 ---
@@ -211,15 +215,22 @@ See [Roadmap](docs/roadmap.md) for what's next.
 
 ---
 
-## Why star this project?
+## Contributing
 
-Star KubeWhisperer if you are working on or interested in:
+Contributions are welcome — especially:
 
-- Kubernetes troubleshooting automation
-- Evidence-first AI Ops and incident investigation
-- Helm drift detection and GitOps validation
-- Human-gated remediation workflows
-- Local / air-gapped LLM operations with Ollama
+- New failure scenario cases (`tests/integration/cases/h0NN_*` format — see [Test cases](docs/test-cases.md))
+- Signal collectors (Prometheus rules, OTel exporters, Loki queries)
+- LLM provider integrations
+
+See [Project layout](docs/project-layout.md) for the codebase structure.
+
+---
+
+## Community
+
+KubeWhisperer is open-source and focused on Kubernetes incident investigation.
+Feedback, reproducible failure scenarios and integrations are welcome — open an issue or start a discussion.
 
 ---
 
