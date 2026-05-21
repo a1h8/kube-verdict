@@ -90,6 +90,35 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
 # Report
 # ---------------------------------------------------------------------------
 
+def _generate_rollback(remediation: list[str]) -> list[str]:
+    """Generate best-effort inverse commands for each remediation command."""
+    rollback: list[str] = []
+    for raw in remediation:
+        cmd = raw.strip().lstrip("$ ")
+        if cmd.startswith("kubectl rollout restart"):
+            rollback.append(cmd.replace("rollout restart", "rollout undo"))
+        elif cmd.startswith("kubectl set image"):
+            parts = cmd.split()
+            target = next((p for p in parts if "/" in p and p.split("/")[0] in
+                           ("deployment", "deploy", "daemonset", "ds", "statefulset", "sts")), None)
+            if target:
+                ns_parts = [parts[i + 1] for i, p in enumerate(parts) if p == "-n" and i + 1 < len(parts)]
+                ns = f"-n {ns_parts[0]}" if ns_parts else ""
+                rollback.append(f"kubectl rollout undo {target} {ns}".strip())
+        elif cmd.startswith("helm upgrade"):
+            parts = cmd.split()
+            if len(parts) >= 3:
+                release = parts[2]
+                ns_parts = [parts[i + 1] for i, p in enumerate(parts) if p == "-n" and i + 1 < len(parts)]
+                ns = f"-n {ns_parts[0]}" if ns_parts else ""
+                rollback.append(f"helm rollback {release} {ns}".strip())
+        elif cmd.startswith("kubectl apply -f"):
+            rollback.append(cmd.replace("apply -f", "delete -f", 1))
+        elif cmd.startswith("kubectl create"):
+            rollback.append(cmd.replace("create", "delete", 1))
+    return rollback
+
+
 @dataclass
 class RCAReport:
     query: str
@@ -105,9 +134,11 @@ class RCAReport:
     causal_chain: list[str] = field(default_factory=list)
     remediation: list[str] = field(default_factory=list)
     confidence: str = ""
+    rollback: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         _parse_analysis(self)
+        self.rollback = _generate_rollback(self.remediation)
 
     # ------------------------------------------------------------------
     # Display
@@ -134,6 +165,7 @@ class RCAReport:
             "root_cause": self.root_cause,
             "causal_chain": self.causal_chain,
             "remediation": self.remediation,
+            "rollback": self.rollback,
             "confidence": self.confidence,
             "context_stats": {
                 "seeds": len(self.context.seeds),
