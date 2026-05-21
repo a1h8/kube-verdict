@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 
 from api.models import (
-    EdgeEntry, FeedbackRequest, IncidentReport, RunRequest,
+    BlastRadius, EdgeEntry, FeedbackRequest, IncidentReport, RunRequest,
     SessionCreated, SessionState, SessionStatus,
 )
 from api.session_store import Session, store
@@ -63,9 +63,23 @@ def _state_to_response(session: Session) -> SessionState:
         causal_chain       = report.get("causal_chain") or [],
         suggestions        = report.get("remediation") or [],
         dry_run_results    = s.get("dry_run_results") or [],
+        blast_radius       = _build_blast_radius(s.get("blast_radius")),
         incident_report    = _build_incident_report(report),
         review_payload     = session.review_payload,
         error              = session.error,
+    )
+
+
+def _build_blast_radius(br: dict | None) -> BlastRadius | None:
+    if not br:
+        return None
+    return BlastRadius(
+        risk           = br.get("risk", "LOW"),
+        summary        = br.get("summary", ""),
+        resources      = br.get("resources", []),
+        namespaces     = br.get("namespaces", []),
+        cluster_scoped = br.get("cluster_scoped", False),
+        command_count  = br.get("command_count", 0),
     )
 
 
