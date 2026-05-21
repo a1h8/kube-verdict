@@ -62,8 +62,8 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
 | ImagePullBackOff — registry auth / tag drift | h002 | ✅ | Helm drift detection, `drift.*` annotations, image proposal generation |
 | OOMKilled — memory limit drift | h003 | ✅ | Helm declared-vs-observed diff, `anchor_fix_hints()` → `helm upgrade --set` |
 | Missing ConfigMap / Secret at pod start | h004 | ✅ | `DeploymentReadinessDetector`, `missing.*` annotations, `kubectl create` hints |
-| NetworkPolicy egress block | h005 | ✅ | `netpol.*` annotations, `kubectl edit networkpolicy` hints |
-| RBAC — missing ClusterRoleBinding | h006 | ✅ | SA exists but no binding detected, `kubectl create clusterrolebinding` hint |
+| RBAC — missing ClusterRoleBinding | h005 | ✅ | SA exists but no binding detected, `kubectl create clusterrolebinding` hint |
+| NetworkPolicy egress block | h006 | ✅ | `netpol.*` annotations, `kubectl edit networkpolicy` hints |
 
 **Each CI run** (`pytest tests/unit/test_hybrid_pipeline_NNN.py`) validates the full pre-LLM pipeline — graph construction, hybrid retrieval (BM25 + FAISS + RRF), context building, anchor/drift/policy scoring, and proposal generation — against a fixed JSON fixture. No Ollama, no cluster.
 
