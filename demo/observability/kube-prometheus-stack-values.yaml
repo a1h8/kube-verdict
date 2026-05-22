@@ -5,6 +5,16 @@
 grafana:
   enabled: false
 
+# Disable admission webhooks — avoids pulling ghcr.io/kube-webhook-certgen
+# (which fails through corporate TLS proxies like Netskope)
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+  tls:
+    enabled: false
+
 prometheus:
   prometheusSpec:
     scrapeInterval: 15s

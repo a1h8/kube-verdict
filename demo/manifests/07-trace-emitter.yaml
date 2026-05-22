@@ -33,7 +33,7 @@ spec:
           pip install \
             opentelemetry-sdk==1.25.0 \
             opentelemetry-exporter-otlp-proto-grpc==1.25.0 \
-            -q --disable-pip-version-check 2>/dev/null
+            --disable-pip-version-check && \
           python3 - <<'PYEOF'
           import time, os, random
           from opentelemetry import trace

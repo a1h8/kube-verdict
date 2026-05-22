@@ -20,30 +20,17 @@ data:
         timeout: 5s
         send_batch_size: 512
 
-      # Add k8s resource attributes for better correlation
-      k8sattributes:
-        auth_type: serviceAccount
-        extract:
-          metadata:
-            - k8s.namespace.name
-            - k8s.pod.name
-            - k8s.deployment.name
-            - k8s.node.name
-
     exporters:
       otlp/tempo:
         endpoint: "tempo.observability.svc.cluster.local:4317"
         tls:
           insecure: true
 
-      debug:
-        verbosity: basic
-
     service:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [batch, k8sattributes]
+          processors: [batch]
           exporters: [otlp/tempo]
 ---
 apiVersion: apps/v1
