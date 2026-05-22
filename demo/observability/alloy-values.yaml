@@ -1,0 +1,65 @@
+# Grafana Alloy — KubeWhisperer demo
+# Scrapes pod logs from all namespaces and forwards to Loki.
+# Labels k8s_pod_name + k8s_namespace_name match LokiSource LogQL queries.
+
+alloy:
+  configMap:
+    content: |
+      // ── Kubernetes pod logs → Loki ────────────────────────────────────────
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        // Keep only running containers
+        rule {
+          source_labels = ["__meta_kubernetes_pod_phase"]
+          regex         = "Pending|Succeeded|Failed"
+          action        = "drop"
+        }
+
+        // Standard k8s labels expected by LokiSource
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "k8s_pod_name"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "k8s_namespace_name"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "app"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+      }
+
+      loki.source.kubernetes "pod_logs" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }
+
+controller:
+  type: daemonset
+
+resources:
+  requests:
+    memory: 64Mi
+    cpu: 25m
+  limits:
+    memory: 128Mi

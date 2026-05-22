@@ -1,0 +1,78 @@
+# kube-prometheus-stack — KubeWhisperer demo values
+# Disables Grafana (not needed), configures Alertmanager to forward
+# firing Kubernetes alerts to the KubeWhisperer webhook.
+
+grafana:
+  enabled: false
+
+# Disable admission webhooks — avoids pulling ghcr.io/kube-webhook-certgen
+# (which fails through corporate TLS proxies )
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false
+    patch:
+      enabled: false
+  tls:
+    enabled: false
+
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    # Scrape all namespaces
+    podMonitorNamespaceSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+
+    route:
+      group_by: ["alertname", "namespace"]
+      group_wait: 10s
+      group_interval: 30s
+      repeat_interval: 1h
+      receiver: "null"
+      routes:
+        # Forward Kubernetes workload alerts to KubeWhisperer
+        - receiver: kubewhisperer
+          matchers:
+            - alertname =~ "KubePodCrashLooping|KubeContainerWaiting|KubePodNotReady|KubeDeploymentReplicasMismatch|KubeStatefulSetReplicasMismatch|KubeJobFailed"
+          continue: false
+
+    receivers:
+      - name: "null"
+      - name: kubewhisperer
+        webhook_configs:
+          - url: "${KUBEWHISPERER_WEBHOOK_URL}"
+            send_resolved: false
+            http_config:
+              follow_redirects: true
+
+    inhibit_rules:
+      - source_matchers: [severity="critical"]
+        target_matchers: [severity="warning"]
+        equal: [alertname, namespace, pod]
+
+# Keep kube-state-metrics — primary source for pod/deployment alerts
+kubeStateMetrics:
+  enabled: true
+
+# Keep node-exporter for resource pressure signals
+nodeExporter:
+  enabled: true
+
+# Reduce storage retention for demo (1d instead of default 10d)
+prometheus:
+  prometheusSpec:
+    retention: 1d
+    retentionSize: 2GB
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
