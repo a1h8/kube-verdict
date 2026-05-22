@@ -1,0 +1,40 @@
+{
+  "version": "4",
+  "status": "firing",
+  "receiver": "kubewhisperer",
+  "groupKey": "{}:{alertname=\"KubePodCrashLooping\"}",
+  "groupLabels": {
+    "alertname": "KubePodCrashLooping"
+  },
+  "commonLabels": {
+    "alertname": "KubePodCrashLooping",
+    "namespace": "production",
+    "severity": "critical"
+  },
+  "commonAnnotations": {
+    "summary": "Pod is crash-looping",
+    "runbook_url": "https://runbooks.example.com/KubePodCrashLooping"
+  },
+  "externalURL": "http://alertmanager:9093",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KubePodCrashLooping",
+        "namespace": "production",
+        "pod": "payment-service-6d8f9b7c4-xk9p2",
+        "deployment": "payment-service",
+        "container": "payment-service",
+        "severity": "critical"
+      },
+      "annotations": {
+        "summary": "Pod payment-service-6d8f9b7c4-xk9p2 is CrashLoopBackOff",
+        "description": "restartCount=47 — container exits immediately; secret payment-db-secret not found"
+      },
+      "startsAt": "2026-05-22T09:12:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus:9090/graph?g0.expr=kube_pod_container_status_restarts_total",
+      "fingerprint": "h001-crashloop-payment-service"
+    }
+  ]
+}

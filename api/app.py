@@ -49,6 +49,8 @@ app = FastAPI(
 
 from api.routes.health import router as health_router      # noqa: E402
 from api.routes.sessions import router as sessions_router  # noqa: E402
+from api.routes.webhook import router as webhook_router    # noqa: E402
 
 app.include_router(health_router)
 app.include_router(sessions_router)
+app.include_router(webhook_router)
