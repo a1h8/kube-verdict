@@ -1,0 +1,103 @@
+# Trace emitter — KubeWhisperer demo
+# Emits realistic OTel error traces for each failing service.
+# Uses Python + opentelemetry-sdk (pip install at startup, ~10s delay).
+# Traces are sent to otel-collector.observability:4317 → Tempo.
+#
+# Emulates what instrumented apps would produce in production.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trace-emitter
+  namespace: kubewhisperer-demo
+  labels:
+    app: trace-emitter
+    app.kubernetes.io/name: trace-emitter
+    tier: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trace-emitter
+  template:
+    metadata:
+      labels:
+        app: trace-emitter
+        app.kubernetes.io/name: trace-emitter
+    spec:
+      containers:
+      - name: emitter
+        image: python:3.11-slim
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          pip install \
+            opentelemetry-sdk==1.25.0 \
+            opentelemetry-exporter-otlp-proto-grpc==1.25.0 \
+            --disable-pip-version-check && \
+          python3 - <<'PYEOF'
+          import time, os, random
+          from opentelemetry import trace
+          from opentelemetry.sdk.trace import TracerProvider
+          from opentelemetry.sdk.trace.export import BatchSpanProcessor
+          from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+          from opentelemetry.sdk.resources import Resource
+          from opentelemetry.trace import StatusCode
+
+          OTEL_ENDPOINT = os.getenv("OTEL_ENDPOINT", "otel-collector.observability:4317")
+
+          # One tracer per failing service
+          SERVICES = [
+            {
+              "name": "payment-service",
+              "namespace": "kubewhisperer-demo",
+              "span": "payment.process",
+              "error": "dial tcp 10.96.5.22:5432: connect: connection refused",
+              "attrs": {"db.system": "postgresql", "db.name": "payments"},
+            },
+            {
+              "name": "analytics-worker",
+              "namespace": "kubewhisperer-demo",
+              "span": "analytics.compute",
+              "error": "runtime: out of memory: cannot allocate 200MiB",
+              "attrs": {"job.type": "batch", "job.dataset": "feature-matrix"},
+            },
+          ]
+
+          providers = {}
+          for svc in SERVICES:
+            resource = Resource.create({
+              "service.name":          svc["name"],
+              "k8s.namespace.name":    svc["namespace"],
+              "k8s.deployment.name":   svc["name"],
+            })
+            provider = TracerProvider(resource=resource)
+            exporter = OTLPSpanExporter(
+              endpoint=OTEL_ENDPOINT,
+              insecure=True,
+            )
+            provider.add_span_processor(BatchSpanProcessor(exporter))
+            providers[svc["name"]] = (provider, svc)
+
+          print(f"[trace-emitter] Connected to {OTEL_ENDPOINT}", flush=True)
+          print(f"[trace-emitter] Emitting error traces for: {[s['name'] for s in SERVICES]}", flush=True)
+
+          while True:
+            for svc_name, (provider, svc) in providers.items():
+              tracer = trace.get_tracer(svc["name"], tracer_provider=provider)
+              with tracer.start_as_current_span(svc["span"]) as span:
+                for k, v in svc["attrs"].items():
+                  span.set_attribute(k, v)
+                span.set_status(StatusCode.ERROR, svc["error"])
+                span.record_exception(Exception(svc["error"]))
+              print(f"[trace-emitter] emitted ERROR span: {svc['name']}/{svc['span']}", flush=True)
+            time.sleep(15)
+          PYEOF
+        env:
+        - name: OTEL_ENDPOINT
+          value: "otel-collector.observability:4317"
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 25m
+          limits:
+            memory: 128Mi

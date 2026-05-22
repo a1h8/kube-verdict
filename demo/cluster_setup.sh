@@ -48,6 +48,8 @@ sleep 30
 
 echo ""
 kubectl get pods -n "$NS" -o wide
+
+# ── Observability stack ───────────────────────────────────────────────────────
 echo ""
-echo "  Setup complete. Run the RCA:"
-echo "    python demo/run_rca.py --yes --auto-approve"
+echo "  Deploying observability stack (Prometheus + Loki + Tempo + Alloy + OTel)..."
+bash "$ROOT/demo/setup_observability.sh"
