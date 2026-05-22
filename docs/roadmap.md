@@ -29,9 +29,11 @@
 
 ## Next
 
+- [ ] **Evidence Lineage** — dedup raw signals by Kubernetes owner + error family + time window; build lineage graph (evidence → root cause → remediation nodes/edges); expose ranked reasoning paths with alternatives in API and UI
 - [ ] **Monte Carlo Tree Search** — replace greedy beam search with MCTS: UCB1 node selection, rollout via LLM, backpropagation of confidence scores across hypothesis tree
 - [ ] **More h-series cases** — h012+: network latency, cert expiry, etcd compaction, …
 - [ ] **Helmfile multi-release** — case with `helmfile.yaml` covering interdependent releases
 - [ ] **Multi-cluster support** — analyse multiple contexts in one session
+- [ ] **Alertmanager webhook** — receive Prometheus Alertmanager `POST /webhook` payloads; auto-trigger RCA session from firing alert; map `labels` to namespace + resource + query
 - [ ] **Slack / PagerDuty enrichment** — push RCA summary via webhook
 - [ ] **RBAC-aware scoping** — per-namespace analysis with service-account impersonation

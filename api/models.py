@@ -114,3 +114,32 @@ class SessionCreated(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = "ok"
+
+
+# ── Alertmanager webhook ───────────────────────────────────────────────────────
+
+class AlertmanagerAlert(BaseModel):
+    status: str                                    # "firing" | "resolved"
+    labels: dict[str, str] = Field(default_factory=dict)
+    annotations: dict[str, str] = Field(default_factory=dict)
+    startsAt: str = ""
+    endsAt: str = ""
+    generatorURL: str = ""
+    fingerprint: str = ""
+
+
+class AlertmanagerPayload(BaseModel):
+    version: str = "4"
+    groupKey: str = ""
+    status: str                                    # "firing" | "resolved"
+    receiver: str = ""
+    groupLabels: dict[str, str] = Field(default_factory=dict)
+    commonLabels: dict[str, str] = Field(default_factory=dict)
+    commonAnnotations: dict[str, str] = Field(default_factory=dict)
+    externalURL: str = ""
+    alerts: list[AlertmanagerAlert] = Field(default_factory=list)
+
+
+class WebhookTriggered(BaseModel):
+    session_ids: list[str]
+    skipped: int = 0
