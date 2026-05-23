@@ -1,4 +1,3 @@
-import pytest
 from api.models import AlertmanagerAlert
 from api.webhook_mapper import alert_to_namespaces, alert_to_query, firing_alerts
 
