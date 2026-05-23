@@ -147,7 +147,7 @@ async def run(api_base: str, payload: dict, offline: bool) -> None:
         print(f"  Confidence   : {confidence}")
         print(f"  Namespace    : {namespace}")
 
-        print(f"\n  Root cause :")
+        print("\n  Root cause :")
         for line in root_cause.splitlines():
             print(f"    {line.strip()}")
 
@@ -157,11 +157,11 @@ async def run(api_base: str, payload: dict, offline: bool) -> None:
             print(_bullet(events[:5]))
 
         if remediation:
-            print(f"\n  Proposed fix :")
+            print("\n  Proposed fix :")
             print(_bullet([f"$ {c}" for c in remediation]))
 
         if rollback:
-            print(f"\n  Rollback plan :")
+            print("\n  Rollback plan :")
             print(_bullet([f"$ {c}" for c in rollback]))
 
         if blast:
@@ -171,9 +171,9 @@ async def run(api_base: str, payload: dict, offline: bool) -> None:
 
         if status == "AWAITING_REVIEW":
             print(f"\n  {'─' * (W - 2)}")
-            print(f"  Remediation requires human approval.")
+            print("  Remediation requires human approval.")
             print(f"  POST /api/v1/sessions/{session_id}/feedback")
-            print(f"        {{\"human_decision\": \"approve\"}}")
+            print("        {\"human_decision\": \"approve\"}")
 
         print(f"\n{'═' * W}\n")
 

@@ -61,62 +61,6 @@ step "Creating namespace $OBS_NS..."
 kubectl create namespace "$OBS_NS" --dry-run=client -o yaml | kubectl apply -f -
 info "Namespace ready."
 
-# ── Image pre-load (corporate TLS proxy workaround) ──────────────────────────
-# On machines with a TLS-intercepting proxy (a TLS-intercepting proxy),
-# containerd inside k3d cannot pull images — the proxy cert isn't trusted.
-# Fix: pull on the Docker host (which has the corp CA), import into k3d.
-_preload_images() {
-  local cluster
-  cluster="$(kubectl config current-context 2>/dev/null | sed 's/^k3d-//')"
-  [[ -z "$cluster" ]] && { warn "Cannot detect k3d cluster — skipping image preload"; return; }
-
-  # Detect corporate TLS proxy via macOS keychain
-  local needs_preload=false
-  if [[ "$(uname -s)" == "Darwin" ]] && command -v security &>/dev/null; then
-    security find-certificate -a -p /Library/Keychains/System.keychain 2>/dev/null \
-      | python3 -c "
-import sys, subprocess, re
-pem = sys.stdin.read()
-for c in re.findall(r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----', pem, re.DOTALL):
-    r = subprocess.run(['openssl','x509','-noout','-subject'], input=c.encode(), capture_output=True)
-    if any(k in r.stdout.decode().lower() for k in ['zscaler','bluecoat']):
-        sys.exit(0)
-sys.exit(1)
-" 2>/dev/null && needs_preload=true
-  fi
-  $needs_preload || return 0
-
-  warn "Corporate TLS proxy detected — pre-loading images via host Docker"
-
-  local images=(
-    "rancher/mirrored-pause:3.6"
-    "quay.io/prometheus-operator/prometheus-operator:v0.90.1"
-    "quay.io/prometheus-operator/prometheus-config-reloader:v0.81.0"
-    "quay.io/prometheus/prometheus:v3.11.3-distroless"
-    "quay.io/prometheus/alertmanager:v0.32.1"
-    "quay.io/prometheus/node-exporter:v1.11.1-distroless"
-    "quay.io/kiwigrid/k8s-sidecar:2.7.3"
-    "quay.io/kiwigrid/k8s-sidecar:2.5.0"
-    "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.0"
-    "docker.io/grafana/loki:3.6.7"
-    "docker.io/grafana/tempo:2.9.0"
-    "docker.io/grafana/alloy:v1.16.1"
-    "docker.io/nginxinc/nginx-unprivileged:1.29-alpine"
-    "otel/opentelemetry-collector-contrib:0.102.0"
-    "python:3.11-slim"
-  )
-
-  step "Pre-loading ${#images[@]} images (pull on host → import into k3d)..."
-  for img in "${images[@]}"; do
-    echo -n "    docker pull $img ... "
-    docker pull "$img" -q 2>&1 | tail -1
-  done
-  k3d image import "${images[@]}" -c "$cluster" 2>&1
-  info "Images imported into cluster '$cluster'."
-}
-
-_preload_images
-
 # ── Helm repos ────────────────────────────────────────────────────────────────
 step "Adding Helm repos..."
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
