@@ -9,7 +9,7 @@ async def lifespan(app: FastAPI):
     from api.session_store import init_store
     from api.routes import sessions as sessions_mod
     from persistence.db import db_path
-    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+    from langgraph.checkpoint.sqlite import SqliteSaver
     import config as cfg
     from vectorstore.store import FAISSStore
 
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
         finally:
             conn.close()
 
-    async with AsyncSqliteSaver.from_conn_string(db_path()) as checkpointer:
+    with SqliteSaver.from_conn_string(db_path()) as checkpointer:
         sessions_mod._graph = sessions_mod._build_graph(checkpointer)
         yield
 
