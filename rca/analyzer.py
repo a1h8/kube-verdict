@@ -75,7 +75,9 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
     Numbered steps from trigger to visible impact.
 
     ### 5. Remediation
-    Concrete commands. Prefer `kubectl` and `helm`/`helmfile` commands over prose.
+    Commands that directly FIX the root cause (kubectl apply, kubectl rollout restart,
+    helm upgrade…). Do NOT list diagnostic commands such as kubectl describe,
+    kubectl logs, or kubectl get — those are investigation, not remediation.
 
     ### 6. Confidence
     Choose LOW | MEDIUM | HIGH using this rule:
@@ -341,7 +343,9 @@ def _extract_section(text: str, start_marker: str, end_marker: str | None) -> st
         snippet = text[begin: begin + end.start()] if end else text[begin:]
     else:
         snippet = text[begin:]
-    return snippet.strip()
+    # strip trailing markdown header artifacts (e.g. lone "###" left by LLM)
+    cleaned = re.sub(r'\n\s*#{1,6}\s*$', '', snippet.strip())
+    return cleaned.strip()
 
 
 def _extract_bullets(block: str) -> list[str]:

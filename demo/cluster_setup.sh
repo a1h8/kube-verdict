@@ -55,6 +55,7 @@ _baseline() {
 # ── Inject: payment-service CrashLoop + analytics-worker OOM ─────────────────
 _inject() {
   step "Injecting failures..."
+  kubectl delete pod analytics-worker -n "$NS" --grace-period=0 --force 2>/dev/null || true
   kubectl apply -f "$MANIFESTS/01-crashloop.yaml"   # payment-service: DB unreachable → exit 1
   kubectl apply -f "$MANIFESTS/02-oom.yaml"          # analytics-worker: 200MiB alloc > 50MiB limit
   info "Manifests applied — pods entering failure state..."

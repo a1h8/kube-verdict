@@ -193,7 +193,8 @@ async def run(api_base: str, payload: dict, offline: bool) -> None:
                 print("\n  ✓  Approved — applying remediation...")
 
                 # ── Step 5: apply fix + watch pods ────────────────────────────
-                import subprocess, shlex
+                import shlex
+                import subprocess
                 ns_labels = payload.get("commonLabels", {}).get("namespace", "")
                 print(_section("Step 5/5  Applying fix manifests"))
                 fix = subprocess.run(
