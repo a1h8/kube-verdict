@@ -121,7 +121,7 @@ async def _run_graph(session: Session, initial_state: dict, resume_cmd: Command 
             store.set_last_state(session.session_id, dict(state))
 
         # Graph finished — check for interrupt (AWAITING_REVIEW) or completion
-        snapshot = _graph.get_state(cfg)
+        snapshot = await _graph.aget_state(cfg)
         if snapshot.next:
             interrupt_data = None
             for task in (snapshot.tasks or []):

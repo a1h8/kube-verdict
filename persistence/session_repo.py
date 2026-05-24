@@ -17,10 +17,20 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+class _SafeEncoder(json.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if hasattr(o, "__dict__"):
+            return o.__dict__
+        try:
+            return super().default(o)
+        except TypeError:
+            return repr(o)
+
+
 def _to_json(obj: Any) -> str | None:
     if obj is None:
         return None
-    return json.dumps(obj)
+    return json.dumps(obj, cls=_SafeEncoder)
 
 
 def _from_json(raw: str | None) -> Any:

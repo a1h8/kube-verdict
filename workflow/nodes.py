@@ -14,6 +14,10 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
+# LangGraph does not propagate config mutations between nodes.
+# Heavy non-serializable objects are cached here keyed by thread_id.
+_INFRA_CACHE: dict[str, tuple[Any, Any]] = {}
+
 import config as cfg
 from rca.analyzer import RCAAnalyzer
 from rca.context_builder import ContextBuilder
@@ -40,9 +44,18 @@ def _stats(state: RCAState, step: str, data: dict) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _get_infra(config: RunnableConfig) -> tuple[Any, Any]:
-    """Pull graph and store from config["configurable"] (never from state)."""
+    """Pull graph and store from config or the thread-local infra cache."""
     c = config.get("configurable", {})
-    return c.get("graph"), c.get("store")
+    graph = c.get("graph")
+    store = c.get("store")
+    if graph is None:
+        tid = c.get("thread_id", "")
+        cached = _INFRA_CACHE.get(tid)
+        if cached:
+            graph, store_cached = cached
+            if store is None:
+                store = store_cached
+    return graph, store
 
 
 def _get_provider(config: RunnableConfig):
@@ -106,10 +119,12 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
         kube_ver = getattr(collector, "kube_version", None)
         log.info("ingest: %s", built_graph.summary())
 
-        config.setdefault("configurable", {})["graph"] = built_graph
+        tid = config.get("configurable", {}).get("thread_id", "")
+        store_ref = config.get("configurable", {}).get("store")
+        _INFRA_CACHE[tid] = (built_graph, store_ref)
         return _stats(state, "ingest", {
-            "entities": built_graph.node_count(),
-            "edges": built_graph.edge_count(),
+            "entities": built_graph.node_count,
+            "edges": built_graph.edge_count,
             "helm_releases": helm_releases,
             "helm_drift": drift_count,
             "kube_version": str(kube_ver) if kube_ver else "",

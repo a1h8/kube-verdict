@@ -9,7 +9,7 @@
 #
 # Usage:
 #   bash demo/cluster_setup.sh --baseline
-#   bash demo/cluster_setup.sh --inject
+#   bash demo/cluster_setup.sh --inje#   bash demo/cluster_setup.sh --fix
 #   bash demo/cluster_setup.sh --reset
 set -euo pipefail
 
@@ -36,6 +36,8 @@ MODE="${1:-all}"
 if [[ "$MODE" == "--reset" ]]; then
   step "Resetting demo namespace..."
   kubectl delete all --all -n "$NS" 2>/dev/null || true
+  kubectl delete pod --all -n "$NS" --grace-period=0 --force 2>/dev/null || true
+  kubectl wait --for=delete pod --all -n "$NS" --timeout=30s 2>/dev/null || true
   info "Namespace $NS is clean."
   exit 0
 fi
@@ -64,9 +66,22 @@ _inject() {
   echo "  KubeWhisperer webhook → RCA in ~30s"
 }
 
+# ── Fix: apply remediation manifests ─────────────────────────────────────────
+_fix() {
+  step "Applying remediation..."
+  kubectl delete pod analytics-worker -n "$NS" 2>/dev/null || true
+  kubectl apply -f "$MANIFESTS/08-fix.yaml"
+  kubectl rollout status deployment/db-primary -n "$NS" --timeout=60s
+  kubectl rollout status deployment/payment-service -n "$NS" --timeout=120s
+  info "db-primary up — payment-service reconnected."
+  echo ""
+  kubectl get pods -n "$NS"
+}
+
 case "$MODE" in
   --baseline) _baseline ;;
   --inject)   _inject ;;
+  --fix)      _fix ;;
   *)
     _baseline
     echo ""

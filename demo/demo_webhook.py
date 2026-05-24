@@ -171,9 +171,47 @@ async def run(api_base: str, payload: dict, offline: bool) -> None:
 
         if status == "AWAITING_REVIEW":
             print(f"\n  {'─' * (W - 2)}")
-            print("  Remediation requires human approval.")
-            print(f"  POST /api/v1/sessions/{session_id}/feedback")
-            print("        {\"human_decision\": \"approve\"}")
+            print("  Human approval required.\n")
+            print(f"  curl -s -X POST {api_base}/api/v1/sessions/{session_id}/feedback \\")
+            print( "       -H 'Content-Type: application/json' \\")
+            print( "       -d '{\"human_decision\": \"approve\"}'")
+            print(f"\n  {'─' * (W - 2)}")
+
+            # ── Step 4: interactive approval ─────────────────────────────────
+            print(_section("Step 4/4  Approve remediation? [y/N]"))
+            try:
+                answer = input("  > ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                answer = ""
+
+            if answer in ("y", "yes"):
+                resp = await client.post(
+                    f"/api/v1/sessions/{session_id}/feedback",
+                    json={"human_decision": "approve"},
+                )
+                resp.raise_for_status()
+                print("\n  ✓  Approved — applying remediation...")
+
+                # ── Step 5: apply fix + watch pods ────────────────────────────
+                import subprocess, shlex
+                ns_labels = payload.get("commonLabels", {}).get("namespace", "")
+                print(_section("Step 5/5  Applying fix manifests"))
+                fix = subprocess.run(
+                    ["bash", "demo/cluster_setup.sh", "--fix"],
+                    capture_output=False,
+                )
+                if fix.returncode == 0 and ns_labels:
+                    print(_section(f"Pods in {ns_labels}"))
+                    result = subprocess.run(
+                        shlex.split(f"kubectl get pods -n {ns_labels}"),
+                        capture_output=True, text=True,
+                    )
+                    print(result.stdout)
+            else:
+                print("\n  Skipped — run manually:")
+                print(f"  curl -s -X POST {api_base}/api/v1/sessions/{session_id}/feedback \\")
+                print( "       -H 'Content-Type: application/json' \\")
+                print( "       -d '{\"human_decision\": \"approve\"}'")
 
         print(f"\n{'═' * W}\n")
 
@@ -182,7 +220,7 @@ async def run(api_base: str, payload: dict, offline: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="KubeWhisperer Alertmanager webhook demo")
-    parser.add_argument("--api", default="http://localhost:8000", help="API base URL")
+    parser.add_argument("--api", default="http://localhost:8001", help="API base URL")
     parser.add_argument("--payload", default=str(PAYLOAD_FILE), help="Alertmanager payload JSON file")
     parser.add_argument("--offline", action="store_true",
                         help="Run in-process without a server (mocks graph execution)")
