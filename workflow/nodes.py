@@ -14,16 +14,16 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
-# LangGraph does not propagate config mutations between nodes.
-# Heavy non-serializable objects are cached here keyed by thread_id.
-_INFRA_CACHE: dict[str, tuple[Any, Any]] = {}
-
 import config as cfg
 from rca.analyzer import RCAAnalyzer
 from rca.context_builder import ContextBuilder
 from vectorstore.embedder import Embedder
 from vectorstore.store import FAISSStore
 from workflow.state import RCAState
+
+# LangGraph does not propagate config mutations between nodes.
+# Heavy non-serializable objects are cached here keyed by thread_id.
+_INFRA_CACHE: dict[str, tuple[Any, Any]] = {}
 
 log = logging.getLogger(__name__)
 
