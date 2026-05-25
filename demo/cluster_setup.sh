@@ -1,55 +1,91 @@
 #!/usr/bin/env bash
-# KubeWhisperer — local cluster demo setup
-# Creates a k3d cluster and injects real Kubernetes failures.
-# Usage: bash demo/cluster_setup.sh [--reset]
+# KubeWhisperer — demo failure injection
+#
+# Stages a live incident on the k0rdent cluster:
+#   --baseline   deploy healthy api-gateway (contrast / before state)
+#   --inject     inject payment-service CrashLoop + analytics-worker OOM
+#   --reset      delete all demo workloads
+#   (no flag)    baseline only, then prompts for --inject
+#
+# Usage:
+#   bash demo/cluster_setup.sh --baseline
+#   bash demo/cluster_setup.sh --inje#   bash demo/cluster_setup.sh --fix
+#   bash demo/cluster_setup.sh --reset
 set -euo pipefail
 
-CLUSTER="kubewhisperer-demo"
-NS="kubewhisperer-demo"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MANIFESTS="$ROOT/demo/manifests"
+NS="kubewhisperer-demo"
+CTX="k3d-k0rdent"
+
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+info()  { echo -e "${GREEN}  ✓${NC}  $*"; }
+step()  { echo -e "\n${CYAN}──${NC}  $*"; }
+warn()  { echo -e "${YELLOW}  ⚠${NC}  $*"; }
+
+# ── Context guard ─────────────────────────────────────────────────────────────
+current_ctx=$(kubectl config current-context 2>/dev/null || echo "none")
+if [[ "$current_ctx" != "$CTX" ]]; then
+  warn "Switching context to $CTX (was: $current_ctx)"
+  kubectl config use-context "$CTX"
+fi
+
+MODE="${1:-all}"
 
 # ── Reset ─────────────────────────────────────────────────────────────────────
-if [[ "${1:-}" == "--reset" ]]; then
-    echo "  Deleting cluster $CLUSTER..."
-    k3d cluster delete "$CLUSTER" 2>/dev/null || true
-    exit 0
+if [[ "$MODE" == "--reset" ]]; then
+  step "Resetting demo namespace..."
+  kubectl delete all --all -n "$NS" 2>/dev/null || true
+  kubectl delete pod --all -n "$NS" --grace-period=0 --force 2>/dev/null || true
+  kubectl wait --for=delete pod --all -n "$NS" --timeout=30s 2>/dev/null || true
+  info "Namespace $NS is clean."
+  exit 0
 fi
 
-# ── Create cluster ────────────────────────────────────────────────────────────
-if k3d cluster list | grep -q "^$CLUSTER"; then
-    echo "  Cluster $CLUSTER already exists — skipping creation."
-else
-    echo "  Creating k3d cluster: $CLUSTER"
-    k3d cluster create "$CLUSTER" \
-        --agents 1 \
-        --no-lb \
-        --k3s-arg "--disable=traefik@server:0" \
-        --wait
-    echo "  Cluster ready."
-fi
+# ── Baseline: healthy api-gateway ─────────────────────────────────────────────
+_baseline() {
+  step "Deploying healthy baseline (api-gateway)..."
+  kubectl apply -f "$MANIFESTS/06-healthy.yaml"
+  kubectl rollout status deployment/api-gateway -n "$NS" --timeout=120s
+  info "api-gateway Running — 2/2 pods healthy."
+  echo ""
+  kubectl get pods -n "$NS"
+}
 
-kubectl config use-context "k3d-$CLUSTER"
+# ── Inject: payment-service CrashLoop + analytics-worker OOM ─────────────────
+_inject() {
+  step "Injecting failures..."
+  kubectl delete pod analytics-worker -n "$NS" --grace-period=0 --force 2>/dev/null || true
+  kubectl apply -f "$MANIFESTS/01-crashloop.yaml"   # payment-service: DB unreachable → exit 1
+  kubectl apply -f "$MANIFESTS/02-oom.yaml"          # analytics-worker: 200MiB alloc > 50MiB limit
+  info "Manifests applied — pods entering failure state..."
+  echo ""
+  echo -e "${YELLOW}  Watch pods:${NC}  kubectl get pods -n $NS -w"
+  echo -e "${YELLOW}  Watch logs:${NC}  kubectl logs -n $NS -l app=payment-service --tail=10 -f"
+  echo ""
+  echo "  Alertmanager will fire KubePodCrashLooping + KubeDeploymentReplicasMismatch"
+  echo "  KubeWhisperer webhook → RCA in ~30s"
+}
 
-# ── Namespace ─────────────────────────────────────────────────────────────────
-kubectl apply -f "$MANIFESTS/00-namespace.yaml"
+# ── Fix: apply remediation manifests ─────────────────────────────────────────
+_fix() {
+  step "Applying remediation..."
+  kubectl delete pod analytics-worker -n "$NS" 2>/dev/null || true
+  kubectl apply -f "$MANIFESTS/08-fix.yaml"
+  kubectl rollout status deployment/db-primary -n "$NS" --timeout=60s
+  kubectl rollout status deployment/payment-service -n "$NS" --timeout=120s
+  info "db-primary up — payment-service reconnected."
+  echo ""
+  kubectl get pods -n "$NS"
+}
 
-# ── Inject failures ───────────────────────────────────────────────────────────
-echo ""
-echo "  Injecting failure scenarios..."
-kubectl apply -f "$MANIFESTS/01-crashloop.yaml"   # payment-service: CrashLoopBackOff
-kubectl apply -f "$MANIFESTS/02-oom.yaml"          # analytics-worker: OOMKilled
-kubectl apply -f "$MANIFESTS/04-imagepull.yaml"    # notification-svc: ImagePullBackOff
-kubectl apply -f "$MANIFESTS/06-healthy.yaml"      # api-gateway: healthy baseline
-
-echo ""
-echo "  Waiting 30s for pods to enter failure states..."
-sleep 30
-
-echo ""
-kubectl get pods -n "$NS" -o wide
-
-# ── Observability stack ───────────────────────────────────────────────────────
-echo ""
-echo "  Deploying observability stack (Prometheus + Loki + Tempo + Alloy + OTel)..."
-bash "$ROOT/demo/setup_observability.sh"
+case "$MODE" in
+  --baseline) _baseline ;;
+  --inject)   _inject ;;
+  --fix)      _fix ;;
+  *)
+    _baseline
+    echo ""
+    warn "Run 'bash demo/cluster_setup.sh --inject' when ready to trigger the incident."
+    ;;
+esac

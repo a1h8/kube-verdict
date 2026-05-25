@@ -9,7 +9,7 @@ KubeWhisperer correlates Kubernetes events, Helm drift, Prometheus alerts, OTel 
 ✅ Six validated failure scenarios proven end-to-end in CI  
 ✅ Try it without a live cluster  
 
-![KubeWhisperer demo](demo/demo_kubeWhisperer.gif)
+![KubeWhisperer demo](hero-demo-60s.gif)
 
 [![CI](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml)
 [![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h006-blue)](#validated-scenarios)
@@ -42,71 +42,29 @@ The **Integration Tests** tab runs entirely offline — no cluster, no Ollama ne
 
 ## Demo
 
-Three scenarios on a real k3d cluster — no mocks, no hardcoded answers.
+Real k3d cluster — no mocks, no hardcoded answers.
 
-**What the output looks like:**
+**Full loop: Alertmanager alert → RCA in 7s → human approval → cluster heals**
 
 ```
-════════════════════════════════════════════════════════════════════
-  INCIDENT SUMMARY
-════════════════════════════════════════════════════════════════════
-  Severity    : HIGH
-  Namespace   : kubewhisperer-demo
-  Confidence  : MEDIUM
-  Impacted    : payment-service, ml-inference, notification-service
-
-  Root cause  :
-    payment-service is in CrashLoopBackOff due to repeated container
-    failures. ml-inference cannot pull its image (ImagePullBackOff).
-    notification-service is missing a required environment variable.
-
-  Key evidence:
-    • [447×] BackOff on Pod/payment-service-58555ff9b6-4bxv2
-      "Back-off restarting failed container payment-service"
-    • [  1×] Failed on Pod/ml-inference-6c7dbf6d5f-2nlsr
-      "Failed to pull image: not found"
-
-  Proposed fix:
-    $ kubectl rollout restart deployment/payment-service -n kubewhisperer-demo
-    $ kubectl set image deployment/ml-inference ml-inference=<correct-image>
-════════════════════════════════════════════════════════════════════
-  Confidence: MEDIUM
-  Approve and apply remediation? [approve/reject]: approve
-  ✓ Remediation approved — commands above should be applied.
+Alertmanager fires KubePodCrashLooping
+        ↓  202 Accepted, session created
+KubeWhisperer ingests live K8s events
+        ↓  7s
+Root cause: "dial tcp db-primary:5432: connection refused — database initialisation failed"
+Confidence: MEDIUM  ·  Blast radius: 5 resources
+        ↓  human gate
+Approve remediation? [y/N]  →  y
+        ↓
+db-primary deployed  ·  payment-service reconnected  ·  analytics-worker healed
+All pods Running ✓
 ```
-
----
-
-### 1 · Multi-failure RCA (air-gapped, Mistral)
-
-Five services down simultaneously. KubeWhisperer identifies each root cause independently, ranks them by evidence weight, and separates root causes from cascades — entirely local, no data leaves the machine.
-
-<video src="https://github.com/user-attachments/assets/02a5d62b-d61e-4a70-b081-4d98d168366a" autoplay loop muted playsinline width="100%"></video>
-
----
-
-### 2 · Human approval gate
-
-The LLM proposes remediation commands. Execution is gated: the SRE reviews the evidence, types `approve` or `reject`. Nothing touches the cluster without explicit sign-off.
-
-<video src="https://github.com/user-attachments/assets/c0ad7270-5dcb-4783-9221-a3efb523212b" autoplay loop muted playsinline width="100%"></video>
-
----
-
-### 3 · No false positives — healthy service confirmed
-
-`api-gateway` is running normally. KubeWhisperer queries the same pipeline and correctly returns HIGH confidence with no remediation needed. Signal-to-noise ratio matters.
-
-<video src="https://github.com/user-attachments/assets/0e884e44-a083-46ab-a3aa-8396e7a70cd0" autoplay loop muted playsinline width="100%"></video>
-
----
 
 ```bash
-# Air-gapped (local Mistral)
-LLM_PROVIDER=ollama python demo/run_rca.py --yes
-
-# Connected demo (Groq, faster)
-LLM_PROVIDER=groq python demo/run_rca.py --yes
+# Reproduce it
+bash demo/kap_record.sh          # reset → baseline → start API
+bash demo/cluster_setup.sh --inject
+python demo/demo_webhook.py      # alert → RCA → approve → fix
 ```
 
 → [Full demo guide](docs/demo.md)

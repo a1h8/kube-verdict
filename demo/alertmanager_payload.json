@@ -2,17 +2,18 @@
   "version": "4",
   "status": "firing",
   "receiver": "kubewhisperer",
-  "groupKey": "{}:{alertname=\"KubePodCrashLooping\"}",
+  "groupKey": "{}:{alertname=\"KubePodCrashLooping\", namespace=\"kubewhisperer-demo\"}",
   "groupLabels": {
-    "alertname": "KubePodCrashLooping"
+    "alertname": "KubePodCrashLooping",
+    "namespace": "kubewhisperer-demo"
   },
   "commonLabels": {
     "alertname": "KubePodCrashLooping",
-    "namespace": "production",
+    "namespace": "kubewhisperer-demo",
     "severity": "critical"
   },
   "commonAnnotations": {
-    "summary": "Pod is crash-looping",
+    "summary": "Multiple pods crash-looping in kubewhisperer-demo",
     "runbook_url": "https://runbooks.example.com/KubePodCrashLooping"
   },
   "externalURL": "http://alertmanager:9093",
@@ -21,20 +22,20 @@
       "status": "firing",
       "labels": {
         "alertname": "KubePodCrashLooping",
-        "namespace": "production",
-        "pod": "payment-service-6d8f9b7c4-xk9p2",
+        "namespace": "kubewhisperer-demo",
+        "pod": "payment-service-7b9b45d5ff-59t7j",
         "deployment": "payment-service",
-        "container": "payment-service",
+        "container": "payment",
         "severity": "critical"
       },
       "annotations": {
-        "summary": "Pod payment-service-6d8f9b7c4-xk9p2 is CrashLoopBackOff",
-        "description": "restartCount=47 — container exits immediately; secret payment-db-secret not found"
+        "summary": "Pod payment-service-7b9b45d5ff-59t7j is CrashLoopBackOff",
+        "description": "restartCount=29 — container exits immediately; dial tcp db-primary.kubewhisperer-demo:5432: connection refused — database initialisation failed"
       },
-      "startsAt": "2026-05-22T09:12:00Z",
+      "startsAt": "2026-05-24T12:00:00Z",
       "endsAt": "0001-01-01T00:00:00Z",
       "generatorURL": "http://prometheus:9090/graph?g0.expr=kube_pod_container_status_restarts_total",
-      "fingerprint": "h001-crashloop-payment-service"
+      "fingerprint": "demo-crashloop-payment-service"
     }
   ]
 }
