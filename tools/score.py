@@ -82,11 +82,16 @@ def score_type_safety() -> int:
     _, out = _run(sys.executable, "-m", "mypy", "--ignore-missing-imports",
                   "--no-error-summary", *targets)
     errors = sum(1 for line in out.splitlines() if ": error:" in line)
-    if errors == 0:   return 20
-    if errors <= 10:  return 17
-    if errors <= 30:  return 14
-    if errors <= 80:  return 10
-    if errors <= 150: return 7
+    if errors == 0:
+        return 20
+    if errors <= 10:
+        return 17
+    if errors <= 30:
+        return 14
+    if errors <= 80:
+        return 10
+    if errors <= 150:
+        return 7
     return 4
 
 
@@ -99,10 +104,14 @@ def score_complexity() -> int:
         m = re.search(r"Average complexity: \w+ \((\d+\.?\d*)\)", line)
         if m:
             avg = float(m.group(1))
-            if avg <= 2: return 20
-            if avg <= 4: return 16
-            if avg <= 6: return 12
-            if avg <= 8: return 8
+            if avg <= 2:
+                return 20
+            if avg <= 4:
+                return 16
+            if avg <= 6:
+                return 12
+            if avg <= 8:
+                return 8
             return 5
     return 12
 
@@ -112,20 +121,28 @@ def score_dead_code() -> int:
         return 14
     targets = [str(ROOT / t) for t in CORE if (ROOT / t).exists()]
     _, out = _run(sys.executable, "-m", "vulture", *targets, "--min-confidence", "80")
-    unused = len([l for l in out.splitlines() if l.strip() and ": unused " in l])
-    if unused == 0:   return 20
-    if unused <= 5:   return 18
-    if unused <= 15:  return 15
-    if unused <= 40:  return 11
+    unused = len([ln for ln in out.splitlines() if ln.strip() and ": unused " in ln])
+    if unused == 0:
+        return 20
+    if unused <= 5:
+        return 18
+    if unused <= 15:
+        return 15
+    if unused <= 40:
+        return 11
     return 7
 
 
 def score_structured_logging() -> int:
     count = _grep(r"logger\.(info|warning|error|debug|critical|exception)", *CORE)
-    if count >= 50: return 20
-    if count >= 30: return 16
-    if count >= 15: return 12
-    if count >= 7:  return 8
+    if count >= 50:
+        return 20
+    if count >= 30:
+        return 16
+    if count >= 15:
+        return 12
+    if count >= 7:
+        return 8
     return max(4, count)
 
 
