@@ -2,9 +2,9 @@ import { useState } from "react";
 
 // ── constants ──────────────────────────────────────────────────────────────────
 
-const GITHUB = "https://github.com/a1h8/KubeWhisperer";
+const GITHUB = "https://github.com/a1h8/kube-verdict";
 const GIF_URL =
-  "https://raw.githubusercontent.com/a1h8/KubeWhisperer/main/demo/demo_kubeWhisperer.gif";
+  "https://raw.githubusercontent.com/a1h8/kube-verdict/main/demo/demo_kubeWhisperer.gif";
 
 const SCENARIOS = [
   {
@@ -60,7 +60,7 @@ const INCIDENT_SUMMARY = `══════════════════
   INCIDENT SUMMARY
 ════════════════════════════════════════════════════════════
   Severity    : HIGH
-  Namespace   : kubewhisperer-demo
+  Namespace   : kubeverdict-demo
   Confidence  : MEDIUM
   Impacted    : payment-service, ml-inference, notification-service
 
@@ -91,33 +91,33 @@ const CATEGORIES = [
     name: "Code Quality",
     max: 100,
     criteria: [
-      { name: "Dependency injection (LLM, store)", current: 14, max: 20 },
-      { name: "Type safety (mypy)", current: 10, max: 20 },
+      { name: "Dependency injection (LLM, store)", current: 17, max: 20 },
+      { name: "Type safety (mypy)", current: 12, max: 20 },
       { name: "Cyclomatic complexity", current: 12, max: 20 },
-      { name: "Dead code / vulture", current: 14, max: 20 },
-      { name: "Structured logging", current: 6, max: 20 },
+      { name: "Dead code / vulture", current: 15, max: 20 },
+      { name: "Structured logging", current: 7, max: 20 },
     ],
   },
   {
     name: "Operational Maturity",
     max: 100,
     criteria: [
-      { name: "FAISS persistence (survives restarts)", current: 14, max: 20 },
-      { name: "Retry / timeout on K8s API calls", current: 8, max: 20 },
+      { name: "FAISS persistence (survives restarts)", current: 17, max: 20 },
+      { name: "Retry / timeout on K8s API calls", current: 10, max: 20 },
       { name: "Index TTL / refresh strategy", current: 6, max: 20 },
-      { name: "Live cluster tested (k3d/kind)", current: 4, max: 20 },
-      { name: "Helm false-positive rate", current: 6, max: 20 },
+      { name: "Live cluster tested (k3d/k3s)", current: 14, max: 20 },
+      { name: "Helm false-positive rate", current: 12, max: 20 },
     ],
   },
   {
     name: "Business Value",
     max: 100,
     criteria: [
-      { name: "RCA precision measured", current: 0, max: 20 },
-      { name: "Remediation active (not just print)", current: 14, max: 20 },
-      { name: "Human gate implemented", current: 14, max: 20 },
+      { name: "RCA precision measured", current: 12, max: 20 },
+      { name: "Remediation active (not just print)", current: 16, max: 20 },
+      { name: "Human gate implemented", current: 16, max: 20 },
       { name: "Air-gapped / data sovereignty", current: 18, max: 20 },
-      { name: "Time-to-value < 30 min", current: 8, max: 20 },
+      { name: "Time-to-value < 30 min", current: 14, max: 20 },
     ],
   },
 ];
@@ -247,7 +247,7 @@ function Hero() {
             marginBottom: 16,
           }}
         >
-          KubeWhisperer
+          KubeVerdict
         </h1>
         <p
           style={{
@@ -306,7 +306,7 @@ function WhyItMatters() {
           Slack threads open. The root cause is rarely where the alert fired.
           <br />
           <br />
-          KubeWhisperer reduces that cognitive load. It correlates signals into
+          KubeVerdict reduces that cognitive load. It correlates signals into
           a single evidence-grounded root cause analysis, ranked by confidence,
           with a human approval gate before any remediation command touches
           production.
@@ -325,7 +325,7 @@ function DemoSection() {
       <div style={T.wrap}>
         <h2 style={T.h2}>What the output looks like</h2>
         <p style={T.sub}>
-          Five services down simultaneously. KubeWhisperer identifies each root
+          Five services down simultaneously. KubeVerdict identifies each root
           cause independently, ranked by evidence weight.
         </p>
 
@@ -348,7 +348,7 @@ function DemoSection() {
 
         <img
           src={GIF_URL}
-          alt="KubeWhisperer demo"
+          alt="KubeVerdict demo"
           style={{
             width: "100%",
             borderRadius: 10,
@@ -639,7 +639,7 @@ function Footer() {
         }}
       >
         <span style={{ fontSize: 12, color: "#334155" }}>
-          KubeWhisperer — Open-source Kubernetes RCA & Remediation Copilot. Apache 2.0.
+          KubeVerdict — Open-source Kubernetes RCA & Remediation Copilot. Apache 2.0.
         </span>
         <div style={{ display: "flex", gap: 16 }}>
           <a
