@@ -1,8 +1,8 @@
 # Evaluation Score Dashboard
 
-An interactive maturity tracker for KubeWhisperer — built with React + Vite, deployed automatically to GitHub Pages on every push to `main`.
+An interactive maturity tracker for KubeVerdict — built with React + Vite, deployed automatically to GitHub Pages on every push to `main`.
 
-**Live:** https://a1h8.github.io/KubeWhisperer/
+**Live:** https://a1h8.github.io/KubeVerdict/
 
 ---
 

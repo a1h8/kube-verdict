@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer — demo recording launcher
+# KubeVerdict — demo recording launcher
 #
 # Prepares the environment (reset, portforward, uvicorn) then records
 # the full incident demo via VHS.
@@ -60,18 +60,18 @@ else
   info "Alertmanager ready on :9093"
 fi
 
-# ── Start KubeWhisperer ───────────────────────────────────────────────────────
-step "Starting KubeWhisperer on :8001..."
-kill "$(cat /tmp/kubewhisperer.pid 2>/dev/null)" 2>/dev/null || true
+# ── Start KubeVerdict ───────────────────────────────────────────────────────
+step "Starting KubeVerdict on :8001..."
+kill "$(cat /tmp/kubeverdict.pid 2>/dev/null)" 2>/dev/null || true
 sleep 1
 uvicorn api.app:app --host 0.0.0.0 --port 8001 --log-level info \
-  > /tmp/kubewhisperer.log 2>&1 &
-echo $! > /tmp/kubewhisperer.pid
+  > /tmp/kubeverdict.log 2>&1 &
+echo $! > /tmp/kubeverdict.pid
 
 # Wait for startup
 for i in $(seq 1 20); do
-  if grep -q "Application startup complete" /tmp/kubewhisperer.log 2>/dev/null; then
-    info "KubeWhisperer ready on :8001"
+  if grep -q "Application startup complete" /tmp/kubeverdict.log 2>/dev/null; then
+    info "KubeVerdict ready on :8001"
     break
   fi
   sleep 0.5

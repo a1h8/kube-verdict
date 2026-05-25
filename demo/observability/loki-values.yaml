@@ -1,4 +1,4 @@
-# Loki — KubeWhisperer demo (single-binary, no auth)
+# Loki — KubeVerdict demo (single-binary, no auth)
 deploymentMode: SingleBinary
 
 loki:

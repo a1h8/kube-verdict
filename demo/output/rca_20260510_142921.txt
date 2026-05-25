@@ -1,11 +1,11 @@
 
 ════════════════════════════════════════════════════════════════════
-  KubeWhisperer — Root Cause Analysis Demo
+  KubeVerdict — Root Cause Analysis Demo
 ════════════════════════════════════════════════════════════════════
   Timestamp : 2026-05-10T14:29:21.803900+00:00
-  Namespace : kubewhisperer-demo
+  Namespace : kubeverdict-demo
   Model     : mistral @ http://localhost:11434
-  Query     : Multiple services are failing in the kubewhisperer-demo namespace. Identify every root cause, explain the chain of events, and provide precise remediation commands.
+  Query     : Multiple services are failing in the kubeverdict-demo namespace. Identify every root cause, explain the chain of events, and provide precise remediation commands.
 
 ────────────────────────────────────────────────────────────────────
   1/5  Cluster state collection
@@ -53,15 +53,15 @@
   3/5  Unhealthy resources & Kubernetes events
 ────────────────────────────────────────────────────────────────────
   Unhealthy resources (9):
-    ✗ Pod/kubewhisperer-demo/analytics-worker  phase=Pending  restarts=0
-    ✗ Pod/kubewhisperer-demo/gpu-worker-54d97cd458-2gdxf  phase=Pending  restarts=0
-    ✗ Pod/kubewhisperer-demo/gpu-worker-54d97cd458-nxwfg  phase=Pending  restarts=0
-    ✗ Pod/kubewhisperer-demo/ml-inference-6c7dbf6d5f-sbjw8  phase=Pending  restarts=0
-    ✗ Pod/kubewhisperer-demo/notification-service-5449998bb5-gw2m5  phase=Pending  restarts=0
-    ✗ Pod/kubewhisperer-demo/notification-service-5449998bb5-tnv4m  phase=Pending  restarts=0
-    ✗ Deployment/kubewhisperer-demo/gpu-worker  ready=0/2
-    ✗ Deployment/kubewhisperer-demo/notification-service  ready=0/2
-    ✗ Deployment/kubewhisperer-demo/payment-service  ready=0/3
+    ✗ Pod/kubeverdict-demo/analytics-worker  phase=Pending  restarts=0
+    ✗ Pod/kubeverdict-demo/gpu-worker-54d97cd458-2gdxf  phase=Pending  restarts=0
+    ✗ Pod/kubeverdict-demo/gpu-worker-54d97cd458-nxwfg  phase=Pending  restarts=0
+    ✗ Pod/kubeverdict-demo/ml-inference-6c7dbf6d5f-sbjw8  phase=Pending  restarts=0
+    ✗ Pod/kubeverdict-demo/notification-service-5449998bb5-gw2m5  phase=Pending  restarts=0
+    ✗ Pod/kubeverdict-demo/notification-service-5449998bb5-tnv4m  phase=Pending  restarts=0
+    ✗ Deployment/kubeverdict-demo/gpu-worker  ready=0/2
+    ✗ Deployment/kubeverdict-demo/notification-service  ready=0/2
+    ✗ Deployment/kubeverdict-demo/payment-service  ready=0/3
 
   Warning events (14):
     [ 22×] BackOff  Pod/payment-service-58555ff9b6-2qmrl  — Back-off restarting failed container payment in pod payment-service-58555ff9b6-2
@@ -126,7 +126,7 @@
 ────────────────────────────────────────────────────────────────────
   Summary
 ────────────────────────────────────────────────────────────────────
-Multiple services in the kubewhisperer-demo namespace are experiencing failures due to a combination of insufficient resources and image pull issues.
+Multiple services in the kubeverdict-demo namespace are experiencing failures due to a combination of insufficient resources and image pull issues.
 
 ###
 
@@ -174,16 +174,16 @@ The root causes are insufficient resources (CPU) for some services, and image pu
 ────────────────────────────────────────────────────────────────────
   Proposed changes
 ────────────────────────────────────────────────────────────────────
-   1. Scale up the CPU resources in the kubewhisperer-demo namespace to accommodate all services:
-   2. kubectl scale --replicas=2 deployment/analytics-worker -n kubewhisperer-demo
-   3. kubectl scale --replicas=2 deployment/payment-service -n kubewhisperer-demo
-   4. kubectl scale --replicas=2 deployment/notification-service -n kubewhisperer-demo
+   1. Scale up the CPU resources in the kubeverdict-demo namespace to accommodate all services:
+   2. kubectl scale --replicas=2 deployment/analytics-worker -n kubeverdict-demo
+   3. kubectl scale --replicas=2 deployment/payment-service -n kubeverdict-demo
+   4. kubectl scale --replicas=2 deployment/notification-service -n kubeverdict-demo
    5. Check and resolve network connectivity issues if applicable:
-   6. kubectl logs <pod_name> -n kubewhisperer-demo | grep "Failed to pull image"
+   6. kubectl logs <pod_name> -n kubeverdict-demo | grep "Failed to pull image"
    7. Ensure that the correct version of the payment-service image is being used by checking the Helmfile releases and updating if necessary:
-   8. helm upgrade payment-service <chart_path> -n kubewhisperer-demo --version=<desired_version>
+   8. helm upgrade payment-service <chart_path> -n kubeverdict-demo --version=<desired_version>
    9. Investigate and resolve any configuration issues with the notification-service pod:
-  10. kubectl describe pod/<pod_name> -n kubewhisperer-demo
+  10. kubectl describe pod/<pod_name> -n kubeverdict-demo
 
 ────────────────────────────────────────────────────────────────────
   Metadata

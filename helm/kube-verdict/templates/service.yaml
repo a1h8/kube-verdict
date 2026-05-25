@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "kubewhisperer.fullname" . }}
+  name: {{ include "kubeverdict.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "kubewhisperer.labels" . | nindent 4 }}
+    {{- include "kubeverdict.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -13,4 +13,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "kubewhisperer.selectorLabels" . | nindent 4 }}
+    {{- include "kubeverdict.selectorLabels" . | nindent 4 }}
