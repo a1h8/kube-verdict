@@ -37,6 +37,10 @@ def alert_to_query(alert: AlertmanagerAlert) -> str:
     if summary:
         parts.append(f"— {summary}")
 
+    description = alert.annotations.get("description")
+    if description and description != summary:
+        parts.append(f"\nDetails: {description}")
+
     return " ".join(parts)
 
 

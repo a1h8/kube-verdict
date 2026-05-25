@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 from contextlib import asynccontextmanager
 
@@ -35,7 +36,8 @@ async def lifespan(app: FastAPI):
         finally:
             conn.close()
 
-    async with AsyncSqliteSaver.from_conn_string(db_path()) as checkpointer:
+    cp_path = str(db_path()).replace(".db", "-checkpoints.db")
+    async with AsyncSqliteSaver.from_conn_string(cp_path) as checkpointer:
         sessions_mod._graph = sessions_mod._build_graph(checkpointer)
         yield
 
