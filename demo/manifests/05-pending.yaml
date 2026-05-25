@@ -7,7 +7,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gpu-worker
-  namespace: kubewhisperer-demo
+  namespace: kubeverdict-demo
   labels:
     app: gpu-worker
     app.kubernetes.io/name: gpu-worker

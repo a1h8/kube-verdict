@@ -1,6 +1,6 @@
 # Kyverno ClusterPolicy — enforces resource limits and non-root containers.
 # Violations are written to PolicyReport objects (wgpolicyk8s.io/v1alpha2)
-# which KubeWhisperer ingests via policy_collector.py.
+# which KubeVerdict ingests via policy_collector.py.
 #
 # Install Kyverno:
 #   helm repo add kyverno https://kyverno.github.io/kyverno

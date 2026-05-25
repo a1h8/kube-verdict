@@ -4,7 +4,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: ollama-models
-  namespace: kubewhisperer
+  namespace: kubeverdict
   labels:
     app.kubernetes.io/name: ollama
     app.kubernetes.io/component: model-storage
@@ -21,7 +21,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ollama
-  namespace: kubewhisperer
+  namespace: kubeverdict
   labels:
     app.kubernetes.io/name: ollama
     app.kubernetes.io/component: llm
@@ -36,7 +36,7 @@ spec:
         app: ollama
         app.kubernetes.io/name: ollama
     spec:
-      serviceAccountName: kubewhisperer
+      serviceAccountName: kubeverdict
       # GPU node selector — remove if running CPU-only
       # nodeSelector:
       #   kubernetes.io/accelerator: nvidia
@@ -82,12 +82,12 @@ spec:
             claimName: ollama-models
 
 ---
-# Service — stable DNS for KubeWhisperer to reach Ollama.
+# Service — stable DNS for KubeVerdict to reach Ollama.
 apiVersion: v1
 kind: Service
 metadata:
   name: ollama
-  namespace: kubewhisperer
+  namespace: kubeverdict
   labels:
     app.kubernetes.io/name: ollama
     app.kubernetes.io/component: llm
@@ -108,7 +108,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: ollama-pull-mistral
-  namespace: kubewhisperer
+  namespace: kubeverdict
   labels:
     app.kubernetes.io/name: ollama
     app.kubernetes.io/component: model-pull
@@ -120,7 +120,7 @@ spec:
         app: ollama-pull
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: kubewhisperer
+      serviceAccountName: kubeverdict
       containers:
         - name: pull
           image: curlimages/curl:latest

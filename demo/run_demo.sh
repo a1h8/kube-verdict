@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer — VHS demo launcher
+# KubeVerdict — VHS demo launcher
 # No Kubernetes cluster required.
 #
 # Usage:

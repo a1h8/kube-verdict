@@ -1,5 +1,5 @@
 """
-KubeWhisperer — Demo UI
+KubeVerdict — Demo UI
 
 Standalone Streamlit app for the VHS demo.
 No real Kubernetes cluster required — uses the pre-built demo scenario.
@@ -22,7 +22,7 @@ load_dotenv(dotenv_path=ROOT / ".env", override=False)
 import streamlit as st
 
 st.set_page_config(
-    page_title="KubeWhisperer — Demo",
+    page_title="KubeVerdict — Demo",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -102,8 +102,8 @@ _init_state()
 
 col_title, col_mode = st.columns([3, 1])
 with col_title:
-    st.title("🔍 KubeWhisperer")
-    st.caption("Automated Root Cause Analysis — `kubewhisperer-demo` namespace")
+    st.title("🔍 KubeVerdict")
+    st.caption("Automated Root Cause Analysis — `kubeverdict-demo` namespace")
 with col_mode:
     auto_mode = st.toggle("Auto mode", value=False, help="Skip human validation step")
 
@@ -146,7 +146,7 @@ with left:
     query = st.text_area(
         "Query",
         value=(
-            "Multiple services are down in the kubewhisperer-demo namespace. "
+            "Multiple services are down in the kubeverdict-demo namespace. "
             "Identify all root causes and provide precise remediation commands."
         ),
         height=100,
@@ -296,7 +296,7 @@ if run_btn:
     }
     initial_state = {
         "query":      query,
-        "namespaces": ["kubewhisperer-demo"],
+        "namespaces": ["kubeverdict-demo"],
         "edge_log":   [],
     }
     if auto_mode:

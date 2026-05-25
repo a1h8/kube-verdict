@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KubeWhisperer demo — end-to-end RCA runner.
+KubeVerdict demo — end-to-end RCA runner.
 
 Usage
 ─────
@@ -44,12 +44,12 @@ from vectorstore.embedder import Embedder                  # noqa: E402
 from vectorstore.store import FAISSStore                   # noqa: E402
 from workflow.graph import build_graph                     # noqa: E402
 
-DEMO_NS = "kubewhisperer-demo"
+DEMO_NS = "kubeverdict-demo"
 OUTPUT_DIR = Path(__file__).parent / "output"
 W = 68
 
 DEFAULT_QUERY = (
-    "Multiple services are failing in the kubewhisperer-demo namespace. "
+    "Multiple services are failing in the kubeverdict-demo namespace. "
     "Identify every root cause, explain the chain of events, "
     "and provide precise remediation commands."
 )
@@ -108,7 +108,7 @@ def main() -> None:
             print("Aborted.")
             return
 
-    emit(_banner("KubeWhisperer — Root Cause Analysis Demo"))
+    emit(_banner("KubeVerdict — Root Cause Analysis Demo"))
     emit(f"  Timestamp : {datetime.now(timezone.utc).isoformat()}")
     emit(f"  Namespace : {DEMO_NS}")
     emit(f"  Model     : {cfg.OLLAMA_MODEL} @ {cfg.OLLAMA_URL}")

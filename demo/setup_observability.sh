@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer — observability stack setup
+# KubeVerdict — observability stack setup
 #
 # Deploys on the k3d demo cluster:
 #   • kube-prometheus-stack  (Prometheus + Alertmanager + kube-state-metrics)
@@ -9,7 +9,7 @@
 #   • OTel Collector         (OTLP receiver → Tempo)
 #   • trace-emitter workload (synthetic OTel traces for failing services)
 #
-# Alertmanager is configured to POST firing K8s alerts to KubeWhisperer.
+# Alertmanager is configured to POST firing K8s alerts to KubeVerdict.
 #
 # Usage:
 #   bash demo/setup_observability.sh
@@ -24,9 +24,9 @@ OBS_DIR="$ROOT/demo/observability"
 MANIFESTS_DIR="$ROOT/demo/manifests"
 
 OBS_NS="observability"
-DEMO_NS="kubewhisperer-demo"
+DEMO_NS="kubeverdict-demo"
 
-# URL Alertmanager uses to reach KubeWhisperer running on the host machine.
+# URL Alertmanager uses to reach KubeVerdict running on the host machine.
 # host.k3d.internal resolves to the Docker host from inside the k3d cluster.
 KUBEWHISPERER_WEBHOOK_URL="${KUBEWHISPERER_WEBHOOK_URL:-http://host.k3d.internal:8000/api/v1/webhook/alertmanager}"
 
@@ -139,7 +139,7 @@ ${GREEN}════════════════════════
     LOKI_ENABLED=true          LOKI_URL=http://localhost:3100
     ALERTMANAGER_WEBHOOK_URL=$KUBEWHISPERER_WEBHOOK_URL
 
-  Start KubeWhisperer API (receives Alertmanager webhooks):
+  Start KubeVerdict API (receives Alertmanager webhooks):
     uvicorn api.app:app --host 0.0.0.0 --port 8000
 ${GREEN}════════════════════════════════════════════════════════════════${NC}
 EOF

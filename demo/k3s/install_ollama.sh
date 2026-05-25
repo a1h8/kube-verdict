@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install Ollama and pull the Mistral model for KubeWhisperer.
+# Install Ollama and pull the Mistral model for KubeVerdict.
 # Run as your normal user (no sudo needed for the pull).
 #
 # Usage:

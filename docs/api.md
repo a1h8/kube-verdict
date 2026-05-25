@@ -1,6 +1,6 @@
 # REST API
 
-KubeWhisperer exposes a FastAPI REST interface for the LangGraph RCA workflow. Swagger UI is auto-generated at `http://localhost:8000/docs` when the server is running.
+KubeVerdict exposes a FastAPI REST interface for the LangGraph RCA workflow. Swagger UI is auto-generated at `http://localhost:8000/docs` when the server is running.
 
 ## Start the API server
 
@@ -50,7 +50,7 @@ curl -X POST http://localhost:8000/api/v1/sessions/$SESSION/run \
   -d '{
     "query": "payment-service is crashing repeatedly",
     "namespaces": ["production"],
-    "kube_context": "k3d-kubewhisperer"
+    "kube_context": "k3d-kubeverdict"
   }'
 ```
 

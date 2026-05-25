@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer — k3d cluster initialisation
+# KubeVerdict — k3d cluster initialisation
 #
 # Creates (or reuses) a k3d cluster, avoids port conflicts with
 # other running k3d clusters / Rancher Desktop, and creates
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
-CLUSTER="${CLUSTER:-kubewhisperer-demo}"
+CLUSTER="${CLUSTER:-kubeverdict-demo}"
 AGENTS="${AGENTS:-1}"
 RESET=false
 DELETE_ONLY=false
@@ -93,7 +93,7 @@ info "All nodes ready."
 
 # ── Namespaces ────────────────────────────────────────────────────────────────
 step "Creating namespaces..."
-for ns in observability kubewhisperer-demo; do
+for ns in observability kubeverdict-demo; do
   kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -
   info "namespace/$ns"
 done

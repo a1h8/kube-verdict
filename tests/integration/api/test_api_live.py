@@ -222,7 +222,7 @@ def test_live_openapi_schema_contract(live_server):
     assert r.status_code == 200
     schema = r.json()
 
-    assert schema["info"]["title"] == "KubeWhisperer API"
+    assert schema["info"]["title"] == "KubeVerdict API"
     paths = schema["paths"]
 
     required = {

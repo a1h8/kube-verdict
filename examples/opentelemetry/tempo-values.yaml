@@ -1,4 +1,4 @@
-# Minimal Grafana Tempo values for KubeWhisperer integration.
+# Minimal Grafana Tempo values for KubeVerdict integration.
 # Deploy with:
 #   helm repo add grafana https://grafana.github.io/helm-charts
 #   helm upgrade --install tempo grafana/tempo \

@@ -7,7 +7,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ml-inference
-  namespace: kubewhisperer-demo
+  namespace: kubeverdict-demo
   labels:
     app: ml-inference
     app.kubernetes.io/name: ml-inference

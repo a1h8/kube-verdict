@@ -1,14 +1,14 @@
 version: "3.9"
 
 services:
-  kubewhisperer:
+  kubeverdict:
     build: .
     ports:
       - "8501:8501"
     volumes:
       - kw-data:/data
       - ${KUBECONFIG:-~/.kube/config}:/root/.kube/config:ro
-      - /tmp/kubewhisperer-gitops:/tmp/kubewhisperer-gitops
+      - /tmp/kubeverdict-gitops:/tmp/kubeverdict-gitops
     env_file:
       - .env
     environment:

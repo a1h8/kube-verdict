@@ -35,7 +35,7 @@ def _payload(alerts: list[dict]) -> dict:
     return {
         "version": "4",
         "status": "firing",
-        "receiver": "kubewhisperer",
+        "receiver": "kubeverdict",
         "groupLabels": {"alertname": "PodCrashLooping"},
         "commonLabels": {},
         "commonAnnotations": {},

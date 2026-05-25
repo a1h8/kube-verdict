@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: kubewhisperer-demo
+  name: kubeverdict-demo
   labels:
     demo: "true"
-    managed-by: kubewhisperer
+    managed-by: kubeverdict

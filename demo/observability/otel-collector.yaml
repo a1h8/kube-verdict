@@ -1,4 +1,4 @@
-# OTel Collector — KubeWhisperer demo
+# OTel Collector — KubeVerdict demo
 # Receives OTLP (gRPC 4317, HTTP 4318) and exports to Tempo.
 apiVersion: v1
 kind: ConfigMap

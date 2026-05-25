@@ -1,31 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "kubewhisperer.fullname" . }}
+  name: {{ include "kubeverdict.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "kubewhisperer.labels" . | nindent 4 }}
+    {{- include "kubeverdict.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "kubewhisperer.selectorLabels" . | nindent 6 }}
+      {{- include "kubeverdict.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "kubewhisperer.selectorLabels" . | nindent 8 }}
+        {{- include "kubeverdict.selectorLabels" . | nindent 8 }}
       {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
-      serviceAccountName: {{ include "kubewhisperer.fullname" . }}
+      serviceAccountName: {{ include "kubeverdict.fullname" . }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: kubewhisperer
+        - name: kubeverdict
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -34,9 +34,9 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: {{ include "kubewhisperer.fullname" . }}
+                name: {{ include "kubeverdict.fullname" . }}
             - secretRef:
-                name: {{ .Values.secrets.existingSecret | default (include "kubewhisperer.fullname" .) }}
+                name: {{ .Values.secrets.existingSecret | default (include "kubeverdict.fullname" .) }}
           livenessProbe:
             httpGet:
               path: /_stcore/health
@@ -53,7 +53,7 @@ spec:
             - name: data
               mountPath: /data
             - name: gitops-cache
-              mountPath: /tmp/kubewhisperer-gitops
+              mountPath: /tmp/kubeverdict-gitops
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -66,7 +66,7 @@ spec:
         - name: data
           {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
-            claimName: {{ include "kubewhisperer.fullname" . }}
+            claimName: {{ include "kubeverdict.fullname" . }}
           {{- else }}
           emptyDir: {}
           {{- end }}

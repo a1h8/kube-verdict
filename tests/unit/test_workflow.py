@@ -845,7 +845,7 @@ class TestDryRunNode:
                 type("R", (), {"returncode": 0, "stdout": "{}", "stderr": ""})(),
             ]
             dry_cmd, out, rc = _exec_dry_run(
-                "helm upgrade analytics-worker -n kubewhisperer-demo --set resources.limits.memory=512Mi"
+                "helm upgrade analytics-worker -n kubeverdict-demo --set resources.limits.memory=512Mi"
             )
 
         # fallback is a values diff: dry_cmd describes the helm get + proposed --set

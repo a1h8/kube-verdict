@@ -1,5 +1,5 @@
 """
-KubeWhisperer — CLI demo (VHS/asciinema-recordable).
+KubeVerdict — CLI demo (VHS/asciinema-recordable).
 No real Kubernetes cluster required.
 
 Usage:
@@ -100,7 +100,7 @@ async def _run() -> None:
 
     # ── Header ────────────────────────────────────────────────────────────────
     console.print()
-    console.rule("[bold cyan]🔍 KubeWhisperer[/]  [dim]Automated Root Cause Analysis[/]")
+    console.rule("[bold cyan]🔍 KubeVerdict[/]  [dim]Automated Root Cause Analysis[/]")
     console.print()
 
     # ── Broken cluster state ──────────────────────────────────────────────────
@@ -108,7 +108,7 @@ async def _run() -> None:
     console.print()
 
     query = (
-        "Multiple services are down in the kubewhisperer-demo namespace. "
+        "Multiple services are down in the kubeverdict-demo namespace. "
         "Identify all root causes and provide precise remediation commands."
     )
     console.print(Panel(query, title="[bold]Query[/]", border_style="cyan", padding=(0, 1)))
@@ -130,7 +130,7 @@ async def _run() -> None:
     }
     initial_state = {
         "query":      query,
-        "namespaces": ["kubewhisperer-demo"],
+        "namespaces": ["kubeverdict-demo"],
         "edge_log":   [],
     }
 

@@ -59,7 +59,7 @@ class LocalGitProvider(GitProvider):
     repo_url:   HTTPS, SSH, or file:// URL
     branch:     branch / tag / SHA (default: main)
     token:      optional PAT/oauth token for HTTPS auth
-    clone_dir:  parent directory for clones (default: /tmp/kubewhisperer-gitops)
+    clone_dir:  parent directory for clones (default: /tmp/kubeverdict-gitops)
     """
 
     def __init__(
@@ -72,7 +72,7 @@ class LocalGitProvider(GitProvider):
         self.repo_url = repo_url
         self.branch = branch
         self._clone_url = _inject_token(repo_url, token) if token else repo_url
-        self._base = clone_dir or Path("/tmp/kubewhisperer-gitops")
+        self._base = clone_dir or Path("/tmp/kubeverdict-gitops")
 
     def _repo_dir(self) -> Path:
         name = self.repo_url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")

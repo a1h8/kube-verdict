@@ -1,5 +1,5 @@
 """
-KubeWhisperer — Streamlit UI
+KubeVerdict — Streamlit UI
 
 Run:
     streamlit run ui/app.py
@@ -27,7 +27,7 @@ import config as cfg  # noqa: E402
 # ── Page config ───────────────────────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="KubeWhisperer RCA",
+    page_title="KubeVerdict RCA",
     page_icon="🔍",
     layout="wide",
 )
@@ -122,7 +122,7 @@ def _render_git_repos_ui() -> None:
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.title("KubeWhisperer")
+    st.title("KubeVerdict")
     st.caption("Kubernetes Root Cause Analysis")
     st.divider()
 
@@ -131,7 +131,7 @@ with st.sidebar:
     default_idx = contexts.index(current_ctx) if current_ctx in contexts else 0
 
     kube_context = st.selectbox("Kube context", contexts, index=default_idx)
-    namespace    = st.text_input("Namespace", value="kubewhisperer-demo")
+    namespace    = st.text_input("Namespace", value="kubeverdict-demo")
 
     st.divider()
     st.caption("**Optional collectors**")
@@ -868,7 +868,7 @@ def _fetch_k8s_page(url: str) -> str:
             return "\n".join(self._buf)
 
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "KubeWhisperer/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "KubeVerdict/1.0"})
         with urllib.request.urlopen(req, timeout=20) as resp:
             html = resp.read().decode("utf-8", errors="replace")
         p = _Extractor()
@@ -911,7 +911,7 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
             return "\n".join(self._buf)
 
     try:
-        headers: dict[str, str] = {"User-Agent": "KubeWhisperer/1.0"}
+        headers: dict[str, str] = {"User-Agent": "KubeVerdict/1.0"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
@@ -2958,7 +2958,7 @@ def _badge_status(status: str) -> str:
 
 def _render_api_tab():  # noqa: C901
     st.subheader("API Session", divider="blue")
-    st.caption("Interacts with the KubeWhisperer FastAPI backend (uvicorn api.app:app).")
+    st.caption("Interacts with the KubeVerdict FastAPI backend (uvicorn api.app:app).")
 
     # ── Config ────────────────────────────────────────────────────────────────
     api_url = st.text_input("API base URL", value="http://localhost:8000", key="api_url")

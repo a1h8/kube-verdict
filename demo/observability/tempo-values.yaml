@@ -1,4 +1,4 @@
-# Grafana Tempo — KubeWhisperer demo (single-binary, no auth)
+# Grafana Tempo — KubeVerdict demo (single-binary, no auth)
 tempo:
   reportingEnabled: false
   storage:
@@ -17,7 +17,7 @@ tempo:
         http:
           endpoint: "0.0.0.0:4318"
 
-  # Expose HTTP query API on port 3200 (KubeWhisperer default)
+  # Expose HTTP query API on port 3200 (KubeVerdict default)
   server:
     http_listen_port: 3200
 

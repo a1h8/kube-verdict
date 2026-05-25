@@ -1,12 +1,12 @@
 ---
-# ServiceAccount used by both the Ollama pod and the KubeWhisperer Job
+# ServiceAccount used by both the Ollama pod and the KubeVerdict Job
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kubewhisperer
-  namespace: kubewhisperer
+  name: kubeverdict
+  namespace: kubeverdict
   labels:
-    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/name: kubeverdict
     app.kubernetes.io/component: rbac
 
 ---
@@ -15,9 +15,9 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kubewhisperer-reader
+  name: kubeverdict-reader
   labels:
-    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/name: kubeverdict
     app.kubernetes.io/component: rbac
 rules:
   # Core API group (v1)
@@ -87,15 +87,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kubewhisperer-reader
+  name: kubeverdict-reader
   labels:
-    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/name: kubeverdict
     app.kubernetes.io/component: rbac
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: kubewhisperer-reader
+  name: kubeverdict-reader
 subjects:
   - kind: ServiceAccount
-    name: kubewhisperer
-    namespace: kubewhisperer
+    name: kubeverdict
+    namespace: kubeverdict

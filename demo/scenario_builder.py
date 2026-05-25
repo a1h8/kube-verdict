@@ -17,7 +17,7 @@ from ontology.entities import (   # direct submodule — avoids ontology/__init_
 )
 from ontology.graph import OntologyGraph  # noqa: E402
 
-NS = "kubewhisperer-demo"
+NS = "kubeverdict-demo"
 KUBE_VERSION = "1.29.4"
 
 

@@ -1,6 +1,6 @@
 """
 Map an Alertmanager alert payload to a (query, namespaces) pair
-suitable for a KubeWhisperer RunRequest.
+suitable for a KubeVerdict RunRequest.
 """
 from __future__ import annotations
 

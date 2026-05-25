@@ -3,7 +3,7 @@ import time
 
 _DEMO_RESPONSE = """\
 1. Summary
-Three application root causes identified in kubewhisperer-demo + one infrastructure constraint. \
+Three application root causes identified in kubeverdict-demo + one infrastructure constraint. \
 db-primary was manually scaled to 0 (Helm drift: replicas 1→0), cascading into payment-api \
 CrashLoopBackOff; analytics-worker is OOMKilled due to a deployed memory limit of 50Mi vs \
 256Mi declared in the Helm chart (GitOps drift); notification-svc cannot pull its image because \
@@ -12,11 +12,11 @@ due to insufficient nvidia.com/gpu capacity — this requires infrastructure pro
 application remediation.
 
 2. Affected resources
-- deployment/kubewhisperer-demo/db-primary — scaled to 0, Helm drift (replicas 1→0)
-- deployment/kubewhisperer-demo/payment-api — CrashLoopBackOff (47 restarts), cascade from db-primary
-- pod/kubewhisperer-demo/analytics-worker — OOMKilled (12 restarts), memory limit drift
-- deployment/kubewhisperer-demo/notification-svc — ImagePullBackOff, spec.template.spec.containers[0].image drift
-- pod/kubewhisperer-demo/ml-inference-0 — Pending, no GPU node
+- deployment/kubeverdict-demo/db-primary — scaled to 0, Helm drift (replicas 1→0)
+- deployment/kubeverdict-demo/payment-api — CrashLoopBackOff (47 restarts), cascade from db-primary
+- pod/kubeverdict-demo/analytics-worker — OOMKilled (12 restarts), memory limit drift
+- deployment/kubeverdict-demo/notification-svc — ImagePullBackOff, spec.template.spec.containers[0].image drift
+- pod/kubeverdict-demo/ml-inference-0 — Pending, no GPU node
 
 3. Root cause
 db-primary was scaled to 0 manually, diverging from the Helm-declared replicas=1. \
@@ -36,16 +36,16 @@ scheduled because no node advertises nvidia.com/gpu capacity.
 
 5. Remediation
 Immediate mitigation (kubectl):
-- kubectl -n kubewhisperer-demo scale deployment/db-primary --replicas=1
-- kubectl -n kubewhisperer-demo rollout status deployment/db-primary
-- kubectl -n kubewhisperer-demo patch deployment analytics-worker --type=strategic -p '{"spec":{"template":{"spec":{"containers":[{"name":"analytics-worker","resources":{"limits":{"memory":"256Mi"}}}]}}}}'
-- kubectl -n kubewhisperer-demo set image deployment/notification-svc notification-svc=myregistry.io/notification:v3.2.1
+- kubectl -n kubeverdict-demo scale deployment/db-primary --replicas=1
+- kubectl -n kubeverdict-demo rollout status deployment/db-primary
+- kubectl -n kubeverdict-demo patch deployment analytics-worker --type=strategic -p '{"spec":{"template":{"spec":{"containers":[{"name":"analytics-worker","resources":{"limits":{"memory":"256Mi"}}}]}}}}'
+- kubectl -n kubeverdict-demo set image deployment/notification-svc notification-svc=myregistry.io/notification:v3.2.1
 
 GitOps remediation (Helm — required to prevent regression):
-- helm upgrade kubewhisperer-demo ./chart --set dbPrimary.replicas=1 --dry-run
-- helm upgrade kubewhisperer-demo ./chart --set dbPrimary.replicas=1
-- helm upgrade kubewhisperer-demo ./chart --set analyticsWorker.resources.limits.memory=256Mi
-- helm upgrade kubewhisperer-demo ./chart --set notificationSvc.image.tag=v3.2.1
+- helm upgrade kubeverdict-demo ./chart --set dbPrimary.replicas=1 --dry-run
+- helm upgrade kubeverdict-demo ./chart --set dbPrimary.replicas=1
+- helm upgrade kubeverdict-demo ./chart --set analyticsWorker.resources.limits.memory=256Mi
+- helm upgrade kubeverdict-demo ./chart --set notificationSvc.image.tag=v3.2.1
 
 Note: ml-inference remains Pending — GPU node provisioning required (infra action, out of scope).
 

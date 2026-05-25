@@ -8,7 +8,7 @@ from __future__ import annotations
 from ontology.entities import Deployment, K8sEvent as Event, Namespace, Pod, Service
 from ontology.graph import OntologyGraph
 
-NS = "kubewhisperer-demo"
+NS = "kubeverdict-demo"
 
 TITLE  = "CrashLoopBackOff — human gate (risky DB change)"
 QUERY  = (

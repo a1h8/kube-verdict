@@ -1,4 +1,4 @@
-# Grafana Alloy — KubeWhisperer demo
+# Grafana Alloy — KubeVerdict demo
 # Scrapes pod logs from all namespaces and forwards to Loki.
 # Labels k8s_pod_name + k8s_namespace_name match LokiSource LogQL queries.
 

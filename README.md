@@ -1,15 +1,15 @@
-# KubeWhisperer
+# KubeVerdict
 
 Open-source Kubernetes incident analysis and remediation agent.
 
-KubeWhisperer correlates Kubernetes events and Helm drift into an evidence-grounded incident summary, then proposes human-approved remediation commands.
+KubeVerdict correlates Kubernetes events and Helm drift into an evidence-grounded incident summary, then proposes human-approved remediation commands.
 
 ✅ Air-gapped by default — Ollama + Mistral, no data leaves your infrastructure  
 ✅ No auto-remediation without explicit approval  
 ✅ Six validated failure scenarios proven end-to-end in CI  
 ✅ Try it without a live cluster  
 
-[![CI](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml)
+[![CI](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml)
 [![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h006-blue)](#validated-scenarios)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
@@ -22,7 +22,7 @@ Most Kubernetes outages are not caused by a single failing pod.
 
 When payment-service crashes, the on-call engineer opens five tabs simultaneously: pod logs, Kubernetes events, Helm history, Prometheus graphs, and the GitOps repo. Under pressure, at 2 AM, with three Slack threads open. The root cause is rarely where the alert fired — it's three hops away in a misconfigured Helm value or a drift between what was declared and what actually runs.
 
-KubeWhisperer reduces that cognitive load. It correlates Kubernetes events and Helm drift into a single evidence-grounded root cause analysis — ranked by confidence, with a human approval gate before any remediation command touches production.
+KubeVerdict reduces that cognitive load. It correlates Kubernetes events and Helm drift into a single evidence-grounded root cause analysis — ranked by confidence, with a human approval gate before any remediation command touches production.
 
 ---
 
@@ -42,7 +42,7 @@ The **Integration Tests** tab runs entirely offline — no cluster, no Ollama ne
 
 ### Browser UI — no cluster required
 
-![KubeWhisperer UI demo](demo/demo_kubeWhisperer.gif)
+![KubeVerdict UI demo](demo/demo_kubeVerdict.gif)
 
 ```bash
 bash demo/kap_record_ui.sh       # starts Streamlit, opens browser
@@ -52,14 +52,14 @@ bash demo/kap_record_ui.sh       # starts Streamlit, opens browser
 
 ### CLI — live k3d cluster, end-to-end loop
 
-![KubeWhisperer CLI demo](hero-demo-60s.gif)
+![KubeVerdict CLI demo](hero-demo-60s.gif)
 
 Full loop on a real cluster: Alertmanager alert → RCA in 7s → human approval → cluster heals.
 
 ```
 Alertmanager fires KubePodCrashLooping
         ↓  202 Accepted, session created
-KubeWhisperer ingests live K8s events
+KubeVerdict ingests live K8s events
         ↓  7s
 Root cause: "dial tcp db-primary:5432: connection refused — database initialisation failed"
 Confidence: MEDIUM  ·  Blast radius: 5 resources
@@ -85,7 +85,7 @@ python demo/demo_webhook.py      # alert → RCA → approve → fix
 Every remediation command goes through two gates before execution:
 
 1. **Human approval** — the SRE reviews evidence, root cause and proposed fix before anything is applied
-2. **Rollback hint** — KubeWhisperer generates the inverse command (`helm rollback`, `kubectl rollout undo`) alongside every fix proposal
+2. **Rollback hint** — KubeVerdict generates the inverse command (`helm rollback`, `kubectl rollout undo`) alongside every fix proposal
 
 Nothing touches the cluster without explicit sign-off. Autonomous execution is not implemented by design.
 
@@ -93,7 +93,7 @@ Nothing touches the cluster without explicit sign-off. Autonomous execution is n
 
 ## How it works
 
-The LLM is constrained by retrieved evidence. KubeWhisperer ranks hypotheses from deterministic signals first — ontology topology, anchor violations, drift, policies and resolved incidents — then uses the LLM only to produce an evidence-grounded RCA.
+The LLM is constrained by retrieved evidence. KubeVerdict ranks hypotheses from deterministic signals first — ontology topology, anchor violations, drift, policies and resolved incidents — then uses the LLM only to produce an evidence-grounded RCA.
 
 Confidence routing is evidence-first: two consecutive LOW results on the same hypothesis path trigger an immediate switch to the next candidate, and archived paths re-rank remaining candidates using signals from the failed analysis.
 
@@ -137,8 +137,8 @@ Each case runs the full pre-LLM pipeline: graph construction → hybrid retrieva
 **Prerequisites:** Python 3.11+, a Kubernetes cluster reachable via kubeconfig, and one LLM provider configured in `.env`.
 
 ```bash
-git clone https://github.com/a1h8/KubeWhisperer.git
-cd KubeWhisperer
+git clone https://github.com/a1h8/kube-verdict.git
+cd KubeVerdict
 pip install -r requirements.txt
 
 cp .env.example .env
@@ -195,7 +195,7 @@ See [Project layout](docs/project-layout.md) for the codebase structure.
 
 ## Community
 
-KubeWhisperer is open-source and focused on Kubernetes incident investigation.
+KubeVerdict is open-source and focused on Kubernetes incident investigation.
 Feedback, reproducible failure scenarios and integrations are welcome — open an issue or start a discussion.
 
 ---

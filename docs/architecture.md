@@ -1,6 +1,6 @@
 # Architecture
 
-KubeWhisperer is a local, air-gapped Kubernetes RCA tool. No cluster data ever leaves the node.
+KubeVerdict is a local, air-gapped Kubernetes RCA tool. No cluster data ever leaves the node.
 
 ## Pipeline overview
 

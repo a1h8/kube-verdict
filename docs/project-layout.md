@@ -1,7 +1,7 @@
 # Project layout
 
 ```
-kubewhisperer/
+kubeverdict/
 ├── config.py                   # .env loader + typed config constants
 ├── main.py                     # CLI entry point
 │
@@ -110,7 +110,7 @@ kubewhisperer/
 
 ## RBAC
 
-KubeWhisperer needs **read-only** cluster access. The `ClusterRole` in `k8s/rbac.yaml` grants
+KubeVerdict needs **read-only** cluster access. The `ClusterRole` in `k8s/rbac.yaml` grants
 `get`, `list`, `watch` on all core resource types, `apps`, `batch`, `networking.k8s.io`,
 `autoscaling`, and non-resource URLs for API discovery.
 No `create`, `update`, `patch`, or `delete` permissions are granted.

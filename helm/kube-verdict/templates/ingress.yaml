@@ -2,10 +2,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "kubewhisperer.fullname" . }}
+  name: {{ include "kubeverdict.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "kubewhisperer.labels" . | nindent 4 }}
+    {{- include "kubeverdict.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -26,7 +26,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "kubewhisperer.fullname" . }}
+                name: {{ include "kubeverdict.fullname" . }}
                 port:
                   name: http
 {{- end }}

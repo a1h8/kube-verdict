@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = textwrap.dedent("""\
-    You are KubeWhisperer, an expert Site Reliability Engineer specialising in
+    You are KubeVerdict, an expert Site Reliability Engineer specialising in
     Kubernetes cluster diagnostics.
 
     Rules:
@@ -155,7 +155,7 @@ class RCAReport:
             f"{len(self.context.drift)} drift items  |  "
             f"{len(self.context.events)} warning events"
         )
-        return f"{bar}\nKubeWhisperer RCA\n{meta}\nQuery: {self.query}\n{bar}\n{self.raw_analysis}\n{bar}"
+        return f"{bar}\nKubeVerdict RCA\n{meta}\nQuery: {self.query}\n{bar}\n{self.raw_analysis}\n{bar}"
 
     def to_dict(self) -> dict:
         return {
@@ -203,7 +203,7 @@ class RCAReport:
 
 class RCAAnalyzer:
     """
-    Full KubeWhisperer pipeline:
+    Full KubeVerdict pipeline:
 
     ContextBuilder (seeds + drift + events + helm + BFS/FAISS/dedup/tfidf)
          ↓

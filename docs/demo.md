@@ -9,7 +9,7 @@ bash demo/cluster_setup.sh
 ```
 
 Creates a k3d cluster named `k3d-k0rdent` and deploys broken workloads into the
-`kubewhisperer-demo` namespace (CrashLoopBackOff, OOMKilled, ImagePullBackOff).
+`kubeverdict-demo` namespace (CrashLoopBackOff, OOMKilled, ImagePullBackOff).
 
 **2. LLM — two modes**
 
