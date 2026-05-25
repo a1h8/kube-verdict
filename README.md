@@ -1,6 +1,6 @@
 # KubeWhisperer
 
-Open-source Kubernetes incident investigation platform.
+Open-source Kubernetes incident analysis and remediation agent.
 
 KubeWhisperer correlates Kubernetes events and Helm drift into an evidence-grounded incident summary, then proposes human-approved remediation commands.
 
