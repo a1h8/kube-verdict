@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install k3s for KubeWhisperer demo.
+# Install k3s for KubeVerdict demo.
 # Run as root or with sudo.
 #
 # What this does:

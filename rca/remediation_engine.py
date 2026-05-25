@@ -1,5 +1,5 @@
 """
-RemediationEngine — rule-based fallback for KubeWhisperer.
+RemediationEngine — rule-based fallback for KubeVerdict.
 
 When the LLM returns LOW confidence, this engine scores the graph with
 deterministic rules and returns weighted RemediationHypothesis objects.

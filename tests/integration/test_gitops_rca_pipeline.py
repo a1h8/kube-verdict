@@ -44,14 +44,14 @@ from vectorstore.store import FAISSStore
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
 
-NS = "kubewhisperer-demo"
+NS = "kubeverdict-demo"
 
 _LOW_CONFIDENCE_RESPONSE = textwrap.dedent("""\
     ### 1. Summary
     Multiple services are failing.
 
     ### 2. Affected resources
-    - Pod/kubewhisperer-demo/payment-service-0 — CrashLoopBackOff
+    - Pod/kubeverdict-demo/payment-service-0 — CrashLoopBackOff
 
     ### 3. Root cause
     Insufficient information to determine root cause with certainty.
@@ -60,7 +60,7 @@ _LOW_CONFIDENCE_RESPONSE = textwrap.dedent("""\
     1. Unknown trigger.
 
     ### 5. Remediation
-    kubectl get pods -n kubewhisperer-demo
+    kubectl get pods -n kubeverdict-demo
 
     ### 6. Confidence
     LOW — context did not contain enough diagnostic detail.
@@ -203,7 +203,7 @@ def git_infra_repo(tmp_path_factory) -> Path:
           repository: payment-service
           tag: 1.4.2
         env:
-          DB_HOST: db-service.kubewhisperer-demo.svc.cluster.local
+          DB_HOST: db-service.kubeverdict-demo.svc.cluster.local
     """)
     _write(src / "charts/payment-service/templates/deployment.yaml", """\
         apiVersion: apps/v1
@@ -987,7 +987,7 @@ class TestContextBuilderWithAllSignals:
         store = FAISSStore(embedder=Embedder())
         store.index_graph(enriched_graph_with_logs)
         return ContextBuilder(enriched_graph_with_logs, store).build(
-            "multiple services failing in kubewhisperer-demo"
+            "multiple services failing in kubeverdict-demo"
         )
 
     def test_seeds_contain_unhealthy_pods(self, ctx):
@@ -1036,7 +1036,7 @@ class TestFullRCAPipelineWithRuleFallback:
         store.index_graph(drifted_graph)
         analyzer = RCAAnalyzer(graph=drifted_graph, store=store, llm=mock_llm_low)
         return analyzer.analyze(
-            "Multiple services are failing in kubewhisperer-demo. "
+            "Multiple services are failing in kubeverdict-demo. "
             "Identify root causes and provide remediation."
         )
 

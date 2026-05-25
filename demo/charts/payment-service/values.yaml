@@ -17,7 +17,7 @@ resources:
     cpu: "200m"
 
 env:
-  DB_HOST: "db-primary.kubewhisperer-demo"
+  DB_HOST: "db-primary.kubeverdict-demo"
   DB_PORT: "5432"
 
 service:

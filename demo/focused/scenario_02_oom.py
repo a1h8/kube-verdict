@@ -7,7 +7,7 @@ from __future__ import annotations
 from ontology.entities import Deployment, K8sEvent as Event, Namespace, Pod
 from ontology.graph import OntologyGraph
 
-NS = "kubewhisperer-demo"
+NS = "kubeverdict-demo"
 
 TITLE  = "OOMKilled — memory limit drift"
 QUERY  = (

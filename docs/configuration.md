@@ -71,7 +71,7 @@ Applied as a score multiplier in `FAISSStore.hybrid_search()`. Override any sour
 
 | Variable | Default | Description |
 |---|---|---|
-| `KUBEWHISPERER_DB` | `kubewhisperer.db` | Path to the SQLite database. Stores session metadata, LangGraph checkpoints, and raw entity texts for FAISS reconstruction. Swap for a Postgres URL when scaling beyond a single pod. |
+| `KUBEWHISPERER_DB` | `kubeverdict.db` | Path to the SQLite database. Stores session metadata, LangGraph checkpoints, and raw entity texts for FAISS reconstruction. Swap for a Postgres URL when scaling beyond a single pod. |
 
 ## Runtime
 
@@ -96,15 +96,15 @@ python main.py --help
 
 ## In-cluster (K8s ConfigMap)
 
-All variables can be set in the `kubewhisperer-config` ConfigMap (see `k8s/kubewhisperer.yaml`).
+All variables can be set in the `kubeverdict-config` ConfigMap (see `k8s/kubeverdict.yaml`).
 The pod mounts the ConfigMap via `envFrom`, so no secrets are baked into the image.
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kubewhisperer-config
-  namespace: kubewhisperer
+  name: kubeverdict-config
+  namespace: kubeverdict
 data:
   OLLAMA_URL: "http://ollama:11434"
   TFIDF_TOP_K: "25"

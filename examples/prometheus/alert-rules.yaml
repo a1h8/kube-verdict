@@ -1,16 +1,16 @@
-# PrometheusRule — alerts that KubeWhisperer correlates to K8s entities.
+# PrometheusRule — alerts that KubeVerdict correlates to K8s entities.
 # Labels must include `namespace` and `pod` so prometheus_collector.py
 # can label-match them to the right Pod/Deployment nodes.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: kubewhisperer-alerts
+  name: kubeverdict-alerts
   namespace: monitoring
   labels:
     release: kube-prometheus-stack
 spec:
   groups:
-    - name: kubewhisperer.pod
+    - name: kubeverdict.pod
       rules:
         - alert: KubePodCrashLooping
           expr: |
@@ -31,7 +31,7 @@ spec:
           annotations:
             summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} not ready for 10m"
 
-    - name: kubewhisperer.memory
+    - name: kubeverdict.memory
       rules:
         - alert: KubeContainerOOMKilled
           expr: |

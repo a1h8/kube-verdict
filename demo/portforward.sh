@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer — port-forward observability services to localhost.
+# KubeVerdict — port-forward observability services to localhost.
 # Run this in a separate terminal after setup_observability.sh.
 #
 # Exposes:
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 OBS_NS="observability"
-PF_PIDS_FILE="/tmp/kubewhisperer-portforward.pids"
+PF_PIDS_FILE="/tmp/kubeverdict-portforward.pids"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info() { echo -e "${GREEN}  ✓${NC}  $*"; }

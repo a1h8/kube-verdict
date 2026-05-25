@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/a1h8/kubewhisperer
+  repository: ghcr.io/a1h8/kubeverdict
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -13,7 +13,7 @@ ingress:
   enabled: false
   className: ""
   annotations: {}
-  host: kubewhisperer.local
+  host: kubeverdict.local
   tls: []
 
 persistence:

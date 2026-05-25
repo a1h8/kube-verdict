@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer — Kap demo recording setup
+# KubeVerdict — Kap demo recording setup
 #
 # Prepares the full environment then prints step-by-step Kap instructions.
 #
@@ -63,24 +63,24 @@ else
   warn "Alertmanager port-forward may not be up yet — continuing"
 fi
 
-# ── Start KubeWhisperer ───────────────────────────────────────────────────────
-step "Starting KubeWhisperer API on :8001..."
-kill "$(cat /tmp/kubewhisperer.pid 2>/dev/null)" 2>/dev/null || true
+# ── Start KubeVerdict ───────────────────────────────────────────────────────
+step "Starting KubeVerdict API on :8001..."
+kill "$(cat /tmp/kubeverdict.pid 2>/dev/null)" 2>/dev/null || true
 sleep 1
 uvicorn api.app:app --host 0.0.0.0 --port 8001 --log-level info \
-  > /tmp/kubewhisperer.log 2>&1 &
-echo $! > /tmp/kubewhisperer.pid
+  > /tmp/kubeverdict.log 2>&1 &
+echo $! > /tmp/kubeverdict.pid
 
 printf "  Waiting for startup"
 for i in $(seq 1 30); do
-  if grep -q "Application startup complete" /tmp/kubewhisperer.log 2>/dev/null; then
+  if grep -q "Application startup complete" /tmp/kubeverdict.log 2>/dev/null; then
     echo " — ready"
     break
   fi
   printf "."
   sleep 0.5
 done
-info "KubeWhisperer ready on :8001"
+info "KubeVerdict ready on :8001"
 
 # ── Ready ─────────────────────────────────────────────────────────────────────
 echo ""
@@ -91,13 +91,13 @@ echo ""
 echo -e "  ${BOLD}1.${NC} Open Kap, crop over your terminal window, start recording"
 echo ""
 echo -e "  ${BOLD}2.${NC} Show healthy cluster:"
-echo -e "       ${CYAN}kubectl get pods -n kubewhisperer-demo${NC}"
+echo -e "       ${CYAN}kubectl get pods -n kubeverdict-demo${NC}"
 echo ""
 echo -e "  ${BOLD}3.${NC} Inject the incident:"
 echo -e "       ${CYAN}bash demo/cluster_setup.sh --inject${NC}"
 echo ""
 echo -e "  ${BOLD}4.${NC} Watch pods enter failure state:"
-echo -e "       ${CYAN}kubectl get pods -n kubewhisperer-demo${NC}"
+echo -e "       ${CYAN}kubectl get pods -n kubeverdict-demo${NC}"
 echo ""
 echo -e "  ${BOLD}5.${NC} Trigger RCA:"
 echo -e "       ${CYAN}python demo/demo_webhook.py${NC}"
@@ -106,6 +106,6 @@ echo -e "  ${BOLD}6.${NC} Stop Kap when the incident report appears (~5s)"
 echo ""
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-info "Logs: tail -f /tmp/kubewhisperer.log"
-info "Stop: kill \$(cat /tmp/kubewhisperer.pid)"
+info "Logs: tail -f /tmp/kubeverdict.log"
+info "Stop: kill \$(cat /tmp/kubeverdict.pid)"
 echo ""

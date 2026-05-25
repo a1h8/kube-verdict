@@ -1,7 +1,7 @@
 """
 SQLite connection management + schema bootstrap.
 
-The DB path is controlled by env var KUBEWHISPERER_DB (default: kubewhisperer.db
+The DB path is controlled by env var KUBEWHISPERER_DB (default: kubeverdict.db
 in the current working directory).
 
 Tables
@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sqlite3
 
-_DB_PATH_DEFAULT = "kubewhisperer.db"
+_DB_PATH_DEFAULT = "kubeverdict.db"
 
 
 def db_path() -> str:

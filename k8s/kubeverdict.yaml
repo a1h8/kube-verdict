@@ -3,10 +3,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kubewhisperer-config
-  namespace: kubewhisperer
+  name: kubeverdict-config
+  namespace: kubeverdict
   labels:
-    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/name: kubeverdict
 data:
   OLLAMA_URL: "http://ollama:11434"
   OLLAMA_MODEL: "mistral"
@@ -27,10 +27,10 @@ data:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: kubewhisperer-data
-  namespace: kubewhisperer
+  name: kubeverdict-data
+  namespace: kubeverdict
   labels:
-    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/name: kubeverdict
     app.kubernetes.io/component: index-storage
 spec:
   accessModes: [ReadWriteOnce]
@@ -45,10 +45,10 @@ spec:
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: kubewhisperer
-  namespace: kubewhisperer
+  name: kubeverdict
+  namespace: kubeverdict
   labels:
-    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/name: kubeverdict
     app.kubernetes.io/component: analyzer
 spec:
   schedule: "0 * * * *"
@@ -60,21 +60,21 @@ spec:
       template:
         metadata:
           labels:
-            app: kubewhisperer
+            app: kubeverdict
         spec:
-          serviceAccountName: kubewhisperer
+          serviceAccountName: kubeverdict
           restartPolicy: OnFailure
           containers:
-            - name: kubewhisperer
+            - name: kubeverdict
               # Replace with your registry / image tag after `docker build`
-              image: ghcr.io/your-org/kubewhisperer:latest
+              image: ghcr.io/your-org/kubeverdict:latest
               imagePullPolicy: IfNotPresent
               args:
                 - "--query"
                 - "unhealthy pods, drift, crashloops, pending PVCs"
               envFrom:
                 - configMapRef:
-                    name: kubewhisperer-config
+                    name: kubeverdict-config
               # KUBECONFIG is not needed — the pod uses the in-cluster service account.
               env:
                 - name: KUBE_CONTEXT
@@ -92,19 +92,19 @@ spec:
           volumes:
             - name: data
               persistentVolumeClaim:
-                claimName: kubewhisperer-data
+                claimName: kubeverdict-data
 
 ---
 # On-demand Job — trigger an ad-hoc analysis via:
-#   kubectl create job --from=cronjob/kubewhisperer kubewhisperer-manual -n kubewhisperer
+#   kubectl create job --from=cronjob/kubeverdict kubeverdict-manual -n kubeverdict
 # Or use this standalone Job template for a one-shot run:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: kubewhisperer-ondemand
-  namespace: kubewhisperer
+  name: kubeverdict-ondemand
+  namespace: kubeverdict
   labels:
-    app.kubernetes.io/name: kubewhisperer
+    app.kubernetes.io/name: kubeverdict
     app.kubernetes.io/component: analyzer-ondemand
   annotations:
     # Kept as reference; apply manually when needed.
@@ -114,13 +114,13 @@ spec:
   template:
     metadata:
       labels:
-        app: kubewhisperer-ondemand
+        app: kubeverdict-ondemand
     spec:
-      serviceAccountName: kubewhisperer
+      serviceAccountName: kubeverdict
       restartPolicy: Never
       containers:
-        - name: kubewhisperer
-          image: ghcr.io/your-org/kubewhisperer:latest
+        - name: kubeverdict
+          image: ghcr.io/your-org/kubeverdict:latest
           imagePullPolicy: IfNotPresent
           args:
             - "--query"
@@ -128,7 +128,7 @@ spec:
             - "--stream"
           envFrom:
             - configMapRef:
-                name: kubewhisperer-config
+                name: kubeverdict-config
           volumeMounts:
             - name: data
               mountPath: /data
@@ -142,4 +142,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: kubewhisperer-data
+            claimName: kubeverdict-data

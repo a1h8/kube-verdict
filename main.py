@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KubeWhisperer — local POC entry point.
+KubeVerdict — local POC entry point.
 
 Usage:
     # Collect from cluster, index, then run RCA
@@ -27,7 +27,7 @@ from vectorstore import Embedder, FAISSStore
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="KubeWhisperer — Kubernetes Root Cause Analysis")
+    parser = argparse.ArgumentParser(description="KubeVerdict — Kubernetes Root Cause Analysis")
     parser.add_argument("--namespace", "-n", action="append", dest="namespaces",
                         help="Namespace to analyse (repeatable). Overrides KUBE_NAMESPACES.")
     parser.add_argument("--kubeconfig", default=None)

@@ -1,5 +1,5 @@
 # Example PolicyReport — what Kyverno writes after evaluating a Pod.
-# KubeWhisperer reads these via:
+# KubeVerdict reads these via:
 #   kubectl get policyreport -A -o yaml
 # and creates PolicyViolation nodes with HAS_POLICY_VIOLATION edges.
 apiVersion: wgpolicyk8s.io/v1alpha2

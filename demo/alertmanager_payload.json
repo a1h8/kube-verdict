@@ -1,19 +1,19 @@
 {
   "version": "4",
   "status": "firing",
-  "receiver": "kubewhisperer",
-  "groupKey": "{}:{alertname=\"KubePodCrashLooping\", namespace=\"kubewhisperer-demo\"}",
+  "receiver": "kubeverdict",
+  "groupKey": "{}:{alertname=\"KubePodCrashLooping\", namespace=\"kubeverdict-demo\"}",
   "groupLabels": {
     "alertname": "KubePodCrashLooping",
-    "namespace": "kubewhisperer-demo"
+    "namespace": "kubeverdict-demo"
   },
   "commonLabels": {
     "alertname": "KubePodCrashLooping",
-    "namespace": "kubewhisperer-demo",
+    "namespace": "kubeverdict-demo",
     "severity": "critical"
   },
   "commonAnnotations": {
-    "summary": "Multiple pods crash-looping in kubewhisperer-demo",
+    "summary": "Multiple pods crash-looping in kubeverdict-demo",
     "runbook_url": "https://runbooks.example.com/KubePodCrashLooping"
   },
   "externalURL": "http://alertmanager:9093",
@@ -22,7 +22,7 @@
       "status": "firing",
       "labels": {
         "alertname": "KubePodCrashLooping",
-        "namespace": "kubewhisperer-demo",
+        "namespace": "kubeverdict-demo",
         "pod": "payment-service-7b9b45d5ff-59t7j",
         "deployment": "payment-service",
         "container": "payment",
@@ -30,7 +30,7 @@
       },
       "annotations": {
         "summary": "Pod payment-service-7b9b45d5ff-59t7j is CrashLoopBackOff",
-        "description": "restartCount=29 — container exits immediately; dial tcp db-primary.kubewhisperer-demo:5432: connection refused — database initialisation failed"
+        "description": "restartCount=29 — container exits immediately; dial tcp db-primary.kubeverdict-demo:5432: connection refused — database initialisation failed"
       },
       "startsAt": "2026-05-24T12:00:00Z",
       "endsAt": "0001-01-01T00:00:00Z",

@@ -7,7 +7,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: notification-service
-  namespace: kubewhisperer-demo
+  namespace: kubeverdict-demo
   labels:
     app: notification-service
     app.kubernetes.io/name: notification-service

@@ -121,7 +121,7 @@ class TestFAISSStorePersistence:
     def test_load_missing_raises(self):
         s = FAISSStore(embedder=Embedder())
         with pytest.raises(FileNotFoundError):
-            s.load("/tmp/definitely_absent_kubewhisperer_test.faiss")
+            s.load("/tmp/definitely_absent_kubeverdict_test.faiss")
 
     def test_loaded_store_is_searchable(self, store):
         with tempfile.TemporaryDirectory() as tmpdir:

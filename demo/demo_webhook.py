@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-KubeWhisperer — Alertmanager webhook demo.
+KubeVerdict — Alertmanager webhook demo.
 
 Shows the full alert → RCA pipeline:
   Alertmanager FIRING  →  POST /webhook/alertmanager
@@ -13,7 +13,7 @@ Usage
   python demo/demo_webhook.py
 
   # Custom server
-  python demo/demo_webhook.py --api http://kubewhisperer.internal:8000
+  python demo/demo_webhook.py --api http://kubeverdict.internal:8000
 
   # Offline — no server needed, uses in-process ASGI transport
   python demo/demo_webhook.py --offline
@@ -68,7 +68,7 @@ async def run(api_base: str, payload: dict, offline: bool) -> None:
     async with httpx.AsyncClient(transport=transport, base_url=api_base, timeout=10) as client:
 
         # ── Step 1: send webhook ─────────────────────────────────────────────
-        print(_banner("KubeWhisperer — Alertmanager → RCA Demo"))
+        print(_banner("KubeVerdict — Alertmanager → RCA Demo"))
 
         alerts = payload.get("alerts", [])
         firing = [a for a in alerts if a.get("status") == "firing"]
@@ -83,7 +83,7 @@ async def run(api_base: str, payload: dict, offline: bool) -> None:
         if annotation_summary:
             print(f"  Description  : {annotation_summary}")
 
-        print(_section("Step 1/3  Sending webhook to KubeWhisperer"))
+        print(_section("Step 1/3  Sending webhook to KubeVerdict"))
         t0 = time.perf_counter()
         resp = await client.post("/api/v1/webhook/alertmanager", json=payload)
         resp.raise_for_status()
@@ -220,7 +220,7 @@ async def run(api_base: str, payload: dict, offline: bool) -> None:
 # ── entrypoint ────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="KubeWhisperer Alertmanager webhook demo")
+    parser = argparse.ArgumentParser(description="KubeVerdict Alertmanager webhook demo")
     parser.add_argument("--api", default="http://localhost:8001", help="API base URL")
     parser.add_argument("--payload", default=str(PAYLOAD_FILE), help="Alertmanager payload JSON file")
     parser.add_argument("--offline", action="store_true",
