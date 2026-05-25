@@ -1,6 +1,6 @@
-# kube-prometheus-stack — KubeWhisperer demo values
+# kube-prometheus-stack — KubeVerdict demo values
 # Disables Grafana (not needed), configures Alertmanager to forward
-# firing Kubernetes alerts to the KubeWhisperer webhook.
+# firing Kubernetes alerts to the KubeVerdict webhook.
 
 grafana:
   enabled: false
@@ -37,15 +37,15 @@ alertmanager:
       repeat_interval: 1h
       receiver: "null"
       routes:
-        # Forward Kubernetes workload alerts to KubeWhisperer
-        - receiver: kubewhisperer
+        # Forward Kubernetes workload alerts to KubeVerdict
+        - receiver: kubeverdict
           matchers:
             - alertname =~ "KubePodCrashLooping|KubeContainerWaiting|KubePodNotReady|KubeDeploymentReplicasMismatch|KubeStatefulSetReplicasMismatch|KubeJobFailed"
           continue: false
 
     receivers:
       - name: "null"
-      - name: kubewhisperer
+      - name: kubeverdict
         webhook_configs:
           - url: "${KUBEWHISPERER_WEBHOOK_URL}"
             send_resolved: false

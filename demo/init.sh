@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer — complete demo initialisation.
+# KubeVerdict — complete demo initialisation.
 # Runs from zero to a fully operational RCA demo on a fresh machine.
 #
 #   Linux (recommended)  → k3s installed natively
@@ -38,14 +38,14 @@ done
 
 # ── Uninstall ─────────────────────────────────────────────────────────────────
 if $UNINSTALL; then
-  step "Uninstalling KubeWhisperer demo"
+  step "Uninstalling KubeVerdict demo"
   bash "$SCRIPT_DIR/cleanup.sh"
   if command -v k3s &>/dev/null; then
     substep "Removing k3s..."
     sudo /usr/local/bin/k3s-uninstall.sh 2>/dev/null || true
   fi
   if command -v k3d &>/dev/null; then
-    k3d cluster delete kubewhisperer-demo 2>/dev/null || true
+    k3d cluster delete kubeverdict-demo 2>/dev/null || true
   fi
   info "Uninstall complete."
   exit 0
@@ -54,7 +54,7 @@ fi
 # ── Header ────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}║       KubeWhisperer — Full Demo Initialisation           ║${NC}"
+echo -e "${BOLD}║       KubeVerdict — Full Demo Initialisation           ║${NC}"
 echo -e "${BOLD}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo "  OS          : $(uname -s) $(uname -m)"
@@ -146,11 +146,11 @@ else
         curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
     fi
     substep "Creating k3d cluster..."
-    k3d cluster create kubewhisperer-demo \
+    k3d cluster create kubeverdict-demo \
       --agents 1 \
       --k3s-arg '--disable=traefik@server:*' \
       --wait
-    export KUBECONFIG="$(k3d kubeconfig write kubewhisperer-demo)"
+    export KUBECONFIG="$(k3d kubeconfig write kubeverdict-demo)"
     info "k3d cluster ready"
 
   else
@@ -213,10 +213,10 @@ substep "Cluster nodes:"
 kubectl get nodes -o wide
 
 substep "Demo pods:"
-kubectl get pods -n kubewhisperer-demo -o wide
+kubectl get pods -n kubeverdict-demo -o wide
 
 substep "Helm releases:"
-helm list -n kubewhisperer-demo
+helm list -n kubeverdict-demo
 
 substep "Python imports..."
 cd "$PROJECT_ROOT"

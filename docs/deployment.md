@@ -6,18 +6,18 @@ The `scripts/init-k3s.sh` script handles everything end-to-end:
 
 ```bash
 # 1. Clone the repo on the target machine
-git clone https://github.com/your-org/kubewhisperer.git
-cd kubewhisperer
+git clone https://github.com/your-org/kubeverdict.git
+cd kubeverdict
 
 # 2. Build the Docker image
-docker build -t ghcr.io/your-org/kubewhisperer:latest .
+docker build -t ghcr.io/your-org/kubeverdict:latest .
 
 # 3. Load the image into K3s (no registry needed)
-docker save ghcr.io/your-org/kubewhisperer:latest | \
+docker save ghcr.io/your-org/kubeverdict:latest | \
   sudo k3s ctr images import -
 
-# 4. Run the init script (installs K3s, Ollama, Mistral, KubeWhisperer)
-sudo bash scripts/init-k3s.sh --image ghcr.io/your-org/kubewhisperer:latest
+# 4. Run the init script (installs K3s, Ollama, Mistral, KubeVerdict)
+sudo bash scripts/init-k3s.sh --image ghcr.io/your-org/kubeverdict:latest
 ```
 
 After ~5 minutes (model download) the CronJob runs every hour automatically.
@@ -25,21 +25,21 @@ After ~5 minutes (model download) the CronJob runs every hour automatically.
 ### Manual model pull (if the Job failed)
 
 ```bash
-kubectl exec -n kubewhisperer deploy/ollama -- ollama pull mistral
+kubectl exec -n kubeverdict deploy/ollama -- ollama pull mistral
 ```
 
 ### Trigger an ad-hoc analysis
 
 ```bash
-kubectl create job --from=cronjob/kubewhisperer kw-adhoc -n kubewhisperer
-kubectl logs -n kubewhisperer -l app=kubewhisperer -f
+kubectl create job --from=cronjob/kubeverdict kw-adhoc -n kubeverdict
+kubectl logs -n kubeverdict -l app=kubeverdict -f
 ```
 
 ### Watch scheduled runs
 
 ```bash
-kubectl get jobs -n kubewhisperer -w
-kubectl logs -n kubewhisperer job/<job-name>
+kubectl get jobs -n kubeverdict -w
+kubectl logs -n kubeverdict job/<job-name>
 ```
 
 ---
@@ -55,14 +55,14 @@ kubectl logs -n kubewhisperer job/<job-name>
 ### Step 1 — Build and push the image
 
 ```bash
-docker build -t your-registry/kubewhisperer:latest .
-docker push your-registry/kubewhisperer:latest
+docker build -t your-registry/kubeverdict:latest .
+docker push your-registry/kubeverdict:latest
 ```
 
 ### Step 2 — Create namespace and RBAC
 
 ```bash
-kubectl create namespace kubewhisperer
+kubectl create namespace kubeverdict
 kubectl apply -f k8s/rbac.yaml
 ```
 
@@ -70,17 +70,17 @@ kubectl apply -f k8s/rbac.yaml
 
 ```bash
 kubectl apply -f k8s/ollama.yaml
-kubectl rollout status deployment/ollama -n kubewhisperer
+kubectl rollout status deployment/ollama -n kubeverdict
 # Pull Mistral (~4 GB — wait for the Job to complete)
-kubectl wait job/ollama-pull-mistral -n kubewhisperer --for=condition=complete --timeout=600s
+kubectl wait job/ollama-pull-mistral -n kubeverdict --for=condition=complete --timeout=600s
 ```
 
-### Step 4 — Deploy KubeWhisperer
+### Step 4 — Deploy KubeVerdict
 
-Edit `k8s/kubewhisperer.yaml` and replace `ghcr.io/your-org/kubewhisperer:latest` with your image.
+Edit `k8s/kubeverdict.yaml` and replace `ghcr.io/your-org/kubeverdict:latest` with your image.
 
 ```bash
-kubectl apply -f k8s/kubewhisperer.yaml
+kubectl apply -f k8s/kubeverdict.yaml
 ```
 
 ---
@@ -114,7 +114,7 @@ python main.py --query "pods are crashlooping in production" --stream
 
 ## RBAC scope
 
-KubeWhisperer only needs **read** access. The ClusterRole in `k8s/rbac.yaml` grants:
+KubeVerdict only needs **read** access. The ClusterRole in `k8s/rbac.yaml` grants:
 
 - `get`, `list`, `watch` on all core resource types
 - `get`, `list`, `watch` on `apps`, `batch`, `networking.k8s.io`, `autoscaling`
@@ -147,6 +147,6 @@ helm install gpu-operator nvidia/gpu-operator -n gpu-operator --create-namespace
 
 To switch from `mistral` to another model (e.g. `llama3`):
 
-1. Edit the `OLLAMA_MODEL` key in the `kubewhisperer-config` ConfigMap.
-2. Pull the new model: `kubectl exec -n kubewhisperer deploy/ollama -- ollama pull llama3`
+1. Edit the `OLLAMA_MODEL` key in the `kubeverdict-config` ConfigMap.
+2. Pull the new model: `kubectl exec -n kubeverdict deploy/ollama -- ollama pull llama3`
 3. The next CronJob run will use the new model automatically.

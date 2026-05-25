@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer demo setup
+# KubeVerdict demo setup
 #
 # What this does:
 #   1. Detect / create a Kubernetes cluster (existing, k3d, or k3s)
@@ -11,7 +11,7 @@
 # Prerequisites: kubectl, helm, git  (+ k3d or k3s for cluster creation)
 set -euo pipefail
 
-NAMESPACE="kubewhisperer-demo"
+NAMESPACE="kubeverdict-demo"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GITREPO_PATH="/tmp/kw-demo-gitops"
 KUBECONFIG_PATH="${KUBECONFIG:-$HOME/.kube/config}"
@@ -35,12 +35,12 @@ if kubectl cluster-info &>/dev/null 2>&1; then
   info "Using existing cluster"
 
 elif command -v k3d &>/dev/null; then
-  info "Creating k3d cluster 'kubewhisperer-demo'..."
-  k3d cluster create kubewhisperer-demo \
+  info "Creating k3d cluster 'kubeverdict-demo'..."
+  k3d cluster create kubeverdict-demo \
     --agents 1 \
     --k3s-arg '--disable=traefik@server:*' \
     --wait
-  KUBECONFIG_PATH="$(k3d kubeconfig write kubewhisperer-demo)"
+  KUBECONFIG_PATH="$(k3d kubeconfig write kubeverdict-demo)"
   export KUBECONFIG="$KUBECONFIG_PATH"
 
 elif command -v k3s &>/dev/null; then
@@ -113,7 +113,7 @@ kubectl set image deployment/ml-inference \
   -n "$NAMESPACE" 2>/dev/null || true
 
 # ── Init GitOps repo ──────────────────────────────────────────────────────────
-# Simulates a GitLab infrastructure repository that KubeWhisperer queries
+# Simulates a GitLab infrastructure repository that KubeVerdict queries
 # to detect drift between declared (git) and observed (cluster) state.
 step "Initialising GitOps repo at $GITREPO_PATH"
 
@@ -121,8 +121,8 @@ rm -rf "$GITREPO_PATH"
 mkdir -p "$GITREPO_PATH"
 cd "$GITREPO_PATH"
 git init -b main
-git config user.email "demo@kubewhisperer.local"
-git config user.name "KubeWhisperer Demo"
+git config user.email "demo@kubeverdict.local"
+git config user.name "KubeVerdict Demo"
 
 # Copy charts into the repo (this is the "source of truth")
 mkdir -p charts

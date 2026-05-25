@@ -1,5 +1,5 @@
 """
-LangGraph node functions for the KubeWhisperer RCA workflow.
+LangGraph node functions for the KubeVerdict RCA workflow.
 
 Heavy objects (OntologyGraph, FAISSStore) are NOT stored in state — they are
 passed via config["configurable"] so the MemorySaver checkpointer never tries

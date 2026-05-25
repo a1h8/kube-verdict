@@ -1,4 +1,4 @@
-# Trace emitter — KubeWhisperer demo
+# Trace emitter — KubeVerdict demo
 # Emits realistic OTel error traces for each failing service.
 # Uses Python + opentelemetry-sdk (pip install at startup, ~10s delay).
 # Traces are sent to otel-collector.observability:4317 → Tempo.
@@ -8,7 +8,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: trace-emitter
-  namespace: kubewhisperer-demo
+  namespace: kubeverdict-demo
   labels:
     app: trace-emitter
     app.kubernetes.io/name: trace-emitter
@@ -49,14 +49,14 @@ spec:
           SERVICES = [
             {
               "name": "payment-service",
-              "namespace": "kubewhisperer-demo",
+              "namespace": "kubeverdict-demo",
               "span": "payment.process",
               "error": "dial tcp 10.96.5.22:5432: connect: connection refused",
               "attrs": {"db.system": "postgresql", "db.name": "payments"},
             },
             {
               "name": "analytics-worker",
-              "namespace": "kubewhisperer-demo",
+              "namespace": "kubeverdict-demo",
               "span": "analytics.compute",
               "error": "runtime: out of memory: cannot allocate 200MiB",
               "attrs": {"job.type": "batch", "job.dataset": "feature-matrix"},

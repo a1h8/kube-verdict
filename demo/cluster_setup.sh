@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer — demo failure injection
+# KubeVerdict — demo failure injection
 #
 # Stages a live incident on the k0rdent cluster:
 #   --baseline   deploy healthy api-gateway (contrast / before state)
@@ -15,7 +15,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MANIFESTS="$ROOT/demo/manifests"
-NS="kubewhisperer-demo"
+NS="kubeverdict-demo"
 CTX="k3d-k0rdent"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -64,7 +64,7 @@ _inject() {
   echo -e "${YELLOW}  Watch logs:${NC}  kubectl logs -n $NS -l app=payment-service --tail=10 -f"
   echo ""
   echo "  Alertmanager will fire KubePodCrashLooping + KubeDeploymentReplicasMismatch"
-  echo "  KubeWhisperer webhook → RCA in ~30s"
+  echo "  KubeVerdict webhook → RCA in ~30s"
 }
 
 # ── Fix: apply remediation manifests ─────────────────────────────────────────

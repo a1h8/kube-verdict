@@ -1,5 +1,5 @@
 """
-KubeWhisperer LangGraph workflow.
+KubeVerdict LangGraph workflow.
 
 Graph topology
 ──────────────

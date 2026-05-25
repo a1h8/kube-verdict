@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# init-k3s.sh — Bootstrap KubeWhisperer on a fresh K3s node.
+# init-k3s.sh — Bootstrap KubeVerdict on a fresh K3s node.
 #
 # What this script does:
 #   1. Installs K3s (single-node, no traefik)
-#   2. Creates the kubewhisperer namespace
-#   3. Applies RBAC, Ollama, and KubeWhisperer manifests
+#   2. Creates the kubeverdict namespace
+#   3. Applies RBAC, Ollama, and KubeVerdict manifests
 #   4. Waits for Ollama to be ready, then pulls the Mistral model
-#   5. Triggers an on-demand KubeWhisperer Job to verify the install
+#   5. Triggers an on-demand KubeVerdict Job to verify the install
 #
 # Prerequisites:
 #   - Ubuntu 22.04 / Debian 12 / RHEL 9 (x86_64 or arm64)
@@ -17,13 +17,13 @@
 #
 # Usage:
 #   sudo bash scripts/init-k3s.sh
-#   sudo bash scripts/init-k3s.sh --image ghcr.io/your-org/kubewhisperer:v1.0.0
+#   sudo bash scripts/init-k3s.sh --image ghcr.io/your-org/kubeverdict:v1.0.0
 #
 set -euo pipefail
 
 # ── Config ────────────────────────────────────────────────────────────────────
 K3S_VERSION="${K3S_VERSION:-v1.30.0+k3s1}"
-NAMESPACE="kubewhisperer"
+NAMESPACE="kubeverdict"
 MANIFESTS_DIR="$(cd "$(dirname "$0")/../k8s" && pwd)"
 IMAGE="${1:-}"  # optional: --image <registry/image:tag>
 
@@ -77,11 +77,11 @@ elif [[ "$#" -ge 2 && "$1" == "--image" ]]; then
 fi
 
 if [[ -n "${ACTUAL_IMAGE:-}" ]]; then
-    log "Patching KubeWhisperer image to ${ACTUAL_IMAGE}…"
-    sed "s|ghcr.io/your-org/kubewhisperer:latest|${ACTUAL_IMAGE}|g" \
-        "${MANIFESTS_DIR}/kubewhisperer.yaml" | kubectl apply -f -
+    log "Patching KubeVerdict image to ${ACTUAL_IMAGE}…"
+    sed "s|ghcr.io/your-org/kubeverdict:latest|${ACTUAL_IMAGE}|g" \
+        "${MANIFESTS_DIR}/kubeverdict.yaml" | kubectl apply -f -
 else
-    kubectl apply -f "${MANIFESTS_DIR}/kubewhisperer.yaml"
+    kubectl apply -f "${MANIFESTS_DIR}/kubeverdict.yaml"
 fi
 
 # ── 4. Wait for Ollama, then pull Mistral ────────────────────────────────────
@@ -98,30 +98,30 @@ if kubectl get job ollama-pull-mistral -n "${NAMESPACE}" &>/dev/null; then
 fi
 
 # ── 5. Verify with an on-demand run ─────────────────────────────────────────
-log "Triggering on-demand KubeWhisperer analysis…"
+log "Triggering on-demand KubeVerdict analysis…"
 kubectl create job \
-    --from=cronjob/kubewhisperer \
-    kubewhisperer-verify \
+    --from=cronjob/kubeverdict \
+    kubeverdict-verify \
     -n "${NAMESPACE}" \
     --dry-run=client -o yaml \
     | kubectl apply -f - || true
 
 log "Waiting for verification job…"
-kubectl wait job/kubewhisperer-verify -n "${NAMESPACE}" \
+kubectl wait job/kubeverdict-verify -n "${NAMESPACE}" \
     --for=condition=complete --timeout=300s \
-    || log "Job still running — check with: kubectl logs -n ${NAMESPACE} -l app=kubewhisperer"
+    || log "Job still running — check with: kubectl logs -n ${NAMESPACE} -l app=kubeverdict"
 
 log ""
 log "──────────────────────────────────────────────────────────────────"
-log "KubeWhisperer is running on K3s."
+log "KubeVerdict is running on K3s."
 log ""
 log "Useful commands:"
 log "  # Watch scheduled analyses:"
 log "  kubectl get jobs -n ${NAMESPACE} -w"
 log ""
 log "  # Trigger an ad-hoc analysis:"
-log "  kubectl create job --from=cronjob/kubewhisperer kw-adhoc -n ${NAMESPACE}"
-log "  kubectl logs -n ${NAMESPACE} -l app=kubewhisperer -f"
+log "  kubectl create job --from=cronjob/kubeverdict kw-adhoc -n ${NAMESPACE}"
+log "  kubectl logs -n ${NAMESPACE} -l app=kubeverdict -f"
 log ""
 log "  # Check Ollama is healthy:"
 log "  kubectl exec -n ${NAMESPACE} deploy/ollama -- ollama list"

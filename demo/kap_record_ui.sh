@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# KubeWhisperer — Kap browser demo launcher
+# KubeVerdict — Kap browser demo launcher
 #
 # Launches the Streamlit demo UI and opens the browser.
 # No Kubernetes cluster required.

@@ -7,7 +7,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: payment-service
-  namespace: kubewhisperer-demo
+  namespace: kubeverdict-demo
   labels:
     app: payment-service
     app.kubernetes.io/name: payment-service
@@ -32,7 +32,7 @@ spec:
         args:
         - |
           echo "[payment-service] Starting v1.4.2"
-          echo "[payment-service] Connecting to postgres://db-primary.kubewhisperer-demo:5432/payments"
+          echo "[payment-service] Connecting to postgres://db-primary.kubeverdict-demo:5432/payments"
           sleep 2
           echo "[payment-service] ERROR: dial tcp 10.96.5.22:5432: connect: connection refused"
           echo "[payment-service] FATAL: database initialisation failed — exiting"
@@ -46,7 +46,7 @@ spec:
             cpu: "100m"
         env:
         - name: DB_HOST
-          value: "db-primary.kubewhisperer-demo"
+          value: "db-primary.kubeverdict-demo"
         - name: DB_PORT
           value: "5432"
 ---
@@ -55,7 +55,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: db-primary
-  namespace: kubewhisperer-demo
+  namespace: kubeverdict-demo
   labels:
     app: db-primary
 spec:

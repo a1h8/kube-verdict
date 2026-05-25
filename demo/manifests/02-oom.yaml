@@ -6,7 +6,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: analytics-worker
-  namespace: kubewhisperer-demo
+  namespace: kubeverdict-demo
   labels:
     app: analytics-worker
     app.kubernetes.io/name: analytics-worker
