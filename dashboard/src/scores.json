@@ -1,0 +1,98 @@
+{
+  "generated_at": "2026-05-25T15:13:48.780878+00:00",
+  "categories": [
+    {
+      "name": "Code Quality",
+      "max": 100,
+      "criteria": [
+        {
+          "name": "Dependency injection (LLM, store)",
+          "current": 20,
+          "max": 20
+        },
+        {
+          "name": "Type safety (mypy)",
+          "current": 7,
+          "max": 20
+        },
+        {
+          "name": "Cyclomatic complexity",
+          "current": 12,
+          "max": 20
+        },
+        {
+          "name": "Dead code / vulture",
+          "current": 18,
+          "max": 20
+        },
+        {
+          "name": "Structured logging",
+          "current": 4,
+          "max": 20
+        }
+      ]
+    },
+    {
+      "name": "Operational Maturity",
+      "max": 100,
+      "criteria": [
+        {
+          "name": "FAISS persistence (survives restarts)",
+          "current": 18,
+          "max": 20
+        },
+        {
+          "name": "Retry / timeout on K8s API calls",
+          "current": 6,
+          "max": 20
+        },
+        {
+          "name": "Index TTL / refresh strategy",
+          "current": 4,
+          "max": 20
+        },
+        {
+          "name": "Live cluster tested (k3d/k3s)",
+          "current": 20,
+          "max": 20
+        },
+        {
+          "name": "Helm false-positive rate",
+          "current": 18,
+          "max": 20
+        }
+      ]
+    },
+    {
+      "name": "Business Value",
+      "max": 100,
+      "criteria": [
+        {
+          "name": "RCA precision measured",
+          "current": 20,
+          "max": 20
+        },
+        {
+          "name": "Remediation active (not just print)",
+          "current": 20,
+          "max": 20
+        },
+        {
+          "name": "Human gate implemented",
+          "current": 20,
+          "max": 20
+        },
+        {
+          "name": "Air-gapped / data sovereignty",
+          "current": 18,
+          "max": 20
+        },
+        {
+          "name": "Time-to-value < 30 min",
+          "current": 14,
+          "max": 20
+        }
+      ]
+    }
+  ]
+}
