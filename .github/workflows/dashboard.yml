@@ -27,6 +27,8 @@ jobs:
         run: pip install mypy radon vulture
       - name: Generate scores
         run: python tools/score.py --output dashboard/src/scores.json
+      - name: Generate roadmap
+        run: python tools/roadmap.py --output dashboard/src/roadmap.json
       - uses: actions/setup-node@v4
         with:
           node-version: 20

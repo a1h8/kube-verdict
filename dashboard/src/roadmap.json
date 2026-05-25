@@ -1,0 +1,169 @@
+{
+  "generated_at": "2026-05-25T15:30:01.973896+00:00",
+  "blocs": [
+    {
+      "id": "B1",
+      "title": "Evidence collection",
+      "description": "K8s events, Prometheus, Loki, Helm drift, OTel traces, anchor engine",
+      "checks": [
+        {
+          "label": "K8s + Prometheus + Loki collectors",
+          "done": true
+        },
+        {
+          "label": "Helm drift + anchor engine",
+          "done": true
+        },
+        {
+          "label": "GitOps collector (Flux / ArgoCD)",
+          "done": true
+        },
+        {
+          "label": "OTel traces (Jaeger / Tempo)",
+          "done": true
+        }
+      ],
+      "status": "DONE"
+    },
+    {
+      "id": "B2",
+      "title": "Hybrid retrieval",
+      "description": "BM25 + FAISS + RRF fusion, SQLite persistence across restarts",
+      "checks": [
+        {
+          "label": "BM25 + FAISS + RRF",
+          "done": true
+        },
+        {
+          "label": "Sentence-transformer embedder",
+          "done": true
+        },
+        {
+          "label": "SQLite persistence (survives restarts)",
+          "done": true
+        }
+      ],
+      "status": "DONE"
+    },
+    {
+      "id": "B3",
+      "title": "RCA workflow",
+      "description": "LangGraph pipeline: hypothesize \u2192 collect \u2192 analyze \u2192 remediate",
+      "checks": [
+        {
+          "label": "LangGraph graph + nodes",
+          "done": true
+        },
+        {
+          "label": "Confidence scoring",
+          "done": true
+        },
+        {
+          "label": "Context window + prompt builder",
+          "done": true
+        },
+        {
+          "label": "Retry on LOW confidence (wider BFS)",
+          "done": true
+        }
+      ],
+      "status": "DONE"
+    },
+    {
+      "id": "B4",
+      "title": "Human gate + API",
+      "description": "REST API with approve/reject endpoint, SSE streaming, session persistence",
+      "checks": [
+        {
+          "label": "FastAPI server + session management",
+          "done": true
+        },
+        {
+          "label": "Approve / reject endpoint",
+          "done": true
+        },
+        {
+          "label": "SSE streaming",
+          "done": true
+        },
+        {
+          "label": "Alertmanager webhook receiver",
+          "done": true
+        }
+      ],
+      "status": "DONE"
+    },
+    {
+      "id": "B5",
+      "title": "Blast radius + Rollback plan",
+      "description": "Risk scoring (LOW\u2192CRITICAL), rollback plan generated before any action",
+      "checks": [
+        {
+          "label": "Rollback generation (helm rollback, rollout undo)",
+          "done": true
+        },
+        {
+          "label": "Dedicated blast_radius module",
+          "done": false
+        },
+        {
+          "label": "Risk level scoring (LOW / MEDIUM / HIGH / CRITICAL)",
+          "done": true
+        },
+        {
+          "label": "Rollback unavailable \u2192 hard NO_GO",
+          "done": false
+        }
+      ],
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": "B6",
+      "title": "Decision Engine",
+      "description": "Beam search paths, Monte Carlo stability, policy gate AUTO / HUMAN_REVIEW / NO_GO",
+      "checks": [
+        {
+          "label": "Beam search + path state machine",
+          "done": false
+        },
+        {
+          "label": "Monte Carlo stability (n=200 sims)",
+          "done": false
+        },
+        {
+          "label": "Policy gate (AUTO / HUMAN_REVIEW / NO_GO)",
+          "done": false
+        },
+        {
+          "label": "Template catalog (community runbooks)",
+          "done": false
+        }
+      ],
+      "status": "TODO"
+    },
+    {
+      "id": "B7",
+      "title": "Distribution",
+      "description": "Helm chart, Artifact Hub listing, one-command quickstart",
+      "checks": [
+        {
+          "label": "Helm chart (Chart.yaml + values.yaml)",
+          "done": true
+        },
+        {
+          "label": "Demo cluster setup (k3d)",
+          "done": true
+        },
+        {
+          "label": "Published to Artifact Hub",
+          "done": false
+        },
+        {
+          "label": "Quickstart < 30 min documented",
+          "done": true
+        }
+      ],
+      "status": "IN_PROGRESS"
+    }
+  ]
+}
