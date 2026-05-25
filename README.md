@@ -9,8 +9,6 @@ KubeWhisperer correlates Kubernetes events and Helm drift into an evidence-groun
 ✅ Six validated failure scenarios proven end-to-end in CI  
 ✅ Try it without a live cluster  
 
-![KubeWhisperer demo](hero-demo-60s.gif)
-
 [![CI](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/KubeWhisperer/actions/workflows/ci.yml)
 [![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h006-blue)](#validated-scenarios)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
@@ -44,7 +42,7 @@ The **Integration Tests** tab runs entirely offline — no cluster, no Ollama ne
 
 ### Browser UI — no cluster required
 
-![KubeWhisperer UI demo](hero-demo-60s.gif)
+![KubeWhisperer UI demo](demo/demo_kubeWhisperer.gif)
 
 ```bash
 bash demo/kap_record_ui.sh       # starts Streamlit, opens browser
@@ -53,6 +51,8 @@ bash demo/kap_record_ui.sh       # starts Streamlit, opens browser
 ---
 
 ### CLI — live k3d cluster, end-to-end loop
+
+![KubeWhisperer CLI demo](hero-demo-60s.gif)
 
 Full loop on a real cluster: Alertmanager alert → RCA in 7s → human approval → cluster heals.
 
