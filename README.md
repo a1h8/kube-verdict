@@ -2,7 +2,7 @@
 
 Open-source Kubernetes incident investigation platform.
 
-KubeWhisperer correlates Kubernetes events, Helm drift, Prometheus alerts, OTel traces and Loki logs into an evidence-grounded incident summary, then proposes human-approved remediation commands.
+KubeWhisperer correlates Kubernetes events and Helm drift into an evidence-grounded incident summary, then proposes human-approved remediation commands.
 
 ✅ Air-gapped by default — Ollama + Mistral, no data leaves your infrastructure  
 ✅ No auto-remediation without explicit approval  
@@ -24,7 +24,7 @@ Most Kubernetes outages are not caused by a single failing pod.
 
 When payment-service crashes, the on-call engineer opens five tabs simultaneously: pod logs, Kubernetes events, Helm history, Prometheus graphs, and the GitOps repo. Under pressure, at 2 AM, with three Slack threads open. The root cause is rarely where the alert fired — it's three hops away in a misconfigured Helm value or a drift between what was declared and what actually runs.
 
-KubeWhisperer reduces that cognitive load. It correlates events, Helm drift, Prometheus signals and OTel traces into a single evidence-grounded root cause analysis — ranked by confidence, with a human approval gate before any remediation command touches production.
+KubeWhisperer reduces that cognitive load. It correlates Kubernetes events and Helm drift into a single evidence-grounded root cause analysis — ranked by confidence, with a human approval gate before any remediation command touches production.
 
 ---
 
@@ -42,9 +42,19 @@ The **Integration Tests** tab runs entirely offline — no cluster, no Ollama ne
 
 ## Demo
 
-Real k3d cluster — no mocks, no hardcoded answers.
+### Browser UI — no cluster required
 
-**Full loop: Alertmanager alert → RCA in 7s → human approval → cluster heals**
+![KubeWhisperer UI demo](hero-demo-60s.gif)
+
+```bash
+bash demo/kap_record_ui.sh       # starts Streamlit, opens browser
+```
+
+---
+
+### CLI — live k3d cluster, end-to-end loop
+
+Full loop on a real cluster: Alertmanager alert → RCA in 7s → human approval → cluster heals.
 
 ```
 Alertmanager fires KubePodCrashLooping
@@ -61,7 +71,6 @@ All pods Running ✓
 ```
 
 ```bash
-# Reproduce it
 bash demo/kap_record.sh          # reset → baseline → start API
 bash demo/cluster_setup.sh --inject
 python demo/demo_webhook.py      # alert → RCA → approve → fix
@@ -73,11 +82,10 @@ python demo/demo_webhook.py      # alert → RCA → approve → fix
 
 ## Safety model
 
-Every remediation command goes through three gates before execution:
+Every remediation command goes through two gates before execution:
 
-1. **Dry-run** — command is validated against the cluster API without applying changes
-2. **Human approval** — the SRE reviews evidence, root cause and proposed fix, then types `approve` or `reject`
-3. **Rollback hint** — KubeWhisperer generates the inverse command (`helm rollback`, `kubectl rollout undo`) alongside every fix proposal
+1. **Human approval** — the SRE reviews evidence, root cause and proposed fix before anything is applied
+2. **Rollback hint** — KubeWhisperer generates the inverse command (`helm rollback`, `kubectl rollout undo`) alongside every fix proposal
 
 Nothing touches the cluster without explicit sign-off. Autonomous execution is not implemented by design.
 
@@ -87,22 +95,22 @@ Nothing touches the cluster without explicit sign-off. Autonomous execution is n
 
 The LLM is constrained by retrieved evidence. KubeWhisperer ranks hypotheses from deterministic signals first — ontology topology, anchor violations, drift, policies and resolved incidents — then uses the LLM only to produce an evidence-grounded RCA.
 
-Confidence routing uses beam search: two consecutive LOW results on the same hypothesis path trigger an immediate switch to the next candidate, and archived paths re-rank remaining candidates using signals from the failed analysis.
+Confidence routing is evidence-first: two consecutive LOW results on the same hypothesis path trigger an immediate switch to the next candidate, and archived paths re-rank remaining candidates using signals from the failed analysis.
 
 **Pipeline:**
 
 ```
-K8s events + Prometheus + OTel/Loki + Helm values
+K8s events + Helm values/drift
         ↓
 Ontology graph + anchor drift detection
         ↓
 BM25 + FAISS + RRF hybrid retrieval
         ↓
-Beam-search hypothesis ranking
+Hypothesis ranking (evidence-weighted)
         ↓
 LLM root-cause analysis (evidence-grounded)
         ↓
-Dry-run validation → human review gate → GitOps patch
+Human review gate → remediation commands
 ```
 
 ---
@@ -148,7 +156,7 @@ streamlit run ui/app.py
 
 | Document | Content |
 |---|---|
-| [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, beam search routing, anchor system design, drift detection, PatchTST |
+| [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, anchor system design, drift detection |
 | [REST API](docs/api.md) | FastAPI endpoints, session lifecycle, request/response examples, SSE stream |
 | [UI reference](docs/ui.md) | Streamlit tabs, pipeline trace steps, anchor pivot table, reasoning journey, router decisions |
 | [Test cases](docs/test-cases.md) | h001–h006 validated scenarios, case format, adding a new case, CI coverage |
@@ -167,7 +175,7 @@ Several constraints are intentional or known:
 - **Single-cluster.** Multi-cluster support is not yet wired end-to-end.
 - **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
 - **LLM performance is local-hardware-dependent.** Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.
-- **No real-time alerting integration.** Prometheus and Loki data is pulled on demand, not streamed.
+- **Prometheus and Loki not yet integrated.** Only Kubernetes events and Helm drift feed the pipeline today.
 
 See [Roadmap](docs/roadmap.md) for what's next.
 
@@ -178,7 +186,7 @@ See [Roadmap](docs/roadmap.md) for what's next.
 Contributions are welcome — especially:
 
 - New failure scenario cases (`tests/integration/cases/h0NN_*` format — see [Test cases](docs/test-cases.md))
-- Signal collectors (Prometheus rules, OTel exporters, Loki queries)
+- Signal collectors (Prometheus, OTel, Loki — not yet integrated)
 - LLM provider integrations
 
 See [Project layout](docs/project-layout.md) for the codebase structure.
