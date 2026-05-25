@@ -1,6 +1,6 @@
 # KubeVerdict
 
-Open-source Kubernetes incident analysis and remediation agent.
+Evidence-first Kubernetes incident decision engine.
 
 KubeVerdict correlates Kubernetes events and Helm drift into an evidence-grounded incident summary, then proposes human-approved remediation commands.
 
@@ -85,7 +85,7 @@ python demo/demo_webhook.py      # alert → RCA → approve → fix
 Every remediation command goes through two gates before execution:
 
 1. **Human approval** — the SRE reviews evidence, root cause and proposed fix before anything is applied
-2. **Rollback hint** — KubeVerdict generates the inverse command (`helm rollback`, `kubectl rollout undo`) alongside every fix proposal
+2. **Rollback plan** — KubeVerdict generates the inverse command (`helm rollback`, `kubectl rollout undo`) alongside every fix proposal
 
 Nothing touches the cluster without explicit sign-off. Autonomous execution is not implemented by design.
 
