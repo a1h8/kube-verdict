@@ -21,10 +21,7 @@ from decision.policy_gate import evaluate as pg_evaluate
 from reasoning.beam_search import MAX_SWITCHES, should_switch_path
 from reasoning.monte_carlo import run_monte_carlo
 from reasoning.template_catalog import TemplateCatalog
-from remediation.blast_radius import (
-    _parse_command_scope,
-    compute_blast_radius,
-)
+from remediation.blast_radius import compute_blast_radius
 from vectorstore.embedder import Embedder
 from vectorstore.store import FAISSStore
 from workflow.state import RCAState
@@ -1271,7 +1268,6 @@ def log_policy_decision_node(state: RCAState) -> dict:
     Score source: pre_llm_confidence.score from report_dict (preferred).
     Fallback: LLM confidence label → 0.75 HIGH / 0.62 MEDIUM / 0.30 LOW.
     """
-    report   = state.get("report_dict") or {}
     llm_conf = (state.get("confidence") or "").upper()
 
     # Map LLM diagnosis confidence label → policy gate score.

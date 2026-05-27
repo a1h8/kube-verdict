@@ -1,8 +1,6 @@
 """Unit tests for B6 Decision Engine nodes: monte_carlo, log_policy_decision, verdict_router."""
 from __future__ import annotations
 
-import pytest
-
 from workflow.nodes import monte_carlo_node, log_policy_decision_node, verdict_router
 from workflow.state import RCAState
 
