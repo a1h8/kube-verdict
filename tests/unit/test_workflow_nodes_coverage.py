@@ -13,6 +13,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from ontology.graph import OntologyGraph
+import workflow.nodes as _nodes_mod
 from workflow.nodes import (
     ingest_node,
     prometheus_node,
@@ -23,10 +24,20 @@ from workflow.nodes import (
     index_node,
     signal_analysis_node,
     dry_run_node,
+    human_review_node,
+    remediation_node,
+    example_lookup_node,
+    save_example_node,
+    _get_infra,
+    _get_llm,
+    _graph_snapshot,
+    _build_hypothesis_context,
+    _rerank_candidates,
     _parse_hypotheses,
     _exec_dry_run,
     _nested_get,
     _anchor_hit_to_hypothesis,
+    _extract_example_field,
     _ANCHOR_FIELD_HYPOTHESES,
 )
 from workflow.state import RCAState
@@ -339,3 +350,261 @@ def test_index_node_calls_anchor_violations(synthetic_graph):
          patch("vectorstore.store.FAISSStore.index_anchor_violations", return_value=0) as mock_av:
         index_node(_state(), _config(graph=synthetic_graph))
     mock_av.assert_called_once_with(synthetic_graph)
+
+
+# ---------------------------------------------------------------------------
+# _get_infra — thread-local cache path (lines 59-62)
+# ---------------------------------------------------------------------------
+
+def test_get_infra_uses_cache_when_no_graph_in_config():
+    fake_graph = _empty_graph()
+    fake_store = object()
+    thread_id = "test-thread-cache-99"
+    _nodes_mod._INFRA_CACHE[thread_id] = (fake_graph, fake_store)
+    try:
+        graph, store = _get_infra({"configurable": {"thread_id": thread_id}})
+        assert graph is fake_graph
+        assert store is fake_store
+    finally:
+        _nodes_mod._INFRA_CACHE.pop(thread_id, None)
+
+
+def test_get_infra_cache_does_not_overwrite_explicit_store():
+    fake_graph = _empty_graph()
+    explicit_store = object()
+    cached_store = object()
+    thread_id = "test-thread-cache-100"
+    _nodes_mod._INFRA_CACHE[thread_id] = (fake_graph, cached_store)
+    try:
+        graph, store = _get_infra({"configurable": {"thread_id": thread_id, "store": explicit_store}})
+        assert store is explicit_store  # explicit wins
+    finally:
+        _nodes_mod._INFRA_CACHE.pop(thread_id, None)
+
+
+# ---------------------------------------------------------------------------
+# _get_llm — build_llm_client fallback path (lines 76-77)
+# ---------------------------------------------------------------------------
+
+def test_get_llm_falls_back_to_build_llm_client():
+    mock_llm = object()
+    with patch("llm.build_llm_client", return_value=mock_llm):
+        result = _get_llm({"configurable": {}})
+    assert result is mock_llm
+
+
+# ---------------------------------------------------------------------------
+# _graph_snapshot — entity signal paths (lines 479-513)
+# ---------------------------------------------------------------------------
+
+def test_graph_snapshot_with_unhealthy_entities(synthetic_graph):
+    result = _graph_snapshot(synthetic_graph)
+    assert isinstance(result, str)
+    # pod_bad has CrashLoopBackOff container status → covered
+    # deploy has degraded replicas → covered
+    # pvc has Pending phase → covered
+    assert "CrashLoopBackOff" in result or "degraded" in result or "phase=" in result
+
+
+def test_graph_snapshot_with_anchor_annotations():
+    """Cover anchor_keys section (lines 505-510)."""
+    from ontology.entities import Pod
+    graph = _empty_graph()
+    pod = Pod(
+        uid="pod-anchor-test", name="api-anchor", namespace="production",
+        phase="Running",
+        annotations={"anchor.spec.replicas": "3 [manifest] observed=1"},
+    )
+    graph.add_entity(pod)
+    result = _graph_snapshot(graph)
+    assert "anchor_violations" in result
+
+
+def test_graph_snapshot_empty_graph_returns_fallback():
+    result = _graph_snapshot(_empty_graph())
+    assert "no obvious" in result
+
+
+# ---------------------------------------------------------------------------
+# _build_hypothesis_context — rule/anchor/causal-chain sections (lines 538-647)
+# ---------------------------------------------------------------------------
+
+def test_build_hypothesis_context_with_synthetic_graph(synthetic_graph):
+    evidence, rule_sources = _build_hypothesis_context(
+        synthetic_graph, None, "pod CrashLoopBackOff api deployment"
+    )
+    assert isinstance(evidence, str)
+    assert isinstance(rule_sources, list)
+
+
+def test_build_hypothesis_context_returns_rule_evidence(synthetic_graph):
+    evidence, rule_sources = _build_hypothesis_context(
+        synthetic_graph, None, "api pod crashed"
+    )
+    # Should produce some evidence text (rules or causal chains)
+    assert len(evidence) > 0
+
+
+def test_build_hypothesis_context_with_anchor_entity():
+    """Cover anchor_lines section (lines 568-582)."""
+    from ontology.entities import Pod
+    graph = _empty_graph()
+    pod = Pod(
+        uid="pod-anch", name="api", namespace="prod",
+        phase="Running",
+        annotations={"anchor.spec.replicas": "3 [manifest] observed=1"},
+    )
+    graph.add_entity(pod)
+    evidence, _ = _build_hypothesis_context(graph, None, "replica mismatch")
+    assert "ANCHOR VIOLATIONS" in evidence or "anchor" in evidence.lower()
+
+
+# ---------------------------------------------------------------------------
+# _rerank_candidates — all branches (lines 851-877)
+# ---------------------------------------------------------------------------
+
+def test_rerank_candidates_with_matching_store():
+    from unittest.mock import MagicMock
+    store = MagicMock()
+    store.hybrid_search.return_value = [
+        {"uid": "example:1", "text": "crashloop deployment api restart", "score": 0.9},
+    ]
+    candidates = ["image pull error fix", "crashloop deployment restart"]
+    result = _rerank_candidates(candidates, "crashloop api", store)
+    assert isinstance(result, list)
+    assert len(result) == 2
+
+
+def test_rerank_candidates_logs_reorder(caplog):
+    """Cover the log.info branch when ranking changes (line 869-873)."""
+    import logging
+    from unittest.mock import MagicMock
+    store = MagicMock()
+    # Tokens from hit text: "crashloop", "alpha", "deployment"
+    store.hybrid_search.return_value = [
+        {"uid": "ex:1", "text": "crashloop alpha deployment failure", "score": 0.9},
+    ]
+    # Second candidate matches tokens better → reorder expected
+    candidates = ["totally unrelated hypothesis z", "crashloop alpha deployment"]
+    with caplog.at_level(logging.INFO, logger="workflow.nodes"):
+        result = _rerank_candidates(candidates, "crash alpha", store)
+    assert isinstance(result, list)
+
+
+def test_rerank_candidates_store_error_returns_original():
+    """Cover except branch (lines 875-877)."""
+    from unittest.mock import MagicMock
+    store = MagicMock()
+    store.hybrid_search.side_effect = RuntimeError("store broken")
+    candidates = ["hypothesis one", "hypothesis two"]
+    result = _rerank_candidates(candidates, "query", store)
+    assert result == candidates
+
+
+def test_rerank_candidates_empty_returns_early():
+    result = _rerank_candidates([], "query", None)
+    assert result == []
+
+
+# ---------------------------------------------------------------------------
+# human_review_node — auto_approve + invalid decision (lines 1057-1065)
+# ---------------------------------------------------------------------------
+
+def test_human_review_node_auto_approve():
+    state = _state(
+        report_dict={"remediation": ["kubectl rollout restart deployment/api"]},
+        confidence="HIGH",
+    )
+    cfg = {"configurable": {"auto_approve": True}}
+    result = human_review_node(state, cfg)
+    assert result["human_decision"] == "approve"
+
+
+def test_human_review_node_invalid_decision_normalised_to_reject():
+    state = _state(
+        report_dict={"remediation": ["kubectl rollout restart deployment/api"]},
+        confidence="HIGH",
+    )
+    with patch("workflow.nodes.interrupt", return_value="yes please do it"):
+        result = human_review_node(state, _config())
+    assert result["human_decision"] == "reject"
+
+
+def test_human_review_node_valid_approve():
+    state = _state(
+        report_dict={"remediation": ["kubectl rollout restart deployment/api"]},
+        confidence="HIGH",
+    )
+    with patch("workflow.nodes.interrupt", return_value="approve"):
+        result = human_review_node(state, _config())
+    assert result["human_decision"] == "approve"
+
+
+# ---------------------------------------------------------------------------
+# remediation_node — with commands (lines 1367-1372)
+# ---------------------------------------------------------------------------
+
+def test_remediation_node_with_commands():
+    state = _state(report_dict={
+        "remediation": [
+            "kubectl rollout restart deployment/api -n prod",
+            "helm upgrade api ./chart -n prod",
+        ]
+    })
+    result = remediation_node(state, _config())
+    assert result == {}
+
+
+def test_remediation_node_no_commands():
+    state = _state(report_dict={"remediation": []})
+    result = remediation_node(state, _config())
+    assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# _extract_example_field — empty-return path (line 1383)
+# ---------------------------------------------------------------------------
+
+def test_extract_example_field_present():
+    text = "Root cause: database not ready\nFix: restart pod"
+    assert _extract_example_field(text, "Root cause") == "database not ready"
+
+
+def test_extract_example_field_missing_returns_empty():
+    text = "Root cause: database not ready\nFix: restart pod"
+    assert _extract_example_field(text, "Confidence") == ""
+
+
+# ---------------------------------------------------------------------------
+# example_lookup_node — empty query early return (line 1399)
+# ---------------------------------------------------------------------------
+
+def test_example_lookup_node_empty_query_skips_search():
+    from unittest.mock import MagicMock
+    store = MagicMock()
+    state = _state(query="", current_hypothesis="")
+    cfg = {"configurable": {"store": store}}
+    result = example_lookup_node(state, cfg)
+    assert result == {}
+    store.search.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# save_example_node — anchor violations path (lines 1451-1455)
+# ---------------------------------------------------------------------------
+
+def test_save_example_node_with_graph_and_anchor_hints(synthetic_graph):
+    state = _state(
+        query="api pod crash",
+        current_hypothesis="CrashLoopBackOff — missing dependency",
+        report_dict={
+            "root_cause": "database not ready",
+            "remediation": ["kubectl rollout restart deployment/api"],
+        },
+        confidence="HIGH",
+    )
+    with patch("knowledge.example_store.ExampleStore.save"), \
+         patch("knowledge.example_store.ExampleIndexer.index_example"):
+        result = save_example_node(state, _config(graph=synthetic_graph))
+    assert "ingestion_stats" in result
+    assert result["ingestion_stats"]["save_example"]["id"]

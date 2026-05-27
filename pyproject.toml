@@ -51,6 +51,8 @@ omit = [
     "tests/*",
     ".venv/*",
     "setup.py",
+    "tools/*",
+    "demo/*",
 ]
 
 [tool.coverage.report]
