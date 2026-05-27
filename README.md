@@ -167,6 +167,58 @@ streamlit run ui/app.py
 
 ---
 
+## Agent Skills / MCP integration
+
+KubeVerdict exposes `kube_rca`, `helm_drift`, and `blast_radius` as MCP tools consumable by any MCP-compatible client (Claude Desktop, Cursor, Continue).
+
+### Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "kube-verdict": {
+      "command": "python",
+      "args": ["-m", "mcp.server"],
+      "cwd": "/path/to/kube-verdict"
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `.cursor/mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "kube-verdict": {
+      "command": "python",
+      "args": ["-m", "mcp.server"],
+      "cwd": "/path/to/kube-verdict"
+    }
+  }
+}
+```
+
+### Air-gapped clusters
+
+All three tools run fully offline — Ollama + Mistral, no data leaves your infrastructure:
+
+```bash
+ollama serve &          # local LLM on port 11434
+python -m mcp.server    # MCP stdio server, reads kubeconfig from env
+```
+
+See [SKILL.md](SKILL.md) for the full tool reference and air-gapped RBAC setup.
+
+### OpenAI-compatible schema
+
+The tool schema is also available in OpenAI function-calling format at `api/tools_schema.json`,
+compatible with any SDK that supports the function-calling API (OpenAI, LangChain, LlamaIndex).
+
+---
+
 ## Current limitations
 
 Several constraints are intentional or known:
