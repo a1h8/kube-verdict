@@ -1,6 +1,7 @@
 """Unit tests for blast_radius_node and _parse_command_scope."""
 import pytest
-from workflow.nodes import _parse_command_scope, blast_radius_node
+from remediation.blast_radius import _parse_command_scope
+from workflow.nodes import blast_radius_node
 
 
 @pytest.mark.parametrize("cmd,expected_ns,expected_kind,expected_cluster", [
