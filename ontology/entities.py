@@ -30,6 +30,13 @@ class ResourceKind(str, Enum):
     LOKI_LOG = "LokiLog"
     POLICY_VIOLATION = "PolicyViolation"
     MUTATING_WEBHOOK = "MutatingWebhook"
+    RESOURCE_QUOTA = "ResourceQuota"
+    LIMITRANGE = "LimitRange"
+    NETWORKPOLICY = "NetworkPolicy"
+    HORIZONTALPODAUTOSCALER = "HorizontalPodAutoscaler"
+    JOB = "Job"
+    CRONJOB = "CronJob"
+    STORAGECLASS = "StorageClass"
 
 
 @dataclass
@@ -646,3 +653,86 @@ class MutatingWebhook(K8sEntity):
         if self.matched_resources:
             parts.append(f"resources=[{' '.join(self.matched_resources[:5])}]")
         return " ".join(parts)
+
+
+@dataclass
+class ResourceQuota(K8sEntity):
+    """
+    A Kubernetes ResourceQuota — namespace-scoped hard limits on compute,
+    storage, and object count.
+
+    uid = "resourcequota-{namespace}-{name}"
+
+    hard:  declared limits   (e.g. {"limits.memory": "8Gi", "pods": "20"})
+    used:  current usage     (same keys, current consumed values)
+
+    QUOTA_BLOCKS edges are wired at collection time when used/hard >= threshold.
+    """
+    hard: dict[str, str] = field(default_factory=dict)
+    used: dict[str, str] = field(default_factory=dict)
+    scope_selector: list[str] = field(default_factory=list)  # e.g. ["NotTerminating"]
+
+    def __post_init__(self):
+        self.kind = ResourceKind.RESOURCE_QUOTA
+
+    @property
+    def exhausted_resources(self) -> list[str]:
+        """Returns resource names where used == hard."""
+        out = []
+        for k, hard_val in self.hard.items():
+            if self.used.get(k) == hard_val and hard_val not in ("", "0"):
+                out.append(k)
+        return out
+
+    @property
+    def near_limit_resources(self) -> list[str]:
+        """Returns resources at ≥ 80% utilisation (numeric quantities only)."""
+        out = []
+        for k, hard_val in self.hard.items():
+            used_val = self.used.get(k, "0")
+            try:
+                h = _parse_quantity(hard_val)
+                u = _parse_quantity(used_val)
+                if h > 0 and u / h >= 0.8:
+                    out.append(k)
+            except (ValueError, ZeroDivisionError):
+                pass
+        return out
+
+    def to_text(self) -> str:
+        parts = [f"kind=ResourceQuota name={self.name}"]
+        if self.namespace:
+            parts.append(f"namespace={self.namespace}")
+        hard_tokens = " ".join(f"{k}={v}" for k, v in self.hard.items())
+        used_tokens = " ".join(f"{k}={v}" for k, v in self.used.items())
+        if hard_tokens:
+            parts.append(f"hard=[{hard_tokens}]")
+        if used_tokens:
+            parts.append(f"used=[{used_tokens}]")
+        exhausted = self.exhausted_resources
+        if exhausted:
+            parts.append(f"EXHAUSTED=[{' '.join(exhausted)}]")
+        near = [r for r in self.near_limit_resources if r not in exhausted]
+        if near:
+            parts.append(f"NEAR_LIMIT=[{' '.join(near)}]")
+        return " ".join(parts)
+
+
+def _parse_quantity(value: str) -> float:
+    """
+    Minimal Kubernetes quantity parser for ratio computation.
+    Handles: plain integers, millicores (100m), memory suffixes (Ki/Mi/Gi/Ti/K/M/G/T).
+    """
+    value = value.strip()
+    if not value or value == "0":
+        return 0.0
+    _SUFFIXES = {
+        "Ki": 1024, "Mi": 1024**2, "Gi": 1024**3, "Ti": 1024**4,
+        "K": 1000, "M": 1000**2, "G": 1000**3, "T": 1000**4,
+    }
+    for suffix, factor in _SUFFIXES.items():
+        if value.endswith(suffix):
+            return float(value[: -len(suffix)]) * factor
+    if value.endswith("m"):
+        return float(value[:-1]) / 1000
+    return float(value)

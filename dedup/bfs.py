@@ -60,6 +60,10 @@ def find_unhealthy(graph: OntologyGraph) -> list[K8sEntity]:
         if entity.status_phase != "Bound":
             seeds.append(entity)
 
+    for entity in graph.entities(ResourceKind.RESOURCE_QUOTA):
+        if entity.exhausted_resources or entity.near_limit_resources:
+            seeds.append(entity)
+
     # Warning events are always seeds
     for entity in graph.entities(ResourceKind.EVENT):
         if entity.is_warning:
