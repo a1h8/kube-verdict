@@ -41,6 +41,22 @@ class RelationshipType(str, Enum):
     # Policy
     HAS_POLICY_VIOLATION = "HAS_POLICY_VIOLATION"  # K8s entity → PolicyViolation
 
+    # Quota / limits
+    QUOTA_BLOCKS = "QUOTA_BLOCKS"  # ResourceQuota → Namespace (quota exhausted, blocks scheduling)
+    LIMITS = "LIMITS"              # LimitRange → Namespace (enforces container bounds)
+
+    # Autoscaling
+    SCALES = "SCALES"              # HorizontalPodAutoscaler → Deployment|StatefulSet
+
+    # Batch
+    SPAWNED_BY = "SPAWNED_BY"      # Job → CronJob (ownerReferences)
+
+    # Storage
+    PROVISIONED_BY = "PROVISIONED_BY"  # PersistentVolumeClaim → StorageClass
+
+    # Network
+    RESTRICTS = "RESTRICTS"        # NetworkPolicy → Namespace
+
 
 @dataclass(frozen=True)
 class Edge:

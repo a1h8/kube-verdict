@@ -42,6 +42,7 @@ def compute_confidence(
     policy_fail_count: int = 0,
     policy_audit_count: int = 0,
     mutation_webhooks: int = 0,
+    quota_blocks_count: int = 0,
 ) -> ContextConfidence:
     """
     Weighted sum of six base components (max 1.0) plus an optional
@@ -102,9 +103,10 @@ def compute_confidence(
         + min(mutation_webhooks  * 0.05, 0.05),
         0.30,
     )
+    quota_c = min(quota_blocks_count * 0.20, 0.25)
 
     score = round(
-        min(bfs_c + jac_c + tfidf_c + anchor_c + signal_c + drift_c + policy_c, 1.0),
+        min(bfs_c + jac_c + tfidf_c + anchor_c + signal_c + drift_c + policy_c + quota_c, 1.0),
         2,
     )
 
@@ -123,11 +125,14 @@ def compute_confidence(
             f"Policy violations (fail={policy_fail_count} audit={policy_audit_count}"
             f" webhooks={mutation_webhooks}) → +{policy_c:.2f}",
         )
+    quota_reasons: tuple[str, ...] = ()
+    if quota_c > 0:
+        quota_reasons = (f"Quota blocks {quota_blocks_count} → +{quota_c:.2f}",)
 
     return ContextConfidence(
         score=score,
         label=_label(score),
-        reasons=base_reasons + policy_reasons,
+        reasons=base_reasons + policy_reasons + quota_reasons,
     )
 
 

@@ -34,7 +34,8 @@ from ingestion.anchor_engine import AnchorEngine
 from ingestion.helm_drift import HelmDriftDetector
 from ingestion.chart_parser import flatten_values
 from ontology.entities import (
-    Deployment, HelmRelease, K8sEvent, Pod, PolicyViolation,
+    Deployment, HelmRelease, K8sEvent, Namespace, Pod, PolicyViolation,
+    ResourceQuota,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
@@ -117,25 +118,39 @@ def build_graph(case: dict) -> OntologyGraph:
         evt = _event_from_kubectl(evt_raw)
         graph.add_entity(evt)
 
-    # ── 5. Value drift: values.yaml vs helm/release.json ───────────────────
+    # ── 5. ResourceQuotas ──────────────────────────────────────────────────
+    for rq_raw in case["observed"].get("resource_quotas", []):
+        rq = _resource_quota_from_kubectl(rq_raw)
+        if rq is None:
+            continue
+        graph.add_entity(rq)
+        if rq.namespace:
+            ns_entity = _find_entity(graph, "Namespace", rq.namespace, "")
+            if ns_entity is None:
+                ns_entity = Namespace(uid=f"ns-{rq.namespace}", name=rq.namespace)
+                graph.add_entity(ns_entity)
+            if rq.exhausted_resources or rq.near_limit_resources:
+                graph.add_edge(Edge(rq.uid, ns_entity.uid, RelationshipType.QUOTA_BLOCKS))
+
+    # ── 6. Value drift: values.yaml vs helm/release.json ───────────────────
     live_values = case["observed"].get("helm_release_values")
     if live_values and case["helm_values"]:
         _annotate_value_drift(graph, helm_release, case["helm_values"], live_values)
 
-    # ── 6. Policy violations ─────────────────────────────────────────────
+    # ── 7. Policy violations ─────────────────────────────────────────────
     for report in case.get("policy_reports", []):
         _ingest_policy_report(report, graph)
 
-    # ── 7. Helm drift detection (pod OOMKilled, replica mismatch…) ─────────
+    # ── 8. Helm drift detection (pod OOMKilled, replica mismatch…) ─────────
     HelmDriftDetector().detect_all(graph)
 
-    # ── 8. Anchors from declared Helm values ────────────────────────────────
+    # ── 9. Anchors from declared Helm values ────────────────────────────────
     try:
         AnchorEngine().annotate(graph)
     except Exception:
         pass  # AnchorEngine is best-effort in test context
 
-    # ── 9. Missing deployment dependencies ──────────────────────────────────
+    # ── 10. Missing deployment dependencies ─────────────────────────────────
     _detect_missing_deps(graph, case["observed"])
 
     return graph
@@ -157,6 +172,7 @@ def _load_kube(kube_dir: Path) -> dict[str, Any]:
         "networkpolicies":     [],
         "pvcs":                [],
         "rbac":                [],   # roles, rolebindings, clusterroles, clusterrolebindings
+        "resource_quotas":     [],
         "helm_release_values": None,
     }
     if not kube_dir.is_dir():
@@ -209,6 +225,10 @@ def _load_kube(kube_dir: Path) -> dict[str, Any]:
                 out["pvcs"].append(raw)
             elif kind in ("role", "rolebinding", "clusterrole", "clusterrolebinding"):
                 out["rbac"].append(raw)
+            elif kind == "resourcequota":
+                out["resource_quotas"].append(raw)
+            elif kind == "resourcequotalist":
+                out["resource_quotas"].extend(raw.get("items", []))
 
     return out
 
@@ -550,6 +570,25 @@ def _pod_from_kubectl(raw: dict) -> Pod:
         owner_ref_kind=owner_kind,
         owner_ref_name=owner_name,
         raw=raw,
+    )
+
+
+def _resource_quota_from_kubectl(raw: dict) -> ResourceQuota | None:
+    meta = raw.get("metadata", {})
+    name = meta.get("name", "")
+    ns = meta.get("namespace", "")
+    if not name:
+        return None
+    spec = raw.get("spec", {})
+    status = raw.get("status", {})
+    uid = meta.get("uid") or f"resourcequota-{ns}-{name}"
+    return ResourceQuota(
+        uid=uid,
+        name=name,
+        namespace=ns or None,
+        labels=meta.get("labels", {}),
+        hard=spec.get("hard", {}),
+        used=status.get("used", {}),
     )
 
 
