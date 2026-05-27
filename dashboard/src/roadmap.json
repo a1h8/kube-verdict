@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-27T04:57:03.713587+00:00",
+  "generated_at": "2026-05-27T05:31:36.292286+00:00",
   "blocs": [
     {
       "id": "B1",
@@ -172,22 +172,22 @@
       "checks": [
         {
           "label": "MCP server (kube-rca, helm-drift, blast-radius as tools)",
-          "done": false
+          "done": true
         },
         {
           "label": "SKILL.md for Claude Code integration",
-          "done": false
+          "done": true
         },
         {
           "label": "OpenAPI tool schema (OpenAI function-calling compatible)",
-          "done": false
+          "done": true
         },
         {
           "label": "Integration documented (Cursor / Claude Desktop)",
-          "done": false
+          "done": true
         }
       ],
-      "status": "TODO"
+      "status": "DONE"
     }
   ]
 }
