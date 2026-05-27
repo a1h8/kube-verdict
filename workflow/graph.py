@@ -41,17 +41,29 @@ Graph topology
          │
     select_best     (pick highest-confidence path from history)
          │
-    dry_run         (execute each remediation command with --dry-run / helm diff)
+    blast_radius    (risk scoring + rollback plan)
          │
-    human_review    [INTERRUPT — operator sees dry-run output before deciding]
+    monte_carlo     (200-sim stability: win_rate ≥ 0.80 = stable)
          │
-    ── human_router ──
-         │           │
-      "approve"   "reject"
-         │           │
-    remediation    END
+    log_policy_decision  (policy_gate: AUTO / HUMAN_REVIEW / NO_GO)
          │
-        END
+    ── verdict_router ──────────────────────────────
+         │               │                   │
+       "auto"      "human_review"          "no_go"
+         │               │                   │
+    dry_run         dry_run                 END
+         │               │
+    remediation   log_human_decision
+         │               │
+        END          human_review   [INTERRUPT]
+                         │
+                    ── human_router ──
+                         │           │
+                      "approve"   "reject"
+                         │           │
+                    remediation    END
+                         │
+                        END
 
 Usage
 ─────
@@ -61,13 +73,11 @@ Usage
     graph = build_graph()
     config = {"configurable": {"thread_id": "incident-001"}}
 
-    # Stream until the human interrupt
+    # Stream until the human interrupt (HUMAN_REVIEW path only)
     for event in graph.stream({"query": "pods crashlooping"}, config=config):
         if "__interrupt__" in event:
             payload = event["__interrupt__"][0].value
-            print(f"Paths explored: {payload['paths_explored']}")
-            for entry in payload["reasoning_history"]:
-                print(f"  Path {entry['step']}: {entry['hypothesis']} → {entry['confidence']}")
+            print(f"Verdict: {payload['verdict']}")
             print("Best analysis:", payload["summary"])
 
     # Human approves or rejects
@@ -84,8 +94,8 @@ from workflow.nodes import (
     analyze_node,
     anchor_node,
     archive_path_node,
-    confidence_router,
     blast_radius_node,
+    confidence_router,
     dry_run_node,
     example_lookup_node,
     example_router,
@@ -97,13 +107,16 @@ from workflow.nodes import (
     ingest_node,
     log_confidence_decision_node,
     log_human_decision_node,
+    log_policy_decision_node,
     metrics_node,
+    monte_carlo_node,
     otel_node,
     prometheus_node,
     remediation_node,
     save_example_node,
     select_best_node,
     signal_analysis_node,
+    verdict_router,
 )
 from workflow.state import RCAState
 
@@ -143,6 +156,8 @@ def build_graph(checkpointer=None) -> StateGraph:
     builder.add_node("archive_path",     archive_path_node)
     builder.add_node("select_best",      select_best_node)
     builder.add_node("blast_radius",     blast_radius_node)
+    builder.add_node("monte_carlo",      monte_carlo_node)
+    builder.add_node("log_policy_decision",   log_policy_decision_node)
     builder.add_node("dry_run",          dry_run_node)
     builder.add_node("human_review",             human_review_node)
     builder.add_node("log_confidence_decision",  log_confidence_decision_node)
@@ -185,10 +200,32 @@ def build_graph(checkpointer=None) -> StateGraph:
     builder.add_edge("increment_retry", "analyze")
     builder.add_edge("archive_path",    "analyze")
 
-    # ── Dry-run then human gate ───────────────────────────────────────────────
-    builder.add_edge("select_best",  "blast_radius")
-    builder.add_edge("blast_radius", "dry_run")
-    builder.add_edge("dry_run",      "log_human_decision")
+    # ── Decision Engine: blast radius → MC stability → policy gate ───────────
+    builder.add_edge("select_best",   "blast_radius")
+    builder.add_edge("blast_radius",  "monte_carlo")
+    builder.add_edge("monte_carlo",   "log_policy_decision")
+    builder.add_conditional_edges(
+        "log_policy_decision",
+        verdict_router,
+        {
+            "auto":         "dry_run",             # skip human gate
+            "human_review": "dry_run",             # operator must approve
+            "no_go":        END,                   # blocked — no action taken
+        },
+    )
+
+    # ── AUTO path: dry-run → remediation → done ──────────────────────────────
+    # ── HUMAN_REVIEW path: dry-run → human gate ──────────────────────────────
+    # Both paths share dry_run; downstream routing reads _verdict_edge.
+    builder.add_conditional_edges(
+        "dry_run",
+        verdict_router,
+        {
+            "auto":         "remediation",
+            "human_review": "log_human_decision",
+            "no_go":        END,                   # safety net (already gated above)
+        },
+    )
     builder.add_edge("log_human_decision", "human_review")
     builder.add_conditional_edges(
         "human_review",

@@ -53,6 +53,12 @@ def build_graph(input_json: dict) -> OntologyGraph:
     # ── Pod ──────────────────────────────────────────────────────────────────
     pod_name, pod = _build_pod(input_json, namespace)
 
+    # Anchors → attach to pod when available, else namespace (e.g. quota cases)
+    anchor_target = pod if pod is not None else ns
+    for anchor_text in input_json.get("anchors", []):
+        field_path = _extract_anchor_field(anchor_text)
+        anchor_target.annotations[f"anchor.{field_path}"] = anchor_text
+
     if pod is not None:
         graph.add_entity(pod)
         graph.add_edge(Edge(pod.uid, ns.uid, RelationshipType.IN_NAMESPACE))
@@ -65,11 +71,6 @@ def build_graph(input_json: dict) -> OntologyGraph:
             pod.annotations[f"drift.{field}"] = (
                 f"declared={declared!r} observed={observed!r} severity=critical"
             )
-
-        # Anchors → anchor.* annotations
-        for anchor_text in input_json.get("anchors", []):
-            field_path = _extract_anchor_field(anchor_text)
-            pod.annotations[f"anchor.{field_path}"] = anchor_text
 
         # Metrics → signal.* annotations
         metrics = input_json.get("metrics") or {}

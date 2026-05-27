@@ -11,7 +11,7 @@ from dedup.tfidf import tfidf_rank
 from ingestion.policy_collector import policy_fix_hints as _policy_fix_hints
 from ontology.entities import (
     K8sEntity, LokiLog, MutatingWebhook, OtelTrace, PolicyViolation,
-    PrometheusAlert, ResourceKind,
+    PrometheusAlert, ResourceKind, ResourceQuota,
 )
 from ontology.graph import OntologyGraph
 from rca.confidence import ContextConfidence, compute_confidence
@@ -45,6 +45,8 @@ class ContextWindow:
     policy_fail_count: int = 0
     policy_audit_count: int = 0
     mutation_webhooks_applied: int = 0
+    # exhausted / near-limit ResourceQuota count for confidence scoring
+    quota_blocks_count: int = 0
 
     # raw entity refs for metadata
     seed_entities: list[K8sEntity] = field(default_factory=list, repr=False)
@@ -402,6 +404,11 @@ class ContextBuilder:
             1 for e in self.graph.entities(ResourceKind.MUTATING_WEBHOOK)
             if isinstance(e, MutatingWebhook)
         )
+        ctx.quota_blocks_count = sum(
+            1 for e in self.graph.entities(ResourceKind.RESOURCE_QUOTA)
+            if isinstance(e, ResourceQuota)
+            and (e.exhausted_resources or e.near_limit_resources)
+        )
 
         # --- Section 5: Warning events sorted by count desc ------------------
         events = sorted(
@@ -496,6 +503,7 @@ class ContextBuilder:
             policy_fail_count=ctx.policy_fail_count,
             policy_audit_count=ctx.policy_audit_count,
             mutation_webhooks=ctx.mutation_webhooks_applied,
+            quota_blocks_count=ctx.quota_blocks_count,
         )
 
         log.info(

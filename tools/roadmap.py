@@ -209,6 +209,29 @@ def _blocs() -> list[dict]:
                 },
             ],
         },
+        {
+            "id": "B8",
+            "title": "Agent Skills / MCP",
+            "description": "Expose pipeline stages as composable agent skills — MCP server, SKILL.md, OpenAPI tool schema",
+            "checks": [
+                {
+                    "label": "MCP server (kube-rca, helm-drift, blast-radius as tools)",
+                    "done": _exists("mcp_server.py") or _exists("mcp/server.py"),
+                },
+                {
+                    "label": "SKILL.md for Claude Code integration",
+                    "done": _exists("SKILL.md") or _exists(".claude/SKILL.md"),
+                },
+                {
+                    "label": "OpenAPI tool schema (OpenAI function-calling compatible)",
+                    "done": _exists("openapi_tools.json") or _exists("api/tools_schema.json"),
+                },
+                {
+                    "label": "Integration documented (Cursor / Claude Desktop)",
+                    "done": _grep(r"[Cc]ursor|[Cc]laude [Dd]esktop|MCP.*integration", "README.md", "docs"),
+                },
+            ],
+        },
     ]
 
 

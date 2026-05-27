@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-25T15:30:01.973896+00:00",
+  "generated_at": "2026-05-27T04:57:03.713587+00:00",
   "blocs": [
     {
       "id": "B1",
@@ -104,7 +104,7 @@
         },
         {
           "label": "Dedicated blast_radius module",
-          "done": false
+          "done": true
         },
         {
           "label": "Risk level scoring (LOW / MEDIUM / HIGH / CRITICAL)",
@@ -112,10 +112,10 @@
         },
         {
           "label": "Rollback unavailable \u2192 hard NO_GO",
-          "done": false
+          "done": true
         }
       ],
-      "status": "IN_PROGRESS"
+      "status": "DONE"
     },
     {
       "id": "B6",
@@ -124,22 +124,22 @@
       "checks": [
         {
           "label": "Beam search + path state machine",
-          "done": false
+          "done": true
         },
         {
           "label": "Monte Carlo stability (n=200 sims)",
-          "done": false
+          "done": true
         },
         {
           "label": "Policy gate (AUTO / HUMAN_REVIEW / NO_GO)",
-          "done": false
+          "done": true
         },
         {
           "label": "Template catalog (community runbooks)",
-          "done": false
+          "done": true
         }
       ],
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "B7",
@@ -164,6 +164,30 @@
         }
       ],
       "status": "IN_PROGRESS"
+    },
+    {
+      "id": "B8",
+      "title": "Agent Skills / MCP",
+      "description": "Expose pipeline stages as composable agent skills \u2014 MCP server, SKILL.md, OpenAPI tool schema",
+      "checks": [
+        {
+          "label": "MCP server (kube-rca, helm-drift, blast-radius as tools)",
+          "done": false
+        },
+        {
+          "label": "SKILL.md for Claude Code integration",
+          "done": false
+        },
+        {
+          "label": "OpenAPI tool schema (OpenAI function-calling compatible)",
+          "done": false
+        },
+        {
+          "label": "Integration documented (Cursor / Claude Desktop)",
+          "done": false
+        }
+      ],
+      "status": "TODO"
     }
   ]
 }

@@ -48,9 +48,17 @@ class RCAState(TypedDict, total=False):
     _confidence_edge: str       # internal: pre-computed edge for confidence_router
     _human_edge: str            # internal: pre-computed edge for human_router
 
+    # ── Decision Engine (B6) ─────────────────────────────────────────────────
+    mc_result: dict[str, Any]   # MCResult fields: win_rate, mean_score, std_score, is_stable, n_sims
+    verdict: str                # "AUTO" | "HUMAN_REVIEW" | "NO_GO"
+    verdict_reasons: list[str]  # policy_gate reasons list
+    beam_switches_used: int     # how many hypothesis-path switches beam search performed
+    max_switches_reached: bool  # True when beam search hit MAX_SWITCHES
+
     # ── Control flow ──────────────────────────────────────────────────────────
     retry_count: int            # how many times analyze has been retried on current path
     human_decision: str         # "approve" | "reject" | ""
+    _verdict_edge: str          # internal: pre-computed edge for verdict_router
     error: str
 
 

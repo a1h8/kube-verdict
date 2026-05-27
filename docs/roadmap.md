@@ -37,3 +37,10 @@
 - [ ] **Alertmanager webhook** — receive Prometheus Alertmanager `POST /webhook` payloads; auto-trigger RCA session from firing alert; map `labels` to namespace + resource + query
 - [ ] **Slack / PagerDuty enrichment** — push RCA summary via webhook
 - [ ] **RBAC-aware scoping** — per-namespace analysis with service-account impersonation
+
+## Agent Skills / MCP (B8)
+
+- [ ] **MCP server** — expose `kube-rca`, `helm-drift-detector`, `blast-radius-estimator` as MCP tools; any agent (Claude, Cursor, Codex) can invoke them without deploying the full stack
+- [ ] **SKILL.md** — Claude Code skill definition; invocable from any repo with `kube-rca` skill
+- [ ] **OpenAPI tool schema** — OpenAI function-calling compatible; compatible with third-party agent frameworks
+- [ ] **Integration guide** — Cursor / Claude Desktop quickstart documented

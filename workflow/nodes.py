@@ -15,8 +15,13 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
 import config as cfg
-from rca.analyzer import RCAAnalyzer
+from rca.analyzer import RCAAnalyzer, _generate_rollback
 from rca.context_builder import ContextBuilder
+from decision.policy_gate import evaluate as pg_evaluate
+from reasoning.beam_search import MAX_SWITCHES, should_switch_path
+from reasoning.monte_carlo import run_monte_carlo
+from reasoning.template_catalog import TemplateCatalog
+from remediation.blast_radius import compute_blast_radius
 from vectorstore.embedder import Embedder
 from vectorstore.store import FAISSStore
 from workflow.state import RCAState
@@ -763,6 +768,16 @@ def hypothesize_node(state: RCAState, config: RunnableConfig) -> dict:
                 )
                 pool.append((weight, hyp, "ontology"))
 
+    # ── Phase 2.5: Template catalog (community runbooks) ─────────────────────
+    try:
+        catalog = TemplateCatalog()
+        for m in catalog.match(query, top_k=2):
+            if m.score >= 0.25:
+                hyp = f"{m.template.title}: {m.template.root_cause_pattern}"
+                pool.append((0.70 + m.score * 0.30, hyp, "template"))
+    except Exception as exc:
+        log.debug("hypothesize: template_catalog failed: %s", exc)
+
     # ── Dedup + rank ──────────────────────────────────────────────────────────
     seen_hyps: set[str] = set()
     ordered: list[str] = []
@@ -1204,76 +1219,116 @@ def _exec_dry_run(cmd: str) -> tuple[str, str, int]:
         return cmd, f"[dry-run not supported for '{tool}' — review manually]", 0
 
 
-def _parse_command_scope(cmd: str) -> dict:
-    """Extract namespace, kind and cluster-scope flag from a kubectl/helm command."""
-    cmd = cmd.strip().lstrip("$ ")
-    ns_match = re.search(r'(?:^|\s)-n\s+(\S+)', cmd)
-    namespace = ns_match.group(1) if ns_match else None
-    cluster_scoped = any(k in cmd for k in (
-        "clusterrole", "clusterrolebinding", "namespace", "node", "persistentvolume",
-        "storageclass", "customresourcedefinition",
-    )) and namespace is None
-    kind = None
-    m = re.search(r'(deployment|daemonset|statefulset|deploy|ds|sts)/(\S+)', cmd)
-    if m:
-        kind = m.group(1)
-    elif cmd.startswith("helm upgrade") or cmd.startswith("helm rollback"):
-        kind = "helm-release"
-    return {"namespace": namespace, "kind": kind, "cluster_scoped": cluster_scoped}
-
 
 def blast_radius_node(state: RCAState, config: RunnableConfig) -> dict:
     """
     Compute the blast radius of proposed remediation commands before dry-run.
-    Derives scope from the remediation list and affected resources — no live
-    cluster call required.
+    Delegates to remediation.blast_radius.compute_blast_radius.
     """
-    report     = state.get("report_dict") or {}
+    report      = state.get("report_dict") or {}
     remediation = report.get("remediation") or []
-    affected   = report.get("affected") or []
+    affected    = report.get("affected") or []
+    rollback    = report.get("rollback") or _generate_rollback(remediation)
 
-    if not remediation:
-        return {"blast_radius": {
-            "risk": "LOW", "summary": "No remediation commands.",
-            "resources": [], "namespaces": [], "cluster_scoped": False, "command_count": 0,
-        }}
+    br = compute_blast_radius(remediation, affected, rollback)
+    log.info("blast_radius: risk=%s  %s", br["risk"], br["summary"])
+    return {"blast_radius": br}
 
-    namespaces: set[str] = set()
-    cluster_scoped = False
-    for cmd in remediation:
-        scope = _parse_command_scope(cmd)
-        if scope["namespace"]:
-            namespaces.add(scope["namespace"])
-        if scope["cluster_scoped"]:
-            cluster_scoped = True
 
-    n_affected    = len(affected)
-    n_namespaces  = len(namespaces)
+def monte_carlo_node(state: RCAState, config: RunnableConfig) -> dict:
+    """
+    Run 200 Monte Carlo simulations on the pre-LLM confidence score to assess
+    stability.  A win_rate < 0.80 forces HUMAN_REVIEW even when score is HIGH.
+    """
+    report  = state.get("report_dict") or {}
+    pre_llm = report.get("pre_llm_confidence") or {}
+    score   = float(pre_llm.get("score") if pre_llm.get("score") is not None else 0.5)
 
-    if cluster_scoped or n_namespaces > 1 or n_affected >= 10:
-        risk = "HIGH"
-    elif n_namespaces == 1 and n_affected >= 3:
-        risk = "MEDIUM"
-    else:
-        risk = "LOW"
+    mc = run_monte_carlo(score)
+    log.info(
+        "monte_carlo: score=%.2f  win_rate=%.0f%%  stable=%s",
+        score, mc.win_rate * 100, mc.is_stable,
+    )
+    return {
+        "mc_result": {
+            "win_rate":      mc.win_rate,
+            "mean_score":    mc.mean_score,
+            "std_score":     mc.std_score,
+            "is_stable":     mc.is_stable,
+            "n_simulations": mc.n_simulations,
+        }
+    }
 
-    parts: list[str] = []
-    if n_affected:
-        parts.append(f"{n_affected} resource(s)")
-    if namespaces:
-        parts.append(f"ns: {', '.join(sorted(namespaces))}")
-    if cluster_scoped:
-        parts.append("cluster-scoped")
 
-    log.info("blast_radius: risk=%s  %s", risk, " — ".join(parts))
-    return {"blast_radius": {
-        "risk":          risk,
-        "summary":       " — ".join(parts) or "Scope undetermined",
-        "resources":     affected,
-        "namespaces":    sorted(namespaces),
-        "cluster_scoped": cluster_scoped,
-        "command_count": len(remediation),
-    }}
+def log_policy_decision_node(state: RCAState) -> dict:
+    """
+    Pre-router node: call policy_gate.evaluate(), log the decision, write
+    _verdict_edge so verdict_router stays a pure reader.
+
+    Score source: pre_llm_confidence.score from report_dict (preferred).
+    Fallback: LLM confidence label → 0.75 HIGH / 0.62 MEDIUM / 0.30 LOW.
+    """
+    llm_conf = (state.get("confidence") or "").upper()
+
+    # Map LLM diagnosis confidence label → policy gate score.
+    # LOW/MEDIUM → HUMAN_REVIEW (operator decides).
+    # HIGH → eligible for AUTO when blast-radius + MC + namespace checks also pass.
+    # Missing confidence ("") → score 0.20 → NO_GO (workflow produced no analysis).
+    _LLM_SCORE: dict[str, float] = {
+        "HIGH": 0.85, "MEDIUM": 0.65, "LOW": 0.62, "": 0.20,
+    }
+    score = _LLM_SCORE.get(llm_conf, 0.65)
+    br           = state.get("blast_radius") or {}
+    risk         = br.get("risk", "HIGH")
+    rollback_ok  = bool(br.get("rollback_available", False))
+    # Use the first namespace touched by the remediation commands (from blast_radius);
+    # fall back to the workflow-level namespace list if blast_radius didn't extract any.
+    br_namespaces = br.get("namespaces") or []
+    namespace = br_namespaces[0] if br_namespaces else (state.get("namespaces") or [""])[0]
+    mc           = state.get("mc_result") or {}
+    mc_win_rate  = float(mc.get("win_rate", 1.0))
+    max_hit      = bool(state.get("max_switches_reached", False))
+
+    gate = pg_evaluate(
+        score=score,
+        risk=risk,
+        rollback_available=rollback_ok,
+        namespace=namespace,
+        mc_win_rate=mc_win_rate,
+        max_switches_reached=max_hit,
+    )
+    verdict = gate.verdict.value  # "AUTO" | "HUMAN_REVIEW" | "NO_GO"
+    edge    = verdict.lower().replace("_", "_")  # "auto" | "human_review" | "no_go"
+
+    entry = {
+        "router":     "policy",
+        "edge_taken":  edge,
+        "reason":     str(gate),
+        "snapshot": {
+            "score":              score,
+            "risk":               risk,
+            "rollback_available": rollback_ok,
+            "namespace":          namespace,
+            "mc_win_rate":        mc_win_rate,
+            "max_switches_reached": max_hit,
+            "verdict":            verdict,
+        },
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
+    log.info("policy_gate → %s: %s", edge, "; ".join(gate.reasons))
+    edge_log = list(state.get("edge_log") or [])
+    edge_log.append(entry)
+    return {
+        "edge_log":       edge_log,
+        "verdict":        verdict,
+        "verdict_reasons": gate.reasons,
+        "_verdict_edge":  edge,
+    }
+
+
+def verdict_router(state: RCAState) -> str:
+    """Reads the pre-computed edge written by log_policy_decision_node."""
+    return state.get("_verdict_edge") or "human_review"
 
 
 def dry_run_node(state: RCAState, config: RunnableConfig) -> dict:
@@ -1455,15 +1510,18 @@ def log_confidence_decision_node(state: RCAState) -> dict:
     candidates      = list(state.get("candidate_paths") or [])
     failures        = _ingestion_failures(state)
     conf_history    = list(state.get("path_confidence_history") or [])
+    beam_switches   = state.get("beam_switches_used") or 0
 
     # Append current confidence to per-path history
     conf_history.append(confidence)
 
-    # Detect stagnant/declining probability: LOW on this retry AND previous retry
+    # beam_search.should_switch_path: stagnant if LOW×2 OR regressed (same impl).
+    # Also respect MAX_SWITCHES: once exhausted, stop switching.
+    beam_max_hit = beam_switches >= MAX_SWITCHES
     declining = (
         confidence == "LOW"
-        and len(conf_history) >= 2
-        and conf_history[-2] == "LOW"
+        and should_switch_path(conf_history)
+        and not beam_max_hit
     )
 
     if confidence == "LOW":
@@ -1506,6 +1564,7 @@ def log_confidence_decision_node(state: RCAState) -> dict:
         edge   = "review"
         reason = f"confidence={confidence or 'UNKNOWN'} — forwarding to human review"
 
+    new_beam_switches = beam_switches + (1 if edge == "next_path" else 0)
     entry = {
         "router":    "confidence",
         "edge_taken": edge,
@@ -1518,6 +1577,7 @@ def log_confidence_decision_node(state: RCAState) -> dict:
             "ingestion_failures":    failures,
             "path_conf_history":     list(conf_history),
             "declining":             declining,
+            "beam_switches":         new_beam_switches,
         },
         "ts": datetime.now(timezone.utc).isoformat(),
     }
@@ -1528,9 +1588,11 @@ def log_confidence_decision_node(state: RCAState) -> dict:
     edge_log = list(state.get("edge_log") or [])
     edge_log.append(entry)
     return {
-        "edge_log":              edge_log,
-        "_confidence_edge":      edge,
+        "edge_log":               edge_log,
+        "_confidence_edge":       edge,
         "path_confidence_history": conf_history,
+        "beam_switches_used":     new_beam_switches,
+        "max_switches_reached":   new_beam_switches >= MAX_SWITCHES,
     }
 
 
