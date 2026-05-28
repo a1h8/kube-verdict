@@ -88,7 +88,7 @@ class TestStep1Tokenizer:
         tokens = _tokenize("reason=ImagePullBackOff image=ghcr.io/acme/ml-inference:v2.1.0-private")
         assert "reason=imagepullbackoff" in tokens
         assert "imagepullbackoff" in tokens
-        assert "ghcr.io" in tokens or "acme" in tokens
+        assert "ghcr.io/acme" in tokens or "acme" in tokens
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +236,7 @@ class TestStep5ContextWindow:
         print(f"\n  [anchors] {len(ctx.anchors)} anchor(s):")
         for a in ctx.anchors:
             print(f"    {a[:180]}")
-        assert "ghcr.io" in anchors_text or "v2.0.5" in anchors_text, (
+        assert "ghcr.io/acme" in anchors_text or "v2.0.5" in anchors_text, (
             "Anchor should mention declared image tag (v2.0.5)"
         )
         assert "imagepullpolicy" in anchors_text or "ifnotpresent" in anchors_text, (
