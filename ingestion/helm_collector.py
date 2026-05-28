@@ -133,7 +133,12 @@ class HelmCollector:
         if namespaces:
             results: list[dict] = []
             for ns in namespaces:
-                results.extend(self._helm_list(namespace=ns))
+                try:
+                    safe_ns = _safe_name(ns, "namespace")
+                except ValueError:
+                    log.warning("Skipping unsafe namespace: %r", ns)
+                    continue
+                results.extend(self._helm_list(namespace=safe_ns))
             return results
         return self._helm_list(all_namespaces=True)
 
@@ -144,26 +149,31 @@ class HelmCollector:
         if all_namespaces:
             cmd.append("--all-namespaces")
         elif namespace:
-            cmd += ["--namespace", namespace]
+            safe_ns = _safe_name(namespace, "namespace")
+            cmd += ["--namespace", safe_ns]
         return self._run_json(cmd, "helm list")
 
     def _get_values(
         self, release_name: str, namespace: str, include_defaults: bool = False
     ) -> dict[str, Any]:
+        safe_release_name = _safe_name(release_name, "release_name")
+        safe_namespace = _safe_name(namespace, "namespace")
         cmd = [
-            "helm", "get", "values", release_name,
-            "--namespace", namespace,
+            "helm", "get", "values", safe_release_name,
+            "--namespace", safe_namespace,
             "--output", "json",
         ] + self._env_flags
         if include_defaults:
             cmd.append("--all")   # includes chart defaults + computed values
-        result = self._run_json(cmd, f"helm get values {release_name}")
+        result = self._run_json(cmd, f"helm get values {safe_release_name}")
         return result if isinstance(result, dict) else {}
 
     def _get_notes(self, release_name: str, namespace: str) -> str:
+        safe_release_name = _safe_name(release_name, "release_name")
+        safe_namespace = _safe_name(namespace, "namespace")
         cmd = [
-            "helm", "get", "notes", release_name,
-            "--namespace", namespace,
+            "helm", "get", "notes", safe_release_name,
+            "--namespace", safe_namespace,
         ] + self._env_flags
         try:
             out = subprocess.run(cmd, capture_output=True, text=True, check=True)

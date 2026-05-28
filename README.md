@@ -138,7 +138,7 @@ Each case runs the full pre-LLM pipeline: graph construction → hybrid retrieva
 
 ```bash
 git clone https://github.com/a1h8/kube-verdict.git
-cd KubeVerdict
+cd kube-verdict
 pip install -r requirements.txt
 
 cp .env.example .env
