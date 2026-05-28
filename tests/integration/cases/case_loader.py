@@ -251,7 +251,8 @@ def _load_policy_reports(policy_dir: Path) -> list[dict]:
                 continue
             api = doc.get("apiVersion", "")
             kind = doc.get("kind", "")
-            if "wgpolicyk8s.io" in api and "PolicyReport" in kind:
+            api_group = api.split("/")[0] if "/" in api else ""
+            if api_group == "wgpolicyk8s.io" and "PolicyReport" in kind:
                 reports.append(doc)
 
     return reports
