@@ -27,6 +27,29 @@
 - [x] **Pre-LLM confidence scoring** — `compute_confidence()` weights BFS, Jaccard, TF-IDF, anchors, signals, policy violations into 0–1 score
 - [x] **Source weights** — per-source score multipliers; configurable via `SOURCE_WEIGHT_*` env vars
 
+## Loki Full Integration (B10)
+
+Current state: basic LogQL range query against unhealthy pods, `LokiLog` nodes wired via `HAS_LOG` edges, level keyword detection, trace ID regex. The following extensions are needed.
+
+- [ ] **Structured log parsing** — JSON-formatted log lines are parsed into key-value annotations on `LokiLog` nodes (http_status, method, path, latency, user, service); enriches hypothesis context beyond raw line text
+- [ ] **Error clustering** — group identical or near-identical error messages (edit distance + embedding cosine) into a single `LogCluster` node; prevents token explosion in the LLM context and surfaces recurring patterns instead of N duplicate lines
+- [ ] **Multi-tenant support** — pass `X-Scope-OrgID` header; configurable via `LOKI_ORG_ID` env var; required for shared Loki deployments (Grafana Cloud, enterprise tenants)
+- [ ] **LogQL streaming (tail)** — during a live session, tail logs via `/loki/api/v1/tail` WebSocket; new error lines arrive as SSE events and are added to the graph without a full re-collect
+- [ ] **Loki alert rule ingestion** — fetch active Loki ruler alerts via `/loki/api/v1/rules`; correlate firing rules with current pod entities; add `HAS_LOG_ALERT` edge with rule name and severity
+- [ ] **Dashboard Loki tab** — in the pipeline trace UI, show log lines with level badge (error / warn / info), ISO timestamp, pod name, and `trace_id` hyperlinked to the OTel span view
+- [ ] **Integration test case (log-first RCA)** — scenario where the root cause is detected purely from log patterns (e.g. Java heap OOM in logs → OOMKilled) with no Prometheus signal; validates the Loki → hypothesis path end-to-end
+
+## Decision Introspection UI (B9)
+
+The beam-search engine already records every routing decision (`edge_log`), every archived hypothesis (`reasoning_history`), and every collector failure (`ingestion_stats`). B9 makes all of this visible in real time.
+
+- [ ] **API: expose `reasoning_history` + `fallback_collectors`** — add `eliminated_paths` (from `reasoning_history`) and `fallback_collectors` (from `ingestion_stats`) to the `GET /state` response so the frontend can render them without any backend logic change
+- [ ] **Edge-log timeline** — chronological swimlane of `edge_log` events: router name, edge taken (`retry` / `next_path` / `review`), reason text, beam_switches counter, declining flag; each event expandable to show the full confidence snapshot
+- [ ] **Eliminated-paths panel** — for each entry in `reasoning_history`: hypothesis text, confidence level, number of retries before elimination, summary of analysis, and the `reason` from the triggering `edge_log` entry (e.g. "probability declining — LOW×2"); grayed-out but expandable
+- [ ] **Fallback-status overlay** — per-collector badge row (ingest / prometheus / metrics / otel / gitops / anchor / signals): green OK or red FALLBACK with the error message as tooltip; surfaces exactly `ingestion_stats[*].fallback + error`
+- [ ] **Beam-search tree** — SVG dag: active path in blue, archived branches in gray, edges labeled with confidence score; node size proportional to retry count; eliminated leaves marked with an ✕ and the elimination reason on hover
+- [ ] **Live SSE refresh** — introspection panel subscribes to the existing `/stream` endpoint and re-renders each section as new `edge_log` entries or `reasoning_history` entries arrive, giving operators real-time visibility during a running session
+
 ## Next
 
 - [ ] **Evidence Lineage** — dedup raw signals by Kubernetes owner + error family + time window; build lineage graph (evidence → root cause → remediation nodes/edges); expose ranked reasoning paths with alternatives in API and UI
