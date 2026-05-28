@@ -27,7 +27,7 @@ class TestHelmRepository:
                            url="https://charts.bitnami.com/bitnami")
         text = r.to_text()
         assert "bitnami" in text
-        assert "charts.bitnami.com" in text
+        assert "charts.bitnami.com/bitnami" in text
 
     def test_to_text_oci_type(self):
         r = HelmRepository(uid="helmrepo-ghcr", name="ghcr",
@@ -190,7 +190,7 @@ class TestHelmfileCollectorOntology:
         HelmfileCollector(helmfile_path=path).collect(g)
 
         repo = g.get("helmrepo-bitnami")
-        assert "charts.bitnami.com" in repo.to_text()
+        assert "charts.bitnami.com/bitnami" in repo.to_text()
 
     def test_oci_repo_type_detected(self, tmp_path):
         content = {

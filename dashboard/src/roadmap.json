@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-27T05:31:36.292286+00:00",
+  "generated_at": "2026-05-28T03:02:05.102265+00:00",
   "blocs": [
     {
       "id": "B1",
@@ -48,7 +48,7 @@
     {
       "id": "B3",
       "title": "RCA workflow",
-      "description": "LangGraph pipeline: hypothesize → collect → analyze → remediate",
+      "description": "LangGraph pipeline: hypothesize \u2192 collect \u2192 analyze \u2192 remediate",
       "checks": [
         {
           "label": "LangGraph graph + nodes",
@@ -96,7 +96,7 @@
     {
       "id": "B5",
       "title": "Blast radius + Rollback plan",
-      "description": "Risk scoring (LOW→CRITICAL), rollback plan generated before any action",
+      "description": "Risk scoring (LOW\u2192CRITICAL), rollback plan generated before any action",
       "checks": [
         {
           "label": "Rollback generation (helm rollback, rollout undo)",
@@ -111,7 +111,7 @@
           "done": true
         },
         {
-          "label": "Rollback unavailable → hard NO_GO",
+          "label": "Rollback unavailable \u2192 hard NO_GO",
           "done": true
         }
       ],
@@ -168,7 +168,7 @@
     {
       "id": "B8",
       "title": "Agent Skills / MCP",
-      "description": "Expose pipeline stages as composable agent skills — MCP server, SKILL.md, OpenAPI tool schema",
+      "description": "Expose pipeline stages as composable agent skills \u2014 MCP server, SKILL.md, OpenAPI tool schema",
       "checks": [
         {
           "label": "MCP server (kube-rca, helm-drift, blast-radius as tools)",
@@ -196,30 +196,30 @@
       "checks": [
         {
           "label": "API: expose reasoning_history + fallback_collectors in /state",
+          "done": true
+        },
+        {
+          "label": "Edge-log timeline \u2014 routing decisions with reason, confidence, beam_switches",
           "done": false
         },
         {
-          "label": "Edge-log timeline — routing decisions with reason, confidence, beam_switches",
+          "label": "Eliminated-paths panel \u2014 archived hypotheses with elimination reason",
           "done": false
         },
         {
-          "label": "Eliminated-paths panel — archived hypotheses with elimination reason",
+          "label": "Fallback-status overlay \u2014 per-collector OK / FALLBACK badge + error tooltip",
           "done": false
         },
         {
-          "label": "Fallback-status overlay — per-collector OK / FALLBACK badge + error tooltip",
+          "label": "Beam-search tree \u2014 SVG dag: active path vs archived branches",
           "done": false
         },
         {
-          "label": "Beam-search tree — SVG dag: active path vs archived branches",
-          "done": false
-        },
-        {
-          "label": "Live SSE refresh — introspection panel updates in real time via /stream",
+          "label": "Live SSE refresh \u2014 introspection panel updates in real time via /stream",
           "done": false
         }
       ],
-      "status": "TODO"
+      "status": "IN_PROGRESS"
     },
     {
       "id": "B10",
@@ -227,35 +227,35 @@
       "description": "Structured log parsing, error clustering, multi-tenant support, WebSocket tail, alert rule ingestion, dashboard log tab",
       "checks": [
         {
-          "label": "Structured log parsing — JSON fields as LokiLog annotations",
+          "label": "Structured log parsing \u2014 JSON fields as LokiLog annotations",
           "done": false
         },
         {
-          "label": "Error clustering — near-duplicate log lines → LogCluster nodes",
+          "label": "Error clustering \u2014 near-duplicate log lines \u2192 LogCluster nodes",
+          "done": true
+        },
+        {
+          "label": "Multi-tenant support \u2014 X-Scope-OrgID header (LOKI_ORG_ID env var)",
           "done": false
         },
         {
-          "label": "Multi-tenant support — X-Scope-OrgID header (LOKI_ORG_ID env var)",
+          "label": "LogQL streaming tail \u2014 live SSE log events via /loki/api/v1/tail",
           "done": false
         },
         {
-          "label": "LogQL streaming tail — live SSE log events via /loki/api/v1/tail",
+          "label": "Loki alert rule ingestion \u2014 HAS_LOG_ALERT edges from ruler API",
           "done": false
         },
         {
-          "label": "Loki alert rule ingestion — HAS_LOG_ALERT edges from ruler API",
+          "label": "Dashboard Loki tab \u2014 log lines with level badge + trace_id link",
           "done": false
         },
         {
-          "label": "Dashboard Loki tab — log lines with level badge + trace_id link",
-          "done": false
-        },
-        {
-          "label": "Integration test case — log-first RCA (no Prometheus signal)",
+          "label": "Integration test case \u2014 log-first RCA (no Prometheus signal)",
           "done": false
         }
       ],
-      "status": "TODO"
+      "status": "IN_PROGRESS"
     }
   ]
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import logging
+import re
 import subprocess
 from typing import Any
 
@@ -10,6 +11,16 @@ from ontology.relationships import Edge, RelationshipType
 from ingestion.chart_parser import ChartParser
 
 log = logging.getLogger(__name__)
+
+# K8s name validation: RFC 1123 label (lowercase alphanumeric / hyphens / dots)
+_SAFE_K8S_NAME = re.compile(r'^[a-z0-9][a-z0-9\-\.]{0,252}$')
+
+
+def _safe_name(value: str, field: str) -> str:
+    """Return value if it is a valid K8s resource name, raise ValueError otherwise."""
+    if not value or not _SAFE_K8S_NAME.match(value):
+        raise ValueError(f"unsafe {field}: {value!r}")
+    return value
 
 
 class HelmCollector:
@@ -35,8 +46,12 @@ class HelmCollector:
         repo_uid_map = self._index_repos(graph)
 
         for rel in releases:
-            namespace = rel.get("namespace", "")
-            release_name = rel.get("name", "")
+            try:
+                namespace = _safe_name(rel.get("namespace", ""), "namespace")
+                release_name = _safe_name(rel.get("name", ""), "release_name")
+            except ValueError as exc:
+                log.warning("helm collect: skipping release — %s", exc)
+                continue
 
             user_values = self._get_values(release_name, namespace, include_defaults=False)
             notes = self._get_notes(release_name, namespace)

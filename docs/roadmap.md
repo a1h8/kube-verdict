@@ -8,6 +8,7 @@
 - [x] **FastAPI REST API** — `POST /run`, `GET /state`, `GET /stream` (SSE), `POST /feedback`, `DELETE`; exposes `hypothesis_sources`, `path_confidence_history`, `edge_log` with `declining` flag
 - [x] **SQLite persistence** — sessions + LangGraph checkpoints survive restarts; FAISS index preloaded from `index.faiss` at startup (Option A) or rebuilt from raw texts in `vector_store_docs` without re-collecting from the cluster (Option B); SQL dialect compatible with PostgreSQL (`ON CONFLICT DO UPDATE`)
 - [x] **LangGraph multi-path workflow** — hypothesize → analyze → retry / archive_path → select_best → dry_run → human_review
+- [x] **Alertmanager webhook** — receives Prometheus Alertmanager `POST /webhook` payloads; auto-triggers RCA session; maps alert `labels` to namespace + resource + query (`demo/demo_webhook.py`)
 - [x] **AnchorEngine** — manifest + schema anchors; `anchor_fix_hints()` generates `helm upgrade --set` commands; **anchor pivot table** in UI (declared → observed → status → fix)
 - [x] **BM25 + FAISS hybrid retrieval** — K8s-aware BM25 tokeniser + FAISS dense cosine + Reciprocal Rank Fusion; `retrieval_stats` (dense/sparse/fused/top_rrf_score) in UI
 - [x] **Integration test cases — native format** — `tests/integration/cases/` with real K8s YAML (pod, events, values.yaml, helmfile, PolicyReport); unified `case_loader.py`
@@ -57,7 +58,7 @@ The beam-search engine already records every routing decision (`edge_log`), ever
 - [ ] **More h-series cases** — h012+: network latency, cert expiry, etcd compaction, …
 - [ ] **Helmfile multi-release** — case with `helmfile.yaml` covering interdependent releases
 - [ ] **Multi-cluster support** — analyse multiple contexts in one session
-- [ ] **Alertmanager webhook** — receive Prometheus Alertmanager `POST /webhook` payloads; auto-trigger RCA session from firing alert; map `labels` to namespace + resource + query
+- [ ] **Alertmanager webhook (production)** — auth, dedup, grouping, silences, multi-tenant routing; hardened for real Alertmanager deployments
 - [ ] **Slack / PagerDuty enrichment** — push RCA summary via webhook
 - [ ] **RBAC-aware scoping** — per-namespace analysis with service-account impersonation
 
