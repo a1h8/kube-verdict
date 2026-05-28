@@ -867,10 +867,7 @@ def _rerank_candidates(
 
         ranked = sorted(candidates, key=_score, reverse=True)
         if ranked != candidates:
-            log.info(
-                "archive_path: re-ranked %d candidates — new H1='%s'",
-                len(ranked), ranked[0][:60],
-            )
+            log.info("archive_path: re-ranked %d candidates", len(ranked))
         return ranked
     except Exception as exc:
         log.debug("archive_path: re-rank failed (%s) — keeping original order", exc)
@@ -915,9 +912,8 @@ def archive_path_node(state: RCAState, config: RunnableConfig) -> dict:
     next_hypothesis = candidates.pop(0) if candidates else ""
 
     log.info(
-        "archive_path: step=%d archived '%s' (conf=%s) → next '%s' (%d remaining)",
-        len(history), hypothesis[:60], state.get("confidence"),
-        next_hypothesis[:60], len(candidates),
+        "archive_path: step=%d conf=%s → %d remaining",
+        len(history), state.get("confidence"), len(candidates),
     )
 
     return {
@@ -952,8 +948,8 @@ def select_best_node(state: RCAState, config: RunnableConfig) -> dict:
 
     if best_rank > current_rank:
         log.info(
-            "select_best: restoring path %d '%s' (conf=%s) over current conf=%s",
-            best["step"], best["hypothesis"][:60], best["confidence"], state.get("confidence"),
+            "select_best: restoring path %d (conf=%s) over current conf=%s",
+            best["step"], best["confidence"], state.get("confidence"),
         )
         return {
             "raw_analysis":       best["raw_analysis"],
