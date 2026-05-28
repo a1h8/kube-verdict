@@ -227,7 +227,7 @@ Several constraints are intentional or known:
 - **Single-cluster.** Multi-cluster support is not yet wired end-to-end.
 - **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
 - **LLM performance is local-hardware-dependent.** Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.
-- **Prometheus and Loki not yet integrated.** Only Kubernetes events and Helm drift feed the pipeline today.
+- **Primary validated inputs: Kubernetes events and Helm drift.** Prometheus, Loki, and OTel collectors exist and are wired in, but the E2E demo and validated test cases currently focus on the K8s events + Helm drift path.
 
 See [Roadmap](docs/roadmap.md) for what's next.
 
@@ -238,7 +238,7 @@ See [Roadmap](docs/roadmap.md) for what's next.
 Contributions are welcome — especially:
 
 - New failure scenario cases (`tests/integration/cases/h0NN_*` format — see [Test cases](docs/test-cases.md))
-- Signal collectors (Prometheus, OTel, Loki — not yet integrated)
+- Signal-driven test cases that exercise the Prometheus, OTel, or Loki collector paths end-to-end
 - LLM provider integrations
 
 See [Project layout](docs/project-layout.md) for the codebase structure.
