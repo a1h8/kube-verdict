@@ -232,6 +232,75 @@ def _blocs() -> list[dict]:
                 },
             ],
         },
+        {
+            "id": "B9",
+            "title": "Decision Introspection UI",
+            "description": "Real-time visualization of beam-search decisions, fallback collectors, and eliminated hypothesis paths",
+            "checks": [
+                {
+                    "label": "API: expose reasoning_history + fallback_collectors in /state",
+                    "done": _grep(r"eliminated_paths|fallback_collectors|reasoning_history", "api/routes/sessions.py"),
+                },
+                {
+                    "label": "Edge-log timeline — routing decisions with reason, confidence, beam_switches",
+                    "done": _grep(r"EdgeTimeline|EdgeLog|edge.log.timeline", "dashboard/src"),
+                },
+                {
+                    "label": "Eliminated-paths panel — archived hypotheses with elimination reason",
+                    "done": _grep(r"EliminatedPaths|eliminated.paths|Eliminated", "dashboard/src"),
+                },
+                {
+                    "label": "Fallback-status overlay — per-collector OK / FALLBACK badge + error tooltip",
+                    "done": _grep(r"FallbackStatus|fallback.badge|fallback_collectors", "dashboard/src"),
+                },
+                {
+                    "label": "Beam-search tree — SVG dag: active path vs archived branches",
+                    "done": _grep(r"BeamTree|beam.tree|beam.*svg|beam.*dag", "dashboard/src"),
+                },
+                {
+                    "label": "Live SSE refresh — introspection panel updates in real time via /stream",
+                    "done": _grep(r"IntrospectionPanel|introspection.*SSE|SSE.*introspect", "dashboard/src"),
+                },
+            ],
+        },
+        {
+            "id": "B10",
+            "title": "Loki Full Integration",
+            "description": "Structured log parsing, error clustering, multi-tenant support, WebSocket tail, alert rule ingestion, dashboard log tab",
+            "checks": [
+                {
+                    "label": "Structured log parsing — JSON fields as LokiLog annotations",
+                    "done": _grep(r"json\.loads.*log|structured.*log|log_fields|parse_json_log", "ingestion/loki_source.py"),
+                },
+                {
+                    "label": "Error clustering — near-duplicate log lines → LogCluster nodes",
+                    "done": _grep(r"LogCluster|log.*cluster|cluster.*log", "ingestion"),
+                },
+                {
+                    "label": "Multi-tenant support — X-Scope-OrgID header (LOKI_ORG_ID env var)",
+                    "done": _grep(r"X-Scope-OrgID|LOKI_ORG_ID|org_id", "ingestion/loki_source.py"),
+                },
+                {
+                    "label": "LogQL streaming tail — live SSE log events via /loki/api/v1/tail",
+                    "done": _grep(r"loki/api/v1/tail|websocket.*loki|loki.*websocket", "ingestion"),
+                },
+                {
+                    "label": "Loki alert rule ingestion — HAS_LOG_ALERT edges from ruler API",
+                    "done": _grep(r"HAS_LOG_ALERT|loki.*rules|ruler.*loki", "ingestion", "ontology"),
+                },
+                {
+                    "label": "Dashboard Loki tab — log lines with level badge + trace_id link",
+                    "done": _grep(r"LokiTab|LokiPanel|loki.*tab", "dashboard/src"),
+                },
+                {
+                    "label": "Integration test case — log-first RCA (no Prometheus signal)",
+                    "done": _exists("tests/integration/cases") and any(
+                        "loki" in str(p).lower() for p in (ROOT / "tests/integration/cases").iterdir()
+                        if p.is_dir()
+                    ),
+                },
+            ],
+        },
     ]
 
 
