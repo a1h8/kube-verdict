@@ -22,7 +22,7 @@ Most Kubernetes outages are not caused by a single failing pod.
 
 When payment-service crashes, the on-call engineer opens five tabs simultaneously: pod logs, Kubernetes events, Helm history, Prometheus graphs, and the GitOps repo. Under pressure, at 2 AM, with three Slack threads open. The root cause is rarely where the alert fired — it's three hops away in a misconfigured Helm value or a drift between what was declared and what actually runs.
 
-KubeVerdict reduces that cognitive load. It correlates Kubernetes events and Helm drift into a single evidence-grounded root cause analysis — ranked by confidence, with a human approval gate before any remediation command touches production.
+KubeVerdict reduces that cognitive load. It starts from an Alertmanager incident signal, correlates Kubernetes events and Helm drift into a single evidence-grounded root cause analysis, ranks the diagnosis by confidence, and keeps a human approval gate before any remediation command touches production.
 
 ---
 
