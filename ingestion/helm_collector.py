@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from ontology.entities import HelmRelease, HelmChart, HelmRepository
@@ -33,9 +34,11 @@ class HelmCollector:
     def __init__(self, kubeconfig: str | None = None, kube_context: str | None = None) -> None:
         self._env_flags: list[str] = []
         if kubeconfig:
-            self._env_flags += ["--kubeconfig", kubeconfig]
+            if not Path(kubeconfig).is_file():
+                raise ValueError(f"kubeconfig not found: {kubeconfig!r}")
+            self._env_flags += ["--kubeconfig", str(Path(kubeconfig).resolve())]
         if kube_context:
-            self._env_flags += ["--kube-context", kube_context]
+            self._env_flags += ["--kube-context", _safe_name(kube_context, "kube_context")]
 
     def collect(self, graph: OntologyGraph, namespaces: list[str] | None = None) -> None:
         releases = self._list_releases(namespaces)
