@@ -179,13 +179,70 @@ class HelmCollector:
             "--namespace", safe_namespace,
         ] + self._env_flags
         try:
+            self._validate_helm_cmd(cmd)
             out = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return out.stdout.strip()
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, ValueError):
             return ""
+
+    @staticmethod
+    def _validate_helm_cmd(cmd: list[str]) -> None:
+        if not cmd or cmd[0] != "helm":
+            raise ValueError("unsafe command executable")
+        if len(cmd) < 2:
+            raise ValueError("incomplete helm command")
+
+        allowed_flags = {"--namespace", "--kubeconfig", "--kube-context", "--output", "--all-namespaces", "--all"}
+        i = 1
+        release_seen = False
+
+        # Validate command shape
+        if cmd[1:3] == ["repo", "list"]:
+            i = 3
+        elif cmd[1] == "list":
+            i = 2
+        elif cmd[1:3] == ["get", "values"] or cmd[1:3] == ["get", "notes"]:
+            if len(cmd) < 4:
+                raise ValueError("missing release name")
+            _safe_name(cmd[3], "release_name")
+            release_seen = True
+            i = 4
+        else:
+            raise ValueError("unsupported helm subcommand")
+
+        while i < len(cmd):
+            token = cmd[i]
+            if token not in allowed_flags:
+                raise ValueError(f"unsupported helm flag: {token}")
+
+            if token in {"--namespace", "--kube-context", "--kubeconfig", "--output"}:
+                if i + 1 >= len(cmd):
+                    raise ValueError(f"missing value for {token}")
+                value = cmd[i + 1]
+                if token in {"--namespace", "--kube-context"}:
+                    _safe_name(value, token.lstrip("-"))
+                elif token == "--kubeconfig":
+                    p = Path(value)
+                    if not p.is_absolute() or not p.is_file():
+                        raise ValueError("unsafe kubeconfig path")
+                elif token == "--output" and value != "json":
+                    raise ValueError("unsupported output format")
+                i += 2
+                continue
+
+            # boolean flags
+            if token == "--all" and cmd[1:3] != ["get", "values"]:
+                raise ValueError("--all only allowed for helm get values")
+            if token == "--all-namespaces" and cmd[1] != "list":
+                raise ValueError("--all-namespaces only allowed for helm list")
+            i += 1
+
+        if cmd[1:3] in (["get", "values"], ["get", "notes"]) and not release_seen:
+            raise ValueError("missing release name")
 
     def _run_json(self, cmd: list[str], label: str) -> Any:
         try:
+            self._validate_helm_cmd(cmd)
             out = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return json.loads(out.stdout) or {}
         except subprocess.CalledProcessError as exc:
@@ -193,6 +250,9 @@ class HelmCollector:
             return {}
         except json.JSONDecodeError:
             log.warning("%s returned invalid JSON", label)
+            return {}
+        except ValueError as exc:
+            log.warning("%s blocked unsafe command: %s", label, exc)
             return {}
 
     # ------------------------------------------------------------------
