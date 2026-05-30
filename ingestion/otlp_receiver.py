@@ -23,7 +23,7 @@ Usage
 Config env vars (read by config.py, forwarded by build_backend):
     OTLP_HOST          default 0.0.0.0
     OTLP_PORT          default 4318
-    OTLP_MAX_SPANS     default 2000
+    OTLP_MAX_TRACES    default 2000
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ from ingestion.otel_backend import OtelBackend
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_MAX_SPANS = 2_000
+_DEFAULT_MAX_TRACES = 2_000
 
 
 class _DecodeError(Exception):
@@ -59,13 +59,13 @@ class OtlpReceiver(OtelBackend):
         self,
         host: str = "0.0.0.0",
         port: int = 4318,
-        max_spans: int = _DEFAULT_MAX_SPANS,
+        max_traces: int = _DEFAULT_MAX_TRACES,
     ) -> None:
         # OtelBackend.__init__ expects url, token, timeout — pass dummy values
         super().__init__(url=f"http://{host}:{port}", token=None, timeout=30)
         self._host = host
         self._port = port
-        self._max_spans = max_spans
+        self._max_traces = max_traces
         self._lock = threading.Lock()
         self._traces: dict[str, dict] = {}           # trace_id → normalised
         self._arrival_order: deque[str] = deque()    # trace_ids in arrival order
@@ -228,7 +228,7 @@ class OtlpReceiver(OtelBackend):
                 existing["status"] = "OK"
 
     def _evict_if_full(self) -> None:
-        while len(self._arrival_order) >= self._max_spans:
+        while len(self._arrival_order) >= self._max_traces:
             oldest = self._arrival_order.popleft()
             self._traces.pop(oldest, None)
 
@@ -248,14 +248,14 @@ _shared: dict[tuple[str, int], OtlpReceiver] = {}
 def get_shared_receiver(
     host: str = "0.0.0.0",
     port: int = 4318,
-    max_spans: int = _DEFAULT_MAX_SPANS,
+    max_traces: int = _DEFAULT_MAX_TRACES,
 ) -> OtlpReceiver:
     """Return a started, process-wide OtlpReceiver for (host, port), creating it once."""
     key = (host, port)
     with _shared_lock:
         receiver = _shared.get(key)
         if receiver is None or not receiver.is_available():
-            receiver = OtlpReceiver(host=host, port=port, max_spans=max_spans)
+            receiver = OtlpReceiver(host=host, port=port, max_traces=max_traces)
             receiver.start()
             _shared[key] = receiver
         return receiver

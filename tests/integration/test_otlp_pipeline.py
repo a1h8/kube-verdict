@@ -138,7 +138,7 @@ def degraded_graph() -> OntologyGraph:
 @pytest.fixture
 def otlp_receiver():
     port = _free_port()
-    r = OtlpReceiver(host="127.0.0.1", port=port, max_spans=500)
+    r = OtlpReceiver(host="127.0.0.1", port=port, max_traces=500)
     r.start()
     time.sleep(0.05)
     yield r

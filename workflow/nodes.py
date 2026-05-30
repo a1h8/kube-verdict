@@ -237,7 +237,7 @@ def otel_node(state: RCAState, config: RunnableConfig) -> dict:
                 cfg.OTEL_TOKEN, cfg.OTEL_TIMEOUT,
                 otlp_host=cfg.OTLP_HOST,
                 otlp_port=cfg.OTLP_PORT,
-                otlp_max_spans=cfg.OTLP_MAX_SPANS,
+                otlp_max_traces=cfg.OTLP_MAX_TRACES,
             )
             count = OtelCollector(backend, lookback_hours=cfg.OTEL_LOOKBACK_HOURS).collect(graph)
             log.info("otel: %d trace(s) ingested", count)

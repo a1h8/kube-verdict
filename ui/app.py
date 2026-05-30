@@ -289,7 +289,7 @@ if run_btn and st.session_state.status not in ("running",):
                     cfg.OTEL_TOKEN, cfg.OTEL_TIMEOUT,
                     otlp_host=cfg.OTLP_HOST,
                     otlp_port=cfg.OTLP_PORT,
-                    otlp_max_spans=cfg.OTLP_MAX_SPANS,
+                    otlp_max_traces=cfg.OTLP_MAX_TRACES,
                 )
                 c = OtelCollector(backend, lookback_hours=cfg.OTEL_LOOKBACK_HOURS).collect(graph)
                 stats["otel"]["traces"] = c

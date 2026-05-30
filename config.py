@@ -80,7 +80,7 @@ OTEL_TIMEOUT: int = _int("OTEL_TIMEOUT", 30)
 # OTLP push receiver (used when OTEL_BACKEND_TYPE=otlp)
 OTLP_HOST: str = os.getenv("OTLP_HOST", "0.0.0.0")
 OTLP_PORT: int = _int("OTLP_PORT", 4318)
-OTLP_MAX_SPANS: int = _int("OTLP_MAX_SPANS", 2_000)
+OTLP_MAX_TRACES: int = _int("OTLP_MAX_TRACES", 2_000)
 
 # ── Loki (logs) ────────────────────────────────────────────────────────────────
 LOKI_ENABLED: bool = os.getenv("LOKI_ENABLED", "false").lower() == "true"

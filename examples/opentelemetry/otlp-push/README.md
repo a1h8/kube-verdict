@@ -25,14 +25,14 @@ OTEL_ENABLED=true
 OTEL_BACKEND_TYPE=otlp     # tempo | jaeger | otlp
 OTLP_HOST=0.0.0.0
 OTLP_PORT=4318
-OTLP_MAX_SPANS=2000        # in-memory ring buffer size (traces kept)
+OTLP_MAX_TRACES=2000       # in-memory ring buffer size (traces kept)
 ```
 
 Start KubeVerdict normally (API or UI). The receiver is a process-wide singleton:
 it starts on the first RCA run and keeps buffering pushed spans between runs.
 
 > The buffer is **in-memory and bounded** — the oldest traces are evicted once
-> `OTLP_MAX_SPANS` is reached, and everything is lost on restart. This is by
+> `OTLP_MAX_TRACES` is reached, and everything is lost on restart. This is by
 > design: KubeVerdict only needs a recent window of error traces, not durable
 > storage. Use Tempo mode if you need history.
 

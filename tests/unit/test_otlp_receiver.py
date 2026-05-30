@@ -293,14 +293,14 @@ class TestOtlpReceiverBackendInterface:
 
 class TestOtlpReceiverEviction:
     def test_evicts_oldest_when_full(self):
-        r = OtlpReceiver(max_spans=3)
+        r = OtlpReceiver(max_traces=3)
         for i in range(4):
             r._ingest(_payload(spans=[_span(trace_id=f"t{i}")]))
         assert r.get_trace("t0") is None   # evicted
         assert r.get_trace("t3") is not None
 
     def test_buffer_never_exceeds_max(self):
-        r = OtlpReceiver(max_spans=5)
+        r = OtlpReceiver(max_traces=5)
         for i in range(20):
             r._ingest(_payload(spans=[_span(trace_id=f"t{i}")]))
         assert len(r._traces) <= 5
