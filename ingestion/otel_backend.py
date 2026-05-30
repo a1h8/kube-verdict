@@ -315,8 +315,21 @@ def _micro_to_iso(micro: int) -> str:
         return ""
 
 
-def build_backend(backend_type: str, url: str, token: str | None = None, timeout: int = 30) -> OtelBackend:
+def build_backend(
+    backend_type: str,
+    url: str,
+    token: str | None = None,
+    timeout: int = 30,
+    otlp_host: str = "0.0.0.0",
+    otlp_port: int = 4318,
+    otlp_max_traces: int = 2_000,
+) -> OtelBackend:
     """Factory — returns the right backend from config."""
     if backend_type.lower() == "jaeger":
         return JaegerBackend(url=url, token=token, timeout=timeout)
+    if backend_type.lower() == "otlp":
+        # Push model: the receiver must outlive a single RCA run so spans pushed
+        # between runs accumulate. Return a process-wide singleton, started once.
+        from ingestion.otlp_receiver import get_shared_receiver
+        return get_shared_receiver(host=otlp_host, port=otlp_port, max_traces=otlp_max_traces)
     return TempoBackend(url=url, token=token, timeout=timeout)

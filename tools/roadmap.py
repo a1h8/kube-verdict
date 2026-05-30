@@ -64,6 +64,11 @@ def _blocs() -> list[dict]:
                     "label": "OTel traces (Jaeger / Tempo)",
                     "done": _exists("ingestion/otel_collector.py", "ingestion/otel_backend.py"),
                 },
+                {
+                    "label": "OTLP push receiver (port 4318)",
+                    "done": _exists("ingestion/otlp_receiver.py")
+                    and _grep(r"OtlpReceiver|otlp_receiver", "ingestion/otel_backend.py"),
+                },
             ],
         },
         {

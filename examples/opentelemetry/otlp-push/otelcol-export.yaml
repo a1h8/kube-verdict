@@ -1,0 +1,44 @@
+# OpenTelemetry Collector config — fan traces into KubeVerdict's OTLP receiver.
+#
+# Drop this into an existing collector (or deploy a new one). It receives OTLP
+# from your apps and forwards to KubeVerdict on :4318. You can keep a second
+# exporter (e.g. Tempo) in the same pipeline — KubeVerdict only needs a copy.
+#
+# Install:
+#   helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+#   helm upgrade --install otelcol open-telemetry/opentelemetry-collector \
+#     -n monitoring --create-namespace \
+#     --set mode=deployment \
+#     -f examples/opentelemetry/otlp-push/otelcol-export.yaml
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    batch:
+      timeout: 1s
+      send_batch_size: 512
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 256
+
+  exporters:
+    otlphttp/kubeverdict:
+      # KubeVerdict's in-process OTLP/HTTP receiver.
+      traces_endpoint: http://kube-verdict.kube-verdict.svc:4318/v1/traces
+      # encoding defaults to proto; the receiver also accepts: encoding: json
+      tls:
+        insecure: true
+
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlphttp/kubeverdict]
