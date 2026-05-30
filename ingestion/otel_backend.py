@@ -315,8 +315,19 @@ def _micro_to_iso(micro: int) -> str:
         return ""
 
 
-def build_backend(backend_type: str, url: str, token: str | None = None, timeout: int = 30) -> OtelBackend:
+def build_backend(
+    backend_type: str,
+    url: str,
+    token: str | None = None,
+    timeout: int = 30,
+    otlp_host: str = "0.0.0.0",
+    otlp_port: int = 4318,
+    otlp_max_spans: int = 2_000,
+) -> OtelBackend:
     """Factory — returns the right backend from config."""
     if backend_type.lower() == "jaeger":
         return JaegerBackend(url=url, token=token, timeout=timeout)
+    if backend_type.lower() == "otlp":
+        from ingestion.otlp_receiver import OtlpReceiver
+        return OtlpReceiver(host=otlp_host, port=otlp_port, max_spans=otlp_max_spans)
     return TempoBackend(url=url, token=token, timeout=timeout)

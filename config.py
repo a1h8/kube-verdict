@@ -72,11 +72,15 @@ GIT_REPOS: list[dict] = _git_repos()
 
 # ── OpenTelemetry (traces) ─────────────────────────────────────────────────────
 OTEL_ENABLED: bool = os.getenv("OTEL_ENABLED", "false").lower() == "true"
-OTEL_BACKEND_TYPE: str = os.getenv("OTEL_BACKEND_TYPE", "tempo")   # tempo | jaeger
+OTEL_BACKEND_TYPE: str = os.getenv("OTEL_BACKEND_TYPE", "tempo")   # tempo | jaeger | otlp
 OTEL_BACKEND_URL: str = os.getenv("OTEL_BACKEND_URL", "http://localhost:3100")
 OTEL_TOKEN: str | None = os.getenv("OTEL_TOKEN") or None
 OTEL_LOOKBACK_HOURS: int = _int("OTEL_LOOKBACK_HOURS", 1)
 OTEL_TIMEOUT: int = _int("OTEL_TIMEOUT", 30)
+# OTLP push receiver (used when OTEL_BACKEND_TYPE=otlp)
+OTLP_HOST: str = os.getenv("OTLP_HOST", "0.0.0.0")
+OTLP_PORT: int = _int("OTLP_PORT", 4318)
+OTLP_MAX_SPANS: int = _int("OTLP_MAX_SPANS", 2_000)
 
 # ── Loki (logs) ────────────────────────────────────────────────────────────────
 LOKI_ENABLED: bool = os.getenv("LOKI_ENABLED", "false").lower() == "true"
