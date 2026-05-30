@@ -287,6 +287,9 @@ if run_btn and st.session_state.status not in ("running",):
                 backend = build_backend(
                     cfg.OTEL_BACKEND_TYPE, cfg.OTEL_BACKEND_URL,
                     cfg.OTEL_TOKEN, cfg.OTEL_TIMEOUT,
+                    otlp_host=cfg.OTLP_HOST,
+                    otlp_port=cfg.OTLP_PORT,
+                    otlp_max_traces=cfg.OTLP_MAX_TRACES,
                 )
                 c = OtelCollector(backend, lookback_hours=cfg.OTEL_LOOKBACK_HOURS).collect(graph)
                 stats["otel"]["traces"] = c
