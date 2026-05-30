@@ -328,6 +328,8 @@ def build_backend(
     if backend_type.lower() == "jaeger":
         return JaegerBackend(url=url, token=token, timeout=timeout)
     if backend_type.lower() == "otlp":
-        from ingestion.otlp_receiver import OtlpReceiver
-        return OtlpReceiver(host=otlp_host, port=otlp_port, max_spans=otlp_max_spans)
+        # Push model: the receiver must outlive a single RCA run so spans pushed
+        # between runs accumulate. Return a process-wide singleton, started once.
+        from ingestion.otlp_receiver import get_shared_receiver
+        return get_shared_receiver(host=otlp_host, port=otlp_port, max_spans=otlp_max_spans)
     return TempoBackend(url=url, token=token, timeout=timeout)

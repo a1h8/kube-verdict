@@ -1,5 +1,11 @@
 """
-OTLP/HTTP receiver — accepts spans pushed via POST /v1/traces (OTLP/HTTP JSON).
+OTLP/HTTP receiver — accepts spans pushed via POST /v1/traces.
+
+Handles both wire formats accepted by OTLP/HTTP:
+  * protobuf  (Content-Type: application/x-protobuf)  — the SDK/Collector default
+  * JSON      (Content-Type: application/json)
+plus gzip request bodies (Content-Encoding: gzip). Protobuf decoding requires
+the `opentelemetry-proto` package.
 
 Runs as a background thread; acts as an OtelBackend so OtelCollector works
 unchanged. Spans are held in a fixed-size in-memory ring buffer (default 2 000).
@@ -21,6 +27,7 @@ Config env vars (read by config.py, forwarded by build_backend):
 """
 from __future__ import annotations
 
+import gzip
 import json
 import logging
 import threading
@@ -34,6 +41,10 @@ from ingestion.otel_backend import OtelBackend
 log = logging.getLogger(__name__)
 
 _DEFAULT_MAX_SPANS = 2_000
+
+
+class _DecodeError(Exception):
+    """Raised when a request body cannot be parsed as OTLP JSON or protobuf."""
 
 
 class OtlpReceiver(OtelBackend):
@@ -76,17 +87,34 @@ class OtlpReceiver(OtelBackend):
                     return
                 length = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(length) if length else b""
+                if self.headers.get("Content-Encoding", "").lower() == "gzip":
+                    try:
+                        body = gzip.decompress(body)
+                    except (OSError, EOFError):
+                        self.send_response(400)
+                        self.end_headers()
+                        return
+
+                content_type = self.headers.get("Content-Type", "").split(";")[0].strip().lower()
+                is_protobuf = content_type in ("application/x-protobuf", "application/protobuf")
                 try:
-                    payload = json.loads(body)
-                except json.JSONDecodeError:
+                    payload = _decode_protobuf(body) if is_protobuf else json.loads(body)
+                except (_DecodeError, json.JSONDecodeError):
                     self.send_response(400)
                     self.end_headers()
                     return
+
                 receiver._ingest(payload)
                 self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b"{}")
+                if is_protobuf:
+                    # Spec wants an (empty) ExportTraceServiceResponse on success.
+                    self.send_header("Content-Type", "application/x-protobuf")
+                    self.end_headers()
+                    self.wfile.write(_empty_protobuf_response())
+                else:
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b"{}")
 
             def log_message(self, fmt: str, *args: Any) -> None:  # noqa: ANN401
                 log.debug("otlp: " + fmt, *args)
@@ -203,6 +231,74 @@ class OtlpReceiver(OtelBackend):
         while len(self._arrival_order) >= self._max_spans:
             oldest = self._arrival_order.popleft()
             self._traces.pop(oldest, None)
+
+
+# ------------------------------------------------------------------
+# Process-wide singleton
+# ------------------------------------------------------------------
+#
+# The OTLP receiver is a *push* endpoint: spans arrive between RCA runs and must
+# accumulate in a long-lived buffer. build_backend() therefore reuses one started
+# receiver per (host, port) instead of creating a fresh, never-started one per run.
+
+_shared_lock = threading.Lock()
+_shared: dict[tuple[str, int], OtlpReceiver] = {}
+
+
+def get_shared_receiver(
+    host: str = "0.0.0.0",
+    port: int = 4318,
+    max_spans: int = _DEFAULT_MAX_SPANS,
+) -> OtlpReceiver:
+    """Return a started, process-wide OtlpReceiver for (host, port), creating it once."""
+    key = (host, port)
+    with _shared_lock:
+        receiver = _shared.get(key)
+        if receiver is None or not receiver.is_available():
+            receiver = OtlpReceiver(host=host, port=port, max_spans=max_spans)
+            receiver.start()
+            _shared[key] = receiver
+        return receiver
+
+
+# ------------------------------------------------------------------
+# Protobuf (default OTLP/HTTP wire format)
+# ------------------------------------------------------------------
+
+def _decode_protobuf(body: bytes) -> dict:
+    """
+    Decode an OTLP/HTTP protobuf ExportTraceServiceRequest into the same
+    JSON-shaped dict that _ingest() consumes (camelCase keys, traceId base64,
+    *UnixNano as strings, status.code as STATUS_CODE_* names).
+
+    Requires the `opentelemetry-proto` package; raises _DecodeError on any
+    failure so the handler can reply 400.
+    """
+    try:
+        from google.protobuf.json_format import MessageToDict
+        from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+            ExportTraceServiceRequest,
+        )
+    except ImportError as exc:  # optional dep missing
+        raise _DecodeError("opentelemetry-proto not installed") from exc
+
+    try:
+        req = ExportTraceServiceRequest()
+        req.ParseFromString(body)
+        return MessageToDict(req)
+    except Exception as exc:  # malformed protobuf
+        raise _DecodeError(str(exc)) from exc
+
+
+def _empty_protobuf_response() -> bytes:
+    """Serialised empty ExportTraceServiceResponse, or `b""` if proto absent."""
+    try:
+        from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+            ExportTraceServiceResponse,
+        )
+        return ExportTraceServiceResponse().SerializeToString()
+    except Exception:
+        return b""
 
 
 # ------------------------------------------------------------------

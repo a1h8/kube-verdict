@@ -307,6 +307,137 @@ class TestOtlpReceiverEviction:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Protobuf + gzip wire formats (the OTLP/HTTP defaults)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _protobuf_body(
+    service: str = "checkout",
+    trace_id_hex: str = "0123456789abcdef0123456789abcdef",
+    is_error: bool = False,
+    error_msg: str = "boom",
+) -> bytes:
+    """Build a serialised OTLP/HTTP protobuf ExportTraceServiceRequest."""
+    from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+        ExportTraceServiceRequest,
+    )
+    req = ExportTraceServiceRequest()
+    rs = req.resource_spans.add()
+    rs.resource.attributes.add(key="service.name").value.string_value = service
+    sp = rs.scope_spans.add().spans.add()
+    sp.trace_id = bytes.fromhex(trace_id_hex)
+    sp.span_id = bytes.fromhex("0123456789abcdef")
+    sp.name = "GET /api"
+    sp.start_time_unix_nano = 1_700_000_000_000_000_000
+    sp.end_time_unix_nano = 1_700_000_000_100_000_000
+    if is_error:
+        sp.status.code = 2  # STATUS_CODE_ERROR
+        sp.status.message = error_msg
+    return req.SerializeToString()
+
+
+def _post_raw(port: int, body: bytes, content_type: str, content_encoding: str | None = None) -> int:
+    headers = {"Content-Type": content_type}
+    if content_encoding:
+        headers["Content-Encoding"] = content_encoding
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/v1/traces", data=body, headers=headers)
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        return resp.status
+
+
+class TestOtlpProtobuf:
+    def _receiver(self) -> OtlpReceiver:
+        port = _free_port()
+        r = OtlpReceiver(host="127.0.0.1", port=port)
+        r.start()
+        time.sleep(0.05)
+        return r
+
+    def test_protobuf_post_returns_200(self):
+        r = self._receiver()
+        try:
+            status = _post_raw(r._port, _protobuf_body(), "application/x-protobuf")
+            assert status == 200
+        finally:
+            r.stop()
+
+    def test_protobuf_span_is_ingested(self):
+        r = self._receiver()
+        try:
+            _post_raw(r._port, _protobuf_body(service="order-service"), "application/x-protobuf")
+            time.sleep(0.05)
+            assert len(r._traces) == 1
+            t = next(iter(r._traces.values()))
+            assert t["service_name"] == "order-service"
+            assert "T" in t["started_at"]
+            assert abs(t["duration_ms"] - 100.0) < 1.0
+        finally:
+            r.stop()
+
+    def test_protobuf_error_status_detected(self):
+        r = self._receiver()
+        try:
+            _post_raw(r._port, _protobuf_body(is_error=True, error_msg="db refused"),
+                      "application/x-protobuf")
+            time.sleep(0.05)
+            t = next(iter(r._traces.values()))
+            assert t["status"] == "ERROR"
+            assert "db refused" in t["error_message"]
+        finally:
+            r.stop()
+
+    def test_malformed_protobuf_returns_400(self):
+        r = self._receiver()
+        try:
+            with pytest.raises(urllib.error.HTTPError) as exc_info:
+                _post_raw(r._port, b"not-a-protobuf", "application/x-protobuf")
+            assert exc_info.value.code == 400
+        finally:
+            r.stop()
+
+
+class TestOtlpGzip:
+    def _receiver(self) -> OtlpReceiver:
+        port = _free_port()
+        r = OtlpReceiver(host="127.0.0.1", port=port)
+        r.start()
+        time.sleep(0.05)
+        return r
+
+    def test_gzip_json_is_ingested(self):
+        import gzip as _gz
+        r = self._receiver()
+        try:
+            body = _gz.compress(json.dumps(_payload(spans=[_span(trace_id="tgz")])).encode())
+            status = _post_raw(r._port, body, "application/json", content_encoding="gzip")
+            assert status == 200
+            time.sleep(0.05)
+            assert r.get_trace("tgz") is not None
+        finally:
+            r.stop()
+
+    def test_gzip_protobuf_is_ingested(self):
+        import gzip as _gz
+        r = self._receiver()
+        try:
+            body = _gz.compress(_protobuf_body(service="gz-svc"))
+            status = _post_raw(r._port, body, "application/x-protobuf", content_encoding="gzip")
+            assert status == 200
+            time.sleep(0.05)
+            assert len(r._traces) == 1
+        finally:
+            r.stop()
+
+    def test_invalid_gzip_returns_400(self):
+        r = self._receiver()
+        try:
+            with pytest.raises(urllib.error.HTTPError) as exc_info:
+                _post_raw(r._port, b"\x1f\x8bnotgzip", "application/json", content_encoding="gzip")
+            assert exc_info.value.code == 400
+        finally:
+            r.stop()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # build_backend factory
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -314,7 +445,21 @@ class TestBuildBackendOtlp:
     def test_factory_returns_otlp_receiver(self):
         from ingestion.otel_backend import build_backend
         b = build_backend("otlp", "http://ignored", otlp_host="127.0.0.1", otlp_port=_free_port())
-        assert isinstance(b, OtlpReceiver)
+        try:
+            assert isinstance(b, OtlpReceiver)
+            assert b.is_available()  # singleton is started, not just constructed
+        finally:
+            b.stop()
+
+    def test_factory_reuses_singleton_per_host_port(self):
+        from ingestion.otel_backend import build_backend
+        port = _free_port()
+        a = build_backend("otlp", "http://ignored", otlp_host="127.0.0.1", otlp_port=port)
+        b = build_backend("otlp", "http://ignored", otlp_host="127.0.0.1", otlp_port=port)
+        try:
+            assert a is b  # same started receiver, buffer survives across runs
+        finally:
+            a.stop()
 
     def test_factory_tempo_unchanged(self):
         from ingestion.otel_backend import build_backend, TempoBackend

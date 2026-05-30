@@ -23,6 +23,9 @@ torch>=2.0.0             # PatchTST training + sentence-transformers
 scikit-learn>=1.4.0
 rank-bm25>=0.2.2
 
+# OTLP push receiver — decode protobuf trace exports (OTLP/HTTP default format)
+opentelemetry-proto>=1.20.0
+
 # Utilities
 requests>=2.31.0
 pyyaml>=6.0.1
