@@ -24,6 +24,17 @@ def _safe_name(value: str, field: str) -> str:
     return value
 
 
+# Fixed, non-value tokens we ever emit in a helm argv: the binary, sub-commands,
+# and the exact set of flags/literal values. Anything outside this set must be an
+# RFC-1123 name (or a value validated in __init__) to reach the exec.
+_HELM_FIXED_TOKENS = frozenset({
+    "helm", "list", "get", "values", "notes", "repo",
+    "--output", "json",
+    "--namespace", "--all-namespaces", "--all",
+    "--kubeconfig", "--kube-context",
+})
+
+
 class HelmCollector:
     """
     Collects Helm release state from a live cluster via the `helm` CLI.
@@ -33,12 +44,21 @@ class HelmCollector:
 
     def __init__(self, kubeconfig: str | None = None, kube_context: str | None = None) -> None:
         self._env_flags: list[str] = []
+        # Values validated here are trusted to appear verbatim in a helm argv
+        # (the resolved kubeconfig path contains "/", so it can't match the name
+        # regex and must be allowlisted explicitly).
+        self._safe_argv_values: set[str] = set()
         if kubeconfig:
             if not Path(kubeconfig).is_file():
                 raise ValueError(f"kubeconfig not found: {kubeconfig!r}")
-            self._env_flags += ["--kubeconfig", str(Path(kubeconfig).resolve())]
+            resolved = str(Path(kubeconfig).resolve())
+            self._env_flags += ["--kubeconfig", resolved]
+            self._safe_argv_values.add(resolved)
         if kube_context:
-            self._env_flags += ["--kube-context", _safe_name(kube_context, "kube_context")]
+            if not _SAFE_K8S_NAME.fullmatch(kube_context):
+                raise ValueError(f"unsafe kube_context: {kube_context!r}")
+            self._env_flags += ["--kube-context", kube_context]
+            self._safe_argv_values.add(kube_context)
 
     def collect(self, graph: OntologyGraph, namespaces: list[str] | None = None) -> None:
         releases = self._list_releases(namespaces)
@@ -159,40 +179,58 @@ class HelmCollector:
     def _get_values(
         self, release_name: str, namespace: str, include_defaults: bool = False
     ) -> dict[str, Any]:
-        safe_release_name = _safe_name(release_name, "release_name")
-        safe_namespace = _safe_name(namespace, "namespace")
+        # _exec is the authoritative barrier — it allowlist-validates every token
+        # before the exec, so the leaf builders fail closed via _run_json.
         cmd = [
-            "helm", "get", "values", safe_release_name,
-            "--namespace", safe_namespace,
+            "helm", "get", "values", release_name,
+            "--namespace", namespace,
             "--output", "json",
         ] + self._env_flags
         if include_defaults:
             cmd.append("--all")   # includes chart defaults + computed values
-        result = self._run_json(cmd, f"helm get values {safe_release_name}")
+        result = self._run_json(cmd, f"helm get values {release_name}")
         return result if isinstance(result, dict) else {}
 
     def _get_notes(self, release_name: str, namespace: str) -> str:
-        safe_release_name = _safe_name(release_name, "release_name")
-        safe_namespace = _safe_name(namespace, "namespace")
         cmd = [
-            "helm", "get", "notes", safe_release_name,
-            "--namespace", safe_namespace,
+            "helm", "get", "notes", release_name,
+            "--namespace", namespace,
         ] + self._env_flags
         try:
-            out = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            return out.stdout.strip()
-        except subprocess.CalledProcessError:
+            return self._exec(cmd).strip()
+        except (subprocess.CalledProcessError, ValueError):
             return ""
+
+    def _exec(self, cmd: list[str]) -> str:
+        """
+        Run a helm argv and return stdout.
+
+        Defence-in-depth barrier, deliberately inline with the `subprocess.run`
+        call (not a helper) so the guard and the sink share a scope: every token
+        must be a fixed helm token, a value validated in __init__, or an RFC-1123
+        name. Spaces, shell metacharacters and a leading '-' are all rejected, so
+        no argument can be smuggled — even though we never use a shell. Raises
+        ValueError on an unexpected token and CalledProcessError on helm failure.
+        """
+        for token in cmd:
+            if token in _HELM_FIXED_TOKENS or token in self._safe_argv_values:
+                continue
+            if not _SAFE_K8S_NAME.fullmatch(token):
+                raise ValueError(f"unsafe helm argument: {token!r}")
+        out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return out.stdout
 
     def _run_json(self, cmd: list[str], label: str) -> Any:
         try:
-            out = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            return json.loads(out.stdout) or {}
+            return json.loads(self._exec(cmd)) or {}
         except subprocess.CalledProcessError as exc:
             log.warning("%s failed: %s", label, exc.stderr.strip())
             return {}
         except json.JSONDecodeError:
             log.warning("%s returned invalid JSON", label)
+            return {}
+        except ValueError as exc:
+            log.warning("%s blocked unsafe argument: %s", label, exc)
             return {}
 
     # ------------------------------------------------------------------
