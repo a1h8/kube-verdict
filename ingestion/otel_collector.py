@@ -107,11 +107,10 @@ class OtelCollector:
                     graph.add_entity(ot)
                     trace_count += 1
 
-                # Wire HAS_TRACE edge (dedup)
+                # Wire HAS_TRACE edge (dedup — add_edge does not dedup)
                 existing = {
-                    e.target_uid
-                    for e in graph._adj.get(entity.uid, [])
-                    if e.rel_type == RelationshipType.HAS_TRACE
+                    n.uid
+                    for n in graph.neighbors(entity.uid, RelationshipType.HAS_TRACE)
                 }
                 if trace_uid not in existing:
                     graph.add_edge(Edge(entity.uid, trace_uid, RelationshipType.HAS_TRACE))
@@ -123,10 +122,10 @@ class OtelCollector:
                     entity.annotations[f"{prefix}.error"] = trace["error_message"][:200]
 
             if traces:
-                err_count = sum(1 for t in traces if t.get("status") == "ERROR")
-                entity.annotations["otel.error_trace_count"] = str(err_count)
+                # backend.search_error_traces only ever returns ERROR traces
+                entity.annotations["otel.error_trace_count"] = str(len(traces))
                 log.info(
-                    "otel: %s/%s → %d error trace(s)", entity.kind.value, entity.name, err_count,
+                    "otel: %s/%s → %d error trace(s)", entity.kind.value, entity.name, len(traces),
                 )
 
         log.info("otel: %d OtelTrace node(s) created", trace_count)
