@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-28T03:02:05.102265+00:00",
+  "generated_at": "2026-05-30T09:16:28.967550+00:00",
   "blocs": [
     {
       "id": "B1",
@@ -20,6 +20,10 @@
         },
         {
           "label": "OTel traces (Jaeger / Tempo)",
+          "done": true
+        },
+        {
+          "label": "OTLP push receiver (port 4318)",
           "done": true
         }
       ],

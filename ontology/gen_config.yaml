@@ -1,0 +1,152 @@
+# Ontology entity generator config.
+# Each entry drives tools/gen_entities.py to produce a @dataclass in
+# ontology/generated_entities.py, derived from the kubernetes Python client
+# model (kubernetes.client.models.V1<model>).
+#
+# Fields are flattened from spec.* and status.* into top-level dataclass
+# attributes. Complex nested objects become dict[str, Any].
+#
+# type overrides: "quantity_map" → dict[str,str], "raw_list" → list[dict],
+#                 "str_list" → list[str], "int", "str", "bool"
+
+kinds:
+
+  - name: LimitRange
+    model: V1LimitRange
+    api_group: core/v1
+    doc: "Per-namespace min/max constraints on container resource requests and limits."
+    fields:
+      - path: spec.limits
+        attr: limits
+        type: raw_list       # list[V1LimitRangeItem] → list[dict]
+        doc: "Each item sets min/max/default/defaultRequest for a type (Container/Pod/PVC)."
+
+  - name: NetworkPolicy
+    model: V1NetworkPolicy
+    api_group: networking.k8s.io/v1
+    doc: "Namespace-scoped firewall rules controlling pod ingress and egress."
+    fields:
+      - path: spec.pod_selector
+        attr: pod_selector
+        type: str            # serialised as matchLabels string
+        doc: "Pods this policy applies to (empty = all pods in namespace)."
+      - path: spec.policy_types
+        attr: policy_types
+        type: str_list       # ["Ingress","Egress"]
+        doc: "Directions enforced: Ingress, Egress, or both."
+      - path: spec.ingress
+        attr: ingress_rules
+        type: raw_list
+        doc: "Allowed ingress traffic sources (ports + from selectors)."
+      - path: spec.egress
+        attr: egress_rules
+        type: raw_list
+        doc: "Allowed egress traffic destinations (ports + to selectors)."
+
+  - name: HorizontalPodAutoscaler
+    model: V1HorizontalPodAutoscaler
+    api_group: autoscaling/v2
+    doc: "Autoscaler that scales a workload based on CPU/memory/custom metrics."
+    fields:
+      - path: spec.scale_target_ref
+        attr: target_name
+        type: str            # serialised as kind/name
+        doc: "Workload being scaled (Deployment, StatefulSet, etc.)."
+      - path: spec.min_replicas
+        attr: min_replicas
+        type: int
+        doc: "Minimum number of replicas."
+      - path: spec.max_replicas
+        attr: max_replicas
+        type: int
+        doc: "Maximum number of replicas."
+      - path: spec.target_cpu_utilization_percentage
+        attr: target_cpu_pct
+        type: int
+        doc: "Target average CPU utilisation across pods (autoscaling/v1 style)."
+      - path: status.current_replicas
+        attr: current_replicas
+        type: int
+        doc: "Current observed replica count."
+      - path: status.desired_replicas
+        attr: desired_replicas
+        type: int
+        doc: "Desired replica count computed by the HPA controller."
+
+  - name: Job
+    model: V1Job
+    api_group: batch/v1
+    doc: "A batch Job that runs Pods to completion."
+    fields:
+      - path: spec.completions
+        attr: completions
+        type: int
+        doc: "Desired number of successfully finished pods."
+      - path: spec.parallelism
+        attr: parallelism
+        type: int
+        doc: "Maximum pods running in parallel."
+      - path: spec.backoff_limit
+        attr: backoff_limit
+        type: int
+        doc: "Number of retries before marking the Job as failed."
+      - path: status.succeeded
+        attr: succeeded
+        type: int
+        doc: "Number of pods that have successfully completed."
+      - path: status.failed
+        attr: failed
+        type: int
+        doc: "Number of pods that have failed."
+      - path: status.active
+        attr: active
+        type: int
+        doc: "Number of currently running pods."
+
+  - name: CronJob
+    model: V1CronJob
+    api_group: batch/v1
+    doc: "A CronJob creates Jobs on a repeating schedule."
+    fields:
+      - path: spec.schedule
+        attr: schedule
+        type: str
+        doc: "Cron expression for the schedule (e.g. '*/5 * * * *')."
+      - path: spec.concurrency_policy
+        attr: concurrency_policy
+        type: str
+        doc: "How to handle concurrent runs: Allow, Forbid, or Replace."
+      - path: spec.suspend
+        attr: suspend
+        type: bool
+        doc: "If true, no new Jobs will be created."
+      - path: spec.failed_jobs_history_limit
+        attr: failed_jobs_history_limit
+        type: int
+        doc: "Number of failed Jobs to retain."
+      - path: status.last_schedule_time
+        attr: last_schedule_time
+        type: str
+        doc: "Last time the CronJob was scheduled."
+
+  - name: StorageClass
+    model: V1StorageClass
+    api_group: storage.k8s.io/v1
+    doc: "Defines a class of storage offered by the cluster (provisioner, reclaim policy, etc.)."
+    fields:
+      - path: provisioner
+        attr: provisioner
+        type: str
+        doc: "Provisioner that handles this StorageClass (e.g. 'rancher.io/local-path')."
+      - path: reclaim_policy
+        attr: reclaim_policy
+        type: str
+        doc: "What happens to the PV when the PVC is deleted: Retain or Delete."
+      - path: volume_binding_mode
+        attr: volume_binding_mode
+        type: str
+        doc: "When to provision and bind the volume: Immediate or WaitForFirstConsumer."
+      - path: allow_volume_expansion
+        attr: allow_volume_expansion
+        type: bool
+        doc: "Whether PVCs using this class can be expanded after creation."
