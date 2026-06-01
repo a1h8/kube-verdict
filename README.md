@@ -223,6 +223,17 @@ python tools/gen_openapi_tools.py        # rewrite openapi_tools.json
 python tools/gen_openapi_tools.py --check # CI guard: fail if stale
 ```
 
+Feed `openapi_tools.json` as the `tools` array to any function-calling LLM, then
+execute the model's tool calls against the same handlers the MCP server uses:
+
+```python
+from mcp_server import dispatch_openai_tool_call
+
+for call in response.choices[0].message.tool_calls:
+    tool_message = await dispatch_openai_tool_call(call.model_dump())
+    messages.append(tool_message)   # role=tool, ready for the next turn
+```
+
 ---
 
 ## Current limitations

@@ -64,6 +64,19 @@ class TestCallToolDispatch:
         assert out.content[0].type == "text"
         assert json.loads(out.content[0].text) == {"risk": "LOW"}
 
+    def test_timeout_flagged_as_error(self):
+        async def _slow(_args):
+            await asyncio.sleep(1)
+            return {}
+
+        import config as cfg
+        with patch.object(cfg, "MCP_TOOL_TIMEOUT", 0), \
+                patch.object(m, "_blast_radius", _slow):
+            out = _run(m.call_tool("blast_radius", {"remediation_commands": []}))
+        assert out.isError is True
+        payload = json.loads(out.content[0].text)
+        assert "timed out" in payload["error"]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # _parse_drift_annotation
@@ -177,3 +190,51 @@ class TestBlastRadius:
         with patch("remediation.blast_radius.compute_blast_radius", return_value={"risk": "LOW"}) as cbr:
             _run(m._blast_radius({"remediation_commands": ["kubectl scale ..."]}))
         cbr.assert_called_once_with(["kubectl scale ..."], [], [])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# dispatch_openai_tool_call — OpenAI function-calling adapter
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestOpenAIAdapter:
+    def _call(self, name, arguments, call_id="call_1"):
+        return {
+            "id": call_id,
+            "type": "function",
+            "function": {"name": name, "arguments": arguments},
+        }
+
+    def test_routes_to_handler_with_json_string_args(self):
+        # OpenAI sends arguments as a JSON *string*.
+        with patch.object(m, "_blast_radius", return_value={"risk": "HIGH"}):
+            msg = _run(m.dispatch_openai_tool_call(
+                self._call("blast_radius", '{"remediation_commands": ["kubectl delete pod x"]}')
+            ))
+        assert msg["role"] == "tool"
+        assert msg["tool_call_id"] == "call_1"
+        assert msg["name"] == "blast_radius"
+        assert json.loads(msg["content"]) == {"risk": "HIGH"}
+
+    def test_accepts_already_parsed_dict_args(self):
+        with patch.object(m, "_blast_radius", return_value={"risk": "LOW"}):
+            msg = _run(m.dispatch_openai_tool_call(
+                self._call("blast_radius", {"remediation_commands": []})
+            ))
+        assert json.loads(msg["content"]) == {"risk": "LOW"}
+
+    def test_unknown_tool_returns_error_content(self):
+        msg = _run(m.dispatch_openai_tool_call(self._call("nope", "{}")))
+        assert "Unknown tool" in json.loads(msg["content"])["error"]
+
+    def test_invalid_json_arguments_return_error(self):
+        msg = _run(m.dispatch_openai_tool_call(self._call("blast_radius", "{not json")))
+        assert "invalid arguments" in json.loads(msg["content"])["error"]
+
+    def test_handler_exception_returns_error_content(self):
+        with patch.object(m, "_blast_radius", side_effect=RuntimeError("boom")):
+            msg = _run(m.dispatch_openai_tool_call(self._call("blast_radius", "{}")))
+        assert json.loads(msg["content"])["error"] == "boom"
+
+    def test_adapter_uses_same_registry_as_mcp(self):
+        # The schema file, the MCP server and the adapter must agree on tool names.
+        assert set(m._HANDLERS) == {t.name for t in m._TOOLS}

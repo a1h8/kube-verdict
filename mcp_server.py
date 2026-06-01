@@ -151,17 +151,18 @@ async def list_tools() -> list[types.Tool]:
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict[str, Any]) -> types.CallToolResult:
-    _handlers = {
-        "kube_rca": _kube_rca,
-        "helm_drift": _helm_drift,
-        "blast_radius": _blast_radius,
-    }
-    handler = _handlers.get(name)
+    handler = _resolve_handler(name)
     if handler is None:
         return _error_result(f"Unknown tool: {name}")
 
+    import config as cfg
+
     try:
-        result = await handler(arguments)
+        result = await asyncio.wait_for(handler(arguments), timeout=cfg.MCP_TOOL_TIMEOUT)
+    except asyncio.TimeoutError:
+        # Bound the wall-clock so a slow collect/LLM never hangs the agent.
+        log.warning("tool %s timed out after %ds", name, cfg.MCP_TOOL_TIMEOUT)
+        return _error_result(f"{name} timed out after {cfg.MCP_TOOL_TIMEOUT}s")
     except Exception as exc:
         # Surface the failure as a tool error (isError=True) so the calling
         # agent can distinguish it from a normal result — not a 200-OK payload
@@ -303,6 +304,80 @@ async def _blast_radius(args: dict[str, Any]) -> dict[str, Any]:
     rollback    = args.get("rollback_commands", [])
 
     return await asyncio.to_thread(compute_blast_radius, remediation, affected, rollback)
+
+
+# Single registry, shared by the MCP call_tool handler and the OpenAI adapter.
+# Maps tool name → implementation attribute; resolved at call time so the
+# functions stay patchable and there is one authoritative tool list.
+_HANDLERS = {
+    "kube_rca": "_kube_rca",
+    "helm_drift": "_helm_drift",
+    "blast_radius": "_blast_radius",
+}
+
+
+def _resolve_handler(name: str):
+    attr = _HANDLERS.get(name)
+    return globals().get(attr) if attr else None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OpenAI function-calling adapter
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def dispatch_openai_tool_call(tool_call: dict[str, Any]) -> dict[str, Any]:
+    """
+    Execute one OpenAI-style tool call against the same handlers the MCP server
+    uses, so any function-calling framework (OpenAI SDK, LangChain, LlamaIndex)
+    can drive the three tools without speaking MCP.
+
+    Accepts the OpenAI ``tool_calls[i]`` shape::
+
+        {"id": "...", "type": "function",
+         "function": {"name": "helm_drift", "arguments": "{\\"release\\": ...}"}}
+
+    ``arguments`` may be a JSON string (as OpenAI sends it) or an already-parsed
+    dict. Returns the ``tool`` message to append to the conversation::
+
+        {"role": "tool", "tool_call_id": "...", "name": "...", "content": "<json>"}
+
+    A failed or unknown tool yields ``content`` of ``{"error": ...}`` — the
+    caller decides whether to retry or surface it.
+    """
+    fn = tool_call.get("function", {})
+    name = fn.get("name", "")
+    raw_args = fn.get("arguments", {})
+    call_id = tool_call.get("id", "")
+
+    try:
+        args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
+    except (json.JSONDecodeError, TypeError) as exc:
+        return _openai_tool_message(call_id, name, {"error": f"invalid arguments: {exc}"})
+
+    handler = _resolve_handler(name)
+    if handler is None:
+        return _openai_tool_message(call_id, name, {"error": f"Unknown tool: {name}"})
+
+    import config as cfg
+
+    try:
+        result = await asyncio.wait_for(handler(args), timeout=cfg.MCP_TOOL_TIMEOUT)
+    except asyncio.TimeoutError:
+        result = {"error": f"{name} timed out after {cfg.MCP_TOOL_TIMEOUT}s"}
+    except Exception as exc:
+        log.exception("openai tool %s failed", name)
+        result = {"error": str(exc)}
+
+    return _openai_tool_message(call_id, name, result)
+
+
+def _openai_tool_message(call_id: str, name: str, result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "role": "tool",
+        "tool_call_id": call_id,
+        "name": name,
+        "content": json.dumps(result, indent=2),
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
