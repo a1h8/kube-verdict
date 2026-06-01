@@ -178,7 +178,7 @@ KubeVerdict exposes `kube_rca`, `helm_drift`, and `blast_radius` as MCP tools co
   "mcpServers": {
     "kube-verdict": {
       "command": "python",
-      "args": ["-m", "mcp.server"],
+      "args": ["mcp_server.py"],
       "cwd": "/path/to/kube-verdict"
     }
   }
@@ -194,7 +194,7 @@ Add to `.cursor/mcp.json` in your project root:
   "mcpServers": {
     "kube-verdict": {
       "command": "python",
-      "args": ["-m", "mcp.server"],
+      "args": ["mcp_server.py"],
       "cwd": "/path/to/kube-verdict"
     }
   }
@@ -207,15 +207,32 @@ All three tools run fully offline — Ollama + Mistral, no data leaves your infr
 
 ```bash
 ollama serve &          # local LLM on port 11434
-python -m mcp.server    # MCP stdio server, reads kubeconfig from env
+python mcp_server.py    # MCP stdio server, reads kubeconfig from env
 ```
 
 See [SKILL.md](SKILL.md) for the full tool reference and air-gapped RBAC setup.
 
 ### OpenAI-compatible schema
 
-The tool schema is also available in OpenAI function-calling format at `api/tools_schema.json`,
+The tool schema is also available in OpenAI function-calling format at [`openapi_tools.json`](openapi_tools.json),
 compatible with any SDK that supports the function-calling API (OpenAI, LangChain, LlamaIndex).
+It is generated from the MCP tool definitions — regenerate after changing a tool with:
+
+```bash
+python tools/gen_openapi_tools.py        # rewrite openapi_tools.json
+python tools/gen_openapi_tools.py --check # CI guard: fail if stale
+```
+
+Feed `openapi_tools.json` as the `tools` array to any function-calling LLM, then
+execute the model's tool calls against the same handlers the MCP server uses:
+
+```python
+from mcp_server import dispatch_openai_tool_call
+
+for call in response.choices[0].message.tool_calls:
+    tool_message = await dispatch_openai_tool_call(call.model_dump())
+    messages.append(tool_message)   # role=tool, ready for the next turn
+```
 
 ---
 

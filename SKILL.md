@@ -36,7 +36,7 @@ Create or edit `~/.claude/mcp.json`:
   "mcpServers": {
     "kube-verdict": {
       "command": "python",
-      "args": ["-m", "mcp.server"],
+      "args": ["mcp_server.py"],
       "cwd": "/path/to/kube-verdict"
     }
   }

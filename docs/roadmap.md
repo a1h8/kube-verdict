@@ -64,7 +64,7 @@ The beam-search engine already records every routing decision (`edge_log`), ever
 
 ## Agent Skills / MCP (B8)
 
-- [ ] **MCP server** — expose `kube-rca`, `helm-drift-detector`, `blast-radius-estimator` as MCP tools; any agent (Claude, Cursor, Codex) can invoke them without deploying the full stack
-- [ ] **SKILL.md** — Claude Code skill definition; invocable from any repo with `kube-rca` skill
-- [ ] **OpenAPI tool schema** — OpenAI function-calling compatible; compatible with third-party agent frameworks
-- [ ] **Integration guide** — Cursor / Claude Desktop quickstart documented
+- [x] **MCP server** — expose `kube-rca`, `helm-drift-detector`, `blast-radius-estimator` as MCP tools; any agent (Claude, Cursor, Codex) can invoke them without deploying the full stack
+- [x] **SKILL.md** — Claude Code skill definition; invocable from any repo with `kube-rca` skill
+- [x] **OpenAPI tool schema** — OpenAI function-calling compatible; compatible with third-party agent frameworks
+- [x] **Integration guide** — Cursor / Claude Desktop quickstart documented
