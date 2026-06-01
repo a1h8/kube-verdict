@@ -1441,7 +1441,11 @@ def save_example_node(state: RCAState, config: RunnableConfig) -> dict:
     from rca.context_builder import anchor_fix_hints
 
     graph, store = _get_infra(config)
-    report = state.get("report_dict") or {}
+
+    report = IncidentReport.from_report_dict(state.get("report_dict"))
+    # state holds the authoritative LLM label and query for this run.
+    report.confidence = state.get("confidence") or report.confidence
+    report.query = state.get("query") or report.query
 
     # Anchor violations from unhealthy entities (re-computed, cheap)
     anchor_violations: list[str] = []
@@ -1451,21 +1455,10 @@ def save_example_node(state: RCAState, config: RunnableConfig) -> dict:
             if parts:
                 anchor_violations.append(parts[0].strip())
 
-    # Entity kinds from affected resources
-    entity_kinds: list[str] = []
-    for r in report.get("affected_resources") or []:
-        k = r.get("kind") if isinstance(r, dict) else str(r)
-        if k and k not in entity_kinds:
-            entity_kinds.append(k)
-
-    incident = ResolvedIncident(
-        query=state.get("query", ""),
+    incident = ResolvedIncident.from_report(
+        report,
         hypothesis=state.get("current_hypothesis", ""),
-        root_cause=report.get("root_cause", ""),
         anchor_violations=anchor_violations,
-        entity_kinds=entity_kinds,
-        remediation=report.get("remediation") or [],
-        confidence=state.get("confidence") or "",
     )
 
     ExampleStore().save(incident)

@@ -16,10 +16,24 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # avoid a runtime knowledge→decision import; from_report is duck-typed
+    from decision.models import IncidentReport
 
 _DEFAULT_DIR = Path("./data/examples")
 
 EXAMPLE_UID_PREFIX = "example:"
+
+
+def _entity_kinds(affected: list[str]) -> list[str]:
+    """Extract unique resource kinds from 'Kind/ns/name' references, order-preserving."""
+    kinds: list[str] = []
+    for ref in affected:
+        kind = str(ref).split("/", 1)[0].strip()
+        if kind and kind not in kinds:
+            kinds.append(kind)
+    return kinds
 
 
 @dataclass
@@ -35,6 +49,30 @@ class ResolvedIncident:
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
+
+    @classmethod
+    def from_report(
+        cls,
+        report: "IncidentReport",
+        *,
+        hypothesis: str = "",
+        anchor_violations: list[str] | None = None,
+    ) -> "ResolvedIncident":
+        """Build a ResolvedIncident from the canonical IncidentReport.
+
+        ``hypothesis`` and ``anchor_violations`` are workflow/graph context the
+        report doesn't carry, so they're passed explicitly. ``entity_kinds`` is
+        derived from the report's affected-resource references.
+        """
+        return cls(
+            query=report.query,
+            hypothesis=hypothesis,
+            root_cause=report.root_cause,
+            anchor_violations=list(anchor_violations or []),
+            entity_kinds=_entity_kinds(report.affected),
+            remediation=list(report.remediation),
+            confidence=report.confidence,
+        )
 
 
 class ExampleStore:
