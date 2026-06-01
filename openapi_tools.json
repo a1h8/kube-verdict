@@ -1,0 +1,101 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "kube_rca",
+      "description": "Run a full root-cause analysis on a Kubernetes namespace. Correlates pod events, Helm drift, and anchor violations into a ranked diagnosis with remediation commands and confidence score. Works air-gapped (Ollama / Mistral, no external calls).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Incident description or symptom (e.g. 'api pods crashlooping')"
+          },
+          "namespace": {
+            "type": "string",
+            "description": "Kubernetes namespace to investigate (default: all namespaces)"
+          },
+          "kubeconfig": {
+            "type": "string",
+            "description": "Path to kubeconfig file (default: ~/.kube/config)"
+          },
+          "kube_context": {
+            "type": "string",
+            "description": "kubeconfig context to use"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "helm_drift",
+      "description": "Detect drift between a Helm release's declared values and the actual running Kubernetes resources. Returns a list of drifted fields with declared vs observed values.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "string",
+            "description": "Helm release name"
+          },
+          "namespace": {
+            "type": "string",
+            "description": "Kubernetes namespace of the release"
+          },
+          "kubeconfig": {
+            "type": "string",
+            "description": "Path to kubeconfig file (default: ~/.kube/config)"
+          },
+          "kube_context": {
+            "type": "string",
+            "description": "kubeconfig context to use"
+          }
+        },
+        "required": [
+          "release",
+          "namespace"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "blast_radius",
+      "description": "Assess the blast radius and rollback availability for a set of proposed remediation commands before applying them. Returns risk level (LOW/MEDIUM/HIGH/CRITICAL), affected namespaces, cluster-scoped flag, and whether a safe rollback path exists.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "remediation_commands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "kubectl / helm commands to evaluate"
+          },
+          "affected_resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Resources already identified as affected (e.g. ['Pod/api-xyz'])"
+          },
+          "rollback_commands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Known rollback commands; inferred automatically if omitted"
+          }
+        },
+        "required": [
+          "remediation_commands"
+        ]
+      }
+    }
+  }
+]
