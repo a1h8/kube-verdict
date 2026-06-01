@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 from mcp import types
@@ -223,6 +224,7 @@ async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
     import config as cfg
     from ingestion import K8sCollector, HelmCollector, HelmDriftDetector
     from ontology.entities import ResourceKind
+    from ontology.relationships import RelationshipType
 
     release      = args["release"]
     namespace    = args["namespace"]
@@ -236,23 +238,45 @@ async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
     await asyncio.to_thread(helm.collect, graph, namespaces=[namespace])
     drift_count = await asyncio.to_thread(HelmDriftDetector().detect_all, graph)
 
+    # Drift annotations live on the drifted workloads (Deployment/StatefulSet/…),
+    # which point at the release via a DRIFTS_FROM edge; sub-chart drift is
+    # annotated on the release itself. Gather both.
     drift_items: list[dict] = []
-    for entity in graph.entities(ResourceKind.HELM_RELEASE):
-        if entity.name != release:
+    for rel in graph.entities(ResourceKind.HELM_RELEASE):
+        if rel.name != release:
             continue
-        for field, value in (entity.annotations or {}).items():
-            if field.startswith("drift.") and isinstance(value, (list, tuple)) and len(value) == 2:
-                drift_items.append({
-                    "field":    field[6:],
-                    "declared": value[0],
-                    "observed": value[1],
-                })
+        drifted = graph.neighbors(rel.uid, RelationshipType.DRIFTS_FROM, reverse=True)
+        for entity in [rel, *drifted]:
+            for key, value in (entity.annotations or {}).items():
+                if not key.startswith("drift."):
+                    continue
+                item = _parse_drift_annotation(key, value)
+                if item:
+                    item["resource"] = f"{entity.kind.value}/{entity.name}"
+                    drift_items.append(item)
 
     return {
         "release":    release,
         "namespace":  namespace,
         "drift_count": drift_count,
         "drift_items": drift_items,
+    }
+
+
+def _parse_drift_annotation(key: str, value: str) -> dict[str, str] | None:
+    """
+    Parse a ``drift.<field>`` annotation produced by ``DriftItem.to_text()``:
+        "drift field=<fp> declared=<d> observed=<o> severity=<sev>"
+    Returns {field, declared, observed, severity} or None if unparseable.
+    """
+    m = re.search(r"declared=(.*?) observed=(.*) severity=(\S+)$", str(value))
+    if not m:
+        return None
+    return {
+        "field":    key[len("drift."):],
+        "declared": m.group(1),
+        "observed": m.group(2),
+        "severity": m.group(3),
     }
 
 
