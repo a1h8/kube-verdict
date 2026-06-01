@@ -17,7 +17,8 @@ from langgraph.types import interrupt
 import config as cfg
 from rca.analyzer import RCAAnalyzer, _generate_rollback
 from rca.context_builder import ContextBuilder
-from decision.policy_gate import evaluate as pg_evaluate
+from decision.decision_engine import DecisionEngine
+from decision.models import IncidentReport
 from reasoning.beam_search import MAX_SWITCHES, should_switch_path
 from reasoning.monte_carlo import run_monte_carlo
 from reasoning.template_catalog import TemplateCatalog
@@ -1259,24 +1260,21 @@ def monte_carlo_node(state: RCAState, config: RunnableConfig) -> dict:
     }
 
 
+_DECISION_ENGINE = DecisionEngine()
+
+
 def log_policy_decision_node(state: RCAState) -> dict:
     """
-    Pre-router node: call policy_gate.evaluate(), log the decision, write
-    _verdict_edge so verdict_router stays a pure reader.
+    Pre-router node: build the canonical IncidentReport, run the DecisionEngine,
+    log the decision, and write _verdict_edge so verdict_router stays a pure reader.
 
-    Score source: pre_llm_confidence.score from report_dict (preferred).
-    Fallback: LLM confidence label → 0.75 HIGH / 0.62 MEDIUM / 0.30 LOW.
+    Score source: the LLM diagnosis confidence label (HIGH/MEDIUM/LOW/""), mapped
+    to a gate score by the DecisionEngine.
     """
-    llm_conf = (state.get("confidence") or "").upper()
+    report = IncidentReport.from_report_dict(state.get("report_dict"))
+    # state["confidence"] is the authoritative LLM label for this run.
+    report.confidence = state.get("confidence") or report.confidence
 
-    # Map LLM diagnosis confidence label → policy gate score.
-    # LOW/MEDIUM → HUMAN_REVIEW (operator decides).
-    # HIGH → eligible for AUTO when blast-radius + MC + namespace checks also pass.
-    # Missing confidence ("") → score 0.20 → NO_GO (workflow produced no analysis).
-    _LLM_SCORE: dict[str, float] = {
-        "HIGH": 0.85, "MEDIUM": 0.65, "LOW": 0.62, "": 0.20,
-    }
-    score = _LLM_SCORE.get(llm_conf, 0.65)
     br           = state.get("blast_radius") or {}
     risk         = br.get("risk", "HIGH")
     rollback_ok  = bool(br.get("rollback_available", False))
@@ -1288,23 +1286,23 @@ def log_policy_decision_node(state: RCAState) -> dict:
     mc_win_rate  = float(mc.get("win_rate", 1.0))
     max_hit      = bool(state.get("max_switches_reached", False))
 
-    gate = pg_evaluate(
-        score=score,
+    result = _DECISION_ENGINE.decide(
+        report,
         risk=risk,
         rollback_available=rollback_ok,
         namespace=namespace,
         mc_win_rate=mc_win_rate,
         max_switches_reached=max_hit,
     )
-    verdict = gate.verdict.value  # "AUTO" | "HUMAN_REVIEW" | "NO_GO"
-    edge    = verdict.lower().replace("_", "_")  # "auto" | "human_review" | "no_go"
+    verdict = result.verdict.value  # "AUTO" | "HUMAN_REVIEW" | "NO_GO"
+    edge    = result.edge           # "auto" | "human_review" | "no_go"
 
     entry = {
         "router":     "policy",
         "edge_taken":  edge,
-        "reason":     str(gate),
+        "reason":     f"{verdict}: {'; '.join(result.reasons)}",
         "snapshot": {
-            "score":              score,
+            "score":              result.score,
             "risk":               risk,
             "rollback_available": rollback_ok,
             "namespace":          namespace,
@@ -1314,13 +1312,13 @@ def log_policy_decision_node(state: RCAState) -> dict:
         },
         "ts": datetime.now(timezone.utc).isoformat(),
     }
-    log.info("policy_gate → %s: %s", edge, "; ".join(gate.reasons))
+    log.info("policy_gate → %s: %s", edge, "; ".join(result.reasons))
     edge_log = list(state.get("edge_log") or [])
     edge_log.append(entry)
     return {
         "edge_log":       edge_log,
         "verdict":        verdict,
-        "verdict_reasons": gate.reasons,
+        "verdict_reasons": result.reasons,
         "_verdict_edge":  edge,
     }
 
