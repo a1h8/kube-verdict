@@ -26,6 +26,9 @@ rank-bm25>=0.2.2
 # OTLP push receiver — decode protobuf trace exports (OTLP/HTTP default format)
 opentelemetry-proto>=1.20.0
 
+# MCP server — expose kube_rca / helm_drift / blast_radius as agent tools
+mcp>=1.0.0
+
 # Utilities
 requests>=2.31.0
 pyyaml>=6.0.1
