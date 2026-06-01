@@ -10,10 +10,8 @@ import asyncio
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import mcp_server as m
-from ontology.entities import Deployment, DriftItem, HelmRelease, ResourceKind
+from ontology.entities import Deployment, DriftItem, HelmRelease
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
 
