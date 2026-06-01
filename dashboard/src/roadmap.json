@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-01T03:50:41.911409+00:00",
+  "generated_at": "2026-06-01T19:04:21.208184+00:00",
   "blocs": [
     {
       "id": "B1",
@@ -136,6 +136,10 @@
         },
         {
           "label": "Policy gate (AUTO / HUMAN_REVIEW / NO_GO)",
+          "done": true
+        },
+        {
+          "label": "DecisionEngine orchestrator (canonical IncidentReport \u2192 verdict, testable)",
           "done": true
         },
         {
