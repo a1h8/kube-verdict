@@ -150,21 +150,35 @@ async def list_tools() -> list[types.Tool]:
 
 
 @server.call_tool()
-async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
-    try:
-        if name == "kube_rca":
-            result = await _kube_rca(arguments)
-        elif name == "helm_drift":
-            result = await _helm_drift(arguments)
-        elif name == "blast_radius":
-            result = await _blast_radius(arguments)
-        else:
-            result = {"error": f"Unknown tool: {name}"}
-    except Exception as exc:
-        log.exception("tool %s failed", name)
-        result = {"error": str(exc)}
+async def call_tool(name: str, arguments: dict[str, Any]) -> types.CallToolResult:
+    _handlers = {
+        "kube_rca": _kube_rca,
+        "helm_drift": _helm_drift,
+        "blast_radius": _blast_radius,
+    }
+    handler = _handlers.get(name)
+    if handler is None:
+        return _error_result(f"Unknown tool: {name}")
 
-    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+    try:
+        result = await handler(arguments)
+    except Exception as exc:
+        # Surface the failure as a tool error (isError=True) so the calling
+        # agent can distinguish it from a normal result — not a 200-OK payload
+        # that merely happens to contain an "error" key.
+        log.exception("tool %s failed", name)
+        return _error_result(str(exc))
+
+    return types.CallToolResult(
+        content=[types.TextContent(type="text", text=json.dumps(result, indent=2))],
+    )
+
+
+def _error_result(message: str) -> types.CallToolResult:
+    return types.CallToolResult(
+        content=[types.TextContent(type="text", text=json.dumps({"error": message}, indent=2))],
+        isError=True,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

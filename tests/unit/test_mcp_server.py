@@ -43,22 +43,26 @@ class TestListTools:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestCallToolDispatch:
-    def test_unknown_tool_returns_error_json(self):
+    def test_unknown_tool_flagged_as_error(self):
         out = _run(m.call_tool("does_not_exist", {}))
-        payload = json.loads(out[0].text)
+        assert out.isError is True
+        payload = json.loads(out.content[0].text)
         assert "Unknown tool" in payload["error"]
 
-    def test_exception_is_caught_and_serialised(self):
+    def test_exception_flagged_as_error(self):
         with patch.object(m, "_blast_radius", side_effect=RuntimeError("boom")):
             out = _run(m.call_tool("blast_radius", {"remediation_commands": []}))
-        payload = json.loads(out[0].text)
+        # The failure must be a tool error, not a 200-OK payload with an error key.
+        assert out.isError is True
+        payload = json.loads(out.content[0].text)
         assert payload["error"] == "boom"
 
-    def test_result_is_textcontent_json(self):
+    def test_success_not_flagged_as_error(self):
         with patch.object(m, "_blast_radius", return_value={"risk": "LOW"}):
             out = _run(m.call_tool("blast_radius", {"remediation_commands": []}))
-        assert out[0].type == "text"
-        assert json.loads(out[0].text) == {"risk": "LOW"}
+        assert not out.isError
+        assert out.content[0].type == "text"
+        assert json.loads(out.content[0].text) == {"risk": "LOW"}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
