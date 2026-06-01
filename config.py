@@ -99,6 +99,12 @@ PROMETHEUS_URL: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 PROMETHEUS_TOKEN: str | None = os.getenv("PROMETHEUS_TOKEN") or None
 PROMETHEUS_TIMEOUT: int = _int("PROMETHEUS_TIMEOUT", 30)
 
+# ── MCP server ──────────────────────────────────────────────────────────────────
+# Per-tool wall-clock budget; a tool exceeding this returns an isError result
+# instead of hanging the calling agent. kube_rca is the slow one (collect +
+# embeddings + LLM), so the default is generous.
+MCP_TOOL_TIMEOUT: int = _int("MCP_TOOL_TIMEOUT", 300)
+
 # ── Ollama / Mistral ────────────────────────────────────────────────────────────
 OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "mistral")

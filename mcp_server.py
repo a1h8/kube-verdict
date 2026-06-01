@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 from mcp import types
@@ -149,21 +150,36 @@ async def list_tools() -> list[types.Tool]:
 
 
 @server.call_tool()
-async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
-    try:
-        if name == "kube_rca":
-            result = await _kube_rca(arguments)
-        elif name == "helm_drift":
-            result = await _helm_drift(arguments)
-        elif name == "blast_radius":
-            result = await _blast_radius(arguments)
-        else:
-            result = {"error": f"Unknown tool: {name}"}
-    except Exception as exc:
-        log.exception("tool %s failed", name)
-        result = {"error": str(exc)}
+async def call_tool(name: str, arguments: dict[str, Any]) -> types.CallToolResult:
+    handler = _resolve_handler(name)
+    if handler is None:
+        return _error_result(f"Unknown tool: {name}")
 
-    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+    import config as cfg
+
+    try:
+        result = await asyncio.wait_for(handler(arguments), timeout=cfg.MCP_TOOL_TIMEOUT)
+    except asyncio.TimeoutError:
+        # Bound the wall-clock so a slow collect/LLM never hangs the agent.
+        log.warning("tool %s timed out after %ds", name, cfg.MCP_TOOL_TIMEOUT)
+        return _error_result(f"{name} timed out after {cfg.MCP_TOOL_TIMEOUT}s")
+    except Exception as exc:
+        # Surface the failure as a tool error (isError=True) so the calling
+        # agent can distinguish it from a normal result — not a 200-OK payload
+        # that merely happens to contain an "error" key.
+        log.exception("tool %s failed", name)
+        return _error_result(str(exc))
+
+    return types.CallToolResult(
+        content=[types.TextContent(type="text", text=json.dumps(result, indent=2))],
+    )
+
+
+def _error_result(message: str) -> types.CallToolResult:
+    return types.CallToolResult(
+        content=[types.TextContent(type="text", text=json.dumps({"error": message}, indent=2))],
+        isError=True,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -223,6 +239,7 @@ async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
     import config as cfg
     from ingestion import K8sCollector, HelmCollector, HelmDriftDetector
     from ontology.entities import ResourceKind
+    from ontology.relationships import RelationshipType
 
     release      = args["release"]
     namespace    = args["namespace"]
@@ -236,23 +253,45 @@ async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
     await asyncio.to_thread(helm.collect, graph, namespaces=[namespace])
     drift_count = await asyncio.to_thread(HelmDriftDetector().detect_all, graph)
 
+    # Drift annotations live on the drifted workloads (Deployment/StatefulSet/…),
+    # which point at the release via a DRIFTS_FROM edge; sub-chart drift is
+    # annotated on the release itself. Gather both.
     drift_items: list[dict] = []
-    for entity in graph.entities(ResourceKind.HELM_RELEASE):
-        if entity.name != release:
+    for rel in graph.entities(ResourceKind.HELM_RELEASE):
+        if rel.name != release:
             continue
-        for field, value in (entity.annotations or {}).items():
-            if field.startswith("drift.") and isinstance(value, (list, tuple)) and len(value) == 2:
-                drift_items.append({
-                    "field":    field[6:],
-                    "declared": value[0],
-                    "observed": value[1],
-                })
+        drifted = graph.neighbors(rel.uid, RelationshipType.DRIFTS_FROM, reverse=True)
+        for entity in [rel, *drifted]:
+            for key, value in (entity.annotations or {}).items():
+                if not key.startswith("drift."):
+                    continue
+                item = _parse_drift_annotation(key, value)
+                if item:
+                    item["resource"] = f"{entity.kind.value}/{entity.name}"
+                    drift_items.append(item)
 
     return {
         "release":    release,
         "namespace":  namespace,
         "drift_count": drift_count,
         "drift_items": drift_items,
+    }
+
+
+def _parse_drift_annotation(key: str, value: str) -> dict[str, str] | None:
+    """
+    Parse a ``drift.<field>`` annotation produced by ``DriftItem.to_text()``:
+        "drift field=<fp> declared=<d> observed=<o> severity=<sev>"
+    Returns {field, declared, observed, severity} or None if unparseable.
+    """
+    m = re.search(r"declared=(.*?) observed=(.*) severity=(\S+)$", str(value))
+    if not m:
+        return None
+    return {
+        "field":    key[len("drift."):],
+        "declared": m.group(1),
+        "observed": m.group(2),
+        "severity": m.group(3),
     }
 
 
@@ -265,6 +304,80 @@ async def _blast_radius(args: dict[str, Any]) -> dict[str, Any]:
     rollback    = args.get("rollback_commands", [])
 
     return await asyncio.to_thread(compute_blast_radius, remediation, affected, rollback)
+
+
+# Single registry, shared by the MCP call_tool handler and the OpenAI adapter.
+# Maps tool name → implementation attribute; resolved at call time so the
+# functions stay patchable and there is one authoritative tool list.
+_HANDLERS = {
+    "kube_rca": "_kube_rca",
+    "helm_drift": "_helm_drift",
+    "blast_radius": "_blast_radius",
+}
+
+
+def _resolve_handler(name: str):
+    attr = _HANDLERS.get(name)
+    return globals().get(attr) if attr else None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OpenAI function-calling adapter
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def dispatch_openai_tool_call(tool_call: dict[str, Any]) -> dict[str, Any]:
+    """
+    Execute one OpenAI-style tool call against the same handlers the MCP server
+    uses, so any function-calling framework (OpenAI SDK, LangChain, LlamaIndex)
+    can drive the three tools without speaking MCP.
+
+    Accepts the OpenAI ``tool_calls[i]`` shape::
+
+        {"id": "...", "type": "function",
+         "function": {"name": "helm_drift", "arguments": "{\\"release\\": ...}"}}
+
+    ``arguments`` may be a JSON string (as OpenAI sends it) or an already-parsed
+    dict. Returns the ``tool`` message to append to the conversation::
+
+        {"role": "tool", "tool_call_id": "...", "name": "...", "content": "<json>"}
+
+    A failed or unknown tool yields ``content`` of ``{"error": ...}`` — the
+    caller decides whether to retry or surface it.
+    """
+    fn = tool_call.get("function", {})
+    name = fn.get("name", "")
+    raw_args = fn.get("arguments", {})
+    call_id = tool_call.get("id", "")
+
+    try:
+        args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
+    except (json.JSONDecodeError, TypeError) as exc:
+        return _openai_tool_message(call_id, name, {"error": f"invalid arguments: {exc}"})
+
+    handler = _resolve_handler(name)
+    if handler is None:
+        return _openai_tool_message(call_id, name, {"error": f"Unknown tool: {name}"})
+
+    import config as cfg
+
+    try:
+        result = await asyncio.wait_for(handler(args), timeout=cfg.MCP_TOOL_TIMEOUT)
+    except asyncio.TimeoutError:
+        result = {"error": f"{name} timed out after {cfg.MCP_TOOL_TIMEOUT}s"}
+    except Exception as exc:
+        log.exception("openai tool %s failed", name)
+        result = {"error": str(exc)}
+
+    return _openai_tool_message(call_id, name, result)
+
+
+def _openai_tool_message(call_id: str, name: str, result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "role": "tool",
+        "tool_call_id": call_id,
+        "name": name,
+        "content": json.dumps(result, indent=2),
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
