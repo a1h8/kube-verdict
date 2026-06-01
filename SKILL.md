@@ -1,3 +1,13 @@
+---
+name: kube-verdict
+description: Root-cause analysis for Kubernetes incidents — correlates pod events, Helm value drift and manifest anchors into a ranked diagnosis with remediation commands, a rollback plan and a confidence score. Use when pods are crashlooping, OOMKilled, ImagePullBackOff, Pending or stuck, when a Helm release has drifted from its declared values, or to assess the blast radius of a kubectl/helm fix before applying it. Exposes kube_rca, helm_drift and blast_radius as tools; runs air-gapped via local Ollama.
+license: Apache-2.0
+compatibility: Designed for Claude Code and MCP clients (Cursor, Continue). Runs air-gapped via Ollama + Mistral; requires Python 3.11+ and a read-only kubeconfig.
+metadata:
+  author: a1h8
+  repository: https://github.com/a1h8/kube-verdict
+---
+
 # KubeVerdict — Claude Code Skill
 
 KubeVerdict is an evidence-first Kubernetes incident decision engine.
