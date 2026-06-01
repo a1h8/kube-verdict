@@ -19,7 +19,12 @@ tests/integration/cases/
 ├── h004_missing_configmap/   ← CreateContainerConfigError — 3 missing resources (ConfigMap + 2 Secrets)
 ├── h005_rbac_forbidden/      ← SA exists, no ClusterRoleBinding → 403 Forbidden on all API calls
 │   └── kube/rbac/            ← optional subdirectory for RBAC resources
-└── h006_networkpolicy_blocked/ ← egress: [] blocks DNS + PostgreSQL + Redis; pod Running but not Ready
+├── h006_networkpolicy_blocked/ ← egress: [] blocks DNS + PostgreSQL + Redis; pod Running but not Ready
+├── h007_hpa_no_metrics/      ← HPA stuck, metrics-server not returning pod metrics
+├── h008_init_container_fail/ ← Init:0/1 — db-migrate init container exits 1
+├── h009_liveness_probe_loop/ ← liveness timeoutSeconds drift (1s deployed vs 5s declared) restarts healthy pods
+├── h010_resource_quota_exceeded/ ← pod Pending, namespace ResourceQuota CPU cap full
+└── h011_statefulset_pvc_stuck/ ← StatefulSet rolling update stuck, PVC bound to old pod
 ```
 
 The `case_loader.py` reads all formats (YAML/JSON), runs `HelmDriftDetector` + `AnchorEngine` + `_detect_missing_deps()`, and produces a full `OntologyGraph` — the same pipeline used against a real cluster. It recurses into subdirectories under `kube/` (e.g. `kube/rbac/`) and collects all resource kinds including secrets, configmaps, serviceaccounts, networkpolicies, pvcs, and RBAC objects.
@@ -64,6 +69,11 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
 | Missing ConfigMap / Secret at pod start | h004 | ✅ | `DeploymentReadinessDetector`, `missing.*` annotations, `kubectl create` hints |
 | RBAC — missing ClusterRoleBinding | h005 | ✅ | SA exists but no binding detected, `kubectl create clusterrolebinding` hint |
 | NetworkPolicy egress block | h006 | ✅ | `netpol.*` annotations, `kubectl edit networkpolicy` hints |
+| HPA cannot scale — metrics-server unavailable | h007 | ✅ | HPA target resolution, metrics-unavailable detection, `metrics-server` fix hints |
+| Init container failing — DB migration exits 1 | h008 | ✅ | `Init:0/1` detection, init-container log correlation, migration-failure root cause |
+| Liveness probe too aggressive | h009 | ✅ | probe-timeout drift (`timeoutSeconds` declared vs deployed) → `helm upgrade` fix |
+| ResourceQuota exceeded — pod Pending | h010 | ✅ | `ResourceQuota` entity, namespace quota correlation, pending-pod root cause |
+| StatefulSet update stuck — PVC bound to old pod | h011 | ⚠️ | wired in via `test_native_helm_dialogue`, but `test_confidence_score_min` and `test_has_resolvable_path` still fail — open contribution |
 
 **Each CI run** (`pytest tests/unit/test_hybrid_pipeline_NNN.py`) validates the full pre-LLM pipeline — graph construction, hybrid retrieval (BM25 + FAISS + RRF), context building, anchor/drift/policy scoring, and proposal generation — against a fixed JSON fixture. No Ollama, no cluster.
 

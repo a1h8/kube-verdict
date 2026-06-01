@@ -1,3 +1,13 @@
+---
+name: kube-verdict
+description: Root-cause analysis for Kubernetes incidents — correlates pod events, Helm value drift and manifest anchors into a ranked diagnosis with remediation commands, a rollback plan and a confidence score. Use when pods are crashlooping, OOMKilled, ImagePullBackOff, Pending or stuck, when a Helm release has drifted from its declared values, or to assess the blast radius of a kubectl/helm fix before applying it. Exposes kube_rca, helm_drift and blast_radius as tools; runs air-gapped via local Ollama.
+license: Apache-2.0
+compatibility: Designed for Claude Code and MCP clients (Cursor, Continue). Runs air-gapped via Ollama + Mistral; requires Python 3.11+ and a read-only kubeconfig.
+metadata:
+  author: a1h8
+  repository: https://github.com/a1h8/kube-verdict
+---
+
 # KubeVerdict — Claude Code Skill
 
 KubeVerdict is an evidence-first Kubernetes incident decision engine.
@@ -10,7 +20,7 @@ directly from a Claude Code session — no browser, no copy-pasting kubectl outp
 |------|-------------|
 | `kube_rca` | Full RCA on a namespace — events, Helm drift, anchors → ranked diagnosis + remediation |
 | `helm_drift` | Drift between declared Helm values and live cluster state |
-| `blast_radius` | Risk score (LOW→CRITICAL) + rollback check before applying any fix |
+| `blast_radius` | Heuristic risk score (LOW→CRITICAL) over the proposed command + rollback check before applying any fix |
 
 All tools run **air-gapped** by default: Ollama + Mistral, no data leaves your infrastructure.
 
@@ -141,8 +151,10 @@ Returns: `risk` (LOW/MEDIUM/HIGH/CRITICAL), `summary`, `namespaces`, `cluster_sc
 
 KubeVerdict never auto-applies fixes. Every remediation goes through:
 
-1. **Blast radius** — risk scored before any action
-2. **Monte Carlo stability** — 200 simulations on diagnosis confidence
-3. **Policy gate** — AUTO (non-prod, LOW risk, MC stable) / HUMAN_REVIEW / NO_GO
+1. **Blast radius** — risk scored before any action. Currently a heuristic over the
+   proposed command (verb / namespace / kind / cluster-scope / affected-count), not yet
+   a rendered-vs-live diff — a triage signal, not a guarantee of impact.
+2. **Monte Carlo stability** — 200 simulations (±10% perturbation) on diagnosis confidence
+3. **Policy gate** — AUTO (non-prod, LOW risk, MC win_rate ≥ 0.80) / HUMAN_REVIEW / NO_GO
 
 Production namespaces always require explicit human approval.

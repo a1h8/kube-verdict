@@ -6,11 +6,11 @@ KubeVerdict correlates Kubernetes events and Helm drift into an evidence-grounde
 
 ✅ Air-gapped by default — Ollama + Mistral, no data leaves your infrastructure  
 ✅ No auto-remediation without explicit approval  
-✅ Six validated failure scenarios proven end-to-end in CI  
+✅ Ten validated failure scenarios proven end-to-end in CI  
 ✅ Try it without a live cluster  
 
 [![CI](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml)
-[![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h006-blue)](#validated-scenarios)
+[![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h010-blue)](#validated-scenarios)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
@@ -87,6 +87,8 @@ Every remediation command goes through two gates before execution:
 1. **Human approval** — the SRE reviews evidence, root cause and proposed fix before anything is applied
 2. **Rollback plan** — KubeVerdict generates the inverse command (`helm rollback`, `kubectl rollout undo`) alongside every fix proposal
 
+A **blast-radius estimate** (LOW / MEDIUM / HIGH / CRITICAL) accompanies each proposal. It is currently a heuristic over the *proposed command* — it parses the kubectl/helm verb, namespace, resource kind, cluster-scope and affected-resource count. It is **not yet** a rendered-vs-live diff of the resources that would actually change; treat it as a triage signal, not a guarantee of impact.
+
 Nothing touches the cluster without explicit sign-off. Autonomous execution is not implemented by design.
 
 ---
@@ -117,7 +119,7 @@ Human review gate → remediation commands
 
 ## Validated scenarios
 
-Six failure patterns proven end-to-end in CI — no cluster, no Ollama required.
+Ten failure patterns proven end-to-end in CI — no cluster, no Ollama required.
 
 | Scenario | Case | What it proves |
 |---|---|---|
@@ -127,8 +129,12 @@ Six failure patterns proven end-to-end in CI — no cluster, no Ollama required.
 | Missing ConfigMap / Secret at pod start | h004 | `DeploymentReadinessDetector`, `missing.*` annotations, `kubectl create` hints |
 | RBAC — missing ClusterRoleBinding | h005 | SA exists but no binding detected, `kubectl create clusterrolebinding` hint |
 | NetworkPolicy egress block | h006 | `netpol.*` annotations, `kubectl edit networkpolicy` hints |
+| HPA cannot scale — metrics-server unavailable | h007 | HPA target resolution, metrics-unavailable detection, `metrics-server` fix hints |
+| Init container failing — DB migration exits 1 | h008 | `Init:0/1` detection, init-container log correlation, root-cause on migration failure |
+| Liveness probe too aggressive — kills healthy pods | h009 | probe-timeout drift (`timeoutSeconds` declared vs deployed) → `helm upgrade` fix |
+| ResourceQuota exceeded — pod stuck Pending | h010 | `ResourceQuota` entity, namespace quota correlation, pending-pod root cause |
 
-Each case runs the full pre-LLM pipeline: graph construction → hybrid retrieval (BM25 + FAISS + RRF) → context building → anchor/drift/policy scoring → proposal generation.
+Each case has a `test_hybrid_pipeline_NNN.py` running the full pre-LLM pipeline: graph construction → hybrid retrieval (BM25 + FAISS + RRF) → context building → anchor/drift/policy scoring → proposal generation. A further case — **h011 (StatefulSet update stuck on a bound PVC)** — is wired in but not yet passing its confidence/resolvable-path assertions; it is a good first contribution.
 
 ---
 
@@ -159,7 +165,7 @@ streamlit run ui/app.py
 | [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, anchor system design, drift detection |
 | [REST API](docs/api.md) | FastAPI endpoints, session lifecycle, request/response examples, SSE stream |
 | [UI reference](docs/ui.md) | Streamlit tabs, pipeline trace steps, anchor pivot table, reasoning journey, router decisions |
-| [Test cases](docs/test-cases.md) | h001–h006 validated scenarios, case format, adding a new case, CI coverage |
+| [Test cases](docs/test-cases.md) | h001–h010 validated scenarios, case format, adding a new case, CI coverage |
 | [Project layout](docs/project-layout.md) | Full directory tree, RBAC |
 | [Roadmap](docs/roadmap.md) | Done and next |
 | [Configuration](docs/configuration.md) | All `.env` variables, hybrid retrieval tuning, source weights |
@@ -240,7 +246,7 @@ for call in response.choices[0].message.tool_calls:
 
 Several constraints are intentional or known:
 
-- **Validated cases: h001–h006 only.** h007–h012+ (Helmfile multi-release, MCTS routing, Slack/PagerDuty, RBAC-aware scoping) are in the roadmap, not yet implemented.
+- **Validated cases: h001–h010** (h011 is wired in but not yet passing — see Validated scenarios). Advanced scenarios on the roadmap — Helmfile multi-release, MCTS routing, Slack/PagerDuty enrichment, RBAC-aware (impersonated) scoping — are not yet implemented.
 - **Single-cluster.** Multi-cluster support is not yet wired end-to-end.
 - **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
 - **LLM performance is local-hardware-dependent.** Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.
