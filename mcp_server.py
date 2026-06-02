@@ -187,51 +187,29 @@ def _error_result(message: str) -> types.CallToolResult:
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def _kube_rca(args: dict[str, Any]) -> dict[str, Any]:
-    """Collect cluster state and run RCAAnalyzer."""
+    """Run the canonical investigation pipeline (same graph as the REST API).
+
+    Routes through services.investigation_service so MCP, the API and any future
+    surface return the same verdict. Proposal-only: returns the policy decision
+    (root cause + blast radius + verdict), never executes remediation.
+    """
     import config as cfg
-    from ingestion import K8sCollector, HelmCollector, HelmDriftDetector
-    from llm import build_llm_client
-    from rca.analyzer import RCAAnalyzer
-    from vectorstore.embedder import Embedder
-    from vectorstore.store import FAISSStore
+    from services.investigation_service import run_investigation, verdict_summary
 
     query        = args["query"]
     namespace    = args.get("namespace")
     kubeconfig   = args.get("kubeconfig") or cfg.KUBECONFIG
     kube_context = args.get("kube_context") or cfg.KUBE_CONTEXT
 
-    namespaces = [namespace] if namespace else cfg.KUBE_NAMESPACES or None
+    namespaces = [namespace] if namespace else (cfg.KUBE_NAMESPACES or [])
 
-    collector = K8sCollector(kubeconfig=kubeconfig, context=kube_context)
-    graph = await asyncio.to_thread(collector.collect, namespaces=namespaces)
-
-    helm = HelmCollector(kubeconfig=kubeconfig, kube_context=kube_context)
-    await asyncio.to_thread(helm.collect, graph, namespaces=namespaces)
-    await asyncio.to_thread(HelmDriftDetector().detect_all, graph)
-
-    store = FAISSStore(embedder=Embedder())
-    await asyncio.to_thread(store.index_graph, graph)
-
-    llm    = build_llm_client()
-    report = await asyncio.to_thread(RCAAnalyzer(graph=graph, store=store, llm=llm).analyze, query)
-
-    return {
-        "query":        report.query,
-        "summary":      report.summary,
-        "root_cause":   report.root_cause,
-        "causal_chain": report.causal_chain,
-        "affected":     report.affected,
-        "remediation":  report.remediation,
-        "rollback":     report.rollback,
-        "confidence":   report.confidence,
-        "pre_llm_confidence": (
-            {
-                "score": report.context.pre_llm_confidence.score,
-                "label": report.context.pre_llm_confidence.label,
-            }
-            if report.context and report.context.pre_llm_confidence else None
-        ),
-    }
+    state = await run_investigation(
+        query=query,
+        namespaces=namespaces,
+        kubeconfig=kubeconfig,
+        kube_context=kube_context,
+    )
+    return verdict_summary(state)
 
 
 async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
