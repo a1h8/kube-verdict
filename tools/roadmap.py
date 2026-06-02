@@ -210,8 +210,9 @@ def _blocs() -> list[dict]:
                     "done": _exists("demo/focused") and len(list((ROOT / "demo/focused").glob("scenario_*.py"))) >= 3,
                 },
                 {
-                    "label": "Published to Artifact Hub",
-                    "done": _grep(r"artifacthub\.io", "helm/kube-verdict/Chart.yaml"),
+                    "label": "Docker image published (release workflow → ghcr)",
+                    "done": _exists(".github/workflows/release.yml")
+                    and _grep(r"ghcr\.io", ".github/workflows/release.yml"),
                 },
                 {
                     "label": "Quickstart < 30 min documented",
