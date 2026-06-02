@@ -15,9 +15,9 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # ── Stage 2: runtime image ─────────────────────────────────────────────────────
 FROM python:3.11-slim
 
-LABEL org.opencontainers.image.source="https://github.com/your-org/kubewhisperer"
-LABEL org.opencontainers.image.description="KubeWhisperer — local air-gapped Kubernetes RCA"
-LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/a1h8/kube-verdict"
+LABEL org.opencontainers.image.description="KubeVerdict — evidence-first Kubernetes incident decision engine"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 # libopenblas is required at runtime by faiss-cpu
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -30,16 +30,25 @@ COPY --from=builder /install /usr/local
 
 WORKDIR /app
 
-# Copy application source
+# Copy application source — every package imported on the streamlit/API runtime path.
+# (cases/ is test-fixture data and dashboard/ is a separate JS build — neither is needed here.)
 COPY config.py         ./
 COPY main.py           ./
-COPY ontology/         ./ontology/
-COPY ingestion/        ./ingestion/
+COPY api/              ./api/
+COPY decision/         ./decision/
 COPY dedup/            ./dedup/
-COPY vectorstore/      ./vectorstore/
-COPY rca/              ./rca/
+COPY ingestion/        ./ingestion/
+COPY knowledge/        ./knowledge/
 COPY llm/              ./llm/
+COPY ontology/         ./ontology/
+COPY persistence/      ./persistence/
+COPY rca/              ./rca/
+COPY reasoning/        ./reasoning/
+COPY remediation/      ./remediation/
+COPY signals/          ./signals/
 COPY ui/               ./ui/
+COPY vectorstore/      ./vectorstore/
+COPY workflow/         ./workflow/
 
 # Pre-download the embedding model so the image is self-contained
 # Remove this RUN if you want to mount a model cache volume instead.

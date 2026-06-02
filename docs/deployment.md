@@ -6,18 +6,18 @@ The `scripts/init-k3s.sh` script handles everything end-to-end:
 
 ```bash
 # 1. Clone the repo on the target machine
-git clone https://github.com/your-org/kubeverdict.git
-cd kubeverdict
+git clone https://github.com/a1h8/kube-verdict.git
+cd kube-verdict
 
 # 2. Build the Docker image
-docker build -t ghcr.io/your-org/kubeverdict:latest .
+docker build -t ghcr.io/a1h8/kube-verdict:latest .
 
 # 3. Load the image into K3s (no registry needed)
-docker save ghcr.io/your-org/kubeverdict:latest | \
+docker save ghcr.io/a1h8/kube-verdict:latest | \
   sudo k3s ctr images import -
 
 # 4. Run the init script (installs K3s, Ollama, Mistral, KubeVerdict)
-sudo bash scripts/init-k3s.sh --image ghcr.io/your-org/kubeverdict:latest
+sudo bash scripts/init-k3s.sh --image ghcr.io/a1h8/kube-verdict:latest
 ```
 
 After ~5 minutes (model download) the CronJob runs every hour automatically.
@@ -77,7 +77,7 @@ kubectl wait job/ollama-pull-mistral -n kubeverdict --for=condition=complete --t
 
 ### Step 4 — Deploy KubeVerdict
 
-Edit `k8s/kubeverdict.yaml` and replace `ghcr.io/your-org/kubeverdict:latest` with your image.
+Edit `k8s/kubeverdict.yaml` and replace `ghcr.io/a1h8/kube-verdict:latest` with your image.
 
 ```bash
 kubectl apply -f k8s/kubeverdict.yaml
