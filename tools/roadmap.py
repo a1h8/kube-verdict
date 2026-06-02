@@ -186,6 +186,11 @@ def _blocs() -> list[dict]:
                     "done": _exists("decision/policy_gate.py"),
                 },
                 {
+                    "label": "DecisionEngine orchestrator (canonical IncidentReport → verdict, testable)",
+                    "done": _exists("decision/decision_engine.py", "decision/models.py")
+                    and _grep(r"class DecisionEngine", "decision/decision_engine.py"),
+                },
+                {
                     "label": "Template catalog (community runbooks)",
                     "done": _exists("reasoning/template_catalog.py"),
                 },

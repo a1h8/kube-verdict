@@ -30,13 +30,33 @@ const SCENARIOS = [
   },
   {
     id: "h005",
+    title: "RBAC — missing ClusterRoleBinding",
+    desc: "SA exists but no binding. Detected via SA→role graph, kubectl create clusterrolebinding hint.",
+  },
+  {
+    id: "h006",
     title: "NetworkPolicy egress block",
     desc: "Blocked egress traffic. netpol.* annotations, kubectl edit networkpolicy hints.",
   },
   {
-    id: "h006",
-    title: "RBAC — missing ClusterRoleBinding",
-    desc: "SA exists but no binding. Detected via SA→role graph, kubectl create clusterrolebinding hint.",
+    id: "h007",
+    title: "HPA cannot scale — metrics-server unavailable",
+    desc: "HPA target resolution, metrics-unavailable detection, metrics-server fix hints.",
+  },
+  {
+    id: "h008",
+    title: "Init container failing — DB migration exits 1",
+    desc: "Init:0/1 detection, init-container log correlation, migration-failure root cause.",
+  },
+  {
+    id: "h009",
+    title: "Liveness probe too aggressive",
+    desc: "Probe-timeout drift (timeoutSeconds declared vs deployed) → helm upgrade fix.",
+  },
+  {
+    id: "h010",
+    title: "ResourceQuota exceeded — pod Pending",
+    desc: "ResourceQuota entity, namespace quota correlation, pending-pod root cause.",
   },
 ];
 
@@ -50,7 +70,7 @@ const PIPELINE_STEPS = [
 ];
 
 const LIMITATIONS = [
-  "Validated cases: h001–h006 only — h007–h012+ are roadmap, not yet shipped.",
+  "Validated cases: h001–h010 proven end-to-end in CI; h011 (StatefulSet PVC) is an open contribution, not yet shipped.",
   "Single-cluster — multi-cluster not yet wired end-to-end.",
   "No auto-remediation in production — human approval gate is by design.",
   "LLM performance is local-hardware-dependent — Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.",
@@ -294,7 +314,7 @@ function Scenarios() {
       <div style={T.wrap}>
         <h2 style={T.h2}>Validated scenarios</h2>
         <p style={T.sub}>
-          Six failure patterns proven end-to-end in CI — no cluster, no LLM
+          Ten failure patterns proven end-to-end in CI — no cluster, no LLM
           required.
         </p>
         <div
