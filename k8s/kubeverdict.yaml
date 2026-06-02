@@ -67,7 +67,7 @@ spec:
           containers:
             - name: kubeverdict
               # Replace with your registry / image tag after `docker build`
-              image: ghcr.io/your-org/kubeverdict:latest
+              image: ghcr.io/a1h8/kube-verdict:latest
               imagePullPolicy: IfNotPresent
               args:
                 - "--query"
@@ -120,7 +120,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: kubeverdict
-          image: ghcr.io/your-org/kubeverdict:latest
+          image: ghcr.io/a1h8/kube-verdict:latest
           imagePullPolicy: IfNotPresent
           args:
             - "--query"
