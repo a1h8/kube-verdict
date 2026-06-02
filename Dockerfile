@@ -10,7 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# CPU-only torch: make the PyTorch CPU index primary (PyPI as fallback for everything
+# else) so the +cpu wheel wins and no CUDA/nvidia wheels are pulled. ~6GB → ~1.5GB.
+RUN pip install --no-cache-dir --prefix=/install \
+        --index-url https://download.pytorch.org/whl/cpu \
+        --extra-index-url https://pypi.org/simple \
+        -r requirements.txt
 
 # ── Stage 2: runtime image ─────────────────────────────────────────────────────
 FROM python:3.11-slim
