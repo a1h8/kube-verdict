@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-01T19:04:21.208184+00:00",
+  "generated_at": "2026-06-02T06:33:22.030455+00:00",
   "blocs": [
     {
       "id": "B1",
@@ -163,15 +163,15 @@
           "done": true
         },
         {
-          "label": "Published to Artifact Hub",
-          "done": false
+          "label": "Docker image published (release workflow \u2192 ghcr)",
+          "done": true
         },
         {
           "label": "Quickstart < 30 min documented",
           "done": true
         }
       ],
-      "status": "IN_PROGRESS"
+      "status": "DONE"
     },
     {
       "id": "B8",
