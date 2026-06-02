@@ -1,35 +1,62 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "kubeverdict"
 version = "0.1.0"
-description = "LLM-powered root-cause analysis for Kubernetes clusters"
+description = "Evidence-first Kubernetes incident decision engine"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
+# Source of truth for the runtime dependency set (kept in sync with requirements.txt).
 dependencies = [
+    # Web UI + REST API
+    "streamlit>=1.35.0",
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",
+    # K8s client
     "kubernetes>=29.0.0",
+    # LangGraph workflow + SQLite checkpointer
     "langgraph>=0.2.14",
+    "langgraph-checkpoint-sqlite>=2.0.0",
+    "aiosqlite>=0.19.0",
+    # Vector search + signal analysis
     "faiss-cpu>=1.8.0",
     "sentence-transformers>=3.0.0",
     "transformers>=4.40.0",
     "torch>=2.0.0",
+    # Dedup / ranking
     "scikit-learn>=1.4.0",
+    "rank-bm25>=0.2.2",
+    # OTLP receiver + MCP server
+    "opentelemetry-proto>=1.20.0",
+    "mcp>=1.0.0",
+    # Utilities
     "requests>=2.31.0",
     "pyyaml>=6.0.1",
     "python-dotenv>=1.0.0",
     "numpy>=1.26.0",
-    "mcp>=1.0.0",
-    "opentelemetry-proto>=1.20.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
+    "pytest-asyncio>=0.23.0",
     "ruff>=0.4.0",
+]
+
+# Flat layout: enumerate the application packages explicitly so editable installs
+# (`pip install -e .`) don't fail auto-discovery on the many top-level dirs.
+[tool.setuptools]
+py-modules = ["config", "main"]
+
+[tool.setuptools.packages.find]
+include = [
+    "api*", "decision*", "dedup*", "ingestion*", "knowledge*", "llm*",
+    "ontology*", "persistence*", "rca*", "reasoning*", "remediation*",
+    "signals*", "ui*", "vectorstore*", "workflow*",
 ]
 
 [tool.ruff]
