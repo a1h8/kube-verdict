@@ -28,9 +28,13 @@ spec:
         - name: kubeverdict
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.ui.enabled }}
+          # UI mode: serve the Streamlit debug UI instead of the API service
+          command: ["streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+          {{- end }}
           ports:
             - name: http
-              containerPort: 8501
+              containerPort: {{ ternary 8501 8000 .Values.ui.enabled }}
               protocol: TCP
           envFrom:
             - configMapRef:
@@ -39,13 +43,13 @@ spec:
                 name: {{ .Values.secrets.existingSecret | default (include "kubeverdict.fullname" .) }}
           livenessProbe:
             httpGet:
-              path: /_stcore/health
+              path: {{ ternary "/_stcore/health" "/health" .Values.ui.enabled }}
               port: http
             initialDelaySeconds: 30
             periodSeconds: 15
           readinessProbe:
             httpGet:
-              path: /_stcore/health
+              path: {{ ternary "/_stcore/health" "/health" .Values.ui.enabled }}
               port: http
             initialDelaySeconds: 10
             periodSeconds: 5
