@@ -1,8 +1,9 @@
 {
-  "generated_at": "2026-06-03T03:42:33.511801+00:00",
+  "generated_at": "2026-06-03T04:13:02.768497+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
+    "Common Interface",
     "Distribution & Skills",
     "Deep Observability",
     "Production Hardening"
@@ -314,6 +315,27 @@
       ],
       "status": "TODO",
       "phase": "Production Hardening"
+    },
+    {
+      "id": "B12",
+      "title": "Common Interface (IDP contract)",
+      "description": "One canonical verdict shared by the API, the MCP tools and any IDP consumer \u2014 frozen schema, single investigation pipeline, published integration contract",
+      "checks": [
+        {
+          "label": "Canonical verdict model frozen (IncidentReport + schema contract test)",
+          "done": true
+        },
+        {
+          "label": "MCP routed through the canonical investigation service",
+          "done": true
+        },
+        {
+          "label": "IDP integration contract published (docs/idp-contract.md)",
+          "done": true
+        }
+      ],
+      "status": "DONE",
+      "phase": "Common Interface"
     }
   ]
 }

@@ -542,7 +542,9 @@ function Roadmap() {
           {ROADMAP_PHASES.map((phase) => {
             const blocs = ROADMAP_BLOCS.filter((b) => b.phase === phase);
             if (blocs.length === 0) return null;
-            const phaseDone = blocs.filter((b) => b.status === "DONE").length;
+            const phaseDone   = blocs.filter((b) => b.status === "DONE").length;
+            const checksTotal = blocs.reduce((n, b) => n + b.checks.length, 0);
+            const checksDone  = blocs.reduce((n, b) => n + b.checks.filter((c) => c.done).length, 0);
             return (
               <div key={phase}>
                 <div
@@ -559,7 +561,7 @@ function Roadmap() {
                     {phase}
                   </span>
                   <span style={{ fontSize: 11, color: "#64748b" }}>
-                    {phaseDone}/{blocs.length} blocs
+                    {phaseDone}/{blocs.length} blocs · {checksDone}/{checksTotal} checks
                   </span>
                 </div>
                 <div style={{ display: "grid", gap: 12 }}>

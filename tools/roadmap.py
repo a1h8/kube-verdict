@@ -368,6 +368,26 @@ def _blocs() -> list[dict]:
                 },
             ],
         },
+        {
+            "id": "B12",
+            "title": "Common Interface (IDP contract)",
+            "description": "One canonical verdict shared by the API, the MCP tools and any IDP consumer — frozen schema, single investigation pipeline, published integration contract",
+            "checks": [
+                {
+                    "label": "Canonical verdict model frozen (IncidentReport + schema contract test)",
+                    "done": _exists("decision/models.py", "tests/unit/test_decision_models.py")
+                    and _grep(r"class IncidentReport", "decision/models.py"),
+                },
+                {
+                    "label": "MCP routed through the canonical investigation service",
+                    "done": _grep(r"services\.investigation_service|run_investigation", "mcp_server.py"),
+                },
+                {
+                    "label": "IDP integration contract published (docs/idp-contract.md)",
+                    "done": _exists("docs/idp-contract.md"),
+                },
+            ],
+        },
     ]
 
 
@@ -385,6 +405,7 @@ def _status(checks: list[dict]) -> str:
 PHASES: list[tuple[str, list[str]]] = [
     ("Foundation", ["B1", "B2", "B3", "B4", "B5"]),
     ("Decision Engine", ["B6"]),
+    ("Common Interface", ["B12"]),
     ("Distribution & Skills", ["B7", "B8"]),
     ("Deep Observability", ["B9", "B10"]),
     ("Production Hardening", ["B11"]),
