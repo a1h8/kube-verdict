@@ -56,22 +56,20 @@ COPY ui/               ./ui/
 COPY vectorstore/      ./vectorstore/
 COPY workflow/         ./workflow/
 
-# Sentence-transformers / HF cache — set BEFORE the download so the weights
-# land in this dir (the previous order downloaded to the default ~/.cache).
+# Sentence-transformers / HF cache location. Used at runtime, and the mount
+# point for a pre-seeded model cache in air-gapped deployments.
 ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
 ENV HF_HOME=/app/.cache/huggingface
 ENV HF_HUB_DOWNLOAD_TIMEOUT=60
 
-# Pre-download the embedding model so the image is self-contained (air-gapped).
-# Retried with backoff because huggingface.co rate-limits CI egress IPs — a
-# single attempt fails the GHCR build. The trailing attempt (no `|| true`) keeps
-# a genuinely persistent failure loud instead of shipping a model-less image.
-# Remove this block if you want to mount a model cache volume instead.
-RUN for i in 1 2 3 4 5 6; do \
-      python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && break; \
-      echo "HF model fetch attempt $i failed — backing off"; sleep $((i * 20)); \
-    done; \
-    python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# The embedding model (all-MiniLM-L6-v2, ~90 MB) is intentionally NOT baked into
+# the image: huggingface.co hard-blocks GitHub Actions egress, so fetching it
+# during the GHCR build is impossible (it just fails the build). Instead it is
+# fetched lazily on first use from the deploy environment's network.
+#
+# Air-gapped: mount a pre-seeded cache at /app/.cache/huggingface (see README →
+# "Air-gapped environments"). Seed it once on a connected machine with:
+#   python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 # Defaults — override via ConfigMap / env in k8s manifests
 ENV OLLAMA_URL=http://ollama:11434
@@ -79,7 +77,7 @@ ENV OLLAMA_MODEL=mistral
 ENV VECTOR_STORE_PATH=/data/index.faiss
 ENV LOG_LEVEL=INFO
 
-VOLUME ["/data", "/root/.kube"]
+VOLUME ["/data", "/root/.kube", "/app/.cache/huggingface"]
 
 # API-first: the default process is the FastAPI service (the IDP capability surface).
 EXPOSE 8000
