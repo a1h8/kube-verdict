@@ -39,6 +39,7 @@ numpy>=1.26.0
 pytest>=8.0.0
 pytest-cov>=5.0.0
 pytest-asyncio>=0.23.0
+pytest-timeout>=2.3.0
 
 # Optional: helmfile CLI (external binary, not a Python package)
 # Install via: https://github.com/helmfile/helmfile/releases
