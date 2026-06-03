@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,6 +24,24 @@ ROOT = Path(__file__).parent.parent
 
 def _exists(*paths: str) -> bool:
     return all((ROOT / p).exists() for p in paths)
+
+
+def _git_tag(pattern: str) -> bool:
+    """True if at least one git tag matches `pattern` (anchored regex).
+
+    Used to verify outcomes a workflow file alone cannot prove — e.g. that a
+    version was actually tagged (and thus the release image actually built),
+    not just that the publishing workflow exists. Requires tags to be present
+    in the checkout (CI: actions/checkout with fetch-tags: true).
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(ROOT), "tag"],
+            capture_output=True, text=True, timeout=5,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return any(re.match(pattern, line.strip()) for line in out.splitlines())
 
 
 def _grep(pattern: str, *targets: str) -> bool:
@@ -210,9 +229,17 @@ def _blocs() -> list[dict]:
                     "done": _exists("demo/focused") and len(list((ROOT / "demo/focused").glob("scenario_*.py"))) >= 3,
                 },
                 {
-                    "label": "Docker image published (release workflow → ghcr)",
+                    # Verifies the publishing pipeline is wired — NOT that an image
+                    # is live (a workflow file proves capability, not a release).
+                    "label": "Release pipeline → GHCR (publishes on v* tag)",
                     "done": _exists(".github/workflows/release.yml")
                     and _grep(r"ghcr\.io", ".github/workflows/release.yml"),
+                },
+                {
+                    # Factual: a v* tag was actually pushed → the image really built.
+                    # Stays red until the first real release is cut.
+                    "label": "Versioned release tagged (v* pushed → image on GHCR)",
+                    "done": _git_tag(r"^v\d+\."),
                 },
                 {
                     "label": "Quickstart < 30 min documented",
@@ -312,6 +339,35 @@ def _blocs() -> list[dict]:
                 },
             ],
         },
+        {
+            "id": "B11",
+            "title": "Production Hardening",
+            "description": "What separates a validated prototype from a prod-grade deployment: auth, regression guard, supply-chain listing, scoped RBAC, secret management",
+            "checks": [
+                {
+                    "label": "API auth (JWT / OIDC on session + webhook routes)",
+                    "done": _grep(r"jwt|oidc|OAuth2|Bearer|verify_token|require_auth", "api"),
+                },
+                {
+                    "label": "Golden-scenario regression guard (replay + diff in CI)",
+                    "done": _exists("tests/golden")
+                    or _grep(r"golden.*replay|replay.*golden|regression.*guard", "tests"),
+                },
+                {
+                    "label": "Artifact Hub listing (artifacthub-repo.yml)",
+                    "done": _exists("artifacthub-repo.yml")
+                    or _exists("helm/kube-verdict/artifacthub-repo.yml"),
+                },
+                {
+                    "label": "RBAC-aware scoping (service-account impersonation)",
+                    "done": _grep(r"impersonat|as_user|ImpersonationConfig", "ingestion", "api"),
+                },
+                {
+                    "label": "Secret management (Vault / external-secrets, no plaintext kubeconfig)",
+                    "done": _grep(r"vault|external.?secret|VAULT_ADDR", "ingestion", "api", "helm"),
+                },
+            ],
+        },
     ]
 
 
@@ -324,12 +380,26 @@ def _status(checks: list[dict]) -> str:
     return "IN_PROGRESS"
 
 
+# Maturity phases — group blocs into a credibility narrative rather than a flat list.
+# Order here is the render order on the dashboard.
+PHASES: list[tuple[str, list[str]]] = [
+    ("Foundation", ["B1", "B2", "B3", "B4", "B5"]),
+    ("Decision Engine", ["B6"]),
+    ("Distribution & Skills", ["B7", "B8"]),
+    ("Deep Observability", ["B9", "B10"]),
+    ("Production Hardening", ["B11"]),
+]
+_PHASE_OF = {bid: name for name, ids in PHASES for bid in ids}
+
+
 def build() -> dict:
     blocs = _blocs()
     for b in blocs:
         b["status"] = _status(b["checks"])
+        b["phase"] = _PHASE_OF.get(b["id"], "Other")
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "phases": [name for name, _ in PHASES],
         "blocs": blocs,
     }
 

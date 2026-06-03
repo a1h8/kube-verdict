@@ -1,5 +1,12 @@
 {
-  "generated_at": "2026-06-02T06:33:22.030455+00:00",
+  "generated_at": "2026-06-03T03:42:33.511801+00:00",
+  "phases": [
+    "Foundation",
+    "Decision Engine",
+    "Distribution & Skills",
+    "Deep Observability",
+    "Production Hardening"
+  ],
   "blocs": [
     {
       "id": "B1",
@@ -27,7 +34,8 @@
           "done": true
         }
       ],
-      "status": "DONE"
+      "status": "DONE",
+      "phase": "Foundation"
     },
     {
       "id": "B2",
@@ -47,7 +55,8 @@
           "done": true
         }
       ],
-      "status": "DONE"
+      "status": "DONE",
+      "phase": "Foundation"
     },
     {
       "id": "B3",
@@ -71,7 +80,8 @@
           "done": true
         }
       ],
-      "status": "DONE"
+      "status": "DONE",
+      "phase": "Foundation"
     },
     {
       "id": "B4",
@@ -95,7 +105,8 @@
           "done": true
         }
       ],
-      "status": "DONE"
+      "status": "DONE",
+      "phase": "Foundation"
     },
     {
       "id": "B5",
@@ -119,7 +130,8 @@
           "done": true
         }
       ],
-      "status": "DONE"
+      "status": "DONE",
+      "phase": "Foundation"
     },
     {
       "id": "B6",
@@ -147,7 +159,8 @@
           "done": true
         }
       ],
-      "status": "DONE"
+      "status": "DONE",
+      "phase": "Decision Engine"
     },
     {
       "id": "B7",
@@ -163,15 +176,20 @@
           "done": true
         },
         {
-          "label": "Docker image published (release workflow \u2192 ghcr)",
+          "label": "Release pipeline \u2192 GHCR (publishes on v* tag)",
           "done": true
+        },
+        {
+          "label": "Versioned release tagged (v* pushed \u2192 image on GHCR)",
+          "done": false
         },
         {
           "label": "Quickstart < 30 min documented",
           "done": true
         }
       ],
-      "status": "DONE"
+      "status": "IN_PROGRESS",
+      "phase": "Distribution & Skills"
     },
     {
       "id": "B8",
@@ -195,7 +213,8 @@
           "done": true
         }
       ],
-      "status": "DONE"
+      "status": "DONE",
+      "phase": "Distribution & Skills"
     },
     {
       "id": "B9",
@@ -227,7 +246,8 @@
           "done": false
         }
       ],
-      "status": "IN_PROGRESS"
+      "status": "IN_PROGRESS",
+      "phase": "Deep Observability"
     },
     {
       "id": "B10",
@@ -263,7 +283,37 @@
           "done": false
         }
       ],
-      "status": "IN_PROGRESS"
+      "status": "IN_PROGRESS",
+      "phase": "Deep Observability"
+    },
+    {
+      "id": "B11",
+      "title": "Production Hardening",
+      "description": "What separates a validated prototype from a prod-grade deployment: auth, regression guard, supply-chain listing, scoped RBAC, secret management",
+      "checks": [
+        {
+          "label": "API auth (JWT / OIDC on session + webhook routes)",
+          "done": false
+        },
+        {
+          "label": "Golden-scenario regression guard (replay + diff in CI)",
+          "done": false
+        },
+        {
+          "label": "Artifact Hub listing (artifacthub-repo.yml)",
+          "done": false
+        },
+        {
+          "label": "RBAC-aware scoping (service-account impersonation)",
+          "done": false
+        },
+        {
+          "label": "Secret management (Vault / external-secrets, no plaintext kubeconfig)",
+          "done": false
+        }
+      ],
+      "status": "TODO",
+      "phase": "Production Hardening"
     }
   ]
 }

@@ -1,5 +1,12 @@
 # Roadmap
 
+Blocs are grouped into maturity phases on the live dashboard — **Foundation** (B1–B5),
+**Decision Engine** (B6), **Distribution & Skills** (B7–B8), **Deep Observability** (B9–B10),
+and **Production Hardening** (B11). Status is computed on each deploy by `tools/roadmap.py`
+from deterministic file/tag checks — not a self-graded score. A check stays red until the
+thing it verifies actually exists (e.g. B7's release check only turns green once a `v*` tag is
+pushed and the image is really built, not just because the workflow file is present).
+
 ## Done
 
 - [x] **Evidence-first hypothesis generation** — ontology causal chains + anchor violations + RemediationEngine rules + KB examples → hypotheses before LLM; LLM only fills remaining slots (P(token | top-k context))
@@ -50,6 +57,17 @@ The beam-search engine already records every routing decision (`edge_log`), ever
 - [ ] **Fallback-status overlay** — per-collector badge row (ingest / prometheus / metrics / otel / gitops / anchor / signals): green OK or red FALLBACK with the error message as tooltip; surfaces exactly `ingestion_stats[*].fallback + error`
 - [ ] **Beam-search tree** — SVG dag: active path in blue, archived branches in gray, edges labeled with confidence score; node size proportional to retry count; eliminated leaves marked with an ✕ and the elimination reason on hover
 - [ ] **Live SSE refresh** — introspection panel subscribes to the existing `/stream` endpoint and re-renders each section as new `edge_log` entries or `reasoning_history` entries arrive, giving operators real-time visibility during a running session
+
+## Production Hardening (B11)
+
+What separates a validated prototype from a prod-grade deployment. All planned; each item is a
+deterministic check that turns green when implemented.
+
+- [ ] **API auth** — JWT / OIDC on the session and webhook routes; no unauthenticated RCA triggers
+- [ ] **Golden-scenario regression guard** — replay h001–h0NN fixtures in CI and diff the verdict against a recorded baseline; fail the build on drift
+- [ ] **Artifact Hub listing** — `artifacthub-repo.yml` so the Helm chart is discoverable / verifiable
+- [ ] **RBAC-aware scoping** — per-namespace analysis via service-account impersonation
+- [ ] **Secret management** — Vault / external-secrets integration; no plaintext kubeconfig in values
 
 ## Next
 
