@@ -216,6 +216,17 @@ ollama serve &          # local LLM on port 11434
 python mcp_server.py    # MCP stdio server, reads kubeconfig from env
 ```
 
+**Embedding model:** the container image does not bake in the `all-MiniLM-L6-v2`
+sentence-transformer (~90 MB) — it is fetched on first use. For a sealed
+air-gapped deployment, pre-seed it once on a connected machine and mount the
+cache into the container at `/app/.cache/huggingface`:
+
+```bash
+# on a connected machine — populates ~/.cache/huggingface
+python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# then mount that dir at /app/.cache/huggingface (k8s: a PVC or hostPath volume)
+```
+
 See [SKILL.md](SKILL.md) for the full tool reference and air-gapped RBAC setup.
 
 ### OpenAI-compatible schema
