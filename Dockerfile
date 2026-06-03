@@ -56,13 +56,22 @@ COPY ui/               ./ui/
 COPY vectorstore/      ./vectorstore/
 COPY workflow/         ./workflow/
 
-# Pre-download the embedding model so the image is self-contained
-# Remove this RUN if you want to mount a model cache volume instead.
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
-
-# Sentence-transformers cache
+# Sentence-transformers / HF cache — set BEFORE the download so the weights
+# land in this dir (the previous order downloaded to the default ~/.cache).
 ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
 ENV HF_HOME=/app/.cache/huggingface
+ENV HF_HUB_DOWNLOAD_TIMEOUT=60
+
+# Pre-download the embedding model so the image is self-contained (air-gapped).
+# Retried with backoff because huggingface.co rate-limits CI egress IPs — a
+# single attempt fails the GHCR build. The trailing attempt (no `|| true`) keeps
+# a genuinely persistent failure loud instead of shipping a model-less image.
+# Remove this block if you want to mount a model cache volume instead.
+RUN for i in 1 2 3 4 5 6; do \
+      python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && break; \
+      echo "HF model fetch attempt $i failed — backing off"; sleep $((i * 20)); \
+    done; \
+    python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 # Defaults — override via ConfigMap / env in k8s manifests
 ENV OLLAMA_URL=http://ollama:11434
