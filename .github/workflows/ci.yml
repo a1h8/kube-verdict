@@ -8,6 +8,11 @@ on:
 
 env:
   PYTHON_VERSION: "3.11"
+  # Embedding model used by tests. huggingface.co intermittently blocks GitHub
+  # Actions egress, so we cache the model across runs and run the test steps
+  # offline (HF_HUB_OFFLINE) — see the per-job "Cache"/"Warm" steps below.
+  EMBEDDING_MODEL: "all-MiniLM-L6-v2"
+  HF_CACHE_KEY: "hf-all-MiniLM-L6-v2-v1"
 
 jobs:
   # ─────────────────────────────────────────────
@@ -47,10 +52,24 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ env.HF_CACHE_KEY }}
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Warm embedding-model cache (best-effort, online)
+        run: |
+          python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${{ env.EMBEDDING_MODEL }}')" \
+            || echo "::warning::could not pre-fetch ${{ env.EMBEDDING_MODEL }} (HF unreachable) — relying on restored cache"
+
       - name: Run unit tests with coverage
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
         run: |
           python -m pytest tests/unit/ \
             --cov=. \
@@ -83,10 +102,24 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ env.HF_CACHE_KEY }}
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Warm embedding-model cache (best-effort, online)
+        run: |
+          python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${{ env.EMBEDDING_MODEL }}')" \
+            || echo "::warning::could not pre-fetch ${{ env.EMBEDDING_MODEL }} (HF unreachable) — relying on restored cache"
+
       - name: Run integration tests (offline)
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
         run: |
           python -m pytest tests/integration/ -m "not integration" \
             --cov=. \
@@ -117,10 +150,24 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ env.HF_CACHE_KEY }}
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Warm embedding-model cache (best-effort, online)
+        run: |
+          python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${{ env.EMBEDDING_MODEL }}')" \
+            || echo "::warning::could not pre-fetch ${{ env.EMBEDDING_MODEL }} (HF unreachable) — relying on restored cache"
+
       - name: Run all tests and enforce coverage threshold
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
         run: |
           python -m pytest -m "not integration" \
             --cov=. \
