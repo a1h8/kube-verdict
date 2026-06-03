@@ -58,6 +58,15 @@ The beam-search engine already records every routing decision (`edge_log`), ever
 - [ ] **Beam-search tree** — SVG dag: active path in blue, archived branches in gray, edges labeled with confidence score; node size proportional to retry count; eliminated leaves marked with an ✕ and the elimination reason on hover
 - [ ] **Live SSE refresh** — introspection panel subscribes to the existing `/stream` endpoint and re-renders each section as new `edge_log` entries or `reasoning_history` entries arrive, giving operators real-time visibility during a running session
 
+## Common Interface (B12)
+
+One canonical verdict shared by every consumer — so the contract is visible and tracked, not
+rediscovered by reading git history.
+
+- [x] **Canonical verdict model frozen** — `IncidentReport` (`decision/models.py`) + formal `BlastRadius` / `RollbackPlan`, locked by `tests/unit/test_decision_models.py`
+- [x] **Single investigation pipeline** — MCP `kube_rca` routes through `services.investigation_service` (the same graph as the REST API), not a parallel path
+- [x] **IDP integration contract published** — `docs/idp-contract.md` documents the verdict envelope for portal / SRE / agent consumers
+
 ## Production Hardening (B11)
 
 What separates a validated prototype from a prod-grade deployment. All planned; each item is a
