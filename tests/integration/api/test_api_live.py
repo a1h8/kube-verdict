@@ -25,6 +25,7 @@ import uvicorn
 from api.app import app
 from api.models import SessionStatus
 from api.session_store import get_store
+from tests.conftest import skip_if_no_embedding_model
 from tests.integration.api.conftest import (
     _make_run_graph,
 )
@@ -38,6 +39,9 @@ _SERVER_PORT = 18765   # deterministic free port for test suite
 @pytest.fixture(scope="module")
 def live_server():
     """Start uvicorn in a daemon thread, yield base URL, then stop."""
+    # The app lifespan builds a real FAISSStore/Embedder; a deep pytest.skip
+    # can't propagate out of uvicorn startup, so gate at the fixture boundary.
+    skip_if_no_embedding_model()
     config = uvicorn.Config(
         app, host=_SERVER_HOST, port=_SERVER_PORT,
         log_level="warning", loop="asyncio",

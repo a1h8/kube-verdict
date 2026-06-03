@@ -57,14 +57,24 @@ jobs:
         with:
           path: ~/.cache/huggingface
           key: ${{ env.HF_CACHE_KEY }}
+          restore-keys: |
+            hf-all-MiniLM-L6-v2-
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Warm embedding-model cache (best-effort, online)
         run: |
-          python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${{ env.EMBEDDING_MODEL }}')" \
-            || echo "::warning::could not pre-fetch ${{ env.EMBEDDING_MODEL }} (HF unreachable) — relying on restored cache"
+          # huggingface.co intermittently blocks GitHub Actions egress — retry a
+          # few times so a brief window is enough to seed the cross-run cache.
+          # On total failure the offline test step skips model-dependent tests
+          # (see tests/conftest.py) instead of erroring.
+          ok=""
+          for i in 1 2 3; do
+            if python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${{ env.EMBEDDING_MODEL }}')"; then ok=1; break; fi
+            echo "::warning::HF fetch attempt $i/3 failed; retrying in 10s…"; sleep 10
+          done
+          [ -n "$ok" ] || echo "::warning::could not pre-fetch ${{ env.EMBEDDING_MODEL }} (HF unreachable) — model-dependent tests will be skipped"
 
       - name: Run unit tests with coverage
         env:
@@ -107,14 +117,24 @@ jobs:
         with:
           path: ~/.cache/huggingface
           key: ${{ env.HF_CACHE_KEY }}
+          restore-keys: |
+            hf-all-MiniLM-L6-v2-
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Warm embedding-model cache (best-effort, online)
         run: |
-          python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${{ env.EMBEDDING_MODEL }}')" \
-            || echo "::warning::could not pre-fetch ${{ env.EMBEDDING_MODEL }} (HF unreachable) — relying on restored cache"
+          # huggingface.co intermittently blocks GitHub Actions egress — retry a
+          # few times so a brief window is enough to seed the cross-run cache.
+          # On total failure the offline test step skips model-dependent tests
+          # (see tests/conftest.py) instead of erroring.
+          ok=""
+          for i in 1 2 3; do
+            if python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${{ env.EMBEDDING_MODEL }}')"; then ok=1; break; fi
+            echo "::warning::HF fetch attempt $i/3 failed; retrying in 10s…"; sleep 10
+          done
+          [ -n "$ok" ] || echo "::warning::could not pre-fetch ${{ env.EMBEDDING_MODEL }} (HF unreachable) — model-dependent tests will be skipped"
 
       - name: Run integration tests (offline)
         env:
@@ -155,14 +175,24 @@ jobs:
         with:
           path: ~/.cache/huggingface
           key: ${{ env.HF_CACHE_KEY }}
+          restore-keys: |
+            hf-all-MiniLM-L6-v2-
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Warm embedding-model cache (best-effort, online)
         run: |
-          python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${{ env.EMBEDDING_MODEL }}')" \
-            || echo "::warning::could not pre-fetch ${{ env.EMBEDDING_MODEL }} (HF unreachable) — relying on restored cache"
+          # huggingface.co intermittently blocks GitHub Actions egress — retry a
+          # few times so a brief window is enough to seed the cross-run cache.
+          # On total failure the offline test step skips model-dependent tests
+          # (see tests/conftest.py) instead of erroring.
+          ok=""
+          for i in 1 2 3; do
+            if python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${{ env.EMBEDDING_MODEL }}')"; then ok=1; break; fi
+            echo "::warning::HF fetch attempt $i/3 failed; retrying in 10s…"; sleep 10
+          done
+          [ -n "$ok" ] || echo "::warning::could not pre-fetch ${{ env.EMBEDDING_MODEL }} (HF unreachable) — model-dependent tests will be skipped"
 
       - name: Run all tests and enforce coverage threshold
         env:
