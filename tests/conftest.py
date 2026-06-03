@@ -2,6 +2,10 @@
 Shared pytest fixtures — synthetic cluster graph used across all test suites.
 No real K8s cluster or Ollama instance required.
 """
+import functools
+import hashlib
+
+import numpy as np
 import pytest
 
 from ontology.entities import (
@@ -13,6 +17,97 @@ from ontology.entities import (
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
 from ontology.version import KubeVersion
+
+
+# ---------------------------------------------------------------------------
+# Embedding model availability
+#
+# huggingface.co intermittently blocks GitHub Actions egress. CI runs the test
+# steps with HF_HUB_OFFLINE=1, so when the model isn't already cached every
+# Embedder() raises OSError and turns embedder-backed tests into hard ERRORS.
+#
+# Two-part handling:
+#   * FakeEmbedder — a deterministic, network-free stand-in for tests that only
+#     exercise plumbing (FAISS index/search, workflow routing) and assert nothing
+#     about semantic ranking. These keep running even when the model is absent.
+#   * _embedding_model_or_skip — when the real model genuinely can't load, the
+#     remaining tests (which need real vectors to be meaningful) are SKIPPED
+#     rather than errored, so CI stays green. When the cache is warm, they run.
+# ---------------------------------------------------------------------------
+
+_EMBED_DIM = 384  # all-MiniLM-L6-v2 output dimension
+
+
+class FakeEmbedder:
+    """Deterministic, offline stand-in implementing the Embedder surface
+    (``embed``, ``embed_one``, ``dim``) used by FAISSStore. Vectors are derived
+    from a SHA-256 of the text and L2-normalised, so indexing and cosine search
+    work without loading the real transformer."""
+
+    def __init__(self, model_name: str | None = None, dim: int = _EMBED_DIM) -> None:
+        self.dim = dim
+
+    def _vec(self, text: str) -> np.ndarray:
+        digest = hashlib.sha256(text.encode("utf-8")).digest()
+        repeated = (digest * ((self.dim // len(digest)) + 1))[: self.dim]
+        v = (np.frombuffer(repeated, dtype=np.uint8).astype(np.float32) - 127.5) / 127.5
+        norm = np.linalg.norm(v)
+        return v / norm if norm else v
+
+    def embed(self, texts: list[str]) -> np.ndarray:
+        if not texts:
+            return np.empty((0, self.dim), dtype=np.float32)
+        return np.vstack([self._vec(t) for t in texts]).astype(np.float32)
+
+    def embed_one(self, text: str) -> np.ndarray:
+        return self.embed([text])[0]
+
+
+_MODEL_UNAVAILABLE_REASON = "embedding model unavailable offline (HF unreachable, cache miss)"
+
+
+@functools.lru_cache(maxsize=1)
+def embedding_model_available() -> bool:
+    """True if the real embedding model can be loaded. Probed once and cached;
+    the one successful construction also warms the in-process model."""
+    import vectorstore.embedder as emb
+
+    try:
+        emb.Embedder()
+        return True
+    except Exception:  # noqa: BLE001 — OSError offline, guard broadly
+        return False
+
+
+def skip_if_no_embedding_model() -> None:
+    """Call from a fixture/test that boots code building a real Embedder in a
+    context where a deep pytest.skip can't propagate (e.g. the FastAPI app
+    lifespan started by a live uvicorn server)."""
+    if not embedding_model_available():
+        pytest.skip(_MODEL_UNAVAILABLE_REASON)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _embedding_model_or_skip():
+    """When the real model can't be loaded (offline + cache miss), patch
+    Embedder.__init__ to skip the test instead of erroring, so embedder-backed
+    tests degrade to SKIP rather than ERROR. Covers tests that construct the
+    Embedder directly in fixture/test setup; for tests that build it deep inside
+    an app lifespan, use skip_if_no_embedding_model() at the fixture boundary."""
+    if embedding_model_available():
+        yield
+        return
+
+    import vectorstore.embedder as emb
+
+    mp = pytest.MonkeyPatch()
+
+    def _skip_init(self, *args, **kwargs):
+        pytest.skip(_MODEL_UNAVAILABLE_REASON)
+
+    mp.setattr(emb.Embedder, "__init__", _skip_init)
+    yield
+    mp.undo()
 
 
 # ---------------------------------------------------------------------------

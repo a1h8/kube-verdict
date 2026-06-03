@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 import pytest
 from langgraph.types import Command
 
-from vectorstore.embedder import Embedder
 from vectorstore.store import FAISSStore
+from tests.conftest import FakeEmbedder
 from workflow.graph import build_graph
 from workflow.nodes import (
     anchor_node, archive_path_node, confidence_router, human_router,
@@ -99,7 +99,9 @@ def _make_llm_sequence(*responses):
 
 @pytest.fixture
 def store(synthetic_graph):
-    s = FAISSStore(embedder=Embedder())
+    # Workflow tests exercise routing/confidence logic, not embedding quality —
+    # use the deterministic offline FakeEmbedder so they run without the model.
+    s = FAISSStore(embedder=FakeEmbedder())
     s.index_graph(synthetic_graph)
     return s
 
