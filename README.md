@@ -6,7 +6,7 @@ KubeVerdict correlates Kubernetes events and Helm drift into an evidence-grounde
 
 ✅ Air-gapped by default — Ollama + Mistral, no data leaves your infrastructure  
 ✅ No auto-remediation without explicit approval  
-✅ Ten validated failure scenarios proven end-to-end in CI  
+✅ Ten failure scenarios reproduced end-to-end in CI as offline fixtures  
 ✅ Try it without a live cluster  
 
 [![CI](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml)
@@ -119,7 +119,7 @@ Human review gate → remediation commands
 
 ## Validated scenarios
 
-Ten failure patterns proven end-to-end in CI — no cluster, no Ollama required.
+Ten failure patterns reproduced end-to-end in CI as offline fixtures — no cluster, no Ollama required.
 
 | Scenario | Case | What it proves |
 |---|---|---|
