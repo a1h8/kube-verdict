@@ -39,6 +39,7 @@ WORKDIR /app
 # (cases/ is test-fixture data and dashboard/ is a separate JS build — neither is needed here.)
 COPY config.py         ./
 COPY main.py           ./
+COPY mcp_server.py     ./
 COPY api/              ./api/
 COPY decision/         ./decision/
 COPY dedup/            ./dedup/
@@ -71,6 +72,11 @@ ENV LOG_LEVEL=INFO
 
 VOLUME ["/data", "/root/.kube"]
 
-EXPOSE 8501
+# API-first: the default process is the FastAPI service (the IDP capability surface).
+EXPOSE 8000
 
-CMD ["streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Alternative surfaces (override CMD):
+#   Streamlit UI:  streamlit run ui/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true
+#   MCP server:    python mcp_server.py

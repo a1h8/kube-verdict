@@ -1,13 +1,18 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/a1h8/kubeverdict
+  repository: ghcr.io/a1h8/kube-verdict
   tag: latest
   pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
-  port: 8501
+  port: 8000
+
+# API-first by default (FastAPI on :8000, /health probes).
+# Set ui.enabled=true to serve the Streamlit debug UI (:8501) instead.
+ui:
+  enabled: false
 
 ingress:
   enabled: false
