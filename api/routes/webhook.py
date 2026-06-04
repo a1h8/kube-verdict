@@ -10,8 +10,9 @@ import asyncio
 import uuid
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from api.auth import require_token
 from api.models import AlertmanagerPayload, WebhookTriggered
 from api.session_store import store
 from api.webhook_mapper import alert_to_namespaces, alert_to_query, firing_alerts
@@ -20,7 +21,7 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/webhook", tags=["webhook"])
 
 
-@router.post("/alertmanager", response_model=WebhookTriggered, status_code=202)
+@router.post("/alertmanager", response_model=WebhookTriggered, status_code=202, dependencies=[Depends(require_token)])
 async def alertmanager_webhook(payload: AlertmanagerPayload) -> WebhookTriggered:
     from api.routes.sessions import _run_graph
 

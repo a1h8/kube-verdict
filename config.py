@@ -99,6 +99,13 @@ PROMETHEUS_URL: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 PROMETHEUS_TOKEN: str | None = os.getenv("PROMETHEUS_TOKEN") or None
 PROMETHEUS_TIMEOUT: int = _int("PROMETHEUS_TIMEOUT", 30)
 
+# ── API auth ──────────────────────────────────────────────────────────────────
+# Shared-secret bearer gate for mutating / IDP endpoints. This is NOT OIDC/JWT
+# (still tracked under Production Hardening) — it's a single static token so a
+# portal/operator can call the API without leaving it fully open. When unset,
+# auth is disabled (open) so local dev and tests behave as before.
+API_TOKEN: str | None = os.getenv("KUBEVERDICT_API_TOKEN") or None
+
 # ── MCP server ──────────────────────────────────────────────────────────────────
 # Per-tool wall-clock budget; a tool exceeding this returns an isError result
 # instead of hanging the calling agent. kube_rca is the slow one (collect +
