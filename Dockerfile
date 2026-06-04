@@ -51,6 +51,7 @@ COPY persistence/      ./persistence/
 COPY rca/              ./rca/
 COPY reasoning/        ./reasoning/
 COPY remediation/      ./remediation/
+COPY services/         ./services/
 COPY signals/          ./signals/
 COPY ui/               ./ui/
 COPY vectorstore/      ./vectorstore/
