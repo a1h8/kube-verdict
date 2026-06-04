@@ -1,22 +1,35 @@
 version: "3.9"
 
+# Shared config for the API and (optional) UI surfaces — same image, different command/port.
+x-kubeverdict-base: &kubeverdict-base
+  build: .
+  volumes:
+    - kw-data:/data
+    - ${KUBECONFIG:-~/.kube/config}:/root/.kube/config:ro
+    - /tmp/kubeverdict-gitops:/tmp/kubeverdict-gitops
+  env_file:
+    - .env
+  environment:
+    OLLAMA_URL: http://ollama:11434
+  depends_on:
+    ollama:
+      condition: service_healthy
+  restart: unless-stopped
+
 services:
+  # API-first runtime (default) — FastAPI on :8000, matches the image CMD.
   kubeverdict:
-    build: .
+    <<: *kubeverdict-base
+    ports:
+      - "8000:8000"
+
+  # Optional debug/demo UI. Enable with: docker compose --profile ui up
+  kubeverdict-ui:
+    <<: *kubeverdict-base
+    profiles: ["ui"]
+    command: streamlit run ui/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true
     ports:
       - "8501:8501"
-    volumes:
-      - kw-data:/data
-      - ${KUBECONFIG:-~/.kube/config}:/root/.kube/config:ro
-      - /tmp/kubeverdict-gitops:/tmp/kubeverdict-gitops
-    env_file:
-      - .env
-    environment:
-      OLLAMA_URL: http://ollama:11434
-    depends_on:
-      ollama:
-        condition: service_healthy
-    restart: unless-stopped
 
   ollama:
     image: ollama/ollama:latest
