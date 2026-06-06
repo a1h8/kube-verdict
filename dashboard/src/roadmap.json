@@ -1,19 +1,23 @@
 {
-  "generated_at": "2026-06-03T04:13:02.768497+00:00",
+  "generated_at": "2026-06-06T01:41:02.401010+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
-    "Common Interface",
     "Distribution & Skills",
     "Deep Observability",
-    "Production Hardening"
+    "Production Hardening",
+    "Common Interface"
   ],
   "blocs": [
     {
       "id": "B1",
       "title": "Evidence collection",
-      "description": "K8s events, Prometheus, Loki, Helm drift, OTel traces, anchor engine",
+      "description": "K8s events, Prometheus, Loki, Helm drift, OTel traces, anchor engine, OPA/Kyverno policies",
       "checks": [
+        {
+          "label": "OPA / Kyverno policy integration (PolicyReport ingestion \u2192 HAS_POLICY_VIOLATION)",
+          "done": true
+        },
         {
           "label": "K8s + Prometheus + Loki collectors",
           "done": true
@@ -182,14 +186,14 @@
         },
         {
           "label": "Versioned release tagged (v* pushed \u2192 image on GHCR)",
-          "done": false
+          "done": true
         },
         {
           "label": "Quickstart < 30 min documented",
           "done": true
         }
       ],
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "phase": "Distribution & Skills"
     },
     {
@@ -293,7 +297,11 @@
       "description": "What separates a validated prototype from a prod-grade deployment: auth, regression guard, supply-chain listing, scoped RBAC, secret management",
       "checks": [
         {
-          "label": "API auth (JWT / OIDC on session + webhook routes)",
+          "label": "Shared-secret bearer gate on mutating / IDP routes (interim)",
+          "done": true
+        },
+        {
+          "label": "API auth \u2014 JWT / OIDC per-identity (session + webhook routes)",
           "done": false
         },
         {
@@ -313,7 +321,7 @@
           "done": false
         }
       ],
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "phase": "Production Hardening"
     },
     {

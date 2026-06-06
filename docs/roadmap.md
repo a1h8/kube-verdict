@@ -2,10 +2,14 @@
 
 Blocs are grouped into maturity phases on the live dashboard — **Foundation** (B1–B5),
 **Decision Engine** (B6), **Distribution & Skills** (B7–B8), **Deep Observability** (B9–B10),
-and **Production Hardening** (B11). Status is computed on each deploy by `tools/roadmap.py`
-from deterministic file/tag checks — not a self-graded score. A check stays red until the
-thing it verifies actually exists (e.g. B7's release check only turns green once a `v*` tag is
-pushed and the image is really built, not just because the workflow file is present).
+**Production Hardening** (B11), and **Common Interface** (B12). Status is computed on
+each deploy by `tools/roadmap.py` from deterministic file/tag checks — not a self-graded
+score. A check stays red until the thing it verifies actually exists (e.g. B7's release check
+only turns green once a `v*` tag is pushed and the image is really built, not just because the
+workflow file is present).
+
+Section order below follows the bloc numbering (ascending); forward-looking work is collected
+under Next.
 
 ## Done
 
@@ -35,17 +39,12 @@ pushed and the image is really built, not just because the workflow file is pres
 - [x] **Pre-LLM confidence scoring** — `compute_confidence()` weights BFS, Jaccard, TF-IDF, anchors, signals, policy violations into 0–1 score
 - [x] **Source weights** — per-source score multipliers; configurable via `SOURCE_WEIGHT_*` env vars
 
-## Loki Full Integration (B10)
+## Agent Skills / MCP (B8)
 
-Current state: basic LogQL range query against unhealthy pods, `LokiLog` nodes wired via `HAS_LOG` edges, level keyword detection, trace ID regex. The following extensions are needed.
-
-- [ ] **Structured log parsing** — JSON-formatted log lines are parsed into key-value annotations on `LokiLog` nodes (http_status, method, path, latency, user, service); enriches hypothesis context beyond raw line text
-- [ ] **Error clustering** — group identical or near-identical error messages (edit distance + embedding cosine) into a single `LogCluster` node; prevents token explosion in the LLM context and surfaces recurring patterns instead of N duplicate lines
-- [ ] **Multi-tenant support** — pass `X-Scope-OrgID` header; configurable via `LOKI_ORG_ID` env var; required for shared Loki deployments (Grafana Cloud, enterprise tenants)
-- [ ] **LogQL streaming (tail)** — during a live session, tail logs via `/loki/api/v1/tail` WebSocket; new error lines arrive as SSE events and are added to the graph without a full re-collect
-- [ ] **Loki alert rule ingestion** — fetch active Loki ruler alerts via `/loki/api/v1/rules`; correlate firing rules with current pod entities; add `HAS_LOG_ALERT` edge with rule name and severity
-- [ ] **Dashboard Loki tab** — in the pipeline trace UI, show log lines with level badge (error / warn / info), ISO timestamp, pod name, and `trace_id` hyperlinked to the OTel span view
-- [ ] **Integration test case (log-first RCA)** — scenario where the root cause is detected purely from log patterns (e.g. Java heap OOM in logs → OOMKilled) with no Prometheus signal; validates the Loki → hypothesis path end-to-end
+- [x] **MCP server** — expose `kube-rca`, `helm-drift-detector`, `blast-radius-estimator` as MCP tools; any agent (Claude, Cursor, Codex) can invoke them without deploying the full stack
+- [x] **SKILL.md** — Claude Code skill definition; invocable from any repo with `kube-rca` skill
+- [x] **OpenAPI tool schema** — OpenAI function-calling compatible; compatible with third-party agent frameworks
+- [x] **Integration guide** — Cursor / Claude Desktop quickstart documented
 
 ## Decision Introspection UI (B9)
 
@@ -58,6 +57,30 @@ The beam-search engine already records every routing decision (`edge_log`), ever
 - [ ] **Beam-search tree** — SVG dag: active path in blue, archived branches in gray, edges labeled with confidence score; node size proportional to retry count; eliminated leaves marked with an ✕ and the elimination reason on hover
 - [ ] **Live SSE refresh** — introspection panel subscribes to the existing `/stream` endpoint and re-renders each section as new `edge_log` entries or `reasoning_history` entries arrive, giving operators real-time visibility during a running session
 
+## Loki Full Integration (B10)
+
+Current state: basic LogQL range query against unhealthy pods, `LokiLog` nodes wired via `HAS_LOG` edges, level keyword detection, trace ID regex. The following extensions are needed.
+
+- [ ] **Structured log parsing** — JSON-formatted log lines are parsed into key-value annotations on `LokiLog` nodes (http_status, method, path, latency, user, service); enriches hypothesis context beyond raw line text
+- [ ] **Error clustering** — group identical or near-identical error messages (edit distance + embedding cosine) into a single `LogCluster` node; prevents token explosion in the LLM context and surfaces recurring patterns instead of N duplicate lines
+- [ ] **Multi-tenant support** — pass `X-Scope-OrgID` header; configurable via `LOKI_ORG_ID` env var; required for shared Loki deployments (Grafana Cloud, enterprise tenants)
+- [ ] **LogQL streaming (tail)** — during a live session, tail logs via `/loki/api/v1/tail` WebSocket; new error lines arrive as SSE events and are added to the graph without a full re-collect
+- [ ] **Loki alert rule ingestion** — fetch active Loki ruler alerts via `/loki/api/v1/rules`; correlate firing rules with current pod entities; add `HAS_LOG_ALERT` edge with rule name and severity
+- [ ] **Dashboard Loki tab** — in the pipeline trace UI, show log lines with level badge (error / warn / info), ISO timestamp, pod name, and `trace_id` hyperlinked to the OTel span view
+- [ ] **Integration test case (log-first RCA)** — scenario where the root cause is detected purely from log patterns (e.g. Java heap OOM in logs → OOMKilled) with no Prometheus signal; validates the Loki → hypothesis path end-to-end
+
+## Production Hardening (B11)
+
+What separates a validated prototype from a prod-grade deployment. Each item is a deterministic
+check that turns green when implemented.
+
+- [x] **Shared-secret bearer gate (interim)** — `KUBEVERDICT_API_TOKEN` guards the mutating session, webhook and `/investigate` routes (`api/auth.py`, constant-time compare); no-op when unset. This is *not* per-identity auth.
+- [ ] **API auth — JWT / OIDC** — per-identity auth on the session and webhook routes; no unauthenticated RCA triggers
+- [ ] **Golden-scenario regression guard** — replay h001–h0NN fixtures in CI and diff the verdict against a recorded baseline; fail the build on drift
+- [ ] **Artifact Hub listing** — `artifacthub-repo.yml` so the Helm chart is discoverable / verifiable
+- [ ] **RBAC-aware scoping** — per-namespace analysis via service-account impersonation
+- [ ] **Secret management** — Vault / external-secrets integration; no plaintext kubeconfig in values
+
 ## Common Interface (B12)
 
 One canonical verdict shared by every consumer — so the contract is visible and tracked, not
@@ -65,18 +88,7 @@ rediscovered by reading git history.
 
 - [x] **Canonical verdict model frozen** — `IncidentReport` (`decision/models.py`) + formal `BlastRadius` / `RollbackPlan`, locked by `tests/unit/test_decision_models.py`
 - [x] **Single investigation pipeline** — MCP `kube_rca` routes through `services.investigation_service` (the same graph as the REST API), not a parallel path
-- [x] **IDP integration contract published** — `docs/idp-contract.md` documents the verdict envelope for portal / SRE / agent consumers
-
-## Production Hardening (B11)
-
-What separates a validated prototype from a prod-grade deployment. All planned; each item is a
-deterministic check that turns green when implemented.
-
-- [ ] **API auth** — JWT / OIDC on the session and webhook routes; no unauthenticated RCA triggers
-- [ ] **Golden-scenario regression guard** — replay h001–h0NN fixtures in CI and diff the verdict against a recorded baseline; fail the build on drift
-- [ ] **Artifact Hub listing** — `artifacthub-repo.yml` so the Helm chart is discoverable / verifiable
-- [ ] **RBAC-aware scoping** — per-namespace analysis via service-account impersonation
-- [ ] **Secret management** — Vault / external-secrets integration; no plaintext kubeconfig in values
+- [x] **IDP integration contract published** — `docs/idp-contract.md` documents the verdict envelope for portal / SRE / agent consumers; realized by `api/verdict_contract.py` (`VerdictEnvelope`) and `POST /api/v1/investigate`
 
 ## Next
 
@@ -87,11 +99,3 @@ deterministic check that turns green when implemented.
 - [ ] **Multi-cluster support** — analyse multiple contexts in one session
 - [ ] **Alertmanager webhook (production)** — auth, dedup, grouping, silences, multi-tenant routing; hardened for real Alertmanager deployments
 - [ ] **Slack / PagerDuty enrichment** — push RCA summary via webhook
-- [ ] **RBAC-aware scoping** — per-namespace analysis with service-account impersonation
-
-## Agent Skills / MCP (B8)
-
-- [x] **MCP server** — expose `kube-rca`, `helm-drift-detector`, `blast-radius-estimator` as MCP tools; any agent (Claude, Cursor, Codex) can invoke them without deploying the full stack
-- [x] **SKILL.md** — Claude Code skill definition; invocable from any repo with `kube-rca` skill
-- [x] **OpenAPI tool schema** — OpenAI function-calling compatible; compatible with third-party agent frameworks
-- [x] **Integration guide** — Cursor / Claude Desktop quickstart documented
