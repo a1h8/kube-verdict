@@ -23,6 +23,8 @@ COMPLETED_STATE: dict[str, Any] = {
     "query":       "pods crashlooping in production",
     "kube_version": "v1.28.3+k3s1",
     "confidence":  "HIGH",
+    "verdict":     "HUMAN_REVIEW",
+    "verdict_reasons": ["namespace 'production' is production — always HUMAN_REVIEW minimum"],
     "report_dict": {
         "summary":           "Pod api-xyz is CrashLoopBackOff — PVC api-data unbound.",
         "root_cause":        "No PersistentVolume matches storage class 'standard' 10Gi.",
