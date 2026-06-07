@@ -222,7 +222,10 @@ function Hero() {
           traces and Loki logs to reduce incident investigation time.
         </p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Btn href="#demo" primary external={false}>
+          <Btn href="#/journey" primary external={false}>
+            Decision Journey ▸
+          </Btn>
+          <Btn href="#demo" external={false}>
             Watch demo
           </Btn>
           <Btn href={GITHUB}>View GitHub</Btn>
