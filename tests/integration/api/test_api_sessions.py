@@ -149,6 +149,14 @@ async def test_edge_log_exposes_ingestion_kos(client, completed_session):
 # 5. Human-in-the-loop — AWAITING_REVIEW + feedback
 # ═══════════════════════════════════════════════════════════════════════════════
 
+async def test_state_exposes_verdict(client, awaiting_review_session):
+    # The Decision Journey UI reads the policy verdict from /state.
+    r = await client.get(f"/api/v1/sessions/{awaiting_review_session}/state")
+    body = r.json()
+    assert body["verdict"] == "HUMAN_REVIEW"
+    assert body["verdict_reasons"]
+
+
 async def test_awaiting_review_state_has_payload(client, awaiting_review_session):
     r = await client.get(f"/api/v1/sessions/{awaiting_review_session}/state")
     body = r.json()
