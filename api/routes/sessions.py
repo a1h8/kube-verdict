@@ -48,6 +48,8 @@ def _state_to_response(session: Session) -> SessionState:
         query              = s.get("query"),
         kube_version       = s.get("kube_version"),
         confidence         = s.get("confidence"),
+        verdict            = s.get("verdict"),
+        verdict_reasons    = s.get("verdict_reasons") or [],
         current_hypothesis       = s.get("current_hypothesis"),
         candidate_paths          = s.get("candidate_paths") or [],
         reasoning_history        = s.get("reasoning_history") or [],
