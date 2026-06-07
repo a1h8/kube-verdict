@@ -61,8 +61,13 @@ def _blocs() -> list[dict]:
         {
             "id": "B1",
             "title": "Evidence collection",
-            "description": "K8s events, Prometheus, Loki, Helm drift, OTel traces, anchor engine",
+            "description": "K8s events, Prometheus, Loki, Helm drift, OTel traces, anchor engine, OPA/Kyverno policies",
             "checks": [
+                {
+                    "label": "OPA / Kyverno policy integration (PolicyReport ingestion → HAS_POLICY_VIOLATION)",
+                    "done": _exists("ingestion/policy_collector.py")
+                    and _grep(r"HAS_POLICY_VIOLATION", "ontology/relationships.py"),
+                },
                 {
                     "label": "K8s + Prometheus + Loki collectors",
                     "done": _exists(
@@ -345,8 +350,12 @@ def _blocs() -> list[dict]:
             "description": "What separates a validated prototype from a prod-grade deployment: auth, regression guard, supply-chain listing, scoped RBAC, secret management",
             "checks": [
                 {
-                    "label": "API auth (JWT / OIDC on session + webhook routes)",
-                    "done": _grep(r"jwt|oidc|OAuth2|Bearer|verify_token|require_auth", "api"),
+                    "label": "Shared-secret bearer gate on mutating / IDP routes (interim)",
+                    "done": _grep(r"require_token", "api"),
+                },
+                {
+                    "label": "API auth — JWT / OIDC per-identity (session + webhook routes)",
+                    "done": _grep(r"jwt\.decode|PyJWT|jwks|OAuth2PasswordBearer|oauth2_scheme|verify_jwt|oidc_", "api"),
                 },
                 {
                     "label": "Golden-scenario regression guard (replay + diff in CI)",
@@ -405,10 +414,10 @@ def _status(checks: list[dict]) -> str:
 PHASES: list[tuple[str, list[str]]] = [
     ("Foundation", ["B1", "B2", "B3", "B4", "B5"]),
     ("Decision Engine", ["B6"]),
-    ("Common Interface", ["B12"]),
     ("Distribution & Skills", ["B7", "B8"]),
     ("Deep Observability", ["B9", "B10"]),
     ("Production Hardening", ["B11"]),
+    ("Common Interface", ["B12"]),
 ]
 _PHASE_OF = {bid: name for name, ids in PHASES for bid in ids}
 
