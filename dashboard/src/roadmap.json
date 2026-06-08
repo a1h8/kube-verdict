@@ -1,12 +1,13 @@
 {
-  "generated_at": "2026-06-08T03:47:20.396888+00:00",
+  "generated_at": "2026-06-08T04:08:36.159780+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
     "Distribution & Skills",
     "Deep Observability",
     "Production Hardening",
-    "Common Interface"
+    "Common Interface",
+    "Real-world validation"
   ],
   "blocs": [
     {
@@ -344,6 +345,27 @@
       ],
       "status": "DONE",
       "phase": "Common Interface"
+    },
+    {
+      "id": "B13",
+      "title": "Real-world validation",
+      "description": "Move from synthetic fixtures (h001\u2013h010) to real captured incidents \u2014 each milestone a recorded artifact, not a claim. The credibility jump.",
+      "checks": [
+        {
+          "label": "Prometheus wired to real data (a live run captured, not a fixture)",
+          "done": false
+        },
+        {
+          "label": "First real incident captured end-to-end (golden run frozen)",
+          "done": false
+        },
+        {
+          "label": "Second real incident captured (baseline for regression diff)",
+          "done": false
+        }
+      ],
+      "status": "TODO",
+      "phase": "Real-world validation"
     }
   ]
 }
