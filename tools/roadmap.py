@@ -405,6 +405,25 @@ def _blocs() -> list[dict]:
                 },
             ],
         },
+        {
+            "id": "B13",
+            "title": "Real-world validation",
+            "description": "Move from synthetic fixtures (h001–h010) to real captured incidents — each milestone a recorded artifact, not a claim. The credibility jump.",
+            "checks": [
+                {
+                    "label": "Prometheus wired to real data (a live run captured, not a fixture)",
+                    "done": _exists("docs/evidence/prometheus-live.md"),
+                },
+                {
+                    "label": "First real incident captured end-to-end (golden run frozen)",
+                    "done": _exists("tests/golden/real_001.json"),
+                },
+                {
+                    "label": "Second real incident captured (baseline for regression diff)",
+                    "done": _exists("tests/golden/real_002.json"),
+                },
+            ],
+        },
     ]
 
 
@@ -426,6 +445,7 @@ PHASES: list[tuple[str, list[str]]] = [
     ("Deep Observability", ["B9", "B10"]),
     ("Production Hardening", ["B11"]),
     ("Common Interface", ["B12"]),
+    ("Real-world validation", ["B13"]),
 ]
 _PHASE_OF = {bid: name for name, ids in PHASES for bid in ids}
 
