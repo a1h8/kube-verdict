@@ -16,6 +16,7 @@ from api.models import (
     BlastRadius, EdgeEntry, FeedbackRequest, IncidentReport, RunRequest,
     SessionCreated, SessionState, SessionStatus,
 )
+from api.sample_journey import sample_review_payload, sample_state
 from api.session_store import Session, store
 from workflow.graph import build_graph
 
@@ -48,6 +49,8 @@ def _state_to_response(session: Session) -> SessionState:
         query              = s.get("query"),
         kube_version       = s.get("kube_version"),
         confidence         = s.get("confidence"),
+        verdict            = s.get("verdict"),
+        verdict_reasons    = s.get("verdict_reasons") or [],
         current_hypothesis       = s.get("current_hypothesis"),
         candidate_paths          = s.get("candidate_paths") or [],
         reasoning_history        = s.get("reasoning_history") or [],
@@ -149,6 +152,18 @@ async def create_session() -> SessionCreated:
     session_id = str(uuid.uuid4())
     store.create(session_id)
     return SessionCreated(session_id=session_id)
+
+
+@router.post("/sample", response_model=SessionState, status_code=201, dependencies=[Depends(require_token)])
+async def create_sample_session() -> SessionState:
+    """Create a session pre-populated with a recorded sample investigation, so
+    the Decision Journey UI can be demoed without a live cluster or Ollama."""
+    session_id = str(uuid.uuid4())
+    store.create(session_id)
+    store.set_last_state(session_id, sample_state())
+    store.set_review_payload(session_id, sample_review_payload())
+    store.set_status(session_id, SessionStatus.AWAITING_REVIEW)
+    return _state_to_response(store.get_or_404(session_id))
 
 
 @router.post("/{session_id}/run", response_model=SessionState, dependencies=[Depends(require_token)])
