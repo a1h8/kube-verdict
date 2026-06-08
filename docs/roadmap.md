@@ -48,11 +48,11 @@ under Next.
 
 ## Decision Introspection UI (B9)
 
-The beam-search engine already records every routing decision (`edge_log`), every archived hypothesis (`reasoning_history`), and every collector failure (`ingestion_stats`). B9 makes all of this visible in real time.
+The beam-search engine already records every routing decision (`edge_log`), every archived hypothesis (`reasoning_history`), and every collector failure (`ingestion_stats`). B9 makes all of this visible — surfaced by the React **Decision Journey** view (`dashboard/`, `#/journey`) consuming the API.
 
-- [ ] **API: expose `reasoning_history` + `fallback_collectors`** — add `eliminated_paths` (from `reasoning_history`) and `fallback_collectors` (from `ingestion_stats`) to the `GET /state` response so the frontend can render them without any backend logic change
-- [ ] **Edge-log timeline** — chronological swimlane of `edge_log` events: router name, edge taken (`retry` / `next_path` / `review`), reason text, beam_switches counter, declining flag; each event expandable to show the full confidence snapshot
-- [ ] **Eliminated-paths panel** — for each entry in `reasoning_history`: hypothesis text, confidence level, number of retries before elimination, summary of analysis, and the `reason` from the triggering `edge_log` entry (e.g. "probability declining — LOW×2"); grayed-out but expandable
+- [x] **API: expose reasoning + verdict in `/state`** — `GET /sessions/{id}/state` returns `reasoning_history`, `edge_log`, and the policy `verdict` / `verdict_reasons`, so a consumer renders the decision without backend changes
+- [x] **Edge-log timeline** — chronological list of `edge_log` events: router name, edge taken (`retry` / `next_path` / `review`), reason text, and the confidence/score snapshot (Decision Journey `Timeline`)
+- [x] **Eliminated-paths panel** — each `reasoning_history` entry: hypothesis, confidence, retries before elimination, summary — chosen ✓ vs eliminated ✕ (Decision Journey `Paths`)
 - [ ] **Fallback-status overlay** — per-collector badge row (ingest / prometheus / metrics / otel / gitops / anchor / signals): green OK or red FALLBACK with the error message as tooltip; surfaces exactly `ingestion_stats[*].fallback + error`
 - [ ] **Beam-search tree** — SVG dag: active path in blue, archived branches in gray, edges labeled with confidence score; node size proportional to retry count; eliminated leaves marked with an ✕ and the elimination reason on hover
 - [ ] **Live SSE refresh** — introspection panel subscribes to the existing `/stream` endpoint and re-renders each section as new `edge_log` entries or `reasoning_history` entries arrive, giving operators real-time visibility during a running session

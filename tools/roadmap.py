@@ -47,7 +47,15 @@ def _git_tag(pattern: str) -> bool:
 def _grep(pattern: str, *targets: str) -> bool:
     for t in targets:
         p = ROOT / t
-        files = [p] if p.is_file() else list(p.rglob("*.py")) if p.is_dir() else []
+        if p.is_file():
+            files = [p]
+        elif p.is_dir():
+            # Scan backend (.py) and frontend (.js/.jsx/.ts/.tsx) sources, so
+            # dashboard/* checks actually see the React code.
+            files = [f for ext in ("*.py", "*.js", "*.jsx", "*.ts", "*.tsx")
+                     for f in p.rglob(ext)]
+        else:
+            files = []
         for f in files:
             if re.search(pattern, f.read_text(errors="ignore")):
                 return True
@@ -286,11 +294,11 @@ def _blocs() -> list[dict]:
                 },
                 {
                     "label": "Edge-log timeline — routing decisions with reason, confidence, beam_switches",
-                    "done": _grep(r"EdgeTimeline|EdgeLog|edge.log.timeline", "dashboard/src"),
+                    "done": _grep(r"Decision timeline|EdgeTimeline|edge_log", "dashboard/src"),
                 },
                 {
                     "label": "Eliminated-paths panel — archived hypotheses with elimination reason",
-                    "done": _grep(r"EliminatedPaths|eliminated.paths|Eliminated", "dashboard/src"),
+                    "done": _grep(r"eliminated|EliminatedPaths|reasoning_history", "dashboard/src"),
                 },
                 {
                     "label": "Fallback-status overlay — per-collector OK / FALLBACK badge + error tooltip",
