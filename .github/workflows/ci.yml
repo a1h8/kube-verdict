@@ -37,6 +37,35 @@ jobs:
         run: ruff check . --select=E,W,F --ignore=E501
 
   # ─────────────────────────────────────────────
+  # Dashboard (React) — Vitest unit tests + production build
+  # ─────────────────────────────────────────────
+  dashboard:
+    name: Dashboard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests (Vitest)
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+  # ─────────────────────────────────────────────
   # Unit tests
   # ─────────────────────────────────────────────
   unit-tests:
