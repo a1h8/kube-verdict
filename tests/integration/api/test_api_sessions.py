@@ -149,6 +149,30 @@ async def test_edge_log_exposes_ingestion_kos(client, completed_session):
 # 5. Human-in-the-loop — AWAITING_REVIEW + feedback
 # ═══════════════════════════════════════════════════════════════════════════════
 
+async def test_sample_session_journey(client):
+    # Demo endpoint: a full recorded journey without a cluster / Ollama.
+    r = await client.post("/api/v1/sessions/sample")
+    assert r.status_code == 201
+    body = r.json()
+    assert body["status"] == SessionStatus.AWAITING_REVIEW
+    assert body["verdict"] == "HUMAN_REVIEW"
+    assert body["verdict_reasons"]
+    assert body["edge_log"], "sample must show a decision timeline"
+    assert body["reasoning_history"], "sample must show eliminated paths"
+    assert body["blast_radius"]["risk"] == "MEDIUM"
+    # and it is retrievable via the polled /state endpoint
+    r2 = await client.get(f"/api/v1/sessions/{body['session_id']}/state")
+    assert r2.json()["verdict"] == "HUMAN_REVIEW"
+
+
+async def test_state_exposes_verdict(client, awaiting_review_session):
+    # The Decision Journey UI reads the policy verdict from /state.
+    r = await client.get(f"/api/v1/sessions/{awaiting_review_session}/state")
+    body = r.json()
+    assert body["verdict"] == "HUMAN_REVIEW"
+    assert body["verdict_reasons"]
+
+
 async def test_awaiting_review_state_has_payload(client, awaiting_review_session):
     r = await client.get(f"/api/v1/sessions/{awaiting_review_session}/state")
     body = r.json()

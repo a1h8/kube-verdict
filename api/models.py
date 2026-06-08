@@ -66,6 +66,10 @@ class SessionState(BaseModel):
     kube_version: str | None = None
     confidence: str | None = None
 
+    # Policy decision (populated once the gate has run, before the human review)
+    verdict: str | None = None                                   # AUTO | HUMAN_REVIEW | NO_GO
+    verdict_reasons: list[str] = Field(default_factory=list)
+
     # Reasoning chain
     current_hypothesis: str | None = None
     candidate_paths: list[str] = Field(default_factory=list)
