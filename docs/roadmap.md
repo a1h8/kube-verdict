@@ -2,7 +2,7 @@
 
 Blocs are grouped into maturity phases on the live dashboard — **Foundation** (B1–B5),
 **Decision Engine** (B6), **Distribution & Skills** (B7–B8), **Deep Observability** (B9–B10),
-**Production Hardening** (B11), and **Common Interface** (B12). Status is computed on
+**Production Hardening** (B11), **Common Interface** (B12), and **Real-world validation** (B13). Status is computed on
 each deploy by `tools/roadmap.py` from deterministic file/tag checks — not a self-graded
 score. A check stays red until the thing it verifies actually exists (e.g. B7's release check
 only turns green once a `v*` tag is pushed and the image is really built, not just because the
@@ -89,6 +89,16 @@ rediscovered by reading git history.
 - [x] **Canonical verdict model frozen** — `IncidentReport` (`decision/models.py`) + formal `BlastRadius` / `RollbackPlan`, locked by `tests/unit/test_decision_models.py`
 - [x] **Single investigation pipeline** — MCP `kube_rca` routes through `services.investigation_service` (the same graph as the REST API), not a parallel path
 - [x] **IDP integration contract published** — `docs/idp-contract.md` documents the verdict envelope for portal / SRE / agent consumers; realized by `api/verdict_contract.py` (`VerdictEnvelope`) and `POST /api/v1/investigate`
+
+## Real-world validation (B13)
+
+The credibility jump: move from synthetic fixtures (h001–h010) to real captured incidents.
+Each milestone is a recorded artifact that flips a deterministic check — cadence you can see,
+not motivation. Sequence matters: each unlocks the next.
+
+- [ ] **Prometheus wired to real data** — a live run captured (not a fixture), proving the Prometheus collector against a real endpoint; evidence in `docs/evidence/prometheus-live.md`
+- [ ] **First real incident captured end-to-end** — a real RCA run frozen as a golden artifact (`tests/golden/real_001.json`): the first verdict that did not come from synthetic data
+- [ ] **Second real incident captured** — `tests/golden/real_002.json`, the baseline for the golden-scenario regression diff (see B11)
 
 ## Next
 
