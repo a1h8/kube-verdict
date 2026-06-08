@@ -61,3 +61,13 @@ export async function investigate(body, { onTick } = {}) {
   const final = await pollState(session_id, { onTick });
   return { session_id, state: final };
 }
+
+// Recorded sample investigation — demos the journey without a cluster/Ollama.
+// The endpoint returns a terminal SessionState directly, so no polling needed.
+export const createSampleSession = () => req("/sessions/sample", { method: "POST" });
+
+export async function loadSample({ onTick } = {}) {
+  const state = await createSampleSession();
+  onTick?.(state);
+  return { session_id: state.session_id, state };
+}

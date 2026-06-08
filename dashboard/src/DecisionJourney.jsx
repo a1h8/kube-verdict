@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { investigate, getToken, setToken } from "./api.js";
+import { investigate, loadSample, getToken, setToken } from "./api.js";
 
 // ── theme ────────────────────────────────────────────────────────────────────
 const C = {
@@ -146,13 +146,11 @@ export default function DecisionJourney() {
   const [status, setStatus] = useState("idle"); // idle | running | done | error
   const [error, setError] = useState("");
 
-  async function run() {
+  async function go(action) {
     setToken(token.trim());
     setError(""); setState(null); setStatus("running");
     try {
-      const body = { query };
-      if (namespace.trim()) body.namespaces = [namespace.trim()];
-      const { state: final } = await investigate(body, { onTick: setState });
+      const { state: final } = await action();
       setState(final);
       setStatus("done");
     } catch (e) {
@@ -160,6 +158,14 @@ export default function DecisionJourney() {
       setStatus("error");
     }
   }
+
+  function run() {
+    const body = { query };
+    if (namespace.trim()) body.namespaces = [namespace.trim()];
+    return go(() => investigate(body, { onTick: setState }));
+  }
+
+  const sample = () => go(() => loadSample({ onTick: setState }));
 
   const inputStyle = { background: C.bg, border: `1px solid ${C.border}`, color: C.text,
     borderRadius: 6, padding: "8px 10px", fontSize: 14 };
@@ -183,12 +189,21 @@ export default function DecisionJourney() {
             <input style={{ ...inputStyle, flex: 1, minWidth: 160 }} value={token} type="password"
               onChange={(e) => setTok(e.target.value)} placeholder="Bearer token (if API auth on)" />
           </div>
-          <button onClick={run} disabled={status === "running"}
-            style={{ background: status === "running" ? C.dim : "#2563eb", color: "#fff", border: "none",
-              borderRadius: 6, padding: "10px 16px", fontSize: 15, fontWeight: 600,
-              cursor: status === "running" ? "default" : "pointer", justifySelf: "start" }}>
-            {status === "running" ? "Investigating…" : "▶ Investigate"}
-          </button>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={run} disabled={status === "running"}
+              style={{ background: status === "running" ? C.dim : "#2563eb", color: "#fff", border: "none",
+                borderRadius: 6, padding: "10px 16px", fontSize: 15, fontWeight: 600,
+                cursor: status === "running" ? "default" : "pointer" }}>
+              {status === "running" ? "Investigating…" : "▶ Investigate"}
+            </button>
+            <button onClick={sample} disabled={status === "running"}
+              title="Load a recorded sample — no cluster or Ollama needed"
+              style={{ background: "transparent", color: C.sub, border: `1px solid ${C.border}`,
+                borderRadius: 6, padding: "10px 16px", fontSize: 15, fontWeight: 600,
+                cursor: status === "running" ? "default" : "pointer" }}>
+              Load sample
+            </button>
+          </div>
         </div>
 
         {status === "running" && !state && <p style={{ color: C.sub }}>Starting…</p>}
