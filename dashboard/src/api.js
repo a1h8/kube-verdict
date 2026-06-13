@@ -40,6 +40,9 @@ export const runSession = (id, body) =>
 
 export const getState = (id) => req(`/sessions/${id}/state`);
 
+export const sendFeedback = (id, body) =>
+  req(`/sessions/${id}/feedback`, { method: "POST", body: JSON.stringify(body) });
+
 // Poll until the workflow reaches a terminal state, calling onTick with every
 // snapshot so the UI can render the journey as it grows.
 export async function pollState(id, { onTick, interval = 1500, timeout = 180000 } = {}) {
@@ -58,6 +61,12 @@ export async function pollState(id, { onTick, interval = 1500, timeout = 180000 
 export async function investigate(body, { onTick } = {}) {
   const { session_id } = await createSession();
   await runSession(session_id, body);
+  const final = await pollState(session_id, { onTick });
+  return { session_id, state: final };
+}
+
+export async function reviewSession(session_id, human_decision, { onTick } = {}) {
+  await sendFeedback(session_id, { human_decision });
   const final = await pollState(session_id, { onTick });
   return { session_id, state: final };
 }

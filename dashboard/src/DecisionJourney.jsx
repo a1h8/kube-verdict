@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { investigate, loadSample, getToken, setToken } from "./api.js";
+import { useEffect, useState } from "react";
+import { investigate, loadSample, reviewSession, getToken, setToken, getState } from "./api.js";
 
 // ── theme ────────────────────────────────────────────────────────────────────
 const C = {
@@ -120,6 +120,118 @@ function Paths({ state }) {
   );
 }
 
+// B9: per-collector fallback overlay — green OK / red FALLBACK badge with the
+// collector error surfaced as a tooltip (from ingestion_stats[*].fallback/error).
+function FallbackStatus({ state }) {
+  const stats = state.ingestion_stats || {};
+  const rows = Object.entries(stats).filter(([, v]) => v && typeof v === "object");
+  if (!rows.length) return null;
+  return (
+    <div style={box}>
+      <h3 style={{ color: C.text, marginBottom: 10 }}>Collector status — {rows.length}</h3>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {rows.map(([name, v]) => {
+          const fb = v.fallback === true;
+          const fg = fb ? "#f87171" : "#34d399";
+          return (
+            <span
+              key={name}
+              title={v.error || (fb ? "fallback active" : "ok")}
+              style={{
+                border: `1px solid ${fg}`, color: fg, borderRadius: 6,
+                padding: "3px 9px", fontSize: 12, cursor: v.error ? "help" : "default",
+              }}
+            >
+              {fb ? "● " : "○ "}{name}: {fb ? "FALLBACK" : "OK"}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// B9: beam-search tree — active path blue, archived branches gray, edges labelled
+// with confidence, node size ∝ retries, eliminated leaves ✕ + reason on hover.
+function BeamTree({ state }) {
+  const eliminated = state.reasoning_history || [];
+  const chosen = state.current_hypothesis;
+  const nodes = eliminated.map((p, i) => ({
+    label: p.hypothesis || `Path ${p.step ?? i + 1}`,
+    conf: p.confidence || "?",
+    retries: p.retry_count ?? 0,
+    reason: p.summary || "confidence did not improve — branch archived",
+    status: "archived",
+  }));
+  if (chosen) {
+    nodes.push({
+      label: chosen,
+      conf: state.confidence || "?",
+      retries: 0,
+      reason: "selected — highest evidence-weighted confidence",
+      status: "active",
+    });
+  }
+  if (!nodes.length) return null;
+
+  const W = 820, rootY = 40, leafBase = 172;
+  const n = nodes.length;
+  const xs = nodes.map((_, i) => (W * (i + 1)) / (n + 1));
+  const rootX = W / 2;
+  const STATUS = {
+    archived: { fill: "#1e293b", stroke: "#475569", fg: "#94a3b8", mark: "✕" },
+    active:   { fill: "#0b1f3a", stroke: "#60a5fa", fg: "#93c5fd", mark: "✓" },
+  };
+  const lift = (r) => Math.min(r * 3, 14); // retries raise + enlarge the node
+
+  return (
+    <div style={box}>
+      <h3 style={{ color: C.text, marginBottom: 4 }}>Beam-search tree — {n} path(s)</h3>
+      <p style={{ color: C.dim, fontSize: 12, marginBottom: 8 }}>
+        Active path in blue, archived branches in gray · node size ∝ retries · hover a node for why it was eliminated
+      </p>
+      <svg viewBox={`0 0 ${W} ${leafBase + 64}`} width="100%" style={{ maxWidth: W }}>
+        {nodes.map((node, i) => {
+          const s = STATUS[node.status];
+          const ly = leafBase - lift(node.retries);
+          return (
+            <g key={`edge-${i}`}>
+              <line
+                x1={rootX} y1={rootY + 14} x2={xs[i]} y2={ly - 14 - lift(node.retries)}
+                stroke={s.stroke} strokeWidth={node.status === "active" ? 2.5 : 1.2}
+                strokeDasharray={node.status === "active" ? "0" : "4 3"}
+              />
+              <text x={(rootX + xs[i]) / 2} y={(rootY + ly) / 2} fill={C.dim} fontSize="11" textAnchor="middle">
+                {node.conf}
+              </text>
+            </g>
+          );
+        })}
+        <circle cx={rootX} cy={rootY} r="14" fill="#0b1220" stroke="#60a5fa" strokeWidth="2" />
+        <text x={rootX} y={rootY + 5} fill="#60a5fa" fontSize="13" textAnchor="middle" fontWeight="700">⌖</text>
+        <text x={rootX} y={rootY - 22} fill={C.sub} fontSize="11" textAnchor="middle">root query</text>
+        {nodes.map((node, i) => {
+          const s = STATUS[node.status];
+          const r = 12 + lift(node.retries);
+          const ly = leafBase - lift(node.retries);
+          const label = node.label.length > 28 ? node.label.slice(0, 26) + "…" : node.label;
+          return (
+            <g key={`node-${i}`}>
+              <title>{`${node.status}: ${node.reason}`}</title>
+              <circle cx={xs[i]} cy={ly} r={r} fill={s.fill} stroke={s.stroke} strokeWidth="2" />
+              <text x={xs[i]} y={ly + 5} fill={s.fg} fontSize="14" textAnchor="middle" fontWeight="700">{s.mark}</text>
+              <text x={xs[i]} y={ly + r + 16} fill={s.fg} fontSize="12" textAnchor="middle">{label}</text>
+              <text x={xs[i]} y={ly + r + 31} fill={C.dim} fontSize="10.5" textAnchor="middle">
+                {node.conf}{node.retries ? ` · ${node.retries} retr.` : ""}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 function RootCause({ state }) {
   const rc = state.report?.root_cause;
   const rem = state.report?.remediation || state.suggestions || [];
@@ -138,10 +250,95 @@ function RootCause({ state }) {
   );
 }
 
+function ReviewGate({ sessionId, state, busy, onDecision }) {
+  const payload = state.review_payload;
+  if (state.status !== "AWAITING_REVIEW" || !payload) return null;
+
+  const isSample = (state.query || "").startsWith("[SAMPLE]");
+  const btnStyle = {
+    borderRadius: 6,
+    padding: "10px 16px",
+    fontSize: 15,
+    fontWeight: 600,
+    border: "none",
+  };
+
+  return (
+    <div style={box}>
+      <h3 style={{ color: C.text, marginBottom: 8 }}>Human review</h3>
+      <p style={{ color: C.sub, fontSize: 14, marginBottom: 8 }}>
+        {payload.summary || "Review the proposed remediation before proceeding."}
+      </p>
+      {payload.root_cause && (
+        <p style={{ color: C.dim, fontSize: 13, marginBottom: 12 }}>{payload.root_cause}</p>
+      )}
+      {(payload.remediation || []).map((cmd, i) => (
+        <pre key={i} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6,
+          padding: "8px 12px", color: "#7dd3fc", fontSize: 12.5, overflowX: "auto", marginBottom: 6 }}>
+          {cmd}
+        </pre>
+      ))}
+      {isSample ? (
+        <p style={{ color: C.dim, fontSize: 13, marginTop: 10 }}>
+          Sample session: review actions are disabled because this journey is a recorded snapshot.
+        </p>
+      ) : (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+          <button
+            onClick={() => onDecision("approve")}
+            disabled={busy || !sessionId}
+            style={{ ...btnStyle, background: busy ? C.dim : "#166534", color: "#fff", cursor: busy ? "default" : "pointer" }}
+          >
+            {busy ? "Submitting…" : "Approve remediation"}
+          </button>
+          <button
+            onClick={() => onDecision("reject")}
+            disabled={busy || !sessionId}
+            style={{ ...btnStyle, background: busy ? C.dim : "#991b1b", color: "#fff", cursor: busy ? "default" : "pointer" }}
+          >
+            Reject remediation
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// B9: groups the introspection sections (collectors → beam tree → timeline →
+// paths) and subscribes to the /stream SSE endpoint, so the panel refreshes in
+// real time while a session is running — each SSE event pulls a fresh snapshot.
+// Falls back silently to the parent's polling if EventSource can't connect.
+function IntrospectionPanel({ sessionId, state, live, onUpdate }) {
+  useEffect(() => {
+    if (!sessionId || !live) return undefined;
+    let es;
+    try {
+      es = new EventSource(`/api/v1/sessions/${sessionId}/stream`);
+    } catch {
+      return undefined;
+    }
+    es.onmessage = () => {
+      getState(sessionId).then((s) => onUpdate?.(s)).catch(() => {});
+    };
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [sessionId, live, onUpdate]);
+
+  return (
+    <>
+      <FallbackStatus state={state} />
+      <BeamTree state={state} />
+      <Timeline state={state} />
+      <Paths state={state} />
+    </>
+  );
+}
+
 export default function DecisionJourney() {
   const [query, setQuery] = useState("pods crashlooping in production");
   const [namespace, setNamespace] = useState("");
   const [token, setTok] = useState(getToken());
+  const [sessionId, setSessionId] = useState("");
   const [state, setState] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | running | done | error
   const [error, setError] = useState("");
@@ -150,7 +347,8 @@ export default function DecisionJourney() {
     setToken(token.trim());
     setError(""); setState(null); setStatus("running");
     try {
-      const { state: final } = await action();
+      const { session_id, state: final } = await action();
+      setSessionId(session_id || "");
       setState(final);
       setStatus("done");
     } catch (e) {
@@ -166,6 +364,20 @@ export default function DecisionJourney() {
   }
 
   const sample = () => go(() => loadSample({ onTick: setState }));
+
+  async function decide(humanDecision) {
+    if (!sessionId) return;
+    setError("");
+    setStatus("running");
+    try {
+      const { state: final } = await reviewSession(sessionId, humanDecision, { onTick: setState });
+      setState(final);
+      setStatus("done");
+    } catch (e) {
+      setError(String(e.message || e));
+      setStatus("error");
+    }
+  }
 
   const inputStyle = { background: C.bg, border: `1px solid ${C.border}`, color: C.text,
     borderRadius: 6, padding: "8px 10px", fontSize: 14 };
@@ -220,8 +432,13 @@ export default function DecisionJourney() {
               {status === "running" && " · polling…"}
             </div>
             {state.verdict && <VerdictBanner state={state} />}
-            <Paths state={state} />
-            <Timeline state={state} />
+            <ReviewGate sessionId={sessionId} state={state} busy={status === "running"} onDecision={decide} />
+            <IntrospectionPanel
+              sessionId={sessionId}
+              state={state}
+              live={status === "running"}
+              onUpdate={setState}
+            />
             <RootCause state={state} />
           </>
         )}
