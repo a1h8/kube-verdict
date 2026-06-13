@@ -1,12 +1,13 @@
 {
-  "generated_at": "2026-06-08T03:47:20.396888+00:00",
+  "generated_at": "2026-06-13T10:37:02.161154+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
     "Distribution & Skills",
     "Deep Observability",
     "Production Hardening",
-    "Common Interface"
+    "Common Interface",
+    "Real-world validation"
   ],
   "blocs": [
     {
@@ -240,18 +241,18 @@
         },
         {
           "label": "Fallback-status overlay \u2014 per-collector OK / FALLBACK badge + error tooltip",
-          "done": false
+          "done": true
         },
         {
           "label": "Beam-search tree \u2014 SVG dag: active path vs archived branches",
-          "done": false
+          "done": true
         },
         {
           "label": "Live SSE refresh \u2014 introspection panel updates in real time via /stream",
-          "done": false
+          "done": true
         }
       ],
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "phase": "Deep Observability"
     },
     {
@@ -344,6 +345,27 @@
       ],
       "status": "DONE",
       "phase": "Common Interface"
+    },
+    {
+      "id": "B13",
+      "title": "Real-world validation",
+      "description": "Move from synthetic fixtures (h001\u2013h010) to real captured incidents \u2014 each milestone a recorded artifact, not a claim. The credibility jump.",
+      "checks": [
+        {
+          "label": "Prometheus wired to real data (a live run captured, not a fixture)",
+          "done": false
+        },
+        {
+          "label": "First real incident captured end-to-end (golden run frozen)",
+          "done": false
+        },
+        {
+          "label": "Second real incident captured (baseline for regression diff)",
+          "done": false
+        }
+      ],
+      "status": "TODO",
+      "phase": "Real-world validation"
     }
   ]
 }
