@@ -158,6 +158,17 @@ streamlit run ui/app.py
 
 ---
 
+## Interfaces
+
+The same investigation is reachable through several surfaces:
+
+- **REST API (FastAPI)** — the runtime the Docker image ships (`uvicorn api.app:app --port 8000`). Session lifecycle under `/api/v1/sessions` plus a one-call `POST /api/v1/investigate` that returns a stable verdict envelope (root cause, confidence, blast radius, policy verdict, remediation). Optional shared-secret bearer guard via `KUBEVERDICT_API_TOKEN` (not OIDC). See [REST API](docs/api.md).
+- **Streamlit demo** — `streamlit run ui/app.py`; the offline pipeline-trace explorer described above.
+- **Decision Journey (React dashboard)** — `npm --prefix dashboard run dev`, then open `…/#/journey`. Renders the decision *process* from the API: verdict, explored / eliminated hypothesis paths, and the decision timeline. Click **Load sample** to see a full journey with no cluster or Ollama.
+- **MCP / Agent Skills** — `kube_rca`, `helm_drift`, `blast_radius` (see below).
+
+---
+
 ## Documentation
 
 | Document | Content |
