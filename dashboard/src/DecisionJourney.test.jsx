@@ -123,4 +123,48 @@ describe("DecisionJourney", () => {
     });
     expect(await screen.findByText("AUTO")).toBeInTheDocument();
   });
+
+  // ── decision process ─────────────────────────────────────────────────────
+  it("renders the reasoning process: eliminated hypotheses with their reason, then the chosen path", async () => {
+    loadSample.mockResolvedValue({ session_id: "smp", state: SAMPLE });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+    await screen.findByText("HUMAN REVIEW");
+
+    // eliminated hypothesis + why it was archived
+    expect(screen.getAllByText(/OOMKilled/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/switched/).length).toBeGreaterThan(0);
+    // the path that was selected
+    expect(screen.getByText(/Chosen/)).toBeInTheDocument();
+  });
+
+  it("renders the routing timeline — each decision with its edge and reason", async () => {
+    loadSample.mockResolvedValue({ session_id: "smp", state: SAMPLE });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+    await screen.findByText(/Decision timeline/);
+
+    expect(screen.getByText("next_path")).toBeInTheDocument();   // early path switch
+    expect(screen.getAllByText(/review/).length).toBeGreaterThan(0); // human gate edge
+    expect(screen.getByText(/LOW×2/)).toBeInTheDocument();        // switch reason
+  });
+
+  it("renders a NO-GO verdict with its blocking reason", async () => {
+    loadSample.mockResolvedValue({
+      session_id: "smp",
+      state: {
+        ...SAMPLE,
+        verdict: "NO_GO",
+        verdict_reasons: ["rollback_available=False — no safe recovery path"],
+      },
+    });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+
+    expect(await screen.findByText("NO-GO")).toBeInTheDocument();
+    expect(screen.getByText(/no safe recovery path/)).toBeInTheDocument();
+  });
 });
