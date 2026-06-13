@@ -158,6 +158,9 @@ class RCAReport:
         return f"{bar}\nKubeVerdict RCA\n{meta}\nQuery: {self.query}\n{bar}\n{self.raw_analysis}\n{bar}"
 
     def to_dict(self) -> dict:
+        # Canonical decision + patch-safety projection (policy_gate + blast_radius).
+        from models.incident_report import IncidentReport
+        incident = IncidentReport.from_rca(self)
         return {
             "query": self.query,
             "kube_version": self.kube_version,
@@ -194,6 +197,8 @@ class RCAReport:
                 if self.context.pre_llm_confidence
                 else None
             ),
+            "blast_radius": incident.blast_radius.to_dict(),
+            "decision": incident.decision.to_dict(),
             "raw_analysis": self.raw_analysis,
         }
 
