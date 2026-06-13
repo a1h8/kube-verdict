@@ -1,0 +1,147 @@
+1
+00:00:00,000 --> 00:00:02,437
+This demo shows more than a diagnosis.
+
+2
+00:00:02,437 --> 00:00:04,360
+It shows the decision process.
+
+3
+00:00:04,360 --> 00:00:06,604
+We start with a real incident case.
+
+4
+00:00:06,604 --> 00:00:09,041
+H zero zero nine, liveness probe loop.
+
+5
+00:00:09,041 --> 00:00:10,901
+The service keeps restarting.
+
+6
+00:00:10,901 --> 00:00:13,337
+The liveness probe timing has drifted.
+
+7
+00:00:13,337 --> 00:00:16,864
+First, we run the case with a strict threshold profile.
+
+8
+00:00:16,864 --> 00:00:19,236
+The system explores a plausible path.
+
+9
+00:00:19,236 --> 00:00:20,519
+It scores that path.
+
+10
+00:00:20,519 --> 00:00:22,699
+It follows the available evidence.
+
+11
+00:00:22,699 --> 00:00:25,456
+But the confidence does not improve enough.
+
+12
+00:00:25,456 --> 00:00:27,636
+So this branch becomes a dead end.
+
+13
+00:00:27,636 --> 00:00:28,790
+That is important.
+
+14
+00:00:28,790 --> 00:00:30,265
+The failure is visible.
+
+15
+00:00:30,265 --> 00:00:32,445
+We can see where the path stalled.
+
+16
+00:00:32,445 --> 00:00:34,433
+We can see why it was rejected.
+
+17
+00:00:34,433 --> 00:00:35,779
+And we can backtrack.
+
+18
+00:00:35,779 --> 00:00:38,152
+Now we run the exact same case again.
+
+19
+00:00:38,152 --> 00:00:39,050
+Same problem.
+
+20
+00:00:39,050 --> 00:00:39,947
+Same signals.
+
+21
+00:00:39,947 --> 00:00:42,127
+But a different threshold profile.
+
+22
+00:00:42,127 --> 00:00:45,013
+This time, the system converges more cleanly.
+
+23
+00:00:45,013 --> 00:00:47,898
+So the goal is not only to produce an answer.
+
+24
+00:00:47,898 --> 00:00:50,655
+The goal is to make the reasoning explicit.
+
+25
+00:00:50,655 --> 00:00:51,553
+Reviewable.
+
+26
+00:00:51,553 --> 00:00:52,451
+And tunable.
+
+27
+00:00:52,451 --> 00:00:56,234
+Next, we switch to H zero zero six, network policy blocked.
+
+28
+00:00:56,234 --> 00:00:59,440
+Here, the system reaches a valid remediation path.
+
+29
+00:00:59,440 --> 00:01:01,620
+But it does not act automatically.
+
+30
+00:01:01,620 --> 00:01:03,929
+It stops at the human decision gate.
+
+31
+00:01:03,929 --> 00:01:06,493
+The operator reviews the recommendation.
+
+32
+00:01:06,493 --> 00:01:08,866
+Then chooses to approve or reject it.
+
+33
+00:01:08,866 --> 00:01:10,276
+That is the key point.
+
+34
+00:01:10,276 --> 00:01:11,751
+The system can explore.
+
+35
+00:01:11,751 --> 00:01:12,649
+Compare.
+
+36
+00:01:12,649 --> 00:01:14,060
+And justify decisions.
+
+37
+00:01:14,060 --> 00:01:17,971
+But the final operational choice remains under human control.

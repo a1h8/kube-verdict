@@ -76,6 +76,16 @@ bash demo/cluster_setup.sh --inject
 python demo/demo_webhook.py      # alert → RCA → approve → fix
 ```
 
+---
+
+### Decision walkthrough — thresholds, dead-ends & the human gate
+
+A 78-second walkthrough of the decision engine on a real incident: a strict
+threshold rejects a low-confidence path, KubeVerdict backtracks, a lenient
+profile finds a valid remediation, and execution stops at the human gate.
+
+▶ [Watch the decision walkthrough (78s, MP4)](demo-decision-thresholds.mp4) · subtitles burned in
+
 → [Full demo guide](docs/demo.md)
 
 ---
