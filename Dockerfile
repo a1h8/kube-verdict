@@ -46,6 +46,7 @@ COPY dedup/            ./dedup/
 COPY ingestion/        ./ingestion/
 COPY knowledge/        ./knowledge/
 COPY llm/              ./llm/
+COPY models/           ./models/
 COPY ontology/         ./ontology/
 COPY persistence/      ./persistence/
 COPY rca/              ./rca/
