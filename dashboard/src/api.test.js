@@ -83,6 +83,23 @@ describe("api client", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/sessions/sample");
   });
 
+  it("loadSample falls back to the bundled sample when there is no backend (405)", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => okJson({ detail: "method not allowed" }, 405)));
+
+    const { state } = await loadSample();
+
+    // bundled client-side snapshot renders the full journey without an API
+    expect(state.verdict).toBe("HUMAN_REVIEW");
+    expect(state.status).toBe("AWAITING_REVIEW");
+    expect(state.reasoning_history.length).toBeGreaterThan(0);
+    expect(state.ingestion_stats).toBeTruthy();
+  });
+
+  it("surfaces a 'no API backend' message on 405", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => okJson({}, 405)));
+    await expect(getState("x")).rejects.toThrow(/No API backend reachable/);
+  });
+
   it("reviewSession sends feedback then polls to completion", async () => {
     const calls = [];
     vi.stubGlobal("fetch", vi.fn((url, opts) => {
