@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
-KubeVerdict — local POC entry point.
+KubeVerdict — command-line entry point.
+
+The LLM provider is selected by `LLM_PROVIDER` in .env (ollama | groq |
+anthropic | openai | google | demo); defaults to Ollama for the local,
+air-gapped path. See `llm.build_llm_client`.
 
 Usage:
     # Collect from cluster, index, then run RCA
@@ -21,7 +25,7 @@ import argparse
 
 import config as cfg  # loads .env
 from ingestion import K8sCollector, HelmCollector, HelmfileCollector, HelmDriftDetector, PolicyCollector
-from llm import OllamaClient
+from llm import build_llm_client
 from rca import RCAAnalyzer
 from vectorstore import Embedder, FAISSStore
 
@@ -102,7 +106,7 @@ def main() -> None:
     print(store.summary())
     print()
 
-    llm = OllamaClient()
+    llm = build_llm_client()
     analyzer = RCAAnalyzer(graph=graph, store=store, llm=llm)
 
     if args.stream:

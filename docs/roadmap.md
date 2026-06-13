@@ -13,6 +13,14 @@ under Next.
 
 ## Done
 
+> **What `[x]` means here:** the capability is implemented and wired into the
+> pipeline and covered by offline/fixture tests. The observability collectors
+> (Prometheus, OTel, Loki, PatchTST) are wired but **not yet validated against a
+> live endpoint with real data** — that validation is tracked as open items
+> below (see *"Prometheus wired to real data"* and *Loki Full Integration (B10)*).
+> This matches the README: the primary **validated** inputs are Kubernetes
+> events and Helm drift.
+
 - [x] **Evidence-first hypothesis generation** — ontology causal chains + anchor violations + RemediationEngine rules + KB examples → hypotheses before LLM; LLM only fills remaining slots (P(token | top-k context))
 - [x] **Beam search confidence routing** — `path_confidence_history` detects LOW × 2 → early path switch; `archive_path_node` re-ranks remaining candidates via hybrid_search on failed analysis text
 - [x] **RRF-on-anchors** — `index_anchor_violations()` indexes each manifest drift field as `doc_source="anchor"` (×1.6 weight); Phase 2b processes `anchor:` UIDs from hybrid_search into testable hypotheses
