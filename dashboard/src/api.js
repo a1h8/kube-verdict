@@ -6,6 +6,8 @@
 // replay or missed-event handling. The bearer token (when set) rides as a
 // normal Authorization header, which EventSource could not do.
 
+import { SAMPLE_JOURNEY } from "./sampleJourney.js";
+
 const BASE = "/api/v1";
 
 const TERMINAL = new Set(["AWAITING_REVIEW", "COMPLETED", "FAILED"]);
@@ -29,6 +31,11 @@ function headers() {
 async function req(path, opts = {}) {
   const r = await fetch(`${BASE}${path}`, { headers: headers(), ...opts });
   if (r.status === 401) throw new Error("401 — bearer token required or invalid");
+  if (r.status === 405)
+    throw new Error(
+      "No API backend reachable. This hosted build is static — run the API locally " +
+        "(`uvicorn api.app:app --port 8000`) to Investigate, or click Load sample for a recorded journey.",
+    );
   if (!r.ok) throw new Error(`${opts.method || "GET"} ${path} → ${r.status}`);
   return r.status === 204 ? null : r.json();
 }
@@ -76,7 +83,14 @@ export async function reviewSession(session_id, human_decision, { onTick } = {})
 export const createSampleSession = () => req("/sessions/sample", { method: "POST" });
 
 export async function loadSample({ onTick } = {}) {
-  const state = await createSampleSession();
+  // Live API when available (local dev); fall back to the bundled snapshot on a
+  // static build (GitHub Pages) where there is no backend.
+  let state;
+  try {
+    state = await createSampleSession();
+  } catch {
+    state = SAMPLE_JOURNEY;
+  }
   onTick?.(state);
   return { session_id: state.session_id, state };
 }
