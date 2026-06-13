@@ -6,6 +6,7 @@ import DecisionJourney from "./DecisionJourney.jsx";
 vi.mock("./api.js", () => ({
   getToken: () => "",
   setToken: vi.fn(),
+  getState: vi.fn(),
   investigate: vi.fn(),
   loadSample: vi.fn(),
   reviewSession: vi.fn(),
@@ -64,6 +65,29 @@ describe("DecisionJourney", () => {
     expect(screen.getByText(/Decision timeline/)).toBeInTheDocument();
     // root cause
     expect(screen.getAllByText(/No PV matches storageClass/).length).toBeGreaterThan(0);
+  });
+
+  it("renders the B9 beam-search tree and collector fallback badges", async () => {
+    loadSample.mockResolvedValue({
+      session_id: "smp",
+      state: {
+        ...SAMPLE,
+        ingestion_stats: {
+          k8s: { fallback: false },
+          prometheus: { fallback: true, error: "no Prometheus endpoint configured" },
+        },
+      },
+    });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+
+    // beam-search tree (SVG dag)
+    expect(await screen.findByText(/Beam-search tree/)).toBeInTheDocument();
+    // collector fallback overlay — OK vs FALLBACK badges
+    expect(screen.getByText(/Collector status/)).toBeInTheDocument();
+    expect(screen.getByText(/k8s: OK/)).toBeInTheDocument();
+    expect(screen.getByText(/prometheus: FALLBACK/)).toBeInTheDocument();
   });
 
   it("shows an error banner when the API call fails", async () => {
