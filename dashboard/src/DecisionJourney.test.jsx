@@ -6,6 +6,7 @@ import DecisionJourney from "./DecisionJourney.jsx";
 vi.mock("./api.js", () => ({
   getToken: () => "",
   setToken: vi.fn(),
+  getState: vi.fn(),
   investigate: vi.fn(),
   loadSample: vi.fn(),
   reviewSession: vi.fn(),
@@ -66,6 +67,29 @@ describe("DecisionJourney", () => {
     expect(screen.getAllByText(/No PV matches storageClass/).length).toBeGreaterThan(0);
   });
 
+  it("renders the B9 beam-search tree and collector fallback badges", async () => {
+    loadSample.mockResolvedValue({
+      session_id: "smp",
+      state: {
+        ...SAMPLE,
+        ingestion_stats: {
+          k8s: { fallback: false },
+          prometheus: { fallback: true, error: "no Prometheus endpoint configured" },
+        },
+      },
+    });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+
+    // beam-search tree (SVG dag)
+    expect(await screen.findByText(/Beam-search tree/)).toBeInTheDocument();
+    // collector fallback overlay — OK vs FALLBACK badges
+    expect(screen.getByText(/Collector status/)).toBeInTheDocument();
+    expect(screen.getByText(/k8s: OK/)).toBeInTheDocument();
+    expect(screen.getByText(/prometheus: FALLBACK/)).toBeInTheDocument();
+  });
+
   it("shows an error banner when the API call fails", async () => {
     loadSample.mockRejectedValue(new Error("401 — bearer token required or invalid"));
     render(<DecisionJourney />);
@@ -98,5 +122,49 @@ describe("DecisionJourney", () => {
       expect(reviewSession).toHaveBeenCalledWith("s1", "approve", { onTick: expect.any(Function) });
     });
     expect(await screen.findByText("AUTO")).toBeInTheDocument();
+  });
+
+  // ── decision process ─────────────────────────────────────────────────────
+  it("renders the reasoning process: eliminated hypotheses with their reason, then the chosen path", async () => {
+    loadSample.mockResolvedValue({ session_id: "smp", state: SAMPLE });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+    await screen.findByText("HUMAN REVIEW");
+
+    // eliminated hypothesis + why it was archived
+    expect(screen.getAllByText(/OOMKilled/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/switched/).length).toBeGreaterThan(0);
+    // the path that was selected
+    expect(screen.getByText(/Chosen/)).toBeInTheDocument();
+  });
+
+  it("renders the routing timeline — each decision with its edge and reason", async () => {
+    loadSample.mockResolvedValue({ session_id: "smp", state: SAMPLE });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+    await screen.findByText(/Decision timeline/);
+
+    expect(screen.getByText("next_path")).toBeInTheDocument();   // early path switch
+    expect(screen.getAllByText(/review/).length).toBeGreaterThan(0); // human gate edge
+    expect(screen.getByText(/LOW×2/)).toBeInTheDocument();        // switch reason
+  });
+
+  it("renders a NO-GO verdict with its blocking reason", async () => {
+    loadSample.mockResolvedValue({
+      session_id: "smp",
+      state: {
+        ...SAMPLE,
+        verdict: "NO_GO",
+        verdict_reasons: ["rollback_available=False — no safe recovery path"],
+      },
+    });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+
+    expect(await screen.findByText("NO-GO")).toBeInTheDocument();
+    expect(screen.getByText(/no safe recovery path/)).toBeInTheDocument();
   });
 });
