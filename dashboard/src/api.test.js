@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createSession, getState, pollState, investigate, loadSample, setToken,
+  createSession, getState, pollState, investigate, loadSample, reviewSession, setToken,
 } from "./api.js";
 
 function okJson(body, status = 200) {
@@ -81,5 +81,20 @@ describe("api client", () => {
     expect(state.verdict).toBe("HUMAN_REVIEW");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/sessions/sample");
+  });
+
+  it("reviewSession sends feedback then polls to completion", async () => {
+    const calls = [];
+    vi.stubGlobal("fetch", vi.fn((url, opts) => {
+      calls.push(`${opts?.method || "GET"} ${url}`);
+      if (url.endsWith("/feedback")) return okJson({ status: "RUNNING" });
+      return okJson({ status: "COMPLETED", session_id: "s1" });
+    }));
+
+    const { session_id, state } = await reviewSession("s1", "approve", { onTick: () => {} });
+
+    expect(session_id).toBe("s1");
+    expect(state.status).toBe("COMPLETED");
+    expect(calls[0]).toBe("POST /api/v1/sessions/s1/feedback");
   });
 });
