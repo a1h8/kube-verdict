@@ -5,7 +5,14 @@ import ROADMAP_DATA from "./roadmap.json";
 
 const GITHUB = "https://github.com/a1h8/kube-verdict";
 const GIF_URL =
-  "https://raw.githubusercontent.com/a1h8/kube-verdict/main/demo/demo_kubeWhisperer.gif";
+  "https://raw.githubusercontent.com/a1h8/kube-verdict/main/demo/demo_kubeVerdict.gif";
+// Decision-engine walkthrough (78s, voice + burned subtitles).
+// jsDelivr serves the repo MP4 with a correct content-type + CORS, so it plays
+// inline in a <video>; the GitHub blob is the fallback link.
+const WALKTHROUGH_VIDEO =
+  "https://cdn.jsdelivr.net/gh/a1h8/kube-verdict@main/demo-decision-thresholds.mp4";
+const WALKTHROUGH_URL =
+  "https://github.com/a1h8/kube-verdict/blob/main/demo-decision-thresholds.mp4";
 
 const SCENARIOS = [
   {
@@ -275,6 +282,29 @@ function DemoSection() {
       style={{ ...T.section, borderBottom: "1px solid #1e293b" }}
     >
       <div style={T.wrap}>
+        <h2 style={T.h2}>See it decide — 78s walkthrough</h2>
+        <p style={T.sub}>
+          The decision engine on a real incident: a strict threshold rejects a
+          low-confidence path, KubeVerdict backtracks, a lenient profile resolves,
+          and execution stops at the human gate. Voice + subtitles.
+        </p>
+        <video
+          controls
+          preload="metadata"
+          playsInline
+          style={{
+            width: "100%",
+            borderRadius: 10,
+            border: "1px solid #1e293b",
+            marginBottom: 36,
+            background: "#000",
+          }}
+        >
+          <source src={WALKTHROUGH_VIDEO} type="video/mp4" />
+          Your browser can’t play this inline —{" "}
+          <a href={WALKTHROUGH_URL}>watch the walkthrough on GitHub</a>.
+        </video>
+
         <h2 style={T.h2}>What the output looks like</h2>
         <p style={T.sub}>
           Five services down simultaneously. KubeVerdict identifies each root
@@ -307,6 +337,20 @@ function DemoSection() {
             border: "1px solid #1e293b",
           }}
         />
+
+        <p style={{ ...T.sub, marginTop: 20, textAlign: "center" }}>
+          ▶{" "}
+          <a
+            href={WALKTHROUGH_URL}
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: "#60a5fa", fontWeight: 600 }}
+          >
+            Watch the full decision walkthrough
+          </a>{" "}
+          — 78s: strict threshold → dead-end → backtrack → lenient → human gate
+          (voice + subtitles)
+        </p>
       </div>
     </div>
   );

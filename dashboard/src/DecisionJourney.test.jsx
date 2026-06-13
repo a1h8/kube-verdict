@@ -8,8 +8,9 @@ vi.mock("./api.js", () => ({
   setToken: vi.fn(),
   investigate: vi.fn(),
   loadSample: vi.fn(),
+  reviewSession: vi.fn(),
 }));
-import { loadSample, investigate } from "./api.js";
+import { loadSample, investigate, reviewSession } from "./api.js";
 
 const SAMPLE = {
   session_id: "smp",
@@ -27,6 +28,11 @@ const SAMPLE = {
     { router: "policy", edge_taken: "review", reason: "production", snapshot: { score: 0.85 } },
   ],
   report: { root_cause: "No PV matches storageClass", remediation: ["kubectl apply -f pv.yaml"] },
+  review_payload: {
+    summary: "Review before applying remediation.",
+    root_cause: "No PV matches storageClass",
+    remediation: ["kubectl apply -f pv.yaml"],
+  },
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -57,7 +63,7 @@ describe("DecisionJourney", () => {
     // timeline routers
     expect(screen.getByText(/Decision timeline/)).toBeInTheDocument();
     // root cause
-    expect(screen.getByText(/No PV matches storageClass/)).toBeInTheDocument();
+    expect(screen.getAllByText(/No PV matches storageClass/).length).toBeGreaterThan(0);
   });
 
   it("shows an error banner when the API call fails", async () => {
@@ -68,5 +74,29 @@ describe("DecisionJourney", () => {
 
     expect(await screen.findByText(/401/)).toBeInTheDocument();
     expect(investigate).not.toHaveBeenCalled();
+  });
+
+  it("submits approve from the review gate and renders the completed state", async () => {
+    investigate.mockResolvedValue({ session_id: "s1", state: SAMPLE });
+    reviewSession.mockResolvedValue({
+      session_id: "s1",
+      state: {
+        ...SAMPLE,
+        status: "COMPLETED",
+        review_payload: null,
+        verdict: "AUTO",
+      },
+    });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Investigate/ }));
+    expect(await screen.findByText(/Human review/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Approve remediation/ }));
+
+    await waitFor(() => {
+      expect(reviewSession).toHaveBeenCalledWith("s1", "approve", { onTick: expect.any(Function) });
+    });
+    expect(await screen.findByText("AUTO")).toBeInTheDocument();
   });
 });
