@@ -236,6 +236,7 @@ function Hero() {
             Watch demo
           </Btn>
           <Btn href={GITHUB}>View GitHub</Btn>
+          <Btn href={`${GITHUB}#quick-start`}>Run locally</Btn>
           <Btn href={`${GITHUB}/blob/main/docs/test-cases.md`}>
             Run offline test cases
           </Btn>
