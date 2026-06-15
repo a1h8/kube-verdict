@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://a1h8.github.io/kube-verdict/sitemap.xml
