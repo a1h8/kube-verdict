@@ -83,7 +83,7 @@ What separates a validated prototype from a prod-grade deployment. Each item is 
 check that turns green when implemented.
 
 - [x] **Shared-secret bearer gate (interim)** — `KUBEVERDICT_API_TOKEN` guards the mutating session, webhook and `/investigate` routes (`api/auth.py`, constant-time compare); no-op when unset. This is *not* per-identity auth.
-- [ ] **API auth — JWT / OIDC** — per-identity auth on the session and webhook routes; no unauthenticated RCA triggers
+- [x] **API auth — JWT / OIDC** — per-identity bearer auth on the session, webhook and `/investigate` routes; JWTs verified against the provider JWKS (RS256) with optional issuer/audience checks (`api/oidc.py`). Layers over the shared secret; `OIDC_REQUIRED=1` rejects any request without a valid JWT.
 - [ ] **Golden-scenario regression guard** — replay h001–h0NN fixtures in CI and diff the verdict against a recorded baseline; fail the build on drift
 - [ ] **Artifact Hub listing** — `artifacthub-repo.yml` so the Helm chart is discoverable / verifiable
 - [ ] **RBAC-aware scoping** — per-namespace analysis via service-account impersonation
