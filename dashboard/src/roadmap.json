@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-13T10:37:02.161154+00:00",
+  "generated_at": "2026-06-16T04:13:59.092395+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
@@ -303,7 +303,7 @@
         },
         {
           "label": "API auth \u2014 JWT / OIDC per-identity (session + webhook routes)",
-          "done": false
+          "done": true
         },
         {
           "label": "Golden-scenario regression guard (replay + diff in CI)",
