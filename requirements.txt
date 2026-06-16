@@ -4,6 +4,7 @@ streamlit>=1.35.0
 # REST API
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
+PyJWT[crypto]>=2.8.0   # per-identity JWT / OIDC bearer auth (api/oidc.py)
 
 # K8s client — supports server API from 1.16 to latest
 kubernetes>=29.0.0
