@@ -26,6 +26,7 @@ class BlastRadius:
     cluster_scoped: bool = False
     command_count: int = 0
     rollback_available: bool = True
+    method: str = "command-heuristic"  # command-heuristic | rendered-diff
 
     @classmethod
     def from_remediation(
@@ -43,6 +44,21 @@ class BlastRadius:
         )
 
     @classmethod
+    def from_diff(
+        cls,
+        drifts: list,
+        rollback_cmds: list[str],
+        namespaces: list[str] | None = None,
+    ) -> "BlastRadius":
+        """Real blast radius from a rendered-vs-live manifest diff (the changed
+        objects), rather than parsing command strings."""
+        from remediation.blast_radius import compute_blast_radius_from_diff
+
+        return cls.from_dict(
+            compute_blast_radius_from_diff(list(drifts or []), list(rollback_cmds or []), namespaces)
+        )
+
+    @classmethod
     def from_dict(cls, d: dict) -> "BlastRadius":
         return cls(
             risk=d.get("risk", "LOW"),
@@ -52,6 +68,7 @@ class BlastRadius:
             cluster_scoped=bool(d.get("cluster_scoped", False)),
             command_count=int(d.get("command_count", 0)),
             rollback_available=bool(d.get("rollback_available", True)),
+            method=d.get("method", "command-heuristic"),
         )
 
     def to_dict(self) -> dict:
@@ -63,4 +80,5 @@ class BlastRadius:
             "cluster_scoped": self.cluster_scoped,
             "command_count": self.command_count,
             "rollback_available": self.rollback_available,
+            "method": self.method,
         }
