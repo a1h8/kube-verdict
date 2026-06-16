@@ -106,6 +106,16 @@ PROMETHEUS_TIMEOUT: int = _int("PROMETHEUS_TIMEOUT", 30)
 # auth is disabled (open) so local dev and tests behave as before.
 API_TOKEN: str | None = os.getenv("KUBEVERDICT_API_TOKEN") or None
 
+# Per-identity JWT / OIDC auth (preferred over the shared secret above). When
+# OIDC_JWKS_URL is set, bearer tokens are verified against the provider's JWKS
+# (RS256), with optional issuer/audience checks. Unset → JWT auth disabled and
+# the request falls back to the shared-secret gate. OIDC_REQUIRED=1 rejects any
+# request without a valid JWT (no shared-secret / open fallback).
+OIDC_JWKS_URL: str | None = os.getenv("OIDC_JWKS_URL") or None
+OIDC_ISSUER:   str | None = os.getenv("OIDC_ISSUER") or None
+OIDC_AUDIENCE: str | None = os.getenv("OIDC_AUDIENCE") or None
+OIDC_REQUIRED: bool = os.getenv("OIDC_REQUIRED", "").lower() in ("1", "true", "yes")
+
 # ── MCP server ──────────────────────────────────────────────────────────────────
 # Per-tool wall-clock budget; a tool exceeding this returns an isError result
 # instead of hanging the calling agent. kube_rca is the slow one (collect +

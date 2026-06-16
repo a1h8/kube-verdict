@@ -16,7 +16,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from api.auth import require_token
+from api.oidc import require_auth
 from api.verdict_contract import VerdictEnvelope
 from services.investigation_service import run_investigation
 
@@ -45,7 +45,7 @@ def _effective_query(body: InvestigateRequest) -> str:
     return "Investigate cluster incident"
 
 
-@router.post("/investigate", response_model=VerdictEnvelope, dependencies=[Depends(require_token)])
+@router.post("/investigate", response_model=VerdictEnvelope, dependencies=[Depends(require_auth)])
 async def investigate(body: InvestigateRequest) -> VerdictEnvelope:
     # Import the route module lazily so the preloaded FAISS store set by the
     # app lifespan is reused (avoids re-embedding on every call).
