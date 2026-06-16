@@ -151,9 +151,11 @@ Returns: `risk` (LOW/MEDIUM/HIGH/CRITICAL), `summary`, `namespaces`, `cluster_sc
 
 KubeVerdict never auto-applies fixes. Every remediation goes through:
 
-1. **Blast radius** — risk scored before any action. Currently a heuristic over the
-   proposed command (verb / namespace / kind / cluster-scope / affected-count), not yet
-   a rendered-vs-live diff — a triage signal, not a guarantee of impact.
+1. **Blast radius** — risk scored before any action. The `blast_radius` tool uses a fast
+   heuristic over the proposed command (verb / namespace / kind / cluster-scope /
+   affected-count). A higher-fidelity **rendered-vs-live diff** method
+   (`ManifestRenderer` + `ManifestDiffer` → the actual changed objects, classified by
+   severity) is available when a chart and live cluster graph are present.
 2. **Monte Carlo stability** — 200 simulations (±10% perturbation) on diagnosis confidence
 3. **Policy gate** — AUTO (non-prod, LOW risk, MC win_rate ≥ 0.80) / HUMAN_REVIEW / NO_GO
 
