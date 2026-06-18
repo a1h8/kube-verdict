@@ -29,8 +29,9 @@ def _from_file(name: str) -> str | None:
     try:
         if path.is_file():
             return path.read_text().strip() or None
-    except OSError as exc:
-        log.warning("secret file %s unreadable: %s", path, exc)
+    except OSError:
+        # Do not log the path/name or exception — they identify the secret.
+        log.warning("a mounted secret file under SECRETS_DIR could not be read")
     return None
 
 
@@ -52,8 +53,9 @@ def _from_vault(name: str) -> str | None:
         data = data.get("data", data)
         val = data.get(name)
         return str(val) if val is not None else None
-    except Exception as exc:  # noqa: BLE001 — Vault optional; never hard-fail
-        log.warning("vault read failed for %s: %s", name, exc)
+    except Exception:  # noqa: BLE001 — Vault optional; never hard-fail
+        # Do not log the key name or exception — they may identify the secret.
+        log.warning("vault secret read failed")
         return None
 
 
