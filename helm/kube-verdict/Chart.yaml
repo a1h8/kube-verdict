@@ -10,3 +10,13 @@ keywords:
   - rca
   - incident-analysis
 home: https://github.com/a1h8/kube-verdict
+sources:
+  - https://github.com/a1h8/kube-verdict
+maintainers:
+  - name: a1h8
+    email: a1h8@gmail.com
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: source
+      url: https://github.com/a1h8/kube-verdict

@@ -1,0 +1,6 @@
+# Artifact Hub repository metadata.
+# https://artifacthub.io/docs/topics/repositories/helm-charts/
+repositoryID: ""   # set after claiming the repo on artifacthub.io
+owners:
+  - name: a1h8
+    email: a1h8@gmail.com
