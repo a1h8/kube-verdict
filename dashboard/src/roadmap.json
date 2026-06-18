@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-16T05:27:59.109065+00:00",
+  "generated_at": "2026-06-18T04:10:04.651217+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
@@ -307,22 +307,22 @@
         },
         {
           "label": "Golden-scenario regression guard (replay + diff in CI)",
-          "done": false
+          "done": true
         },
         {
           "label": "Artifact Hub listing (artifacthub-repo.yml)",
-          "done": false
+          "done": true
         },
         {
           "label": "RBAC-aware scoping (service-account impersonation)",
-          "done": false
+          "done": true
         },
         {
           "label": "Secret management (Vault / external-secrets, no plaintext kubeconfig)",
-          "done": false
+          "done": true
         }
       ],
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "phase": "Production Hardening"
     },
     {
