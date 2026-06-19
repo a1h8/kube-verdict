@@ -30,6 +30,12 @@ persistence:
 # Kubeconfig access: mount the in-cluster ServiceAccount (default) or an external secret
 rbac:
   create: true          # create ClusterRole + ClusterRoleBinding
+  # RBAC-aware scoping: impersonate a tenant identity so the apiserver evaluates
+  # RBAC as that user/groups instead of the collector's broad ServiceAccount.
+  impersonate:
+    user: ""            # → KUBE_IMPERSONATE_USER
+    groups: []          # → KUBE_IMPERSONATE_GROUPS (comma-joined)
+
 
 # Non-secret config — all become env vars
 config:
@@ -51,13 +57,27 @@ config:
   gitopsBranch: "main"
   gitopsChartsPath: "charts"
 
-# Sensitive config — stored in a Secret
+# Sensitive config — no plaintext kubeconfig / API keys belong in committed values.
+# Prefer the pod ServiceAccount (in-cluster) over a mounted kubeconfig; for LLM
+# API keys / external kubeconfig, point `existingSecret` at a Secret populated
+# out-of-band (sealed-secrets / external-secrets / Vault Agent / CSI provider).
 secrets:
-  create: true
+  create: true          # render a Secret from the inline values below (dev only)
   githubToken: ""
   prometheusToken: ""
   otelToken: ""
   lokiToken: ""
+  # existingSecret: "kubeverdict-secrets"   # use a pre-populated Secret instead
+  # external-secrets.io ExternalSecret — sync keys from a provider (Vault, AWS/GCP
+  # SM) into `existingSecret`. Requires the external-secrets controller installed.
+  externalSecrets:
+    enabled: false
+    secretStoreRef:
+      name: ""          # e.g. vault-backend
+      kind: ClusterSecretStore
+    refreshInterval: "1h"
+    target: ""          # defaults to existingSecret / fullname
+    data: []            # [{ secretKey: GROQ_API_KEY, remoteRef: { key: kv/kubeverdict, property: groq } }]
   # existingSecret: "my-kw-secret"   # use an existing secret instead
 
 resources:

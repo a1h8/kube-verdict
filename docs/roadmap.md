@@ -83,11 +83,11 @@ What separates a validated prototype from a prod-grade deployment. Each item is 
 check that turns green when implemented.
 
 - [x] **Shared-secret bearer gate (interim)** — `KUBEVERDICT_API_TOKEN` guards the mutating session, webhook and `/investigate` routes (`api/auth.py`, constant-time compare); no-op when unset. This is *not* per-identity auth.
-- [ ] **API auth — JWT / OIDC** — per-identity auth on the session and webhook routes; no unauthenticated RCA triggers
-- [ ] **Golden-scenario regression guard** — replay h001–h0NN fixtures in CI and diff the verdict against a recorded baseline; fail the build on drift
-- [ ] **Artifact Hub listing** — `artifacthub-repo.yml` so the Helm chart is discoverable / verifiable
-- [ ] **RBAC-aware scoping** — per-namespace analysis via service-account impersonation
-- [ ] **Secret management** — Vault / external-secrets integration; no plaintext kubeconfig in values
+- [x] **API auth — JWT / OIDC** — per-identity bearer auth on the session, webhook and `/investigate` routes; JWTs verified against the provider JWKS (RS256) with optional issuer/audience checks (`api/oidc.py`). Layers over the shared secret; `OIDC_REQUIRED=1` rejects any request without a valid JWT.
+- [x] **Golden-scenario regression guard** — `tests/golden/` replays the h001–h010 decision fixtures and diffs verdict + blast-radius risk against a recorded `baseline.json`; CI fails on any drift (regenerate intentionally via `python -m tests.golden.update_baseline`)
+- [x] **Artifact Hub listing** — `helm/kube-verdict/artifacthub-repo.yml` + Chart.yaml `artifacthub.io/*` annotations so the chart is discoverable / verifiable
+- [x] **RBAC-aware scoping** — `K8sCollector` impersonates a tenant identity via apiserver `Impersonate-User`/`-Group` headers (`KUBE_IMPERSONATE_USER` / `_GROUPS`); analysis is scoped by the tenant's RBAC, not the collector's
+- [x] **Secret management** — `api/secrets.py` resolves sensitive values env → file-mounted secret → Vault KV v2 (`VAULT_ADDR`/`VAULT_TOKEN`/`VAULT_KV_PATH`); Helm `ExternalSecret` template + `existingSecret` so no plaintext kubeconfig / API keys live in values
 
 ## Common Interface (B12)
 
