@@ -40,9 +40,13 @@ def _get_contexts() -> list[str]:
             ["kubectl", "config", "get-contexts", "-o", "name"],
             capture_output=True, text=True, timeout=5,
         )
-        return r.stdout.strip().splitlines() or ["default"]
+        contexts = [line.strip() for line in r.stdout.strip().splitlines() if line.strip()]
+        if contexts:
+            return contexts
     except Exception:
-        return ["default"]
+        pass
+    fallback = [ctx for ctx in [cfg.KUBE_CONTEXT, _current_context()] if ctx]
+    return fallback or []
 
 
 def _current_context() -> str:
@@ -123,14 +127,27 @@ def _render_git_repos_ui() -> None:
 
 with st.sidebar:
     st.title("KubeVerdict")
-    st.caption("Kubernetes Root Cause Analysis")
+    st.caption("Kubernetes Incident Decision Engine")
     st.divider()
 
     contexts    = _get_contexts()
-    current_ctx = _current_context()
-    default_idx = contexts.index(current_ctx) if current_ctx in contexts else 0
+    preferred_ctx = cfg.KUBE_CONTEXT or _current_context()
+    if not contexts:
+        st.error("No Kubernetes contexts found. Check your kubeconfig.")
+        st.stop()
+    default_idx = contexts.index(preferred_ctx) if preferred_ctx in contexts else 0
+    if (
+        st.session_state.get("kube_context_select")
+        and st.session_state["kube_context_select"] not in contexts
+    ):
+        st.session_state["kube_context_select"] = contexts[default_idx]
 
-    kube_context = st.selectbox("Kube context", contexts, index=default_idx)
+    kube_context = st.selectbox(
+        "Kube context",
+        contexts,
+        index=default_idx,
+        key="kube_context_select",
+    )
     namespace    = st.text_input("Namespace", value="kubeverdict-demo")
 
     st.divider()
@@ -1741,7 +1758,7 @@ def _render_dashboard():
 # Tab 4 — Integration Tests (interactive dialogue)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _render_integration_tests():  # noqa: C901
+def _render_integration_tests(demo_mode: bool = False):  # noqa: C901
     import json as _json
 
     from tests.cases.graph_factory import build_graph, load_case
@@ -1752,12 +1769,14 @@ def _render_integration_tests():  # noqa: C901
         list_cases as list_native_cases,
     )
     from tests.integration.use_cases.dialogue_simulator import (
-        DialogueSimulator, render_tree, write_json,
+        DialogueSimulator, SimulationThresholds, classify_outcome,
+        best_score, count_dead_ends, count_nodes, count_resolved,
+        render_tree, write_json,
     )
     from tests.integration.use_cases.proposal_engine import generate_proposals
     from tools.case_contract import update_expect_from_sim, update_input_from_sim, recalibrate_all
     from rca.analyzer import RCAAnalyzer
-    from llm.ollama_client import OllamaClient
+    from llm import build_llm_client
     from vectorstore.embedder import Embedder
     from vectorstore.store import FAISSStore
 
@@ -1765,6 +1784,7 @@ def _render_integration_tests():  # noqa: C901
     HELM_CASES_ROOT   = ROOT / "cases" / "helm_cases"
     NATIVE_CASES_ROOT = ROOT / "tests" / "integration" / "cases"
     SIM_RESULTS       = ROOT / "tests" / "integration" / "use_cases" / "sim_results"
+    scope = "demo" if demo_mode else "it"
 
     # Discover cases — only h-series: synthetic cases that have a matching
     # tests/unit/test_hybrid_pipeline_NNN.py, shown as h001_*, h002_*, etc.
@@ -1789,26 +1809,129 @@ def _render_integration_tests():  # noqa: C901
         st.warning("No h-series cases found. Add tests/unit/test_hybrid_pipeline_NNN.py to register a case.")
         return
 
-    st.title("Integration Tests — Dialogue Simulation")
+    st.title("Demo Studio" if demo_mode else "Integration Tests — Dialogue Simulation")
 
-    # ── Demo quick-start bar ────────────────────────────────────────────────
-    _demo_case = "h009_liveness_probe_loop"
-    _demo_idx  = next(
-        (i for i, (_, d) in enumerate(all_cases_meta) if d.name == _demo_case),
-        None,
-    )
-    if _demo_idx is not None:
-        dc1, dc2 = st.columns([5, 1])
-        dc1.info(
-            "**Demo scenario:** `h009_liveness_probe_loop` — liveness probe timeout drift 5s→1s, "
-            "pod restarts 18× with CrashLoopBackOff. Follow the path step by step, "
-            "hit a dead end, backtrack, and find the fix.",
+    case_index = {d.name: i for i, (_, d) in enumerate(all_cases_meta)}
+    demo_cases = [
+        {
+            "name": "h001_crashloopbackoff",
+            "title": "CrashLoopBackOff — missing dependency",
+            "summary": "CrashLoop from missing secret/config dependency; good baseline demo for graph traversal and fix proposals.",
+        },
+        {
+            "name": "h002_imagepullbackoff",
+            "title": "ImagePullBackOff — registry auth / tag drift",
+            "summary": "Shows Helm drift and image pull failure reasoning from declared vs deployed values.",
+        },
+        {
+            "name": "h003_oomkilled",
+            "title": "OOMKilled — memory limit drift",
+            "summary": "Demonstrates resource-limit diagnosis and a concrete `helm upgrade --set` remediation.",
+        },
+        {
+            "name": "h004_missing_configmap",
+            "title": "CreateContainerConfigError — missing config",
+            "summary": "Highlights missing ConfigMap / Secret detection and generated `kubectl create` hints.",
+        },
+        {
+            "name": "h005_rbac_forbidden",
+            "title": "RBAC forbidden — missing binding",
+            "summary": "Exercises ServiceAccount and ClusterRoleBinding reasoning with infra-facing remediation.",
+        },
+        {
+            "name": "h006_networkpolicy_blocked",
+            "title": "NetworkPolicy blocked — pod running but unusable",
+            "summary": "Useful for networking demos: DNS / DB / Redis egress blocked even though the pod is Running.",
+        },
+        {
+            "name": "h007_hpa_no_metrics",
+            "title": "HPA stuck — metrics unavailable",
+            "summary": "Covers autoscaling diagnosis and missing metrics-server style failures.",
+        },
+        {
+            "name": "h008_init_container_fail",
+            "title": "Init container failure — DB migration exits 1",
+            "summary": "Good for step-by-step root cause narrowing before the app container ever becomes healthy.",
+        },
+        {
+            "name": "h009_liveness_probe_loop",
+            "title": "Liveness probe loop — timeout drift",
+            "summary": "Best interactive reasoning demo: probe timeout drift 5s→1s, dead-end, backtrack, then fix.",
+        },
+        {
+            "name": "h010_resource_quota_exceeded",
+            "title": "Pending pod — namespace quota exhausted",
+            "summary": "Shows namespace-level reasoning and `ResourceQuota` correlation rather than pod-local failure.",
+        },
+    ]
+    if demo_mode:
+        # Seed the opening case exactly once; otherwise this re-fires on every
+        # rerun (the key is popped below) and resets the case/mode/threshold.
+        if "demo_initialized" not in st.session_state:
+            st.session_state["demo_initialized"] = True
+            st.session_state["demo_case_bootstrap"] = "h009_liveness_probe_loop"
+        demo_bootstrap = st.session_state.pop("demo_case_bootstrap", None)
+        if demo_bootstrap in case_index:
+            st.session_state[f"{scope}_case_select"] = case_index[demo_bootstrap]
+            st.session_state[f"{scope}_mode"] = st.session_state.pop(
+                "demo_mode_bootstrap", "Manual (step-by-step)"
+            )
+            st.session_state[f"{scope}_threshold_profile"] = (
+                "Strict demo" if demo_bootstrap == "h009_liveness_probe_loop" else "Lenient demo"
+            )
+
+        d1, d2, d3 = st.columns(3)
+        if d1.button("Act 1 — Dead End", type="primary", use_container_width=True):
+            st.session_state["demo_case_bootstrap"] = "h009_liveness_probe_loop"
+            st.rerun()
+        if d2.button("Act 2 — Human Gate", use_container_width=True):
+            st.session_state["demo_case_bootstrap"] = "h006_networkpolicy_blocked"
+            st.rerun()
+        if d3.button("Act 3 — Strict vs Lenient", use_container_width=True):
+            st.session_state["demo_case_bootstrap"] = "h009_liveness_probe_loop"
+            st.session_state["demo_mode_bootstrap"] = "Auto (full BFS)"
+            st.rerun()
+
+    available_demo_cases = [demo for demo in demo_cases if demo["name"] in case_index]
+    if available_demo_cases:
+        st.info(
+            "Prepared demos now come from the `H0**` integration cases. Pick one below to preload it in manual dialogue mode.",
             icon="🎯",
         )
-        if dc2.button("🎯 Load demo", type="primary", use_container_width=True):
-            st.session_state["it_case_select"] = _demo_idx
-            st.session_state["it_mode"] = "Manual (step-by-step)"
-            st.rerun()
+        demo_cols = st.columns(2)
+        for i, demo in enumerate(available_demo_cases):
+            with demo_cols[i % 2]:
+                with st.container(border=True):
+                    st.markdown(f"**`{demo['name']}` — {demo['title']}**")
+                    st.caption(demo["summary"])
+                    if st.button(
+                        f"Load {demo['name']}",
+                        key=f"{scope}_load_demo_{demo['name']}",
+                        type="primary" if demo["name"] == "h009_liveness_probe_loop" else "secondary",
+                        use_container_width=True,
+                    ):
+                        st.session_state[f"{scope}_case_select"] = case_index[demo["name"]]
+                        st.session_state[f"{scope}_mode"] = "Manual (step-by-step)"
+                        st.rerun()
+
+    demo_storyboards = {
+        "h009_liveness_probe_loop": {
+            "title": "Dead end → backtrack → threshold change",
+            "steps": [
+                "Run the case in `Manual (step-by-step)` with `Strict demo` thresholds.",
+                "Follow a plausible branch until it reaches a dead end, then backtrack.",
+                "Rerun the same case with `Lenient demo` thresholds to show a cleaner path on the same problem.",
+            ],
+        },
+        "h006_networkpolicy_blocked": {
+            "title": "Technical resolution → human decision",
+            "steps": [
+                "Run the networking case until a remediation path resolves.",
+                "Use the operator decision panel to approve or reject the proposed commands.",
+                "Explain that diagnosis confidence and operational approval are separate decisions.",
+            ],
+        },
+    }
 
     col_left, col_right = st.columns([1, 2], gap="large")
 
@@ -1822,7 +1945,7 @@ def _render_integration_tests():  # noqa: C901
             "Case",
             range(len(case_labels)),
             format_func=lambda i: case_labels[i],
-            key="it_case_select",
+            key=f"{scope}_case_select",
         )
         case_type, case_dir = all_cases_meta[sel_idx]
         case_name = case_dir.name
@@ -1879,34 +2002,80 @@ def _render_integration_tests():  # noqa: C901
             "Simulation mode",
             ["🔬 Pipeline trace", "Auto (full BFS)", "Manual (step-by-step)"],
             horizontal=True,
-            key="it_mode",
+            key=f"{scope}_mode",
         )
         is_auto = mode.startswith("Auto")
 
         is_pipeline = mode.startswith("🔬")
         if not is_pipeline:
-            max_turns    = st.slider("Max turns",    1, 4, 2, key="it_turns")
-            max_branches = st.slider("Max branches", 1, 4, 3, key="it_branches")
+            max_turns    = st.slider("Max turns",    1, 4, 2, key=f"{scope}_turns")
+            max_branches = st.slider("Max branches", 1, 4, 3, key=f"{scope}_branches")
         else:
             max_turns, max_branches = 2, 3
 
+        threshold_presets = {
+            "Strict demo": SimulationThresholds(
+                score_resolved_abs=0.90,
+                score_resolved_delta=0.20,
+                score_stagnant_delta=0.12,
+                score_regress_delta=0.04,
+                score_llm_high_min=0.85,
+            ),
+            "Default": SimulationThresholds(),
+            "Lenient demo": SimulationThresholds(
+                score_resolved_abs=0.30,
+                score_resolved_delta=0.04,
+                score_stagnant_delta=0.005,
+                score_regress_delta=0.40,
+                score_llm_high_min=0.20,
+            ),
+        }
+        threshold_profile = "Default"
+        thresholds = SimulationThresholds()
+        if not is_pipeline:
+            st.divider()
+            threshold_profile = st.selectbox(
+                "Threshold profile",
+                ["Strict demo", "Default", "Lenient demo", "Custom"],
+                index=1,
+                key=f"{scope}_threshold_profile",
+                help="Controls when a branch resolves, stagnates, or regresses.",
+            )
+            if threshold_profile == "Custom":
+                thresholds = SimulationThresholds(
+                    score_resolved_abs=st.slider("Resolved if score ≥", 0.40, 0.90, 0.70, 0.01, key=f"th_abs_{case_name}"),
+                    score_resolved_delta=st.slider("Resolved if delta ≥", 0.03, 0.20, 0.10, 0.01, key=f"th_delta_{case_name}"),
+                    score_stagnant_delta=st.slider("Dead end if |delta| <", 0.01, 0.10, 0.03, 0.01, key=f"th_stag_{case_name}"),
+                    score_regress_delta=st.slider("Dead end if score drops >", 0.01, 0.12, 0.05, 0.01, key=f"th_reg_{case_name}"),
+                    score_llm_high_min=st.slider("LLM MED/HIGH shortcut ≥", 0.25, 0.70, 0.45, 0.01, key=f"th_llm_{case_name}"),
+                )
+            else:
+                thresholds = threshold_presets[threshold_profile]
+
+        storyboard = demo_storyboards.get(case_name)
+        if storyboard and not is_pipeline:
+            with st.expander(f"Demo storyboard — {storyboard['title']}", expanded=(case_name == "h009_liveness_probe_loop")):
+                for idx, step in enumerate(storyboard["steps"], start=1):
+                    st.markdown(f"{idx}. {step}")
+
         st.divider()
 
-        client    = OllamaClient()
-        ollama_ok = client.is_available() and client.model_is_pulled()
+        client = build_llm_client()
+        llm_ok = client.is_available() and client.model_is_pulled()
         if is_pipeline:
-            st.success("Pipeline trace — no Ollama required", icon="🔬")
+            st.success("Pipeline trace — no LLM required", icon="🔬")
         elif not client.is_available():
-            st.error("Ollama not reachable — run `ollama serve`", icon="🔴")
+            st.error("LLM not reachable — check configured provider credentials/connectivity", icon="🔴")
         elif not client.model_is_pulled():
             st.warning(f"Model `{client.model}` not pulled", icon="⚠️")
         else:
-            st.success(f"Ollama: `{client.model}`", icon="🟢")
+            provider = client.__class__.__name__.replace("Client", "")
+            st.success(f"LLM: `{provider}` / `{client.model}`", icon="🟢")
 
         run_label = "▶ Run trace" if is_pipeline else "▶ Run simulation"
         run_btn = st.button(
             run_label, type="primary",
-            use_container_width=True, disabled=(not ollama_ok and not is_pipeline),
+            use_container_width=True, disabled=(not llm_ok and not is_pipeline),
         )
 
         sim_path  = SIM_RESULTS / f"{case_name}.json"
@@ -1926,8 +2095,10 @@ def _render_integration_tests():  # noqa: C901
             "root_query":  root_query,
             "status":      "idle",
             "payload":     None,   # auto mode: full sim JSON
+            "threshold_compare": None,
             "turns":       [],     # manual mode: list of turn dicts
             "path_labels": [],     # breadcrumb labels for path taken
+            "human_review": None,
         }
 
     if state_key not in st.session_state:
@@ -1979,6 +2150,7 @@ def _render_integration_tests():  # noqa: C901
                         analyzer=analyzer,
                         max_turns=max_turns,
                         max_branches=max_branches,
+                        thresholds=thresholds,
                         on_node=_on_node,
                     )
                     st.write("Expanding proposal tree…")
@@ -1993,7 +2165,57 @@ def _render_integration_tests():  # noqa: C901
                     dlg["status"]  = "done"
                     sw.update(label="Simulation complete", state="complete")
 
+            if st.button("↔ Compare strict vs lenient", use_container_width=True, disabled=(not llm_ok), key=f"{scope}_cmp_{case_name}"):
+                _reset_state()
+                dlg = st.session_state[state_key]
+                with st.spinner("Running threshold comparison…"):
+                    analyzer = _build_analyzer()
+                    compare_payload = []
+                    for profile_name in ("Strict demo", "Lenient demo"):
+                        root_cmp = DialogueSimulator(
+                            analyzer=analyzer,
+                            max_turns=max_turns,
+                            max_branches=max_branches,
+                            thresholds=threshold_presets[profile_name],
+                        ).run(root_query)
+                        compare_payload.append({
+                            "profile": profile_name,
+                            "summary": {
+                                "total_nodes": count_nodes(root_cmp),
+                                "resolved": count_resolved(root_cmp),
+                                "dead_ends": count_dead_ends(root_cmp),
+                                "best_score": round(best_score(root_cmp), 4),
+                                "root_score": round(root_cmp.score, 4),
+                                "required": threshold_presets[profile_name].score_resolved_abs,
+                            },
+                            "tree": render_tree(root_cmp),
+                        })
+                    dlg["threshold_compare"] = compare_payload
+                    dlg["status"] = "done"
+
             payload = dlg.get("payload")
+            compare = dlg.get("threshold_compare")
+            if compare:
+                st.divider()
+                st.subheader("Threshold comparison — same case, different routing thresholds")
+                cmp_cols = st.columns(len(compare))
+                for idx, item in enumerate(compare):
+                    with cmp_cols[idx]:
+                        sm = item["summary"]
+                        required = sm.get("required")
+                        accepted = sm.get("resolved", 0) > 0
+                        st.markdown(f"**{item['profile']}**")
+                        if required is not None:
+                            verdict = "✅ accepted" if accepted else "🚫 rejected"
+                            st.caption(
+                                f"Requires score **≥ {required:.2f}** · best **{sm['best_score']:.2f}** → {verdict}"
+                            )
+                        st.metric("Root score", f"{item['summary']['root_score']:.2f}")
+                        st.metric("Best score", f"{item['summary']['best_score']:.2f}")
+                        st.metric("Resolved", item["summary"]["resolved"])
+                        st.metric("Dead ends", item["summary"]["dead_ends"])
+                        st.code(item["tree"], language=None)
+
             if payload:
                 # ── Summary metrics ────────────────────────────────────────
                 summary = payload.get("summary", {})
@@ -2104,7 +2326,7 @@ def _render_integration_tests():  # noqa: C901
                         use_container_width=True,
                     )
                 with ac2:
-                    if st.button("📋 Update expect.json", use_container_width=True, key="upd_expect"):
+                    if st.button("📋 Update expect.json", use_container_width=True, key=f"{scope}_upd_expect"):
                         _, changes = update_expect_from_sim(case_dir, payload, dry_run=True)
                         if changes:
                             with st.expander("Changes preview", expanded=True):
@@ -2117,7 +2339,7 @@ def _render_integration_tests():  # noqa: C901
                             st.info("expect.json already up to date.")
                 with ac3:
                     if case_type == "synthetic":
-                        if st.button("📋 Update input.json", use_container_width=True, key="upd_input"):
+                        if st.button("📋 Update input.json", use_container_width=True, key=f"{scope}_upd_input"):
                             _, changes = update_input_from_sim(case_dir, payload, dry_run=True)
                             if changes:
                                 with st.expander("Changes preview", expanded=True):
@@ -2135,7 +2357,7 @@ def _render_integration_tests():  # noqa: C901
                         "Loops over every JSON in `sim_results/` and updates "
                         "`confidence_score_min` + `confidence` in the matching `expect.json`."
                     )
-                    if st.button("Preview changes (dry run)", key="recal_dry"):
+                    if st.button("Preview changes (dry run)", key=f"{scope}_recal_dry"):
                         all_changes = recalibrate_all(SIM_RESULTS, CASES_ROOT, dry_run=True)
                         for cnm, ch_list in all_changes.items():
                             if ch_list:
@@ -2144,7 +2366,7 @@ def _render_integration_tests():  # noqa: C901
                                     st.code(c, language=None)
                         if not any(all_changes.values()):
                             st.info("All cases already calibrated.")
-                    if st.button("Apply to all cases", type="primary", key="recal_apply"):
+                    if st.button("Apply to all cases", type="primary", key=f"{scope}_recal_apply"):
                         all_changes = recalibrate_all(SIM_RESULTS, CASES_ROOT, dry_run=False)
                         updated = sum(1 for v in all_changes.values() if v)
                         st.success(f"{updated} case(s) updated.")
@@ -2329,19 +2551,13 @@ def _render_integration_tests():  # noqa: C901
                             score    = report.context.pre_llm_confidence.score if report.context and report.context.pre_llm_confidence else 0.0
                             parent_score = last["score"]
 
-                            # Determine status
-                            if score >= 0.70 or (score - parent_score >= 0.10 and score >= 0.55):
-                                new_status = "resolved"
-                                ded_reason = ""
-                            elif score < parent_score - 0.05 or abs(score - parent_score) < 0.03:
-                                new_status = "dead_end"
-                                ded_reason = (
-                                    "confidence_regressed" if score < parent_score - 0.05
-                                    else "confidence_stagnant"
-                                )
-                            else:
-                                new_status = "pending"
-                                ded_reason = ""
+                            new_status, ded_reason = classify_outcome(
+                                score=score,
+                                parent_score=parent_score,
+                                llm_confidence=report.confidence or "",
+                                has_remediation=bool(report.remediation),
+                                thresholds=thresholds,
+                            )
 
                             next_props = []
                             if new_status == "pending":
@@ -2376,6 +2592,46 @@ def _render_integration_tests():  # noqa: C901
                         f"confidence score {last['score']:.2f} ({last.get('label','?')})",
                         icon="✅",
                     )
+                    st.caption(
+                        f"Threshold profile: `{threshold_profile}` — use this step to explain the final human decision."
+                    )
+                    review = dlg.get("human_review") or {}
+                    decision = st.radio(
+                        "Operator decision",
+                        ["approve", "reject"],
+                        index=0 if review.get("decision", "approve") == "approve" else 1,
+                        horizontal=True,
+                        key=f"man_human_decision_{case_name}",
+                    )
+                    rationale = st.text_area(
+                        "Decision rationale",
+                        value=review.get("rationale", ""),
+                        placeholder="Why does the operator approve or reject this remediation path?",
+                        key=f"man_human_rationale_{case_name}",
+                    )
+                    if st.button("Record human decision", key=f"man_human_record_{case_name}", use_container_width=True):
+                        dlg["human_review"] = {
+                            "decision": decision,
+                            "rationale": rationale.strip(),
+                            "turn": last["turn"],
+                            "score": last["score"],
+                            "label": last.get("label", ""),
+                        }
+                        st.rerun()
+                    if dlg.get("human_review"):
+                        human = dlg["human_review"]
+                        if human["decision"] == "approve":
+                            st.success(
+                                f"Operator approved the remediation at turn {human['turn']} "
+                                f"(score={human['score']:.2f}, {human['label']})."
+                            )
+                        else:
+                            st.warning(
+                                f"Operator rejected the remediation at turn {human['turn']} "
+                                f"(score={human['score']:.2f}, {human['label']})."
+                            )
+                        if human.get("rationale"):
+                            st.caption(human["rationale"])
 
                 # ── Remediation panel (manual mode) ───────────────────────
                 all_cmds = list(dict.fromkeys(
@@ -2400,7 +2656,7 @@ def _render_remediation_panel(cmds: list[str], case_name: str) -> None:
     # Kube context info
     ctx = _current_context()
     if ctx:
-        st.info(f"Current kube context: `{ctx}`", icon="⎈")
+        st.info(f"Current kube context: `{ctx}`", icon="🧭")
     else:
         st.warning("No active kube context detected.", icon="⚠️")
 
@@ -3322,9 +3578,9 @@ def _run_live_api_tests(api_url: str) -> None:
 # Tab layout — entry point
 # ─────────────────────────────────────────────────────────────────────────────
 
-tab_rca, tab_kb, tab_dash, tab_it, tab_api = st.tabs([
+tab_rca, tab_kb, tab_dash, tab_demo, tab_it, tab_api = st.tabs([
     "🔍 Root Cause Analysis", "📚 Knowledge Base", "📊 Dashboard",
-    "🧪 Integration Tests", "🌐 API Session",
+    "🎬 Demo", "🧪 Integration Tests", "🌐 API Session",
 ])
 
 with tab_rca:
@@ -3335,6 +3591,9 @@ with tab_kb:
 
 with tab_dash:
     _render_dashboard()
+
+with tab_demo:
+    _render_integration_tests(demo_mode=True)
 
 with tab_it:
     _render_integration_tests()
