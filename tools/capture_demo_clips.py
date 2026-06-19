@@ -203,7 +203,9 @@ def clip_02(s: FirefoxSession) -> None:
     scroll_top(s)
     rec.frame(settle=1.0)               # configured: case + Strict + storyboard
     if not click_btn(s, "Run simulation"):
-        print("   ! Run simulation not found"); rec.frame(); return
+        print("   ! Run simulation not found")
+        rec.frame()
+        return
     wait_marker(s, "Choose a proposal", timeout=180)
     time.sleep(1.0)
     scroll_to(s, "Turn 0")
@@ -219,7 +221,8 @@ def clip_02(s: FirefoxSession) -> None:
         rec.frame(settle=1.0)           # dead-end panel
         rec.frame(settle=0.6)
     else:
-        print("   ! Continue button not found"); rec.frame()
+        print("   ! Continue button not found")
+        rec.frame()
 
 
 def clip_03(s: FirefoxSession) -> None:
@@ -239,7 +242,8 @@ def clip_03(s: FirefoxSession) -> None:
         rec.frame(settle=0.6)
     else:
         print("   ! backtrack button not found")
-        rec.frame(); rec.frame()
+        rec.frame()
+        rec.frame()
 
 
 def clip_04(s: FirefoxSession) -> None:
@@ -250,7 +254,8 @@ def clip_04(s: FirefoxSession) -> None:
     click_btn(s, "Act 3 — Strict vs Lenient")
     if not wait_marker(s, "Compare strict vs lenient", timeout=30):
         print("   ! Auto mode / Compare button did not render")
-        rec.frame(); return
+        rec.frame()
+        return
     time.sleep(1.0)
     scroll_to(s, "Compare strict vs lenient")
     rec.frame(settle=0.8)
@@ -266,7 +271,8 @@ def clip_04(s: FirefoxSession) -> None:
         scroll_to(s, "Dead ends")
         rec.frame(settle=0.8)
     else:
-        print("   ! Compare button click failed"); rec.frame()
+        print("   ! Compare button click failed")
+        rec.frame()
 
 
 def clip_05(s: FirefoxSession) -> None:
@@ -279,7 +285,9 @@ def clip_05(s: FirefoxSession) -> None:
     scroll_top(s)
     rec.frame(settle=1.0)               # h006 loaded
     if not click_btn(s, "Run simulation"):
-        print("   ! Run simulation not found"); rec.frame(); return
+        print("   ! Run simulation not found")
+        rec.frame()
+        return
     wait_marker(s, "Choose a proposal", timeout=180)
     time.sleep(1.0)
     # advance one turn; h006 resolves under Lenient → operator gate appears.
