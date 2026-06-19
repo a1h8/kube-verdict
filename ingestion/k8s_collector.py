@@ -44,6 +44,8 @@ class K8sCollector:
         self,
         kubeconfig: str | None = None,
         context: str | None = None,
+        impersonate_user: str | None = None,
+        impersonate_groups: list[str] | None = None,
     ) -> None:
         kc = kubeconfig or cfg.KUBECONFIG
         ctx = context or cfg.KUBE_CONTEXT
@@ -56,7 +58,21 @@ class K8sCollector:
             except k8s_config.ConfigException:
                 k8s_config.load_kube_config(context=ctx)
 
+        # RBAC-aware scoping: run all API calls as a specific user/groups via
+        # Kubernetes user impersonation (Impersonate-User / -Group headers).
+        # Lets one ServiceAccount analyse per-tenant with the tenant's own RBAC,
+        # rather than the collector's broad privileges. Configured per-call or
+        # via KUBE_IMPERSONATE_USER / KUBE_IMPERSONATE_GROUPS.
+        user = impersonate_user or cfg.KUBE_IMPERSONATE_USER
+        groups = impersonate_groups or cfg.KUBE_IMPERSONATE_GROUPS
         self._api_client = k8s_client.ApiClient()
+        if user or groups:
+            if user:
+                # K8s user impersonation: the apiserver evaluates RBAC as `user`.
+                self._api_client.set_default_header("Impersonate-User", user)
+            for grp in groups or []:
+                self._api_client.set_default_header("Impersonate-Group", grp)
+            log.info("RBAC impersonation: user=%s groups=%s", user, groups or [])
 
         # Detect server version first — drives all API version choices below
         self.kube_version: KubeVersion = detect_version(self._api_client)

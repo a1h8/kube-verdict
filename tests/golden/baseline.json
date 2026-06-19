@@ -1,0 +1,52 @@
+{
+  "h001_crashloopbackoff": {
+    "risk": "LOW",
+    "rollback_available": true,
+    "verdict": "HUMAN_REVIEW"
+  },
+  "h002_imagepullbackoff": {
+    "risk": "LOW",
+    "rollback_available": true,
+    "verdict": "HUMAN_REVIEW"
+  },
+  "h003_oomkilled": {
+    "risk": "LOW",
+    "rollback_available": true,
+    "verdict": "AUTO"
+  },
+  "h004_missing_configmap": {
+    "risk": "LOW",
+    "rollback_available": true,
+    "verdict": "HUMAN_REVIEW"
+  },
+  "h005_rbac_forbidden": {
+    "risk": "HIGH",
+    "rollback_available": true,
+    "verdict": "HUMAN_REVIEW"
+  },
+  "h006_networkpolicy_blocked": {
+    "risk": "LOW",
+    "rollback_available": false,
+    "verdict": "NO_GO"
+  },
+  "h007_hpa_no_metrics": {
+    "risk": "LOW",
+    "rollback_available": true,
+    "verdict": "HUMAN_REVIEW"
+  },
+  "h008_init_container_fail": {
+    "risk": "LOW",
+    "rollback_available": true,
+    "verdict": "HUMAN_REVIEW"
+  },
+  "h009_liveness_probe_loop": {
+    "risk": "LOW",
+    "rollback_available": true,
+    "verdict": "HUMAN_REVIEW"
+  },
+  "h010_resource_quota_exceeded": {
+    "risk": "LOW",
+    "rollback_available": true,
+    "verdict": "HUMAN_REVIEW"
+  }
+}
