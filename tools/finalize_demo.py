@@ -63,7 +63,9 @@ def probe_duration(path: Path) -> float:
 
 
 def srt_ts(t: float) -> str:
-    h = int(t // 3600); m = int((t % 3600) // 60); s = t % 60
+    h = int(t // 3600)
+    m = int((t % 3600) // 60)
+    s = t % 60
     return f"{h:02d}:{m:02d}:{s:06.3f}".replace(".", ",")
 
 
@@ -74,7 +76,8 @@ def wrap(draw, text, font, max_w):
         if draw.textbbox((0, 0), cand, font=font)[2] <= max_w:
             cur = cand
         else:
-            lines.append(cur); cur = w
+            lines.append(cur)
+            cur = w
     if cur:
         lines.append(cur)
     return lines
