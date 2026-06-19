@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="KubeVerdict API",
     description="REST interface for the LangGraph RCA workflow — sessions, edge tracing, human-in-the-loop.",
-    version="0.1.3",
+    version="0.1.4",
     lifespan=lifespan,
 )
 

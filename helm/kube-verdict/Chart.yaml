@@ -2,8 +2,8 @@ apiVersion: v2
 name: kubeverdict
 description: Evidence-first Kubernetes incident decision engine — events + Helm/GitOps drift correlation, blast-radius, rollback and human-gated remediation
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.1.4
+appVersion: "0.1.4"
 keywords:
   - kubernetes
   - observability
