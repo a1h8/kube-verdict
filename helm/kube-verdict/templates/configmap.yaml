@@ -24,3 +24,7 @@ data:
   GITOPS_BRANCH:         {{ .Values.config.gitopsBranch | quote }}
   GITOPS_CHARTS_PATH:    {{ .Values.config.gitopsChartsPath | quote }}
   VECTOR_STORE_PATH:     "/data/index.faiss"
+  {{- with .Values.rbac.impersonate }}
+  KUBE_IMPERSONATE_USER:   {{ .user | quote }}
+  KUBE_IMPERSONATE_GROUPS: {{ join "," .groups | quote }}
+  {{- end }}
