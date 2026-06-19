@@ -318,9 +318,9 @@ class K8sApiSchema:
         if self._api_client is None:
             return False
         try:
-            raw, _, _ = self._api_client.call_api(
+            raw = self._api_client.call_api(
                 "/openapi/v2", "GET",
-                response_type=object,
+                response_types_map={200: "object"},
                 _return_http_data_only=True,
             )
             self._parse(raw or {})
