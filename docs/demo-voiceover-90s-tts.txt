@@ -1,0 +1,73 @@
+This demo shows more than a diagnosis.
+
+It shows the decision process.
+
+We start with a real incident case.
+
+H zero zero nine, liveness probe loop.
+
+The service keeps restarting.
+
+The liveness probe timing has drifted.
+
+First, we run the case with a strict threshold profile.
+
+The system explores a plausible path.
+
+It scores that path.
+
+It follows the available evidence.
+
+But the confidence does not improve enough.
+
+So this branch becomes a dead end.
+
+That is important.
+
+The failure is visible.
+
+We can see where the path stalled.
+
+We can see why it was rejected.
+
+And we can backtrack.
+
+Now we run the exact same case again.
+
+Same problem.
+
+Same signals.
+
+But a different threshold profile.
+
+This time, the system converges more cleanly.
+
+So the goal is not only to produce an answer.
+
+The goal is to make the reasoning explicit.
+
+Reviewable.
+
+And tunable.
+
+Next, we switch to H zero zero six, network policy blocked.
+
+Here, the system reaches a valid remediation path.
+
+But it does not act automatically.
+
+It stops at the human decision gate.
+
+The operator reviews the recommendation.
+
+Then chooses to approve or reject it.
+
+That is the key point.
+
+The system can explore.
+
+Compare.
+
+And justify decisions.
+
+But the final operational choice remains under human control.
