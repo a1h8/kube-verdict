@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 
-from api.auth import require_token
+from api.oidc import require_auth
 from api.models import (
     BlastRadius, EdgeEntry, FeedbackRequest, IncidentReport, RunRequest,
     SessionCreated, SessionState, SessionStatus,
@@ -147,14 +147,14 @@ async def _run_graph(session: Session, initial_state: dict, resume_cmd: Command 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
-@router.post("", response_model=SessionCreated, status_code=201, dependencies=[Depends(require_token)])
+@router.post("", response_model=SessionCreated, status_code=201, dependencies=[Depends(require_auth)])
 async def create_session() -> SessionCreated:
     session_id = str(uuid.uuid4())
     store.create(session_id)
     return SessionCreated(session_id=session_id)
 
 
-@router.post("/sample", response_model=SessionState, status_code=201, dependencies=[Depends(require_token)])
+@router.post("/sample", response_model=SessionState, status_code=201, dependencies=[Depends(require_auth)])
 async def create_sample_session() -> SessionState:
     """Create a session pre-populated with a recorded sample investigation, so
     the Decision Journey UI can be demoed without a live cluster or Ollama."""
@@ -166,7 +166,7 @@ async def create_sample_session() -> SessionState:
     return _state_to_response(store.get_or_404(session_id))
 
 
-@router.post("/{session_id}/run", response_model=SessionState, dependencies=[Depends(require_token)])
+@router.post("/{session_id}/run", response_model=SessionState, dependencies=[Depends(require_auth)])
 async def run_session(session_id: str, body: RunRequest) -> SessionState:
     session = store.get_or_404(session_id)
     if session.status == SessionStatus.RUNNING:
@@ -188,7 +188,7 @@ async def run_session(session_id: str, body: RunRequest) -> SessionState:
     return _state_to_response(session)
 
 
-@router.post("/{session_id}/feedback", response_model=SessionState, dependencies=[Depends(require_token)])
+@router.post("/{session_id}/feedback", response_model=SessionState, dependencies=[Depends(require_auth)])
 async def feedback(session_id: str, body: FeedbackRequest) -> SessionState:
     session = store.get_or_404(session_id)
 

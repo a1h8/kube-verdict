@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-13T10:37:02.161154+00:00",
+  "generated_at": "2026-06-18T04:10:04.651217+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
@@ -303,26 +303,26 @@
         },
         {
           "label": "API auth \u2014 JWT / OIDC per-identity (session + webhook routes)",
-          "done": false
+          "done": true
         },
         {
           "label": "Golden-scenario regression guard (replay + diff in CI)",
-          "done": false
+          "done": true
         },
         {
           "label": "Artifact Hub listing (artifacthub-repo.yml)",
-          "done": false
+          "done": true
         },
         {
           "label": "RBAC-aware scoping (service-account impersonation)",
-          "done": false
+          "done": true
         },
         {
           "label": "Secret management (Vault / external-secrets, no plaintext kubeconfig)",
-          "done": false
+          "done": true
         }
       ],
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "phase": "Production Hardening"
     },
     {

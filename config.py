@@ -104,7 +104,35 @@ PROMETHEUS_TIMEOUT: int = _int("PROMETHEUS_TIMEOUT", 30)
 # (still tracked under Production Hardening) — it's a single static token so a
 # portal/operator can call the API without leaving it fully open. When unset,
 # auth is disabled (open) so local dev and tests behave as before.
-API_TOKEN: str | None = os.getenv("KUBEVERDICT_API_TOKEN") or None
+# Resolved via the secret resolver (env → file-mounted secret → Vault), so the
+# token can be delivered by external-secrets / Vault Agent instead of plaintext.
+def _resolve_api_token() -> str | None:
+    try:
+        from api.secrets import resolve_secret
+        return resolve_secret("KUBEVERDICT_API_TOKEN")
+    except Exception:  # noqa: BLE001 — config must never hard-fail on import
+        return os.getenv("KUBEVERDICT_API_TOKEN") or None
+
+
+API_TOKEN: str | None = _resolve_api_token()
+
+# Per-identity JWT / OIDC auth (preferred over the shared secret above). When
+# OIDC_JWKS_URL is set, bearer tokens are verified against the provider's JWKS
+# (RS256), with optional issuer/audience checks. Unset → JWT auth disabled and
+# the request falls back to the shared-secret gate. OIDC_REQUIRED=1 rejects any
+# request without a valid JWT (no shared-secret / open fallback).
+OIDC_JWKS_URL: str | None = os.getenv("OIDC_JWKS_URL") or None
+OIDC_ISSUER:   str | None = os.getenv("OIDC_ISSUER") or None
+OIDC_AUDIENCE: str | None = os.getenv("OIDC_AUDIENCE") or None
+OIDC_REQUIRED: bool = os.getenv("OIDC_REQUIRED", "").lower() in ("1", "true", "yes")
+
+# RBAC-aware scoping: run all Kubernetes API calls as a specific user / groups
+# via apiserver impersonation, so analysis is scoped by the *tenant's* RBAC, not
+# the collector's broad privileges. Unset → no impersonation (collector identity).
+KUBE_IMPERSONATE_USER: str | None = os.getenv("KUBE_IMPERSONATE_USER") or None
+KUBE_IMPERSONATE_GROUPS: list[str] = [
+    g.strip() for g in os.getenv("KUBE_IMPERSONATE_GROUPS", "").split(",") if g.strip()
+]
 
 # ── MCP server ──────────────────────────────────────────────────────────────────
 # Per-tool wall-clock budget; a tool exceeding this returns an isError result
