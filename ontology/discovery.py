@@ -104,7 +104,7 @@ class APIServerDiscovery:
                 path = f"/apis/{group_name}/{version}"
                 resp = self._client.call_api(
                     path, "GET",
-                    response_type="object",
+                    response_types_map={200: "object"},
                     auth_settings=["BearerToken"],
                     _return_http_data_only=True,
                 )
@@ -184,7 +184,7 @@ class APIServerDiscovery:
         try:
             resp = self._client.call_api(
                 path, "GET",
-                response_type="object",
+                response_types_map={200: "object"},
                 auth_settings=["BearerToken"],
                 _return_http_data_only=True,
             )
