@@ -46,6 +46,7 @@ class DialogueNode:
     report: RCAReport
     proposal: Optional[Proposal] = None   # None for root
     parent_score: float = 0.0
+    thresholds: "SimulationThresholds | None" = None
     status: str = "pending"               # pending | resolved | dead_end
     dead_end_reason: str = ""
     children: list["DialogueNode"] = field(default_factory=list)
@@ -69,6 +70,15 @@ class DialogueNode:
         return self.score - self.parent_score
 
 
+@dataclass(frozen=True)
+class SimulationThresholds:
+    score_resolved_abs: float = _SCORE_RESOLVED_ABS
+    score_resolved_delta: float = _SCORE_RESOLVED_DELTA
+    score_stagnant_delta: float = _SCORE_STAGNANT_DELTA
+    score_regress_delta: float = _SCORE_REGRESS_DELTA
+    score_llm_high_min: float = _SCORE_LLM_HIGH_MIN
+
+
 # ---------------------------------------------------------------------------
 # Simulator
 # ---------------------------------------------------------------------------
@@ -80,16 +90,23 @@ class DialogueSimulator:
         analyzer: RCAAnalyzer,
         max_turns: int = _MAX_TURNS,
         max_branches: int = _MAX_BRANCHES,
+        thresholds: SimulationThresholds | None = None,
         on_node=None,   # callable(root: DialogueNode) — called after each node
     ) -> None:
         self.analyzer     = analyzer
         self.max_turns    = max_turns
         self.max_branches = max_branches
+        self.thresholds   = thresholds or SimulationThresholds()
         self.on_node      = on_node
 
     def run(self, root_query: str) -> DialogueNode:
         root_report = self.analyzer.analyze(root_query)
-        root = DialogueNode(turn=0, query=root_query, report=root_report)
+        root = DialogueNode(
+            turn=0,
+            query=root_query,
+            report=root_report,
+            thresholds=self.thresholds,
+        )
         if self.on_node:
             self.on_node(root)
         self._expand(root, root)
@@ -113,12 +130,20 @@ class DialogueSimulator:
                 report=child_report,
                 proposal=proposal,
                 parent_score=node.score,
+                thresholds=self.thresholds,
             )
 
-            if _is_resolved(child):
+            status, reason = classify_outcome(
+                score=child.score,
+                parent_score=node.score,
+                llm_confidence=child.report.confidence or "",
+                has_remediation=bool(child.report.remediation),
+                thresholds=self.thresholds,
+            )
+            if status == "resolved":
                 child.status = "resolved"
-            elif _is_dead_end(child):
-                _mark_dead_end(child, _dead_end_reason(child))
+            elif status == "dead_end":
+                _mark_dead_end(child, reason)
             else:
                 self._expand(child, root)
 
@@ -131,35 +156,33 @@ class DialogueSimulator:
 # Status helpers
 # ---------------------------------------------------------------------------
 
-def _is_resolved(node: DialogueNode) -> bool:
-    if node.score >= _SCORE_RESOLVED_ABS:
-        return True
-    if node.delta >= _SCORE_RESOLVED_DELTA and node.score >= 0.55:
-        return True
+def classify_outcome(
+    score: float,
+    parent_score: float,
+    llm_confidence: str = "",
+    has_remediation: bool = False,
+    thresholds: SimulationThresholds | None = None,
+) -> tuple[str, str]:
+    thresholds = thresholds or SimulationThresholds()
+    delta = score - parent_score
+    if score >= thresholds.score_resolved_abs:
+        return "resolved", ""
+    if delta >= thresholds.score_resolved_delta and score >= 0.55:
+        return "resolved", ""
     # LLM stated MEDIUM/HIGH confidence + remediation commands present + sufficient
     # graph quality → the investigation converged.  On small graphs the topology
     # score is capped below 0.70 even when the LLM correctly identifies the root
     # cause — use the LLM output as a tiebreaker rather than a hard gate.
-    llm_conf = (node.report.confidence or "").upper()
+    llm_conf = (llm_confidence or "").upper()
     if (llm_conf.startswith(("HIGH", "MEDIUM"))
-            and bool(node.report.remediation)
-            and node.score >= _SCORE_LLM_HIGH_MIN):
-        return True
-    return False
-
-
-def _is_dead_end(node: DialogueNode) -> bool:
-    if node.score < node.parent_score - _SCORE_REGRESS_DELTA:
-        return True
-    if abs(node.delta) < _SCORE_STAGNANT_DELTA:
-        return True
-    return False
-
-
-def _dead_end_reason(node: DialogueNode) -> str:
-    if node.score < node.parent_score - _SCORE_REGRESS_DELTA:
-        return "confidence_regressed"
-    return "confidence_stagnant"
+            and has_remediation
+            and score >= thresholds.score_llm_high_min):
+        return "resolved", ""
+    if score < parent_score - thresholds.score_regress_delta:
+        return "dead_end", "confidence_regressed"
+    if abs(delta) < thresholds.score_stagnant_delta:
+        return "dead_end", "confidence_stagnant"
+    return "pending", ""
 
 
 def _mark_dead_end(node: DialogueNode, reason: str) -> None:
@@ -282,7 +305,17 @@ def write_json(
         "case":          case_name,
         "generated_at":  datetime.now(timezone.utc).isoformat(),
         "root_query":    root_query,
-        "config":        {"max_turns": max_turns, "max_branches": max_branches},
+        "config":        {
+            "max_turns": max_turns,
+            "max_branches": max_branches,
+            "thresholds": {
+                "score_resolved_abs": root_thresholds(root).score_resolved_abs,
+                "score_resolved_delta": root_thresholds(root).score_resolved_delta,
+                "score_stagnant_delta": root_thresholds(root).score_stagnant_delta,
+                "score_regress_delta": root_thresholds(root).score_regress_delta,
+                "score_llm_high_min": root_thresholds(root).score_llm_high_min,
+            },
+        },
         "summary": {
             "total_nodes": count_nodes(root),
             "resolved":    count_resolved(root),
@@ -295,6 +328,10 @@ def write_json(
     path = out_dir / f"{case_name}.json"
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
     return path
+
+
+def root_thresholds(root: DialogueNode) -> SimulationThresholds:
+    return root.thresholds or SimulationThresholds()
 
 
 # ---------------------------------------------------------------------------
