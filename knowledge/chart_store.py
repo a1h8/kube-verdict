@@ -9,11 +9,13 @@ The chart version is part of the RCA evidence, not metadata: a different
 version renders a different expected manifest, so a version-less source would
 diff against the wrong baseline and the verdict would be wrong.
 
-Not limited to Helm. A source has a ``render_type``:
+Compatible with all deployment modes. A source has a ``render_type``:
   - ``helm``      — a Helm chart directory (Chart.yaml)            → helm template
   - ``helmfile``  — a Helmfile bundle (helmfile.yaml + charts)     → per-release render
-  - ``manifests`` — already-rendered / customised YAML (Kustomize  → used as-is
-                    output, raw manifests, GitOps-committed YAML)
+  - ``kustomize`` — a Kustomize overlay (kustomization.yaml)       → kustomize build
+  - ``manifests`` — already-rendered / raw YAML — the universal    → used as-is
+                    catch-all for any other tool's output
+                    (Jsonnet/Tanka, CDK8s, ArgoCD/Flux-rendered…)
 """
 from __future__ import annotations
 
@@ -46,10 +48,12 @@ class EnterpriseChart:
         return f"{self.name}@{self.version}"
 
 
-# Required marker file per render_type — push() rejects sources that lack it.
-_REQUIRED_MARKER: dict[str, str | None] = {
+# Required marker file(s) per render_type — push() rejects sources that lack them.
+# A tuple means "any one of these"; None means "any *.yaml accepted".
+_REQUIRED_MARKER: dict[str, str | tuple[str, ...] | None] = {
     "helm":      "Chart.yaml",
     "helmfile":  "helmfile.yaml",
+    "kustomize": ("kustomization.yaml", "kustomization.yml", "Kustomization"),
     "manifests": None,              # any *.yaml accepted
 }
 
@@ -90,12 +94,15 @@ class ChartStore:
             raise ValueError(f"{src} is not a directory")
 
         marker = _REQUIRED_MARKER[render_type]
-        if marker is not None:
-            if not (src / marker).exists():
-                raise ValueError(f"{src} is not a {render_type} source (no {marker})")
-        else:  # manifests — require at least one YAML doc
+        if marker is None:  # manifests — require at least one YAML doc
             if not any(src.rglob("*.yaml")) and not any(src.rglob("*.yml")):
                 raise ValueError(f"{src} contains no manifests (*.yaml)")
+        else:
+            markers = (marker,) if isinstance(marker, str) else marker
+            if not any((src / m).exists() for m in markers):
+                raise ValueError(
+                    f"{src} is not a {render_type} source (no {' / '.join(markers)})"
+                )
 
         dest = self._chart_dir(name, version)
         if dest.exists():

@@ -56,6 +56,28 @@ def _manifests_source(root: Path, replicas: int) -> Path:
     return root
 
 
+def _kustomize_source(root: Path, replicas: int) -> Path:
+    _write(root / "deployment.yaml", f"""\
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: payment-service
+          namespace: prod
+        spec:
+          replicas: {replicas}
+          template:
+            spec:
+              containers:
+                - name: payment-service
+                  image: payment-service:1.0
+    """)
+    _write(root / "kustomization.yaml", """\
+        resources:
+          - deployment.yaml
+    """)
+    return root
+
+
 def _helm_source(root: Path, replica_count: int, chart_version: str) -> Path:
     _write(root / "Chart.yaml", f"""\
         apiVersion: v2
@@ -165,6 +187,28 @@ class TestChartIndexerManifests:
 # ─────────────────────────────────────────────────────────────────────────────
 # Indexer — real helm render, version-pinned (guarded)
 # ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.skipif(
+    shutil.which("kustomize") is None and shutil.which("kubectl") is None,
+    reason="neither kustomize nor kubectl installed",
+)
+class TestChartIndexerKustomize:
+    def test_kustomize_build_differs_by_version(self, tmp_path):
+        store = ChartStore(data_dir=tmp_path / "store")
+        c1 = store.push("payment-service", "1.0.0",
+                        _kustomize_source(tmp_path / "v1", 2), render_type="kustomize")
+        c2 = store.push("payment-service", "2.0.0",
+                        _kustomize_source(tmp_path / "v2", 5), render_type="kustomize")
+
+        fake = _FakeStore()
+        idx = ChartIndexer(fake)
+        idx.index_chart(store, c1)
+        idx.index_chart(store, c2)
+
+        texts = [e.to_text() for e in fake.entities]
+        assert any("version=1.0.0" in t and "spec.replicas=2" in t for t in texts)
+        assert any("version=2.0.0" in t and "spec.replicas=5" in t for t in texts)
+
 
 @pytest.mark.skipif(shutil.which("helm") is None, reason="helm binary not installed")
 class TestChartIndexerHelm:

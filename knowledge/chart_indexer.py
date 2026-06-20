@@ -6,10 +6,13 @@ version** and indexes each rendered resource as a duck-typed anchor entity in
 the FAISS store, so the expected state is retrievable as RCA evidence next to
 live cluster state.
 
-Render backends (not limited to Helm):
+Render backends — compatible with all deployment modes:
   - ``helm``      → ManifestRenderer (`helm template`, version-pinned)
   - ``helmfile``  → render each release's chart (helmfile.yaml parsed directly)
-  - ``manifests`` → already-rendered / customised YAML, used as-is (no binary)
+  - ``kustomize`` → `kustomize build` (or `kubectl kustomize` fallback)
+  - ``manifests`` → already-rendered / raw YAML, used as-is — the universal
+                    catch-all for any other tool (Jsonnet/Tanka, CDK8s,
+                    ArgoCD/Flux-rendered output); no binary required
 
 The chart version is baked into every anchor — render output is
 version-specific, so the version is part of the evidence, not metadata.
@@ -17,6 +20,8 @@ version-specific, so the version is part of the evidence, not metadata.
 from __future__ import annotations
 
 import logging
+import shutil
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -89,6 +94,30 @@ def _render_manifests(path: Path) -> list[dict]:
     return docs
 
 
+def _parse_multidoc(text: str) -> list[dict]:
+    return [d for d in yaml.safe_load_all(text) if isinstance(d, dict) and d.get("kind")]
+
+
+def _render_kustomize(path: Path) -> list[dict]:
+    """`kustomize build` (or `kubectl kustomize` fallback) for Kustomize overlays."""
+    if shutil.which("kustomize"):
+        cmd = ["kustomize", "build", str(path)]
+    elif shutil.which("kubectl"):
+        cmd = ["kubectl", "kustomize", str(path)]
+    else:
+        log.warning("chart_indexer: neither kustomize nor kubectl available")
+        return []
+    try:
+        out = subprocess.run(
+            cmd, capture_output=True, text=True, check=True, timeout=60,
+        ).stdout
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        stderr = getattr(exc, "stderr", "") or ""
+        log.warning("chart_indexer: kustomize build failed: %s", stderr.strip()[:200])
+        return []
+    return _parse_multidoc(out)
+
+
 def _render_helmfile(path: Path, namespace: str, renderer: ManifestRenderer) -> list[dict]:
     """Render every release declared in helmfile.yaml via its chart."""
     hf = path / "helmfile.yaml"
@@ -135,6 +164,8 @@ class ChartIndexer:
 
         if chart.render_type == "manifests":
             return _render_manifests(path)
+        if chart.render_type == "kustomize":
+            return _render_kustomize(path)
         if chart.render_type == "helmfile":
             return _render_helmfile(path, namespace, self._renderer)
         # default: helm — version-pinned render
