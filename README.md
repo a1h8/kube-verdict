@@ -148,31 +148,43 @@ Nothing touches the cluster without explicit sign-off. Autonomous execution is n
 
 The LLM is constrained by retrieved evidence. KubeVerdict ranks hypotheses from deterministic signals first — ontology topology, anchor violations, drift, policies and resolved incidents — then uses the LLM only to produce an evidence-grounded RCA.
 
-Confidence routing is evidence-first: two consecutive LOW results on the same hypothesis path trigger an immediate switch to the next candidate, and archived paths re-rank remaining candidates using signals from the failed analysis.
-
-**Pipeline:**
+**Evidence assembly** — runtime *and* enterprise inputs feed the same graph:
 
 ```
-Git / Helm / Helmfile / values
-        ↓
-Rendered expected manifests
-        ↓
-Live Kubernetes state + Events
-        ↓
-Declared-vs-observed drift detection
-        ↓
-Logs / metrics / OPA-Kyverno policy evidence / incident memory
-        ↓
-Ontology graph + anchor scoring
-        ↓
-BM25 + FAISS + RRF hybrid retrieval
-        ↓
-Evidence-weighted hypothesis ranking
-        ↓
-LLM root-cause explanation
-        ↓
-Human review gate → remediation (current: break-glass · target: PR/MR-first)
+  RUNTIME (live cluster)              ENTERPRISE CONTEXT
+  ───────────────────────             ───────────────────────────────────────
+  Kubernetes state / events           Enterprise Helm charts ─► rendered manifests   (opt-in)
+  logs / metrics                      Enterprise docs / runbooks / SOPs              (pluggable)
+                                      Kyverno / OPA policy reports                   (wired)
+                                      Resolved-incident memory                       (populated)
+            │                                          │
+            └───────────────► merged into ◄────────────┘
+                          │
+        Declared-vs-observed drift  +  typed evidence anchors
+                          │
+        OntologyGraph  (typed entities + relationships)
+                          │
+        BM25 + FAISS + RRF hybrid retrieval
+                          │
+        Evidence-weighted hypothesis ranking
 ```
+
+**Then a decision engine — not a one-shot RCA.** The ranked hypotheses feed a LangGraph state
+machine that runs in two phases joined by one conditional edge:
+
+```
+analyze ⟲ confidence router  →  converge  →  blast radius · Monte Carlo · policy verdict  →  human gate ⟲
+```
+
+Two consecutive LOW results archive a path and re-rank the remaining candidates (beam search). On
+convergence the solution is gated — blast-radius estimate → Monte Carlo stability → policy verdict
+(**AUTO / HUMAN_REVIEW / NO_GO**). Production always routes to a human gate (current: break-glass ·
+target: PR/MR-first); the gate is a LangGraph interrupt, so the operator can approve, reject, or
+inject extra context that re-runs the analysis. Approved fixes are remembered and short-circuit
+identical future incidents.
+
+→ Full two-phase node/edge diagram in
+[architecture.md](docs/architecture.md#two-phase-decision-graph).
 
 ---
 
@@ -200,6 +212,11 @@ Each case has a `test_hybrid_pipeline_NNN.py` running the full pre-LLM pipeline:
 ## Quick start
 
 **Prerequisites:** Python 3.11+, a Kubernetes cluster reachable via kubeconfig, and one LLM provider configured in `.env`.
+
+**Kubernetes versions:** KubeVerdict is *version-aware* — it detects the API server version at
+startup and adapts API selection (Ingress, CronJob, HPA, PodSecurityPolicy) across Kubernetes
+**1.19 → current**, and parses k3s/k3d version strings (`v1.28.3+k3s1`). See
+[Multi-version Kubernetes](docs/architecture.md#multi-version-kubernetes).
 
 ```bash
 git clone https://github.com/a1h8/kube-verdict.git

@@ -211,6 +211,55 @@ log_human_decision ──► human_router
   └─ "reject"  ──────────────────────────────────► END
 ```
 
+### Two-phase decision graph
+
+The same workflow, seen as **two phases** joined by the confidence router's conditional **`review`**
+edge: an *analysis* phase that explores hypotheses and backtracks until one converges, then a
+*decision* phase that gates the converged solution.
+
+```
+═══ GRAPH 1 · ANALYSIS — build evidence, explore, converge ═══════════════
+
+   collect ──► OntologyGraph  (typed entities + relationships)
+       │
+       ▼
+   hypothesize ──► example_lookup ──(known incident?)──► [hand off to GRAPH 2]
+       │ no match
+   ┌───▼────┐
+┌─►│ analyze│  LLM explains the current hypothesis only
+│  └───┬────┘
+│  confidence router  (conditional edge)
+│   ├─ LOW ×1   → retry  (widen BFS / evidence)
+└───┤─ LOW ×2   → archive path → re-rank candidates → next hypothesis
+    └─ HIGH/MED → review ─────────────────────────────► [hand off to GRAPH 2]
+
+═══ GRAPH 2 · DECISION — gate the solution, human-in-the-loop ════════════
+
+   select_best ──► blast_radius ──► monte_carlo ──► policy verdict
+                                                         │
+                                                   verdict router
+                                                    ├─ AUTO         → dry-run → apply
+                                                    ├─ NO_GO        → stop · nothing applied
+                                                    └─ HUMAN_REVIEW → dry-run → human gate ◄── interrupt
+                                                                           │
+                                                                   operator (feedback API)
+                                                                    ├─ approve         → remediation → save_example
+                                                                    ├─ reject          → stop
+                                                                    └─ + extra context → re-run ──► back to GRAPH 1
+```
+
+- **Backtracking before deciding.** In Graph 1, two consecutive LOW results archive the path and
+  re-rank the remaining candidates using signals from the failed analysis (beam-search routing) —
+  the engine converges *before* anything reaches the decision phase.
+- **Gated execution.** In Graph 2, every remediation passes blast-radius estimation → a Monte Carlo
+  stability check → a policy verdict of **AUTO / HUMAN_REVIEW / NO_GO**. Production always routes to
+  HUMAN_REVIEW; nothing is applied without sign-off.
+- **Human-in-the-loop cycle.** The gate is a LangGraph *interrupt*, not a dead-end. Through the
+  feedback API the operator approves, rejects, or supplies **extra context that re-runs the
+  analysis** — folding operator knowledge back into a fresh evidence pass.
+- **Memory closes the loop.** Approved remediations are persisted and short-circuit future
+  identical incidents at `example_lookup` — the engine gets faster on incidents it has seen.
+
 ### Evidence-first hypothesis generation (`hypothesize_node`)
 
 The LLM is a **next-token predictor over the top-k context window** — it does not reason from scratch. Hypotheses are built from structured evidence in probability order:
