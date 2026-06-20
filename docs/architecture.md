@@ -2,6 +2,28 @@
 
 KubeVerdict is a local, air-gapped Kubernetes RCA tool. No cluster data ever leaves the node.
 
+## Anchor-by-render
+
+The organising idea: KubeVerdict does not diagnose from the live cluster alone. It first
+reconstructs the **expected** state by rendering Helm/GitOps manifests (`helm template` with
+the full Helmfile value hierarchy), then compares that rendered intent against the observed
+cluster. Drift between the two becomes first-class RCA evidence — not a sync trigger.
+
+This is implemented by two cooperating layers, both detailed below:
+
+- **GitOps diff layer** — `GitopsCollector` → `ManifestRenderer` (`helm template`) →
+  `ManifestDiffer` (rendered vs observed → `gitops.*` annotations). See *GitOps diff layer*.
+- **Anchor layer, Source 2** — `AnchorEngine` reuses the same rendered output to extract the
+  *exact declared field values* (`spec.replicas`, image tags, resources…) as drift anchors,
+  with no heuristic Helm-value → K8s-field mapping. See *Anchor system design → Source 2*.
+
+The rendered path is **opt-in**: the `gitops` node is skipped when `GITOPS_ENABLED=false` or no
+`GITOPS_REPO_URL` is set, and the `AnchorEngine` then relies on Source 1 (K8s schema) plus the
+ingestion-time `HelmDriftDetector` (Helm-declared values vs live). The currently validated
+scenario set (h001–h010) exercises that Helm-values-drift path; a dedicated render-vs-live
+scenario is the next step to back the rendered path with a validated case. The narrative version
+of this concept lives in [anchor-by-render.md](anchor-by-render.md).
+
 ## Pipeline overview
 
 ```
@@ -188,6 +210,55 @@ log_human_decision ──► human_router
   ├─ "approve" ──► remediation ──► save_example ──► END
   └─ "reject"  ──────────────────────────────────► END
 ```
+
+### Two-phase decision graph
+
+The same workflow, seen as **two phases** joined by the confidence router's conditional **`review`**
+edge: an *analysis* phase that explores hypotheses and backtracks until one converges, then a
+*decision* phase that gates the converged solution.
+
+```
+═══ GRAPH 1 · ANALYSIS — build evidence, explore, converge ═══════════════
+
+   collect ──► OntologyGraph  (typed entities + relationships)
+       │
+       ▼
+   hypothesize ──► example_lookup ──(known incident?)──► [hand off to GRAPH 2]
+       │ no match
+   ┌───▼────┐
+┌─►│ analyze│  LLM explains the current hypothesis only
+│  └───┬────┘
+│  confidence router  (conditional edge)
+│   ├─ LOW ×1   → retry  (widen BFS / evidence)
+└───┤─ LOW ×2   → archive path → re-rank candidates → next hypothesis
+    └─ HIGH/MED → review ─────────────────────────────► [hand off to GRAPH 2]
+
+═══ GRAPH 2 · DECISION — gate the solution, human-in-the-loop ════════════
+
+   select_best ──► blast_radius ──► monte_carlo ──► policy verdict
+                                                         │
+                                                   verdict router
+                                                    ├─ AUTO         → dry-run → apply
+                                                    ├─ NO_GO        → stop · nothing applied
+                                                    └─ HUMAN_REVIEW → dry-run → human gate ◄── interrupt
+                                                                           │
+                                                                   operator (feedback API)
+                                                                    ├─ approve         → remediation → save_example
+                                                                    ├─ reject          → stop
+                                                                    └─ + extra context → re-run ──► back to GRAPH 1
+```
+
+- **Backtracking before deciding.** In Graph 1, two consecutive LOW results archive the path and
+  re-rank the remaining candidates using signals from the failed analysis (beam-search routing) —
+  the engine converges *before* anything reaches the decision phase.
+- **Gated execution.** In Graph 2, every remediation passes blast-radius estimation → a Monte Carlo
+  stability check → a policy verdict of **AUTO / HUMAN_REVIEW / NO_GO**. Production always routes to
+  HUMAN_REVIEW; nothing is applied without sign-off.
+- **Human-in-the-loop cycle.** The gate is a LangGraph *interrupt*, not a dead-end. Through the
+  feedback API the operator approves, rejects, or supplies **extra context that re-runs the
+  analysis** — folding operator knowledge back into a fresh evidence pass.
+- **Memory closes the loop.** Approved remediations are persisted and short-circuit future
+  identical incidents at `example_lookup` — the engine gets faster on incidents it has seen.
 
 ### Evidence-first hypothesis generation (`hypothesize_node`)
 

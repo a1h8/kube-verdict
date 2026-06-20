@@ -1,12 +1,14 @@
 """
 KubeVerdict MCP server — stdio transport.
 
-Exposes three tools consumable by any MCP-compatible client
+Exposes tools consumable by any MCP-compatible client
 (Claude Desktop, Cursor, Continue, etc.):
 
-  kube_rca       — full root-cause analysis on a live or offline namespace
-  helm_drift     — detect Helm value drift for a release
-  blast_radius   — assess risk + rollback availability for remediation commands
+  kube_rca              — full root-cause analysis on a live or offline namespace
+  helm_drift            — detect Helm value drift for a release (mode-aware)
+  expected_state_drift  — diff a pushed expected-state source (Helm / Helmfile /
+                          Kustomize / raw manifests) at a pinned version vs live
+  blast_radius          — assess risk + rollback availability for remediation commands
 
 Air-gap friendly: all inference runs locally via Ollama (no data leaves the cluster).
 
@@ -82,7 +84,10 @@ _TOOLS = [
         description=(
             "Detect drift between a Helm release's declared values and the "
             "actual running Kubernetes resources. Returns a list of drifted fields "
-            "with declared vs observed values."
+            "with declared vs observed values. Mode-aware: if an expected-state "
+            "source has been pushed for the release (Helm / Helmfile / Kustomize / "
+            "raw manifests), it is also rendered at its pinned version and diffed "
+            "against live — see also the expected_state_drift tool."
         ),
         inputSchema={
             "type": "object",
@@ -94,6 +99,14 @@ _TOOLS = [
                 "namespace": {
                     "type": "string",
                     "description": "Kubernetes namespace of the release",
+                },
+                "chart": {
+                    "type": "string",
+                    "description": "Pushed expected-state source name (default: release name)",
+                },
+                "chart_version": {
+                    "type": "string",
+                    "description": "Pinned version of the pushed source (default: latest pushed)",
                 },
                 "kubeconfig": {
                     "type": "string",
@@ -135,6 +148,44 @@ _TOOLS = [
                 },
             },
             "required": ["remediation_commands"],
+        },
+    ),
+    types.Tool(
+        name="expected_state_drift",
+        description=(
+            "Detect drift between the EXPECTED state — rendered from a pushed "
+            "enterprise source at a pinned version — and the live Kubernetes "
+            "resources. Deployment-mode agnostic: the source may be a Helm chart, "
+            "a Helmfile bundle, a Kustomize overlay, or raw/rendered manifests "
+            "(Jsonnet/Tanka, CDK8s, ArgoCD/Flux output). Returns drifted fields "
+            "with declared (rendered) vs observed values. The version is evidence: "
+            "a different version renders a different expected baseline."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "chart": {
+                    "type": "string",
+                    "description": "Pushed expected-state source name (in the chart store)",
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Pinned source version (default: latest pushed)",
+                },
+                "namespace": {
+                    "type": "string",
+                    "description": "Kubernetes namespace to compare against",
+                },
+                "kubeconfig": {
+                    "type": "string",
+                    "description": "Path to kubeconfig file (default: ~/.kube/config)",
+                },
+                "kube_context": {
+                    "type": "string",
+                    "description": "kubeconfig context to use",
+                },
+            },
+            "required": ["chart", "namespace"],
         },
     ),
 ]
@@ -246,13 +297,101 @@ async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
                 item = _parse_drift_annotation(key, value)
                 if item:
                     item["resource"] = f"{entity.kind.value}/{entity.name}"
+                    item["source"]   = "helm"
                     drift_items.append(item)
 
+    # Mode-aware: if an expected-state source was pushed for this release, also
+    # render it (Helm / Helmfile / Kustomize / manifests) and diff against live.
+    expected_mode = None
+    try:
+        chart, rendered_items = await asyncio.to_thread(
+            _rendered_expected_drift, graph,
+            args.get("chart") or release, args.get("chart_version"), namespace,
+        )
+        if chart is not None:
+            expected_mode = chart.render_type
+            drift_items.extend(rendered_items)
+    except Exception as exc:  # never fail the helm path on an expected-state issue
+        log.warning("helm_drift: expected-state diff skipped: %s", exc)
+
     return {
-        "release":    release,
-        "namespace":  namespace,
-        "drift_count": drift_count,
-        "drift_items": drift_items,
+        "release":             release,
+        "namespace":           namespace,
+        "drift_count":         drift_count,
+        "drift_items":         drift_items,
+        "expected_state_mode": expected_mode,
+    }
+
+
+def _rendered_expected_drift(graph, chart_name: str, version, namespace: str,
+                             chart_store=None):
+    """
+    Render a pushed expected-state source at its pinned version and diff it
+    against the live graph. Mode-agnostic (Helm / Helmfile / Kustomize /
+    manifests). Returns (EnterpriseChart | None, [drift_item, …]); the chart is
+    None when nothing has been pushed for ``chart_name``.
+    """
+    from ingestion.manifest_differ import ManifestDiffer
+    from knowledge.chart_indexer import ChartIndexer
+    from knowledge.chart_store import ChartStore
+
+    cs = chart_store or ChartStore()
+    if version is None:
+        versions = cs.versions(chart_name)
+        version = versions[-1] if versions else None
+    if version is None:
+        return None, []
+    chart = cs.get(chart_name, version)
+    if chart is None:
+        return None, []
+
+    rendered = ChartIndexer(None).render(cs, chart, namespace=namespace)
+    drifts = ManifestDiffer().diff(rendered, graph)
+    items = [
+        {
+            "field":    d.field_path,
+            "declared": str(d.declared),
+            "observed": str(d.observed),
+            "severity": d.severity,
+            "source":   "rendered",
+            "chart":    f"{chart.name}@{chart.version}",
+            "mode":     chart.render_type,
+        }
+        for d in drifts
+    ]
+    return chart, items
+
+
+async def _expected_state_drift(args: dict[str, Any]) -> dict[str, Any]:
+    """Diff a pushed expected-state source (any deploy mode) against live cluster."""
+    import config as cfg
+    from ingestion import K8sCollector
+
+    chart_name   = args["chart"]
+    namespace    = args["namespace"]
+    version      = args.get("version")
+    kubeconfig   = args.get("kubeconfig") or cfg.KUBECONFIG
+    kube_context = args.get("kube_context") or cfg.KUBE_CONTEXT
+
+    collector = K8sCollector(kubeconfig=kubeconfig, context=kube_context)
+    graph = await asyncio.to_thread(collector.collect, namespaces=[namespace])
+
+    chart, items = await asyncio.to_thread(
+        _rendered_expected_drift, graph, chart_name, version, namespace,
+    )
+    if chart is None:
+        return {
+            "chart":       chart_name,
+            "namespace":   namespace,
+            "error":       f"no expected-state source pushed for '{chart_name}'",
+            "drift_items": [],
+        }
+    return {
+        "chart":       f"{chart.name}@{chart.version}",
+        "mode":        chart.render_type,
+        "namespace":   namespace,
+        "drift_count": len(items),
+        "drift_items": items,
     }
 
 
@@ -290,6 +429,7 @@ async def _blast_radius(args: dict[str, Any]) -> dict[str, Any]:
 _HANDLERS = {
     "kube_rca": "_kube_rca",
     "helm_drift": "_helm_drift",
+    "expected_state_drift": "_expected_state_drift",
     "blast_radius": "_blast_radius",
 }
 

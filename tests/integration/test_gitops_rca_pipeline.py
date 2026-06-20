@@ -16,6 +16,7 @@ Chain:
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import textwrap
 from pathlib import Path
@@ -28,6 +29,7 @@ from ingestion.git_provider import LocalGitProvider
 from ingestion.gitops_collector import GitopsCollector
 from ingestion.helmfile_collector import HelmfileCollector
 from ingestion.manifest_differ import ManifestDiffer
+from ingestion.manifest_renderer import ManifestRenderer
 from ontology.entities import (
     Deployment, HelmRelease,
     K8sEvent, LokiLog, Pod, ResourceKind,
@@ -1112,3 +1114,54 @@ class TestFullRCAPipelineWithRuleFallback:
         assert len(result.affected) >= 3
         assert len(result.remediation) >= 5
         assert "rule-assisted" in result.confidence
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. Real `helm template` render-vs-live (h012) — guarded by helm availability
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.skipif(shutil.which("helm") is None,
+                    reason="helm binary not installed")
+class TestRealHelmRenderVsLive:
+    """
+    Validated render-vs-live scenario (h012): runs the ACTUAL `helm template`
+    binary (via the real ManifestRenderer, not a mock) on a chart from the git
+    repo, then diffs the rendered *expected* state against the *observed*
+    cluster graph. This proves the anchor-by-render path end to end —
+    rendered intent → declared-vs-observed drift.
+
+    Skipped when helm is absent (e.g. a minimal CI image); the mocked-renderer
+    sections above still validate the diff → RCA chain deterministically on
+    every run, so coverage never depends on helm being present.
+    """
+
+    def _payment_chart(self, provider: LocalGitProvider) -> str:
+        return str(provider.local_path() / "charts" / "payment-service")
+
+    def test_real_helm_template_renders_declared_replicas(self, local_provider):
+        docs = ManifestRenderer().render(
+            self._payment_chart(local_provider),
+            release_name="payment-service",
+            namespace=NS,
+        )
+        deploys = [d for d in docs if d.get("kind") == "Deployment"]
+        assert deploys, "helm template produced no Deployment"
+        # values.yaml declares replicaCount: 3
+        assert deploys[0]["spec"]["replicas"] == 3
+
+    def test_rendered_vs_live_replica_drift_is_critical(self, local_provider):
+        rendered = ManifestRenderer().render(
+            self._payment_chart(local_provider),
+            release_name="payment-service",
+            namespace=NS,
+        )
+        # Observed cluster: only 1 replica running (declared 3) → drift.
+        g = OntologyGraph()
+        g.add_entity(Deployment(uid="d-ps", name="payment-service", namespace=NS,
+                                replicas=1, ready_replicas=0))
+        drifts = ManifestDiffer().diff(rendered, g)
+        replica_drifts = [d for d in drifts if d.field_path == "spec.replicas"]
+        assert replica_drifts, "expected spec.replicas drift (declared 3 vs live 1)"
+        assert int(replica_drifts[0].declared) == 3
+        assert int(replica_drifts[0].observed) == 1
+        assert replica_drifts[0].severity == "critical"
