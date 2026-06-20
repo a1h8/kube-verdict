@@ -25,7 +25,8 @@ directly from a Claude Code session — no browser, no copy-pasting kubectl outp
 | Tool | What it does |
 |------|-------------|
 | `kube_rca` | Full RCA on a namespace — events, Helm drift, anchors → ranked diagnosis + remediation |
-| `helm_drift` | Drift between declared Helm values and live cluster state |
+| `helm_drift` | Drift between declared Helm values and live cluster state (mode-aware: also diffs a pushed expected-state source when present) |
+| `expected_state_drift` | Diff a pushed expected-state source — **Helm / Helmfile / Kustomize / raw manifests** — rendered at a pinned version vs live |
 | `blast_radius` | Heuristic risk score (LOW→CRITICAL) over the proposed command + rollback check before applying any fix |
 
 All tools run **air-gapped** by default: Ollama + Mistral, no data leaves your infrastructure.
@@ -134,7 +135,24 @@ Returns: `summary`, `root_cause`, `causal_chain`, `affected`, `remediation`, `ro
 }
 ```
 
-Returns: `release`, `namespace`, `drift_count`, `drift_items[]` (field, declared, observed)
+Returns: `release`, `namespace`, `drift_count`, `drift_items[]` (field, declared, observed), `expected_state_mode`
+
+### `expected_state_drift`
+
+Deployment-mode agnostic — the pushed source may be a Helm chart, a Helmfile bundle,
+a Kustomize overlay, or raw/rendered manifests (Jsonnet/Tanka, CDK8s, ArgoCD/Flux output).
+The version is evidence: a different version renders a different expected baseline.
+
+```json
+{
+  "chart": "payment-service",
+  "version": "1.4.2",
+  "namespace": "production",
+  "kube_context": "prod-cluster"
+}
+```
+
+Returns: `chart` (`name@version`), `mode`, `namespace`, `drift_count`, `drift_items[]` (field, declared, observed, severity)
 
 ### `blast_radius`
 

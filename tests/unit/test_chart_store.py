@@ -188,6 +188,41 @@ class TestChartIndexerManifests:
 # Indexer — real helm render, version-pinned (guarded)
 # ─────────────────────────────────────────────────────────────────────────────
 
+class TestExpectedStateDriftSkill:
+    """A/B skills: rendered expected-state (any mode) diffed vs live."""
+
+    def test_rendered_vs_live_drift_manifests(self, tmp_path):
+        from mcp_server import _rendered_expected_drift
+        from ontology.entities import Deployment
+        from ontology.graph import OntologyGraph
+
+        store = ChartStore(data_dir=tmp_path / "charts")
+        store.push("payment-service", "1.0.0",
+                   _manifests_source(tmp_path / "src", 3), render_type="manifests")
+
+        g = OntologyGraph()
+        g.add_entity(Deployment(uid="d1", name="payment-service", namespace="prod",
+                                replicas=1, ready_replicas=0))
+
+        chart, items = _rendered_expected_drift(
+            g, "payment-service", None, "prod", chart_store=store)
+        assert chart is not None and chart.render_type == "manifests"
+        repl = [i for i in items if i["field"] == "spec.replicas"]
+        assert repl, "expected spec.replicas drift (rendered 3 vs live 1)"
+        assert repl[0]["declared"] == "3"
+        assert repl[0]["observed"] == "1"
+        assert repl[0]["source"] == "rendered"
+
+    def test_no_pushed_source_is_noop(self, tmp_path):
+        from mcp_server import _rendered_expected_drift
+        from ontology.graph import OntologyGraph
+
+        store = ChartStore(data_dir=tmp_path / "charts")
+        chart, items = _rendered_expected_drift(
+            OntologyGraph(), "missing", None, "prod", chart_store=store)
+        assert chart is None and items == []
+
+
 @pytest.mark.skipif(
     shutil.which("kustomize") is None and shutil.which("kubectl") is None,
     reason="neither kustomize nor kubectl installed",

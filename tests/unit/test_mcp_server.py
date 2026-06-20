@@ -25,14 +25,17 @@ def _run(coro):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestListTools:
-    def test_exposes_three_tools(self):
+    def test_exposes_expected_tools(self):
         tools = _run(m.list_tools())
-        assert {t.name for t in tools} == {"kube_rca", "helm_drift", "blast_radius"}
+        assert {t.name for t in tools} == {
+            "kube_rca", "helm_drift", "expected_state_drift", "blast_radius",
+        }
 
     def test_required_fields_declared(self):
         by_name = {t.name: t for t in _run(m.list_tools())}
         assert by_name["kube_rca"].inputSchema["required"] == ["query"]
         assert by_name["helm_drift"].inputSchema["required"] == ["release", "namespace"]
+        assert by_name["expected_state_drift"].inputSchema["required"] == ["chart", "namespace"]
         assert by_name["blast_radius"].inputSchema["required"] == ["remediation_commands"]
 
 
