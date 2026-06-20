@@ -7,6 +7,7 @@ to serialise them.  Nodes that need them call _get_infra(config).
 """
 from __future__ import annotations
 import logging
+import os
 import re
 from datetime import datetime, timezone
 from typing import Any
@@ -381,6 +382,23 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
     built_store = FAISSStore(embedder=embedder)
     built_store.index_graph(graph)
     anchor_count = built_store.index_anchor_violations(graph)
+
+    # Enterprise expected-state anchors — pushed Helm / Helmfile / Kustomize /
+    # raw-manifest sources, rendered at their pinned version. Opt-in by presence:
+    # no pushed charts → no-op. Best-effort: a render failure never breaks RCA.
+    chart_anchor_count = 0
+    try:
+        from knowledge.chart_indexer import ChartIndexer
+        from knowledge.chart_store import ChartStore
+        chart_dir = (config.get("configurable", {}).get("chart_dir")
+                     or os.environ.get("KUBEVERDICT_CHART_DIR"))
+        chart_store = ChartStore(chart_dir) if chart_dir else ChartStore()
+        if chart_store.list():
+            ns = config.get("configurable", {}).get("namespace") or "default"
+            chart_anchor_count = ChartIndexer(built_store).index_all(chart_store, namespace=ns)
+    except Exception as exc:  # noqa: BLE001 — enterprise store must never break RCA
+        log.warning("index: enterprise chart indexing skipped: %s", exc)
+
     built_store.save()
 
     from persistence.db import get_db
@@ -390,7 +408,8 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
     finally:
         conn.close()
 
-    log.info("index: %d vectors, %d anchor violation(s)", built_store.size, anchor_count)
+    log.info("index: %d vectors, %d anchor violation(s), %d chart anchor(s)",
+             built_store.size, anchor_count, chart_anchor_count)
 
     config.setdefault("configurable", {})["store"] = built_store
     return {}

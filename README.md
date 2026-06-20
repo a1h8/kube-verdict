@@ -1,8 +1,8 @@
 # KubeVerdict
 
-Evidence-first Kubernetes incident decision engine.
+Enterprise-aware, LLM-light, GitOps forensic layer for Kubernetes incidents.
 
-KubeVerdict correlates Kubernetes events and Helm drift into an evidence-grounded incident summary, then proposes human-approved remediation commands.
+KubeVerdict uses **anchor-by-render**: it reconstructs the expected state from Helm/GitOps rendered manifests, compares it with live Kubernetes reality, and turns drift into first-class RCA evidence before any LLM explanation or human-approved remediation.
 
 ✅ Air-gapped by default — Ollama + Mistral, no data leaves your infrastructure  
 ✅ No auto-remediation without explicit approval  
@@ -22,7 +22,48 @@ Most Kubernetes outages are not caused by a single failing pod.
 
 When payment-service crashes, the on-call engineer opens five tabs simultaneously: pod logs, Kubernetes events, Helm history, Prometheus graphs, and the GitOps repo. Under pressure, at 2 AM, with three Slack threads open. The root cause is rarely where the alert fired — it's three hops away in a misconfigured Helm value or a drift between what was declared and what actually runs.
 
-KubeVerdict reduces that cognitive load. It starts from an Alertmanager incident signal, correlates Kubernetes events and Helm drift into a single evidence-grounded root cause analysis, ranks the diagnosis by confidence, and keeps a human approval gate before any remediation command touches production.
+KubeVerdict reduces that cognitive load. It starts from an Alertmanager incident signal, correlates Kubernetes events and Helm/GitOps drift against the expected state rendered from source, so the RCA starts from intent, not only from live symptoms — then ranks the diagnosis by confidence and keeps a human approval gate before any remediation command touches production.
+
+---
+
+## Anchor-by-render
+
+Most Kubernetes RCA tools start from live symptoms: events, logs, metrics and alerts.
+
+KubeVerdict starts one step earlier: it reconstructs what *should* have been running from Helm/GitOps rendered manifests.
+
+This rendered expected state becomes the evidence anchor. KubeVerdict then compares it with the live cluster state, detects declared-vs-observed drift, and uses that drift to rank root-cause hypotheses.
+
+The LLM does not invent the diagnosis. It explains an evidence path built from rendered intent, runtime state, Kubernetes events, policy signals, temporal anomalies and incident memory.
+
+> Status: the current validated scenario set exercises the Helm-values-drift path. A stronger GitOps render-vs-live scenario should be promoted into the validated h0NN set before claiming full render-backed validation.
+
+> ArgoCD detects drift to decide whether to reconcile. KubeVerdict uses the same diff as RCA evidence — not as a sync trigger.
+
+---
+
+## Enterprise anchors, not generic RCA
+
+KubeVerdict does not ask an LLM to guess the root cause. It builds **typed evidence anchors** —
+probes, resources, images, services, dependencies, policies, owners, releases, chart values —
+from deterministic sources, ranks RCA hypotheses from them, and uses the LLM **only to explain
+the ranked verdict**.
+
+The evidence sources it can draw on, and how far each is proven today:
+
+| Evidence source | Status |
+|---|---|
+| Helm value drift (declared vs live) | **validated** (h001–h010) |
+| Kubernetes events / runtime state | **validated** |
+| Resolved-incident memory (past human-approved fixes) | **wired & populated** — `knowledge/example_store.py`, 221 examples in `data/examples`, indexed into FAISS |
+| Policy reports (Kyverno / OPA `PolicyReport`) | **wired** — ingested as `PolicyViolation` evidence |
+| Rendered Helm/GitOps manifests (expected state) | **opt-in** — activates with `GITOPS_REPO_URL` |
+| Enterprise docs / runbooks / SOPs | **pluggable** — `knowledge/doc_indexer.py` indexes `EnterpriseDoc` chunks; no corpus ships by default |
+
+Because the diagnosis is assembled from deterministic anchors *before* the model runs,
+KubeVerdict is **LLM-light**: less hallucination, more reproducibility, and an auditable evidence
+path — the properties a platform or SRE team needs before trusting and signing off on a
+remediation.
 
 ---
 
@@ -107,23 +148,43 @@ Nothing touches the cluster without explicit sign-off. Autonomous execution is n
 
 The LLM is constrained by retrieved evidence. KubeVerdict ranks hypotheses from deterministic signals first — ontology topology, anchor violations, drift, policies and resolved incidents — then uses the LLM only to produce an evidence-grounded RCA.
 
-Confidence routing is evidence-first: two consecutive LOW results on the same hypothesis path trigger an immediate switch to the next candidate, and archived paths re-rank remaining candidates using signals from the failed analysis.
-
-**Pipeline:**
+**Evidence assembly** — runtime *and* enterprise inputs feed the same graph:
 
 ```
-K8s events + Helm values/drift
-        ↓
-Ontology graph + anchor drift detection
-        ↓
-BM25 + FAISS + RRF hybrid retrieval
-        ↓
-Hypothesis ranking (evidence-weighted)
-        ↓
-LLM root-cause analysis (evidence-grounded)
-        ↓
-Human review gate → remediation commands
+  RUNTIME (live cluster)              ENTERPRISE CONTEXT
+  ───────────────────────             ───────────────────────────────────────
+  Kubernetes state / events           Enterprise Helm charts ─► rendered manifests   (opt-in)
+  logs / metrics                      Enterprise docs / runbooks / SOPs              (pluggable)
+                                      Kyverno / OPA policy reports                   (wired)
+                                      Resolved-incident memory                       (populated)
+            │                                          │
+            └───────────────► merged into ◄────────────┘
+                          │
+        Declared-vs-observed drift  +  typed evidence anchors
+                          │
+        OntologyGraph  (typed entities + relationships)
+                          │
+        BM25 + FAISS + RRF hybrid retrieval
+                          │
+        Evidence-weighted hypothesis ranking
 ```
+
+**Then a decision engine — not a one-shot RCA.** The ranked hypotheses feed a LangGraph state
+machine that runs in two phases joined by one conditional edge:
+
+```
+analyze ⟲ confidence router  →  converge  →  blast radius · Monte Carlo · policy verdict  →  human gate ⟲
+```
+
+Two consecutive LOW results archive a path and re-rank the remaining candidates (beam search). On
+convergence the solution is gated — blast-radius estimate → Monte Carlo stability → policy verdict
+(**AUTO / HUMAN_REVIEW / NO_GO**). Production always routes to a human gate (current: break-glass ·
+target: PR/MR-first); the gate is a LangGraph interrupt, so the operator can approve, reject, or
+inject extra context that re-runs the analysis. Approved fixes are remembered and short-circuit
+identical future incidents.
+
+→ Full two-phase node/edge diagram in
+[architecture.md](docs/architecture.md#two-phase-decision-graph).
 
 ---
 
@@ -152,6 +213,11 @@ Each case has a `test_hybrid_pipeline_NNN.py` running the full pre-LLM pipeline:
 
 **Prerequisites:** Python 3.11+, a Kubernetes cluster reachable via kubeconfig, and one LLM provider configured in `.env`.
 
+**Kubernetes versions:** KubeVerdict is *version-aware* — it detects the API server version at
+startup and adapts API selection (Ingress, CronJob, HPA, PodSecurityPolicy) across Kubernetes
+**1.19 → current**, and parses k3s/k3d version strings (`v1.28.3+k3s1`). See
+[Multi-version Kubernetes](docs/architecture.md#multi-version-kubernetes).
+
 ```bash
 git clone https://github.com/a1h8/kube-verdict.git
 cd kube-verdict
@@ -175,7 +241,7 @@ The same investigation is reachable through several surfaces:
 - **REST API (FastAPI)** — the runtime the Docker image ships (`uvicorn api.app:app --port 8000`). Session lifecycle under `/api/v1/sessions` plus a one-call `POST /api/v1/investigate` that returns a stable verdict envelope (root cause, confidence, blast radius, policy verdict, remediation). Optional shared-secret bearer guard via `KUBEVERDICT_API_TOKEN` (not OIDC). See [REST API](docs/api.md).
 - **Streamlit demo** — `streamlit run ui/app.py`; the offline pipeline-trace explorer described above.
 - **Decision Journey (React dashboard)** — `npm --prefix dashboard run dev`, then open `…/#/journey`. Renders the decision *process* from the API: verdict, explored / eliminated hypothesis paths, and the decision timeline. Click **Load sample** to see a full journey with no cluster or Ollama.
-- **MCP / Agent Skills** — `kube_rca`, `helm_drift`, `blast_radius` (see below).
+- **MCP / Agent Skills** — `kube_rca`, `helm_drift`, `expected_state_drift`, `blast_radius` (see below).
 
 ---
 
@@ -183,6 +249,7 @@ The same investigation is reachable through several surfaces:
 
 | Document | Content |
 |---|---|
+| [Anchor-by-render](docs/anchor-by-render.md) | The core concept: rendered Helm/GitOps intent as the evidence anchor, why-not-ArgoCD, honest status |
 | [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, anchor system design, drift detection |
 | [REST API](docs/api.md) | FastAPI endpoints, session lifecycle, request/response examples, SSE stream |
 | [UI reference](docs/ui.md) | Streamlit tabs, pipeline trace steps, anchor pivot table, reasoning journey, router decisions |
@@ -196,7 +263,7 @@ The same investigation is reachable through several surfaces:
 
 ## Agent Skills / MCP integration
 
-KubeVerdict exposes `kube_rca`, `helm_drift`, and `blast_radius` as MCP tools consumable by any MCP-compatible client (Claude Desktop, Cursor, Continue).
+KubeVerdict exposes `kube_rca`, `helm_drift`, `expected_state_drift`, and `blast_radius` as MCP tools consumable by any MCP-compatible client (Claude Desktop, Cursor, Continue). `expected_state_drift` is deployment-mode agnostic — it diffs a pushed expected-state source (Helm / Helmfile / Kustomize / raw manifests) at a pinned version against the live cluster.
 
 ### Claude Desktop
 
@@ -283,6 +350,7 @@ Several constraints are intentional or known:
 - **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
 - **LLM performance is local-hardware-dependent.** Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.
 - **Primary validated inputs: Kubernetes events and Helm drift.** Prometheus, Loki, and OTel collectors exist and are wired in, but the E2E demo and validated test cases currently focus on the K8s events + Helm drift path.
+- **Temporal anomaly detection (PatchTST) is experimental.** The PatchTST detector runs, but when Prometheus is absent the analyzer falls back to **synthetic history**, and short signals fall back to a z-score. Treat temporal anomaly scores as a supporting signal, not validated evidence, until they run on real Prometheus series.
 
 See [Roadmap](docs/roadmap.md) for what's next.
 

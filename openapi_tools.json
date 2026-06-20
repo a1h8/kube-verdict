@@ -34,7 +34,7 @@
     "type": "function",
     "function": {
       "name": "helm_drift",
-      "description": "Detect drift between a Helm release's declared values and the actual running Kubernetes resources. Returns a list of drifted fields with declared vs observed values.",
+      "description": "Detect drift between a Helm release's declared values and the actual running Kubernetes resources. Returns a list of drifted fields with declared vs observed values. Mode-aware: if an expected-state source has been pushed for the release (Helm / Helmfile / Kustomize / raw manifests), it is also rendered at its pinned version and diffed against live \u2014 see also the expected_state_drift tool.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -45,6 +45,14 @@
           "namespace": {
             "type": "string",
             "description": "Kubernetes namespace of the release"
+          },
+          "chart": {
+            "type": "string",
+            "description": "Pushed expected-state source name (default: release name)"
+          },
+          "chart_version": {
+            "type": "string",
+            "description": "Pinned version of the pushed source (default: latest pushed)"
           },
           "kubeconfig": {
             "type": "string",
@@ -94,6 +102,42 @@
         },
         "required": [
           "remediation_commands"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "expected_state_drift",
+      "description": "Detect drift between the EXPECTED state \u2014 rendered from a pushed enterprise source at a pinned version \u2014 and the live Kubernetes resources. Deployment-mode agnostic: the source may be a Helm chart, a Helmfile bundle, a Kustomize overlay, or raw/rendered manifests (Jsonnet/Tanka, CDK8s, ArgoCD/Flux output). Returns drifted fields with declared (rendered) vs observed values. The version is evidence: a different version renders a different expected baseline.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "chart": {
+            "type": "string",
+            "description": "Pushed expected-state source name (in the chart store)"
+          },
+          "version": {
+            "type": "string",
+            "description": "Pinned source version (default: latest pushed)"
+          },
+          "namespace": {
+            "type": "string",
+            "description": "Kubernetes namespace to compare against"
+          },
+          "kubeconfig": {
+            "type": "string",
+            "description": "Path to kubeconfig file (default: ~/.kube/config)"
+          },
+          "kube_context": {
+            "type": "string",
+            "description": "kubeconfig context to use"
+          }
+        },
+        "required": [
+          "chart",
+          "namespace"
         ]
       }
     }
