@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from knowledge.chart_store import ChartStore, EnterpriseChart
+from knowledge.chart_store import ChartStore
 from knowledge.chart_indexer import ChartIndexer
 
 
