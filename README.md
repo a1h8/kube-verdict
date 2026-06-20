@@ -22,7 +22,7 @@ Most Kubernetes outages are not caused by a single failing pod.
 
 When payment-service crashes, the on-call engineer opens five tabs simultaneously: pod logs, Kubernetes events, Helm history, Prometheus graphs, and the GitOps repo. Under pressure, at 2 AM, with three Slack threads open. The root cause is rarely where the alert fired — it's three hops away in a misconfigured Helm value or a drift between what was declared and what actually runs.
 
-KubeVerdict reduces that cognitive load. It starts from an Alertmanager incident signal, correlates Kubernetes events and Helm drift into a single evidence-grounded root cause analysis, ranks the diagnosis by confidence, and keeps a human approval gate before any remediation command touches production.
+KubeVerdict reduces that cognitive load. It starts from an Alertmanager incident signal, correlates Kubernetes events and Helm/GitOps drift against the expected state rendered from source, so the RCA starts from intent, not only from live symptoms — then ranks the diagnosis by confidence and keeps a human approval gate before any remediation command touches production.
 
 ---
 
@@ -35,6 +35,8 @@ KubeVerdict starts one step earlier: it reconstructs what *should* have been run
 This rendered expected state becomes the evidence anchor. KubeVerdict then compares it with the live cluster state, detects declared-vs-observed drift, and uses that drift to rank root-cause hypotheses.
 
 The LLM does not invent the diagnosis. It explains an evidence path built from rendered intent, runtime state, Kubernetes events, policy signals, temporal anomalies and incident memory.
+
+> Status: the current validated scenario set exercises the Helm-values-drift path. A stronger GitOps render-vs-live scenario should be promoted into the validated h0NN set before claiming full render-backed validation.
 
 > ArgoCD detects drift to decide whether to reconcile. KubeVerdict uses the same diff as RCA evidence — not as a sync trigger.
 
