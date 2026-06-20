@@ -207,6 +207,7 @@ The same investigation is reachable through several surfaces:
 
 | Document | Content |
 |---|---|
+| [Anchor-by-render](docs/anchor-by-render.md) | The core concept: rendered Helm/GitOps intent as the evidence anchor, why-not-ArgoCD, honest status |
 | [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, anchor system design, drift detection |
 | [REST API](docs/api.md) | FastAPI endpoints, session lifecycle, request/response examples, SSE stream |
 | [UI reference](docs/ui.md) | Streamlit tabs, pipeline trace steps, anchor pivot table, reasoning journey, router decisions |

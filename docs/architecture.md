@@ -2,6 +2,28 @@
 
 KubeVerdict is a local, air-gapped Kubernetes RCA tool. No cluster data ever leaves the node.
 
+## Anchor-by-render
+
+The organising idea: KubeVerdict does not diagnose from the live cluster alone. It first
+reconstructs the **expected** state by rendering Helm/GitOps manifests (`helm template` with
+the full Helmfile value hierarchy), then compares that rendered intent against the observed
+cluster. Drift between the two becomes first-class RCA evidence — not a sync trigger.
+
+This is implemented by two cooperating layers, both detailed below:
+
+- **GitOps diff layer** — `GitopsCollector` → `ManifestRenderer` (`helm template`) →
+  `ManifestDiffer` (rendered vs observed → `gitops.*` annotations). See *GitOps diff layer*.
+- **Anchor layer, Source 2** — `AnchorEngine` reuses the same rendered output to extract the
+  *exact declared field values* (`spec.replicas`, image tags, resources…) as drift anchors,
+  with no heuristic Helm-value → K8s-field mapping. See *Anchor system design → Source 2*.
+
+The rendered path is **opt-in**: the `gitops` node is skipped when `GITOPS_ENABLED=false` or no
+`GITOPS_REPO_URL` is set, and the `AnchorEngine` then relies on Source 1 (K8s schema) plus the
+ingestion-time `HelmDriftDetector` (Helm-declared values vs live). The currently validated
+scenario set (h001–h010) exercises that Helm-values-drift path; a dedicated render-vs-live
+scenario is the next step to back the rendered path with a validated case. The narrative version
+of this concept lives in [anchor-by-render.md](anchor-by-render.md).
+
 ## Pipeline overview
 
 ```

@@ -1,6 +1,6 @@
 ---
 name: kube-verdict
-description: Root-cause analysis for Kubernetes incidents — correlates pod events, Helm value drift and manifest anchors into a ranked diagnosis with remediation commands, a rollback plan and a confidence score. Use when pods are crashlooping, OOMKilled, ImagePullBackOff, Pending or stuck, when a Helm release has drifted from its declared values, or to assess the blast radius of a kubectl/helm fix before applying it. Exposes kube_rca, helm_drift and blast_radius as tools; runs air-gapped via local Ollama.
+description: Anchor-by-render root-cause analysis for Kubernetes incidents — reconstructs the expected state from Helm/GitOps rendered manifests (when a chart or repo is available), compares it with the live cluster, and turns declared-vs-observed drift into a ranked diagnosis with remediation commands, a rollback plan and a confidence score. Use when pods are crashlooping, OOMKilled, ImagePullBackOff, Pending or stuck, when a Helm release has drifted from its declared values, or to assess the blast radius of a kubectl/helm fix before applying it. Exposes kube_rca, helm_drift and blast_radius as tools; runs air-gapped via local Ollama.
 license: Apache-2.0
 compatibility: Designed for Claude Code and MCP clients (Cursor, Continue). Runs air-gapped via Ollama + Mistral; requires Python 3.11+ and a read-only kubeconfig.
 metadata:
@@ -10,9 +10,15 @@ metadata:
 
 # KubeVerdict — Claude Code Skill
 
-KubeVerdict is an evidence-first Kubernetes incident decision engine.
+KubeVerdict is a GitOps-aware Kubernetes incident decision engine built on **anchor-by-render**:
+it reconstructs the expected state from Helm/GitOps rendered manifests and compares it with the
+live cluster, so drift becomes RCA evidence rather than the LLM guessing from live symptoms alone.
 Use it to run root-cause analysis, detect Helm drift, and assess remediation risk
 directly from a Claude Code session — no browser, no copy-pasting kubectl output.
+
+> The rendered-manifest path activates when a chart or GitOps repo is reachable
+> (`GITOPS_REPO_URL`); without one, KubeVerdict falls back to the Helm-values-drift +
+> K8s-schema anchor path. See [docs/anchor-by-render.md](docs/anchor-by-render.md).
 
 ## What this skill does
 
