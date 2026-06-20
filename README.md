@@ -1,8 +1,8 @@
 # KubeVerdict
 
-Evidence-first Kubernetes incident decision engine.
+GitOps-aware incident decision layer for Kubernetes.
 
-KubeVerdict correlates Kubernetes events and Helm drift into an evidence-grounded incident summary, then proposes human-approved remediation commands.
+KubeVerdict uses **anchor-by-render**: it reconstructs the expected state from Helm/GitOps rendered manifests, compares it with live Kubernetes reality, and turns drift into first-class RCA evidence before any LLM explanation or human-approved remediation.
 
 ✅ Air-gapped by default — Ollama + Mistral, no data leaves your infrastructure  
 ✅ No auto-remediation without explicit approval  
@@ -23,6 +23,20 @@ Most Kubernetes outages are not caused by a single failing pod.
 When payment-service crashes, the on-call engineer opens five tabs simultaneously: pod logs, Kubernetes events, Helm history, Prometheus graphs, and the GitOps repo. Under pressure, at 2 AM, with three Slack threads open. The root cause is rarely where the alert fired — it's three hops away in a misconfigured Helm value or a drift between what was declared and what actually runs.
 
 KubeVerdict reduces that cognitive load. It starts from an Alertmanager incident signal, correlates Kubernetes events and Helm drift into a single evidence-grounded root cause analysis, ranks the diagnosis by confidence, and keeps a human approval gate before any remediation command touches production.
+
+---
+
+## Anchor-by-render
+
+Most Kubernetes RCA tools start from live symptoms: events, logs, metrics and alerts.
+
+KubeVerdict starts one step earlier: it reconstructs what *should* have been running from Helm/GitOps rendered manifests.
+
+This rendered expected state becomes the evidence anchor. KubeVerdict then compares it with the live cluster state, detects declared-vs-observed drift, and uses that drift to rank root-cause hypotheses.
+
+The LLM does not invent the diagnosis. It explains an evidence path built from rendered intent, runtime state, Kubernetes events, policy signals, temporal anomalies and incident memory.
+
+> ArgoCD detects drift to decide whether to reconcile. KubeVerdict uses the same diff as RCA evidence — not as a sync trigger.
 
 ---
 
@@ -112,17 +126,25 @@ Confidence routing is evidence-first: two consecutive LOW results on the same hy
 **Pipeline:**
 
 ```
-K8s events + Helm values/drift
+Git / Helm / Helmfile / values
         ↓
-Ontology graph + anchor drift detection
+Rendered expected manifests
+        ↓
+Live Kubernetes state + Events
+        ↓
+Declared-vs-observed drift detection
+        ↓
+Logs / metrics / OPA-Kyverno policy evidence / incident memory
+        ↓
+Ontology graph + anchor scoring
         ↓
 BM25 + FAISS + RRF hybrid retrieval
         ↓
-Hypothesis ranking (evidence-weighted)
+Evidence-weighted hypothesis ranking
         ↓
-LLM root-cause analysis (evidence-grounded)
+LLM root-cause explanation
         ↓
-Human review gate → remediation commands
+Human review gate → remediation (current: break-glass · target: PR/MR-first)
 ```
 
 ---
@@ -283,6 +305,7 @@ Several constraints are intentional or known:
 - **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
 - **LLM performance is local-hardware-dependent.** Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.
 - **Primary validated inputs: Kubernetes events and Helm drift.** Prometheus, Loki, and OTel collectors exist and are wired in, but the E2E demo and validated test cases currently focus on the K8s events + Helm drift path.
+- **Temporal anomaly detection (PatchTST) is experimental.** The PatchTST detector runs, but when Prometheus is absent the analyzer falls back to **synthetic history**, and short signals fall back to a z-score. Treat temporal anomaly scores as a supporting signal, not validated evidence, until they run on real Prometheus series.
 
 See [Roadmap](docs/roadmap.md) for what's next.
 
