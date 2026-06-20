@@ -1,6 +1,6 @@
 # KubeVerdict
 
-GitOps-aware incident decision layer for Kubernetes.
+Enterprise-aware, LLM-light GitOps incident decision layer for Kubernetes.
 
 KubeVerdict uses **anchor-by-render**: it reconstructs the expected state from Helm/GitOps rendered manifests, compares it with live Kubernetes reality, and turns drift into first-class RCA evidence before any LLM explanation or human-approved remediation.
 
@@ -39,6 +39,31 @@ The LLM does not invent the diagnosis. It explains an evidence path built from r
 > Status: the current validated scenario set exercises the Helm-values-drift path. A stronger GitOps render-vs-live scenario should be promoted into the validated h0NN set before claiming full render-backed validation.
 
 > ArgoCD detects drift to decide whether to reconcile. KubeVerdict uses the same diff as RCA evidence — not as a sync trigger.
+
+---
+
+## Enterprise anchors, not generic RCA
+
+KubeVerdict does not ask an LLM to guess the root cause. It builds **typed evidence anchors** —
+probes, resources, images, services, dependencies, policies, owners, releases, chart values —
+from deterministic sources, ranks RCA hypotheses from them, and uses the LLM **only to explain
+the ranked verdict**.
+
+The evidence sources it can draw on, and how far each is proven today:
+
+| Evidence source | Status |
+|---|---|
+| Helm value drift (declared vs live) | **validated** (h001–h010) |
+| Kubernetes events / runtime state | **validated** |
+| Resolved-incident memory (past human-approved fixes) | **wired & populated** — `knowledge/example_store.py`, 221 examples in `data/examples`, indexed into FAISS |
+| Policy reports (Kyverno / OPA `PolicyReport`) | **wired** — ingested as `PolicyViolation` evidence |
+| Rendered Helm/GitOps manifests (expected state) | **opt-in** — activates with `GITOPS_REPO_URL` |
+| Enterprise docs / runbooks / SOPs | **pluggable** — `knowledge/doc_indexer.py` indexes `EnterpriseDoc` chunks; no corpus ships by default |
+
+Because the diagnosis is assembled from deterministic anchors *before* the model runs,
+KubeVerdict is **LLM-light**: less hallucination, more reproducibility, and an auditable evidence
+path — the properties a platform or SRE team needs before trusting and signing off on a
+remediation.
 
 ---
 
