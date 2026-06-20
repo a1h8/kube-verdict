@@ -210,6 +210,51 @@ class TestChartIndexerKustomize:
         assert any("version=2.0.0" in t and "spec.replicas=5" in t for t in texts)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Wiring — index_node renders + indexes pushed charts into the evidence store
+# ─────────────────────────────────────────────────────────────────────────────
+
+class _DummyConn:
+    def close(self) -> None:
+        pass
+
+
+class TestIndexNodeWiring:
+    def test_pushed_chart_becomes_an_evidence_anchor(self, tmp_path, monkeypatch):
+        from vectorstore.store import FAISSStore
+        # Keep it a unit test: no disk index / DB writes.
+        monkeypatch.setattr(FAISSStore, "save", lambda self: None)
+        monkeypatch.setattr(FAISSStore, "persist_texts", lambda self, conn: None)
+        monkeypatch.setattr("persistence.db.get_db", lambda: _DummyConn())
+
+        from ontology.entities import Deployment
+        from ontology.graph import OntologyGraph
+        from workflow.nodes import index_node
+
+        def _graph():
+            g = OntologyGraph()
+            g.add_entity(Deployment(uid="d1", name="payment-service",
+                                    namespace="prod", replicas=1, ready_replicas=0))
+            return g
+
+        # Baseline: identical graph, no pushed charts.
+        cfg_a = {"configurable": {"graph": _graph()}}
+        index_node({}, cfg_a)
+        size_a = cfg_a["configurable"]["store"].size
+
+        # Same graph, but one pushed (manifests) chart in the store.
+        store = ChartStore(data_dir=tmp_path / "charts")
+        store.push("payment-service", "1.0.0",
+                   _manifests_source(tmp_path / "src", 3), render_type="manifests")
+        cfg_b = {"configurable": {"graph": _graph(),
+                                  "chart_dir": str(tmp_path / "charts")}}
+        index_node({}, cfg_b)
+        size_b = cfg_b["configurable"]["store"].size
+
+        # Exactly one extra vector: the rendered chart resource anchor.
+        assert size_b == size_a + 1
+
+
 @pytest.mark.skipif(shutil.which("helm") is None, reason="helm binary not installed")
 class TestChartIndexerHelm:
     def test_helm_render_differs_by_version(self, tmp_path):
