@@ -1,6 +1,6 @@
 # KubeVerdict
 
-Enterprise-aware, LLM-light GitOps incident decision layer for Kubernetes.
+Enterprise-aware, LLM-light, GitOps forensic layer for Kubernetes incidents.
 
 KubeVerdict uses **anchor-by-render**: it reconstructs the expected state from Helm/GitOps rendered manifests, compares it with live Kubernetes reality, and turns drift into first-class RCA evidence before any LLM explanation or human-approved remediation.
 
