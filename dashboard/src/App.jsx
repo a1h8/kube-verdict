@@ -214,8 +214,10 @@ function Hero() {
             lineHeight: 1.6,
           }}
         >
-          AI-assisted Kubernetes incident analysis with evidence-grounded RCA
-          and human-gated remediation.
+          GitOps-aware, LLM-light Kubernetes incident analysis built on
+          anchor-by-render: it compares the expected state rendered from
+          Helm/GitOps against live cluster reality, turning drift into
+          evidence-grounded RCA with human-gated remediation.
         </p>
         <p
           style={{
@@ -225,8 +227,9 @@ function Hero() {
             maxWidth: 580,
           }}
         >
+          GitOps intent → rendered manifests → live state → drift → verdict.
           Correlates Kubernetes events, Helm drift, Prometheus alerts, OTel
-          traces and Loki logs to reduce incident investigation time.
+          traces and Loki logs to rank the diagnosis.
         </p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <Btn href="#/journey" primary external={false}>
