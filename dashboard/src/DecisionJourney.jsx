@@ -19,6 +19,7 @@ const EDGE = {
   no_go:     { icon: "⛔", fg: "#f87171" },
 };
 const RISK = { LOW: "#34d399", MEDIUM: "#fbbf24", HIGH: "#fb923c", CRITICAL: "#f87171" };
+const SEV = { critical: "#f87171", warning: "#fbbf24", info: "#60a5fa" };
 
 const box = { background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 16 };
 
@@ -57,6 +58,56 @@ function VerdictBanner({ state }) {
           {state.verdict_reasons.map((r, i) => <li key={i}>{r}</li>)}
         </ul>
       )}
+    </div>
+  );
+}
+
+// The anchor-by-render wedge, made visible: the EXPECTED state is reconstructed
+// by rendering the chart with `helm template`, then diffed against the live
+// cluster. Each row shows declared → observed per field, so the verdict rests on
+// concrete render-vs-live evidence rather than an LLM guess.
+function EvidencePanel({ state }) {
+  const rows = state.drift_evidence || [];
+  if (!rows.length) return null;
+  const crit = rows.reduce(
+    (n, r) => n + (r.diffs || []).filter((d) => d.severity === "critical").length, 0);
+  return (
+    <div style={box}>
+      <h3 style={{ color: C.text, marginBottom: 2 }}>
+        Evidence — expected state (helm template) vs live
+      </h3>
+      <p style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>
+        Rendered intent → live diff · {rows.length} resource(s)
+        {crit > 0 && <> · <span style={{ color: SEV.critical }}>{crit} critical</span></>}
+      </p>
+      {rows.map((r, i) => (
+        <div key={i} style={{ marginBottom: i < rows.length - 1 ? 14 : 0 }}>
+          <div style={{ color: C.text, fontSize: 13.5, marginBottom: 6 }}>
+            <code style={{ color: C.sub }}>{r.kind}</code>{" "}
+            {r.namespace && <span style={{ color: C.dim }}>{r.namespace}/</span>}
+            <b>{r.name}</b>
+          </div>
+          {(r.diffs || []).map((d, j) => {
+            const fg = SEV[d.severity] || C.sub;
+            return (
+              <div key={j} style={{ display: "flex", alignItems: "baseline", gap: 8,
+                flexWrap: "wrap", borderLeft: `2px solid ${fg}`, paddingLeft: 10,
+                marginBottom: 5, fontSize: 13 }}>
+                <code style={{ color: C.sub, minWidth: 220 }}>{d.field_path}</code>
+                <span style={{ color: C.dim }}>declared</span>
+                <b style={{ color: C.text }}>{String(d.declared)}</b>
+                <span style={{ color: fg }}>→ live</span>
+                <b style={{ color: fg }}>{String(d.observed)}</b>
+                <span style={{ color: fg, fontSize: 11, textTransform: "uppercase",
+                  letterSpacing: 0.5 }}>{d.severity}</span>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+      <div style={{ color: C.dim, fontSize: 11, marginTop: 12 }}>
+        source: rendered intent → live diff <code style={{ color: C.sub }}>[render-vs-live]</code>
+      </div>
     </div>
   );
 }
@@ -432,6 +483,7 @@ export default function DecisionJourney() {
               {status === "running" && " · polling…"}
             </div>
             {state.verdict && <VerdictBanner state={state} />}
+            <EvidencePanel state={state} />
             <ReviewGate sessionId={sessionId} state={state} busy={status === "running"} onDecision={decide} />
             <IntrospectionPanel
               sessionId={sessionId}

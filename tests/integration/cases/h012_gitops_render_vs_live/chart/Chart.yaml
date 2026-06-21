@@ -1,0 +1,9 @@
+apiVersion: v2
+name: api
+version: 1.4.0
+description: >-
+  h012 render-vs-live fixture chart. Declares the team's intended state
+  (replicaCount: 3, resources.limits.memory: 512Mi). KubeVerdict renders this
+  with `helm template` to reconstruct the EXPECTED state, then diffs it against
+  the OBSERVED cluster (replicas=1, memory=128Mi, OOMKilled) — proving the
+  anchor-by-render path: rendered intent → declared-vs-observed drift evidence.
