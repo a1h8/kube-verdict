@@ -58,6 +58,7 @@ def _state_to_response(session: Session) -> SessionState:
         path_confidence_history  = s.get("path_confidence_history") or [],
         edge_log                 = [EdgeEntry(**e) for e in raw_log],
         ingestion_stats    = s.get("ingestion_stats") or {},
+        drift_evidence     = s.get("drift_evidence") or [],
         report             = report or None,
         events             = report.get("events") or [],
         traces             = report.get("traces") or [],

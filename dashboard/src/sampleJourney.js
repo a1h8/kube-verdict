@@ -85,6 +85,17 @@ export const SAMPLE_JOURNEY = {
       snapshot: { confidence: "HIGH", score: 0.85, risk: "MEDIUM" },
     },
   ],
+  drift_evidence: [
+    {
+      kind: "Deployment",
+      name: "payment-api",
+      namespace: "production",
+      diffs: [
+        { field_path: "spec.replicas", declared: "3", observed: "1", severity: "critical" },
+        { field_path: "container.payment-api.resources.memory", declared: "512Mi", observed: "128Mi", severity: "warning" },
+      ],
+    },
+  ],
   ingestion_stats: {
     k8s: { fallback: false },
     helm: { fallback: false },
