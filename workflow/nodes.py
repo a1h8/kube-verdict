@@ -46,6 +46,46 @@ def _stats(state: RCAState, step: str, data: dict) -> dict:
     return {"ingestion_stats": current}
 
 
+# Parses the fixed DriftItem.to_text() format written by ManifestDiffer as
+# `gitops.<field_path>` annotations. Greedy declared/observed terminated by the
+# trailing ` severity=<sev>`, so values containing spaces survive intact.
+_GITOPS_DRIFT_RE = re.compile(
+    r"^drift field=(?P<fp>\S+) declared=(?P<dec>.*) observed=(?P<obs>.*) "
+    r"severity=(?P<sev>\S+)$"
+)
+
+
+def _render_evidence_rows(graph: Any) -> list[dict]:
+    """
+    Extract structured render-vs-live drift from the graph for the UI.
+
+    GitopsCollector renders the chart with `helm template` and writes each
+    discrepancy as a ``gitops.<field_path>`` annotation (DriftItem.to_text()).
+    We group those back per entity so the Decision Journey can show the
+    expected-state-vs-live diff that grounds the verdict.
+    """
+    rows: list[dict] = []
+    for entity in graph.entities():
+        diffs: list[dict] = []
+        for value in entity.annotations.values():
+            m = _GITOPS_DRIFT_RE.match(str(value))
+            if m:
+                diffs.append({
+                    "field_path": m.group("fp"),
+                    "declared": m.group("dec"),
+                    "observed": m.group("obs"),
+                    "severity": m.group("sev"),
+                })
+        if diffs:
+            rows.append({
+                "kind": getattr(entity.kind, "value", str(entity.kind)),
+                "name": entity.name,
+                "namespace": entity.namespace or "",
+                "diffs": sorted(diffs, key=lambda d: d["field_path"]),
+            })
+    return sorted(rows, key=lambda r: (r["kind"], r["name"]))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -303,9 +343,11 @@ def gitops_node(state: RCAState, config: RunnableConfig) -> dict:
         log.info("gitops: %d drift(s) found, %d critical", len(drifts), critical)
 
         config.setdefault("configurable", {})["provider"] = provider
-        return _stats(state, "gitops", {
+        update = _stats(state, "gitops", {
             "drifts": len(drifts), "critical": critical, "fallback": False,
         })
+        update["drift_evidence"] = _render_evidence_rows(graph)
+        return update
 
     except Exception as exc:
         log.warning("gitops node failed (%s) — continuing without gitops data", exc)

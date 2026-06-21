@@ -28,6 +28,17 @@ const SAMPLE = {
     { router: "confidence", edge_taken: "next_path", reason: "LOW×2", snapshot: { confidence: "LOW" } },
     { router: "policy", edge_taken: "review", reason: "production", snapshot: { score: 0.85 } },
   ],
+  drift_evidence: [
+    {
+      kind: "Deployment",
+      name: "payment-api",
+      namespace: "production",
+      diffs: [
+        { field_path: "spec.replicas", declared: "3", observed: "1", severity: "critical" },
+        { field_path: "container.payment-api.resources.memory", declared: "512Mi", observed: "128Mi", severity: "warning" },
+      ],
+    },
+  ],
   report: { root_cause: "No PV matches storageClass", remediation: ["kubectl apply -f pv.yaml"] },
   review_payload: {
     summary: "Review before applying remediation.",
@@ -149,6 +160,37 @@ describe("DecisionJourney", () => {
     expect(screen.getByText("next_path")).toBeInTheDocument();   // early path switch
     expect(screen.getAllByText(/review/).length).toBeGreaterThan(0); // human gate edge
     expect(screen.getByText(/LOW×2/)).toBeInTheDocument();        // switch reason
+  });
+
+  // ── render-vs-live evidence (anchor-by-render wedge) ───────────────────────
+  it("renders the render-vs-live evidence panel: declared → live per field", async () => {
+    loadSample.mockResolvedValue({ session_id: "smp", state: SAMPLE });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+    await screen.findByText("HUMAN REVIEW");
+
+    // panel header + provenance tag
+    expect(screen.getByText(/expected state \(helm template\) vs live/)).toBeInTheDocument();
+    expect(screen.getByText(/\[render-vs-live\]/)).toBeInTheDocument();
+    // the diffed resource + a concrete field with declared vs live values
+    expect(screen.getByText("payment-api")).toBeInTheDocument();
+    expect(screen.getByText("spec.replicas")).toBeInTheDocument();
+    expect(screen.getByText("512Mi")).toBeInTheDocument();
+    expect(screen.getByText("128Mi")).toBeInTheDocument();
+  });
+
+  it("hides the evidence panel when there is no render-vs-live drift", async () => {
+    loadSample.mockResolvedValue({
+      session_id: "smp",
+      state: { ...SAMPLE, drift_evidence: [] },
+    });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+    await screen.findByText("HUMAN REVIEW");
+
+    expect(screen.queryByText(/expected state \(helm template\) vs live/)).not.toBeInTheDocument();
   });
 
   it("renders a NO-GO verdict with its blocking reason", async () => {
