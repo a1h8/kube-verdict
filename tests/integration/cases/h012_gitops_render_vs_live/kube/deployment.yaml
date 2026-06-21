@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: production
+  uid: d9f3c21a-4e7b-11ef-a1b2-0242ac110099
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: api
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: api-1.4.0
+spec:
+  # Live: scaled down to 1 (declared 3) — replica drift
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/instance: api
+  strategy:
+    type: RollingUpdate
+  template:
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/acme/api:v2.3.1
+          resources:
+            # Live: 128Mi (declared 512Mi) — memory limit drift → OOMKilled
+            limits:
+              memory: 128Mi
+              cpu: "1"
+            requests:
+              memory: 64Mi
+              cpu: 200m
+status:
+  replicas: 1
+  readyReplicas: 0
+  availableReplicas: 0
+  unavailableReplicas: 1
