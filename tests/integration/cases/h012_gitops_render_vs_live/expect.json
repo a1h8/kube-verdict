@@ -1,0 +1,16 @@
+{
+  "scenario": "GitOps render-vs-live drift — `helm template` expected state (replicas=3, memory=512Mi) vs observed cluster (replicas=1, memory=128Mi, OOMKilled)",
+  "namespace": "production",
+  "release": "api",
+  "path": "render-vs-live",
+  "affected_resources": ["Deployment/production/api", "Pod/production/api-6d8f9b7c4-xvk2p"],
+  "root_cause_contains": ["OOMKilled", "memory", "512Mi", "128Mi", "replicas", "drift"],
+  "render_vs_live_drift": [
+    {"field_path": "spec.replicas", "declared": 3, "observed": 1, "severity": "critical"},
+    {"field_path": "container.api.resources.memory", "declared": "512Mi", "observed": "128Mi"}
+  ],
+  "expected_rules": ["oom_kill"],
+  "fix_commands_contain": ["helm upgrade", "memory"],
+  "confidence": "MEDIUM",
+  "notes": "Unlike h001-h011 (values.yaml vs stored helm release values), this case proves the anchor-by-render path: the EXPECTED state is reconstructed by rendering the chart with `helm template` (committed at rendered/expected.yaml), then diffed against the OBSERVED live cluster. The deterministic test diffs the committed rendered manifest (no helm binary required); the helm-guarded test re-renders the chart and asserts it still matches the committed golden."
+}

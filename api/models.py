@@ -83,6 +83,11 @@ class SessionState(BaseModel):
     # Ingestion telemetry — KOs per collector
     ingestion_stats: dict[str, Any] = Field(default_factory=dict)
 
+    # Render-vs-live evidence — `helm template` expected state diffed against the
+    # live cluster, grouped per entity. The anchor-by-render wedge made visible.
+    # [{kind, name, namespace, diffs:[{field_path, declared, observed, severity}]}]
+    drift_evidence: list[dict[str, Any]] = Field(default_factory=list)
+
     # Current report
     report: dict[str, Any] | None = None
 

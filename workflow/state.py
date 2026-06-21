@@ -26,6 +26,12 @@ class RCAState(TypedDict, total=False):
     # ── Ingestion telemetry ───────────────────────────────────────────────────
     ingestion_stats: dict[str, Any]  # per-step stats + fallbacks, written by nodes
 
+    # ── Render-vs-live evidence (anchor-by-render wedge) ──────────────────────
+    # Structured drift detected by diffing the `helm template` expected state
+    # against the live cluster. One row per entity, written by gitops_node.
+    # [{kind, name, namespace, diffs:[{field_path, declared, observed, severity}]}]
+    drift_evidence: list[dict]
+
     # ── Multi-path reasoning ─────────────────────────────────────────────────
     candidate_paths: list[str]    # remaining hypotheses to explore (popped FIFO)
     current_hypothesis: str       # hypothesis under analysis ("" = use raw query)

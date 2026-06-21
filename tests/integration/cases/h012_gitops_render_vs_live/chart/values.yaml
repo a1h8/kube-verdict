@@ -1,0 +1,16 @@
+# Declared intent — what the team wants deployed (the source of truth).
+# A prior `helm upgrade --set replicaCount=1 --set resources.limits.memory=128Mi`
+# overrode these live, but values.yaml (this file) is still the declared state.
+replicaCount: 3
+
+image:
+  repository: ghcr.io/acme/api
+  tag: v2.3.1
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    memory: 512Mi
+    cpu: "1"
+  requests:
+    cpu: 200m
