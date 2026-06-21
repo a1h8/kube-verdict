@@ -204,8 +204,11 @@ Ten failure patterns reproduced end-to-end in CI as offline fixtures — no clus
 | Init container failing — DB migration exits 1 | h008 | `Init:0/1` detection, init-container log correlation, root-cause on migration failure |
 | Liveness probe too aggressive — kills healthy pods | h009 | probe-timeout drift (`timeoutSeconds` declared vs deployed) → `helm upgrade` fix |
 | ResourceQuota exceeded — pod stuck Pending | h010 | `ResourceQuota` entity, namespace quota correlation, pending-pod root cause |
+| GitOps render-vs-live drift — OOMKilled (fixture) | h012 | `helm template` expected state diffed vs live cluster (replicas 3→1, memory 512Mi→128Mi); `oom_kill` ranked H1 |
 
-Each case has a `test_hybrid_pipeline_NNN.py` running the full pre-LLM pipeline: graph construction → hybrid retrieval (BM25 + FAISS + RRF) → context building → anchor/drift/policy scoring → proposal generation. A further case — **h011 (StatefulSet update stuck on a bound PVC)** — is wired in but not yet passing its confidence/resolvable-path assertions; it is a good first contribution.
+Cases h001–h010 each have a `test_hybrid_pipeline_NNN.py` running the full pre-LLM pipeline: graph construction → hybrid retrieval (BM25 + FAISS + RRF) → context building → anchor/drift/policy scoring → proposal generation. A further case — **h011 (StatefulSet update stuck on a bound PVC)** — is wired in but not yet passing its confidence/resolvable-path assertions; it is a good first contribution.
+
+**h012** (`test_render_vs_live_h012.py`) validates the **anchor-by-render** path: the expected state is reconstructed by rendering the chart with `helm template` (committed as evidence) and diffed against the observed cluster. The diff/ranking runs deterministically in CI with **no helm binary**; a helm-guarded check re-renders the chart to keep the committed golden faithful. It is a **fixture-based** scenario — it demonstrates the render-vs-live evidence flow, not production-grade telemetry.
 
 ---
 
@@ -341,6 +344,20 @@ for call in response.choices[0].message.tool_calls:
 
 ---
 
+## Temporal evidence (PatchTST)
+
+KubeVerdict treats PatchTST as a **supporting temporal-evidence layer, not the root-cause engine. It does not predict incidents.**
+
+The temporal detector (`signals/patchtst_detector.py`) can produce forecast residuals, reconstruction errors, z-score fallbacks and regime-transition signals. These **strengthen or weaken** RCA hypotheses already grounded in GitOps intent, rendered manifests, Kubernetes runtime evidence, policy violations and incident memory.
+
+**Status — experimental.** When Prometheus is absent the analyzer falls back to synthetic / fixture-based history, and short signals fall back to a z-score. These scenarios illustrate the evidence flow; they are **not production-grade incident prediction** until real Prometheus-backed telemetry is connected and validated. Treat temporal anomaly scores as a supporting signal, not validated evidence.
+
+> Read it as *"PatchTST provides temporal evidence that strengthens or weakens KubeVerdict RCA hypotheses"* — **not** *"KubeVerdict predicts incidents with PatchTST."*
+
+**Attribution.** The PatchTST model is consumed via the HuggingFace [`transformers`](https://github.com/huggingface/transformers) implementation of *"A Time Series is Worth 64 Words: Long-term Forecasting with Transformers"* (Nie et al., ICLR 2023) — original implementation: [yuqinie98/PatchTST](https://github.com/yuqinie98/PatchTST) (Apache-2.0). KubeVerdict vendors no PatchTST source; `signals/patchtst_detector.py` is an original detector built on the library model. A companion operational fork — [a1h8/PatchTST](https://github.com/a1h8/PatchTST) — adapts PatchTST into a temporal-evidence pipeline for KubeVerdict.
+
+---
+
 ## Current limitations
 
 Several constraints are intentional or known:
@@ -350,7 +367,7 @@ Several constraints are intentional or known:
 - **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
 - **LLM performance is local-hardware-dependent.** Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.
 - **Primary validated inputs: Kubernetes events and Helm drift.** Prometheus, Loki, and OTel collectors exist and are wired in, but the E2E demo and validated test cases currently focus on the K8s events + Helm drift path.
-- **Temporal anomaly detection (PatchTST) is experimental.** The PatchTST detector runs, but when Prometheus is absent the analyzer falls back to **synthetic history**, and short signals fall back to a z-score. Treat temporal anomaly scores as a supporting signal, not validated evidence, until they run on real Prometheus series.
+- **Temporal anomaly detection (PatchTST) is experimental** and a *supporting* signal only — see [Temporal evidence (PatchTST)](#temporal-evidence-patchtst). Until it runs on real Prometheus series it falls back to synthetic/fixture history and z-scores; it is not validated evidence and does not predict incidents.
 
 See [Roadmap](docs/roadmap.md) for what's next.
 
