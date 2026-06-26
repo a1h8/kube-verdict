@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-19T03:33:54.698496+00:00",
+  "generated_at": "2026-06-26T01:31:55.201294+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
@@ -7,7 +7,8 @@
     "Deep Observability",
     "Production Hardening",
     "Common Interface",
-    "Real-world validation"
+    "Real-world validation",
+    "Next / Frontier"
   ],
   "blocs": [
     {
@@ -366,6 +367,43 @@
       ],
       "status": "TODO",
       "phase": "Real-world validation"
+    },
+    {
+      "id": "B14",
+      "title": "Next / Frontier",
+      "description": "Forward-looking backlog \u2014 each item a deterministic check so the frontier is tracked, not invisible prose. Most are TODO by design; they turn green only when the capability actually lands.",
+      "checks": [
+        {
+          "label": "Evidence Lineage \u2014 dedup raw signals by owner + error family + window \u2192 lineage graph",
+          "done": false
+        },
+        {
+          "label": "Monte Carlo Tree Search \u2014 UCB1 selection + rollout + backprop (replaces greedy beam)",
+          "done": false
+        },
+        {
+          "label": "More h-series cases (h013+: network latency, cert expiry, etcd compaction)",
+          "done": false
+        },
+        {
+          "label": "Helmfile multi-release integration case (interdependent releases)",
+          "done": false
+        },
+        {
+          "label": "Multi-cluster support \u2014 analyse multiple contexts in one session",
+          "done": false
+        },
+        {
+          "label": "Alertmanager webhook (production) \u2014 dedup, grouping, silences, multi-tenant routing",
+          "done": false
+        },
+        {
+          "label": "Slack / PagerDuty enrichment \u2014 push RCA summary via webhook",
+          "done": false
+        }
+      ],
+      "status": "TODO",
+      "phase": "Next / Frontier"
     }
   ]
 }
