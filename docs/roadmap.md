@@ -104,9 +104,16 @@ The credibility jump: move from synthetic fixtures (h001–h010) to real capture
 Each milestone is a recorded artifact that flips a deterministic check — cadence you can see,
 not motivation. Sequence matters: each unlocks the next.
 
-- [ ] **Prometheus wired to real data** — a live run captured (not a fixture), proving the Prometheus collector against a real endpoint; evidence in `docs/evidence/prometheus-live.md`
-- [ ] **First real incident captured end-to-end** — a real RCA run frozen as a golden artifact (`tests/golden/real_001.json`): the first verdict that did not come from synthetic data
-- [ ] **Second real incident captured** — `tests/golden/real_002.json`, the baseline for the golden-scenario regression diff (see B11)
+Captured by `tools/b13_capture.py` against a live k3d/k3s cluster: deploy the scenario manifest →
+wait for the **real** failure state → run the canonical investigation pipeline live (real
+`K8sCollector` + Prometheus via the apiserver service-proxy) → freeze the verdict. These are
+**captured snapshots, not deterministic CI baselines** — a live LLM + Monte-Carlo verdict varies
+run to run, so `real_00N.json` is provenance evidence and is *not* wired into the B11 regression
+guard. See `docs/evidence/prometheus-live.md`.
+
+- [x] **Prometheus wired to real data** — live run captured against the real `kube-prometheus-stack` endpoint (`fallback=False`); evidence in `docs/evidence/prometheus-live.md`
+- [x] **First real incident captured end-to-end** — h001 crashloop on a live cluster → real LLM root cause + verdict frozen in `tests/golden/real_001.json` (the first verdict not from synthetic data)
+- [x] **Second real incident captured** — h002 ImagePullBackOff captured live in `tests/golden/real_002.json` (snapshot; the B11 regression baseline stays on the synthetic h001–h010 set, since a live verdict is non-deterministic)
 
 ## Next / Frontier (B14)
 
