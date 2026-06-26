@@ -1,0 +1,5 @@
+{
+  "risk": "MEDIUM",
+  "rollback_available": true,
+  "verdict": "HUMAN_REVIEW"
+}
