@@ -3,24 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KubeVerdict — Kubernetes Incident Decision Engine</title>
+    <title>KubeVerdict — GitOps forensic layer for Kubernetes incidents</title>
     <meta
       name="description"
-      content="KubeVerdict turns Alertmanager alerts into evidence-grounded Kubernetes RCA by correlating live Kubernetes events and Helm drift, ranking confidence, estimating remediation impact, and keeping a human approval gate before any command touches production."
+      content="Enterprise-aware, LLM-light GitOps forensic layer for Kubernetes incidents. Anchor-by-render reconstructs the expected state from Helm/GitOps rendered manifests, compares it with live Kubernetes reality, and turns drift into first-class RCA evidence before any LLM explanation or human-approved remediation."
     />
     <link rel="canonical" href="https://a1h8.github.io/kube-verdict/" />
 
     <!-- Open Graph (LinkedIn / Slack / Discord / Facebook) -->
-    <meta property="og:title" content="KubeVerdict — Kubernetes Incident Decision Engine" />
-    <meta property="og:description" content="Alertmanager → evidence-grounded RCA → human approval → recovery for Kubernetes incidents." />
+    <meta property="og:title" content="KubeVerdict — GitOps forensic layer for Kubernetes incidents" />
+    <meta property="og:description" content="KubeVerdict proves where Kubernetes runtime diverged from GitOps intent — drift as first-class RCA evidence, LLM-light, human-gated remediation." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://a1h8.github.io/kube-verdict/" />
     <meta property="og:image" content="https://a1h8.github.io/kube-verdict/og-image.png" />
 
     <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="KubeVerdict — Kubernetes Incident Decision Engine" />
-    <meta name="twitter:description" content="Evidence-first Kubernetes RCA with blast radius, rollback and human-gated remediation." />
+    <meta name="twitter:title" content="KubeVerdict — GitOps forensic layer for Kubernetes incidents" />
+    <meta name="twitter:description" content="Enterprise-aware, LLM-light GitOps forensic layer for Kubernetes incidents — anchor-by-render drift evidence, human-gated remediation." />
     <meta name="twitter:image" content="https://a1h8.github.io/kube-verdict/og-image.png" />
 
     <style>
@@ -35,15 +35,16 @@
            without rendering JavaScript. -->
       <main style="max-width: 760px; margin: 0 auto; padding: 48px 22px; font-family: system-ui, sans-serif; color: #e2e8f0;">
         <h1>KubeVerdict</h1>
-        <p>Evidence-first Kubernetes incident decision engine.</p>
+        <p>Enterprise-aware, LLM-light, GitOps forensic layer for Kubernetes incidents.</p>
         <p>
-          KubeVerdict turns Alertmanager alerts into evidence-grounded Kubernetes RCA
-          by correlating live Kubernetes events and Helm drift, ranking confidence,
-          estimating remediation impact, and keeping a human approval gate before any
-          command touches production.
+          KubeVerdict proves where Kubernetes runtime diverged from GitOps intent. Using
+          anchor-by-render, it reconstructs the expected state from Helm/GitOps rendered
+          manifests, compares it with live Kubernetes reality, and turns drift into
+          first-class RCA evidence — before any LLM explanation or human-approved
+          remediation.
         </p>
         <h2>Workflow</h2>
-        <p>Alertmanager → Kubernetes evidence → RCA → blast radius → rollback → human approval → recovery.</p>
+        <p>Render expected state from Helm/GitOps → compare with live Kubernetes → drift as first-class RCA evidence → confidence ranking → human approval → recovery.</p>
         <p>
           <a href="https://github.com/a1h8/kube-verdict">View on GitHub</a> ·
           <a href="https://github.com/a1h8/kube-verdict#quick-start">Run locally</a>
