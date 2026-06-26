@@ -2,7 +2,7 @@
 
 Blocs are grouped into maturity phases on the live dashboard — **Foundation** (B1–B5),
 **Decision Engine** (B6), **Distribution & Skills** (B7–B8), **Deep Observability** (B9–B10),
-**Production Hardening** (B11), **Common Interface** (B12), and **Real-world validation** (B13). Status is computed on
+**Production Hardening** (B11), **Common Interface** (B12), **Real-world validation** (B13), and **Next / Frontier** (B14). Status is computed on
 each deploy by `tools/roadmap.py` from deterministic file/tag checks — not a self-graded
 score. A check stays red until the thing it verifies actually exists (e.g. B7's release check
 only turns green once a `v*` tag is pushed and the image is really built, not just because the
@@ -61,9 +61,9 @@ The beam-search engine already records every routing decision (`edge_log`), ever
 - [x] **API: expose reasoning + verdict in `/state`** — `GET /sessions/{id}/state` returns `reasoning_history`, `edge_log`, and the policy `verdict` / `verdict_reasons`, so a consumer renders the decision without backend changes
 - [x] **Edge-log timeline** — chronological list of `edge_log` events: router name, edge taken (`retry` / `next_path` / `review`), reason text, and the confidence/score snapshot (Decision Journey `Timeline`)
 - [x] **Eliminated-paths panel** — each `reasoning_history` entry: hypothesis, confidence, retries before elimination, summary — chosen ✓ vs eliminated ✕ (Decision Journey `Paths`)
-- [ ] **Fallback-status overlay** — per-collector badge row (ingest / prometheus / metrics / otel / gitops / anchor / signals): green OK or red FALLBACK with the error message as tooltip; surfaces exactly `ingestion_stats[*].fallback + error`
-- [ ] **Beam-search tree** — SVG dag: active path in blue, archived branches in gray, edges labeled with confidence score; node size proportional to retry count; eliminated leaves marked with an ✕ and the elimination reason on hover
-- [ ] **Live SSE refresh** — introspection panel subscribes to the existing `/stream` endpoint and re-renders each section as new `edge_log` entries or `reasoning_history` entries arrive, giving operators real-time visibility during a running session
+- [x] **Fallback-status overlay** — per-collector badge row (ingest / prometheus / metrics / otel / gitops / anchor / signals): green OK or red FALLBACK with the error message as tooltip; surfaces exactly `ingestion_stats[*].fallback + error` (`FallbackStatus` in `dashboard/src/DecisionJourney.jsx`)
+- [x] **Beam-search tree** — SVG dag: active path in blue, archived branches in gray, edges labeled with confidence score; node size proportional to retry count; eliminated leaves marked with an ✕ and the elimination reason on hover (`BeamTree` in `dashboard/src/DecisionJourney.jsx`)
+- [x] **Live SSE refresh** — introspection panel subscribes to the existing `/stream` endpoint and re-renders each section as new `edge_log` entries or `reasoning_history` entries arrive, giving operators real-time visibility during a running session (`IntrospectionPanel` `EventSource` in `dashboard/src/DecisionJourney.jsx`)
 
 ## Loki Full Integration (B10)
 
@@ -108,7 +108,11 @@ not motivation. Sequence matters: each unlocks the next.
 - [ ] **First real incident captured end-to-end** — a real RCA run frozen as a golden artifact (`tests/golden/real_001.json`): the first verdict that did not come from synthetic data
 - [ ] **Second real incident captured** — `tests/golden/real_002.json`, the baseline for the golden-scenario regression diff (see B11)
 
-## Next
+## Next / Frontier (B14)
+
+Forward-looking backlog — now tracked by `tools/roadmap.py` so the frontier is visible in the
+dashboard count instead of invisible prose. Every item below is TODO by design; each turns green
+only when the capability actually lands.
 
 - [ ] **Evidence Lineage** — dedup raw signals by Kubernetes owner + error family + time window; build lineage graph (evidence → root cause → remediation nodes/edges); expose ranked reasoning paths with alternatives in API and UI
 - [ ] **Monte Carlo Tree Search** — replace greedy beam search with MCTS: UCB1 node selection, rollout via LLM, backpropagation of confidence scores across hypothesis tree
