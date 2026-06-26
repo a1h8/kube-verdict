@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-26T01:31:55.201294+00:00",
+  "generated_at": "2026-06-26T02:38:10.642834+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
@@ -354,18 +354,18 @@
       "checks": [
         {
           "label": "Prometheus wired to real data (a live run captured, not a fixture)",
-          "done": false
+          "done": true
         },
         {
           "label": "First real incident captured end-to-end (golden run frozen)",
-          "done": false
+          "done": true
         },
         {
           "label": "Second real incident captured (baseline for regression diff)",
-          "done": false
+          "done": true
         }
       ],
-      "status": "TODO",
+      "status": "DONE",
       "phase": "Real-world validation"
     },
     {
