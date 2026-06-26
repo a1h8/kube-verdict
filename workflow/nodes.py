@@ -454,6 +454,15 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
              built_store.size, anchor_count, chart_anchor_count)
 
     config.setdefault("configurable", {})["store"] = built_store
+    # Also refresh the thread-local infra cache: LangGraph does not reliably
+    # share a mutated config["configurable"] across nodes, so downstream nodes
+    # (analyze, example_lookup) read the store via _INFRA_CACHE. Without this,
+    # a live run that did not pre-pass a store sees store=None in analyze_node
+    # → silent error early-return → confidence=UNKNOWN → spurious NO_GO.
+    tid = config.get("configurable", {}).get("thread_id", "")
+    cached = _INFRA_CACHE.get(tid)
+    cached_graph = cached[0] if cached else graph
+    _INFRA_CACHE[tid] = (cached_graph, built_store)
     return {}
 
 
@@ -1448,6 +1457,12 @@ def example_lookup_node(state: RCAState, config: RunnableConfig) -> dict:
     loaded into state and example_match=True is set, allowing the graph router
     to skip the full analyze loop and go straight to select_best.
     """
+    # Reproducible captures / benchmarks force a fresh analysis every run instead
+    # of short-circuiting on a previously-saved example (off by default — the
+    # example cache is a feature in production).
+    if os.getenv("EXAMPLE_LOOKUP_DISABLED", "").lower() in ("1", "true", "yes"):
+        return {}
+
     _, store = _get_infra(config)
     if store is None:
         return {}
