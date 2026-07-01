@@ -424,6 +424,49 @@ def _blocs() -> list[dict]:
                 },
             ],
         },
+        {
+            "id": "B14",
+            "title": "Next / Frontier",
+            "description": "Forward-looking backlog — each item a deterministic check so the frontier is tracked, not invisible prose. Most are TODO by design; they turn green only when the capability actually lands.",
+            "checks": [
+                {
+                    "label": "Evidence Lineage — dedup raw signals by owner + error family + window → lineage graph",
+                    "done": _exists("reasoning/evidence_lineage.py")
+                    or _grep(r"EvidenceLineage|evidence_lineage|lineage_graph", "reasoning"),
+                },
+                {
+                    "label": "Monte Carlo Tree Search — UCB1 selection + rollout + backprop (replaces greedy beam)",
+                    "done": _exists("reasoning/mcts.py")
+                    or _grep(r"class MCTS|monte_carlo_tree|ucb1|UCB1", "reasoning"),
+                },
+                {
+                    "label": "More h-series cases (h013+: network latency, cert expiry, etcd compaction)",
+                    "done": _exists("tests/integration/cases") and any(
+                        re.match(r"h0(1[3-9]|[2-9]\d)", p.name)
+                        for p in (ROOT / "tests/integration/cases").iterdir() if p.is_dir()
+                    ),
+                },
+                {
+                    "label": "Helmfile multi-release integration case (interdependent releases)",
+                    "done": _exists("tests/integration/cases") and any(
+                        "helmfile" in p.name.lower()
+                        for p in (ROOT / "tests/integration/cases").iterdir() if p.is_dir()
+                    ),
+                },
+                {
+                    "label": "Multi-cluster support — analyse multiple contexts in one session",
+                    "done": _grep(r"multi.?cluster|list_contexts|for ctx in.*context", "ingestion", "api"),
+                },
+                {
+                    "label": "Alertmanager webhook (production) — dedup, grouping, silences, multi-tenant routing",
+                    "done": _grep(r"silence|dedup|group_by|grouping", "api/routes/webhook.py"),
+                },
+                {
+                    "label": "Slack / PagerDuty enrichment — push RCA summary via webhook",
+                    "done": _grep(r"pagerduty|slack_webhook|SLACK_WEBHOOK|notify_slack", "api", "remediation"),
+                },
+            ],
+        },
     ]
 
 
@@ -446,6 +489,7 @@ PHASES: list[tuple[str, list[str]]] = [
     ("Production Hardening", ["B11"]),
     ("Common Interface", ["B12"]),
     ("Real-world validation", ["B13"]),
+    ("Next / Frontier", ["B14"]),
 ]
 _PHASE_OF = {bid: name for name, ids in PHASES for bid in ids}
 
