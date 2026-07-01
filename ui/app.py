@@ -2937,6 +2937,94 @@ def _render_proposed_changes(ctx, case_name: str, case_type: str) -> None:
 # Pipeline Trace renderer  (no LLM — pre-LLM pipeline only)
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _render_vs_live_rows(case_type: str, data, graph) -> dict:
+    """
+    Anchor-by-render trace-step data: reconstruct the EXPECTED state from a
+    case's committed ``helm template`` golden (``rendered/expected.yaml``) and
+    diff it against the OBSERVED live graph.
+
+    Self-contained on purpose — it does not depend on collector-written
+    ``gitops.*`` annotations, and it compares resource *limits* directly
+    (limits-vs-limits) so the OOM-relevant memory limit surfaces without the
+    limits/requests ambiguity in ``ManifestDiffer._diff_resources``.
+
+    Returns ``{applicable, source, rows, note}``.
+    """
+    from pathlib import Path
+    import yaml
+
+    info: dict = {"applicable": False, "source": "", "rows": [], "note": ""}
+    case_dir = data.get("case_dir") if isinstance(data, dict) else None
+    if not case_dir:
+        info["note"] = (
+            "Render-vs-live applies to GitOps cases that ship a committed "
+            "`rendered/expected.yaml` (`helm template` golden), e.g. h012."
+        )
+        return info
+    rendered_path = Path(case_dir) / "rendered" / "expected.yaml"
+    if not rendered_path.exists():
+        info["note"] = (
+            "This case has no rendered expected-state (`rendered/expected.yaml`). "
+            "Its anchor source is helm-deployed values / K8s-schema — see the Anchors step."
+        )
+        return info
+
+    rendered = [d for d in yaml.safe_load_all(rendered_path.read_text()) if isinstance(d, dict)]
+    info["applicable"] = True
+    info["source"] = "rendered/expected.yaml"
+
+    def _find(kind, name):
+        return next(
+            (e for e in graph.entities()
+             if getattr(e.kind, "value", "") == kind and e.name == name),
+            None,
+        )
+
+    def _live_containers(ent):
+        raw = getattr(ent, "raw", None) or {}
+        kind = getattr(ent.kind, "value", "")
+        conts = (raw.get("spec", {}).get("containers", []) if kind == "Pod"
+                 else raw.get("spec", {}).get("template", {}).get("spec", {}).get("containers", []))
+        return {c.get("name", ""): c for c in (conts or [])}
+
+    rows: list[dict] = []
+    for m in rendered:
+        kind = m.get("kind", "")
+        name = m.get("metadata", {}).get("name", "")
+        spec = m.get("spec", {})
+        ent = _find(kind, name)
+        if ent is None:
+            if kind in ("Deployment", "StatefulSet", "Service", "ConfigMap", "Ingress"):
+                rows.append({"kind": "MISSING", "field": f"{kind}/{name}",
+                             "declared": "present", "observed": "missing", "severity": "critical"})
+            continue
+        if (kind in ("Deployment", "StatefulSet")
+                and spec.get("replicas") is not None and hasattr(ent, "replicas")
+                and spec["replicas"] != ent.replicas):
+            delta = abs(spec["replicas"] - ent.replicas)
+            rows.append({"kind": "REPLICAS", "field": "spec.replicas",
+                         "declared": spec["replicas"], "observed": ent.replicas,
+                         "severity": "critical" if delta > 1 else "warning"})
+        rspec = spec if kind == "Pod" else spec.get("template", {}).get("spec", {})
+        live = _live_containers(ent)
+        for cont in rspec.get("containers", []) or []:
+            cn = cont.get("name", "")
+            lc = live.get(cn, {})
+            d_img, o_img = cont.get("image", ""), lc.get("image", "")
+            if d_img and o_img and d_img != o_img:
+                rows.append({"kind": "IMAGE", "field": f"container.{cn}.image",
+                             "declared": d_img, "observed": o_img, "severity": "warning"})
+            d_lim = (cont.get("resources", {}) or {}).get("limits", {}) or {}
+            o_lim = (lc.get("resources", {}) or {}).get("limits", {}) or {}
+            for key, dv in d_lim.items():
+                ov = o_lim.get(key)
+                if ov is not None and str(dv) != str(ov):
+                    rows.append({"kind": "LIMITS", "field": f"container.{cn}.resources.limits.{key}",
+                                 "declared": dv, "observed": ov, "severity": "warning"})
+    info["rows"] = rows
+    return info
+
+
 def _render_pipeline_trace(run_btn, case_name, root_query, inp, case_type, data):
     """Step-by-step trace of the hybrid retrieval + context-building pipeline."""
     from tests.cases.graph_factory import build_graph
@@ -2960,6 +3048,7 @@ def _render_pipeline_trace(run_btn, case_name, root_query, inp, case_type, data)
                 graph = build_native_graph(data)
             else:
                 graph = build_helm_graph(data)
+            render_vs_live = _render_vs_live_rows(case_type, data, graph)
             store = FAISSStore(embedder=Embedder())
             store.index_graph(graph)
             ctx        = ContextBuilder(graph=graph, store=store).build(root_query)
@@ -2978,6 +3067,7 @@ def _render_pipeline_trace(run_btn, case_name, root_query, inp, case_type, data)
             "fused_hits": fused_hits,
             "hyps":       hyps,
             "prompt":     prompt,
+            "render":     render_vs_live,
         }
 
     c = st.session_state[cache_key]
@@ -3068,6 +3158,44 @@ def _render_pipeline_trace(run_btn, case_name, root_query, inp, case_type, data)
             st.markdown(f"**{len(ctx.events)} Warning event(s):**")
             for ev in ctx.events[:5]:
                 st.markdown(f"  - {ev[:200]}")
+
+    # ── Anchor-by-render: helm template expected state vs live cluster ────────
+    rvl = c.get("render") or {"applicable": False,
+                              "note": "Re-run the trace to compute render-vs-live."}
+    with st.expander(
+        "🎯 Render-vs-live — `helm template` expected state vs live cluster",
+        expanded=bool(rvl.get("applicable")),
+    ):
+        if not rvl.get("applicable"):
+            st.info(rvl.get("note", "Not applicable to this case."))
+        else:
+            st.caption(
+                f"Expected = rendered `{rvl['source']}` (committed `helm template` golden)  ·  "
+                "Observed = live cluster graph. This declared-vs-observed drift becomes RCA "
+                "evidence *before* any LLM — see `docs/anchor-by-render.md`."
+            )
+            rows = rvl.get("rows", [])
+            if not rows:
+                st.success("Rendered expected state matches the live cluster — no drift.", icon="✅")
+            else:
+                import pandas as pd
+                sev_icon = {"critical": "🔴", "warning": "🟠", "info": "🔵"}
+                st.dataframe(
+                    pd.DataFrame([{
+                        "drift":               r["kind"],
+                        "field":               r["field"],
+                        "declared (rendered)": str(r["declared"]),
+                        "observed (live)":     str(r["observed"]),
+                        "severity":            f"{sev_icon.get(r['severity'], '')} {r['severity']}",
+                    } for r in rows]),
+                    use_container_width=True, hide_index=True,
+                )
+                crit = sum(1 for r in rows if r["severity"] == "critical")
+                if crit:
+                    st.warning(
+                        f"{crit} critical render-vs-live drift(s) — declared GitOps intent "
+                        "diverged from the live cluster.", icon="🔴",
+                    )
 
     # ── Step 6: Anchors — pivot table declared → observed → fix ───────────────
     with st.expander(

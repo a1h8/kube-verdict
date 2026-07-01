@@ -80,10 +80,15 @@ before the model is called.
   reachable. Without one, KubeVerdict falls back to the **Helm-values-drift** path
   (`HelmDriftDetector`) plus the K8s-schema anchor source.
 - The currently **validated scenario set (h001–h010)** exercises that Helm-values-drift path.
-  A dedicated **`h0NN_gitops_render_vs_live`** scenario — `values.yaml → rendered manifest →
-  live object → declared-vs-observed diff → event/log signal → evidence-ranked RCA` — is the next
-  step to back the rendered path with a validated case. Until then, treat full render-backed
-  validation as a target, not a claim.
+- The render-vs-live path now has a dedicated validated case: **`h012_gitops_render_vs_live`**
+  (`values.yaml` → `helm template` rendered manifest → live object → declared-vs-observed diff →
+  OOMKilled event → evidence-ranked RCA). It is validated in two layers
+  (`tests/integration/test_render_vs_live_h012.py`): a **deterministic** diff of the committed
+  rendered golden (`rendered/expected.yaml`) against the observed graph, which runs on every CI
+  run with no helm binary; and a **helm-guarded** freshness test that re-runs the real
+  `ManifestRenderer` and asserts the chart still renders to the committed golden, so the evidence
+  cannot silently rot. The render-vs-live drift detection and OOM-ranks-H1 ranking are therefore
+  validated, not just claimed.
 
 ## See also
 
