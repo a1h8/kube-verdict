@@ -268,6 +268,17 @@ The same investigation is reachable through several surfaces:
 
 KubeVerdict exposes `kube_rca`, `helm_drift`, `expected_state_drift`, and `blast_radius` as MCP tools consumable by any MCP-compatible client (Claude Desktop, Cursor, Continue). `expected_state_drift` is deployment-mode agnostic — it diffs a pushed expected-state source (Helm / Helmfile / Kustomize / raw manifests) at a pinned version against the live cluster.
 
+### Install the skill (skills.sh)
+
+```bash
+npx skills add a1h8/kube-verdict
+```
+
+This installs the KubeVerdict **skill definition** (`SKILL.md`) into any agent (Claude Code, Codex,
+Cursor, Gemini CLI, …) so it knows when and how to invoke the tools. The tools themselves
+(`kube_rca`, `helm_drift`, `expected_state_drift`, `blast_radius`) are served by the MCP server, so
+you still run the one-time MCP setup below (Python 3.11+ env and, for air-gapped use, Ollama).
+
 ### Claude Desktop
 
 ```json
