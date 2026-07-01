@@ -1,0 +1,14 @@
+{
+  "name": "a1h8",
+  "owner": { "name": "a1h8" },
+  "metadata": {
+    "description": "a1h8's Claude Code plugins — KubeVerdict: anchor-by-render Kubernetes incident RCA (skill + MCP tools)."
+  },
+  "plugins": [
+    {
+      "name": "kube-verdict",
+      "source": "./",
+      "description": "Anchor-by-render root-cause analysis for Kubernetes incidents — reconstructs expected state from Helm/GitOps rendered manifests, diffs it against the live cluster, and turns drift into a ranked diagnosis with remediation, rollback plan and confidence score. Runs air-gapped via local Ollama."
+    }
+  ]
+}
