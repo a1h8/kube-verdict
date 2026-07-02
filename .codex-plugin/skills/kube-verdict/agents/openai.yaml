@@ -1,0 +1,4 @@
+interface:
+  display_name: "KubeVerdict"
+  short_description: "GitOps-aware Kubernetes incident RCA — render-vs-live drift to a ranked diagnosis"
+  default_prompt: "Investigate crashlooping or OOMKilled pods in a namespace and propose a safe remediation"
