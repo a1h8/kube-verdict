@@ -1,0 +1,36 @@
+{
+  "name": "kube-verdict",
+  "version": "0.1.4",
+  "description": "Anchor-by-render root-cause analysis for Kubernetes incidents — reconstructs the expected state from Helm/GitOps rendered manifests, diffs it against the live cluster, and turns declared-vs-observed drift into a ranked diagnosis with remediation commands, a rollback plan and a confidence score. Runs air-gapped via local Ollama.",
+  "author": {
+    "name": "a1h8",
+    "url": "https://github.com/a1h8"
+  },
+  "homepage": "https://github.com/a1h8/kube-verdict",
+  "repository": "https://github.com/a1h8/kube-verdict",
+  "license": "Apache-2.0",
+  "keywords": [
+    "kubernetes",
+    "helm",
+    "gitops",
+    "rca",
+    "incident-response",
+    "mcp",
+    "sre"
+  ],
+  "skills": "./.codex-plugin/skills/",
+  "interface": {
+    "displayName": "KubeVerdict",
+    "shortDescription": "GitOps-aware Kubernetes incident RCA: render-vs-live drift → ranked diagnosis + remediation",
+    "longDescription": "KubeVerdict reconstructs the expected state from Helm/GitOps rendered manifests, compares it with the live cluster, and turns declared-vs-observed drift into evidence-ranked root-cause hypotheses before any LLM explanation. It proposes remediation commands with a rollback plan and a confidence score, and stops at a human approval gate. Runs air-gapped via local Ollama.",
+    "developerName": "a1h8",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://github.com/a1h8/kube-verdict",
+    "defaultPrompt": "Investigate crashlooping or OOMKilled pods in a namespace and propose a safe remediation",
+    "brandColor": "#326CE5"
+  }
+}
