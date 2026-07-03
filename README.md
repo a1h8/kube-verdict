@@ -309,6 +309,19 @@ Add to `.cursor/mcp.json` in your project root:
 }
 ```
 
+### Codex
+
+`npx skills add a1h8/kube-verdict` installs the skill for Codex as well. A first-class Codex plugin
+manifest ships in `.codex-plugin/` (skill + `interface` metadata). As with the other clients, the
+tools are served by the MCP server, which you register in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.kube-verdict]
+command = "python"
+args = ["mcp_server.py"]
+cwd = "/path/to/kube-verdict"
+```
+
 ### Air-gapped clusters
 
 All three tools run fully offline — Ollama + Mistral, no data leaves your infrastructure:
