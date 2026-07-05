@@ -1,18 +1,28 @@
 # KubeVerdict
 
-Enterprise-aware, LLM-light, GitOps forensic layer for Kubernetes incidents.
+**Evidence-first Kubernetes troubleshooting for SRE and platform teams.** It correlates events, rendered Helm/GitOps manifests, policies and past fixes into an **explainable root cause** and a **human-approved** remediation — it does not guess from live symptoms, and it never changes your cluster on its own.
 
-KubeVerdict uses **anchor-by-render**: it reconstructs the expected state from Helm/GitOps rendered manifests, compares it with live Kubernetes reality, and turns drift into first-class RCA evidence before any LLM explanation or human-approved remediation.
-
-✅ Air-gapped by default — Ollama + Mistral, no data leaves your infrastructure  
-✅ No auto-remediation without explicit approval  
-✅ Ten failure scenarios reproduced end-to-end in CI as offline fixtures  
-✅ Try it without a live cluster  
+Its wedge is **anchor-by-render**: it reconstructs the expected state from Helm/GitOps rendered manifests, compares it with live Kubernetes reality, and turns the drift into first-class RCA evidence *before* any LLM explanation.
 
 [![CI](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml)
-[![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h010-blue)](#validated-scenarios)
+[![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h010%20%2B%20h012-blue)](#validated-scenarios)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
+
+![KubeVerdict — real render-vs-live run (offline)](demo/real_run.gif)
+
+### Try it in 2 minutes — offline, no cluster, no Ollama
+
+```bash
+git clone https://github.com/a1h8/kube-verdict && cd kube-verdict
+make demo
+```
+
+`make demo` runs a **real** render-vs-live RCA on a committed fixture (`h012`): it diffs the `helm template` expected state against the observed cluster and ranks the root cause — the same code that runs in CI (`tests/integration/test_render_vs_live_h012.py`). No mocks.
+
+📺 **Watch:** [general demo](demo/kubeverdict-demo.mp4) · [FAQ — “why not just kubectl?”](demo/kubeverdict-faq.mp4)  *(click to play in GitHub's viewer)*
+
+✅ Air-gapped by default (Ollama + Mistral) · ✅ No auto-remediation without approval · ✅ 11 failure scenarios reproduced offline in CI (h001–h010 + h012 render-vs-live)
 
 ---
 
