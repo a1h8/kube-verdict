@@ -1,160 +1,60 @@
 # 90-Second Demo Voiceover
 
-## Voice Script
+The demo now opens on the **anchor-by-render** wedge with a **BEFORE/AFTER** beat
+(`kubectl` symptom → KubeVerdict verdict), then walks the decision process. The
+voiceover is **multi-voice**: the anchor-by-render intro uses a different voice
+than the rest, for contrast.
 
-[0:00]  
-This demo shows not just the diagnosis, but the decision process behind it.
+## Two outputs, two purposes
 
-[0:06]  
-We start with a real incident case: `h009_liveness_probe_loop`.
+| Video | Purpose | Script | Builder |
+|-------|---------|--------|---------|
+| `demo-voiceover-90s-slides.mp4` | **General demo** — narration | [`demo-voiceover-segments.json`](demo-voiceover-segments.json) | `generate_voiceover.py` (ElevenLabs) or macOS `say` → `render_demo_video.py` |
+| `demo-dialogue.mp4` | **FAQ** — a skeptic (“why not just kubectl?”) ↔ expert, making the *why* explicit | [`demo-voiceover-dialogue-segments.json`](demo-voiceover-dialogue-segments.json) | `build_dialogue_demo.py` (macOS `say`, no key) |
 
-[0:11]  
-The service is restarting because the liveness probe timing has drifted.
+Both reuse the same scenes (anchor intro → BEFORE/AFTER → decision process → human gate).
 
-[0:16]  
-First, we run the case with a strict threshold profile.
+## Canonical source
 
-[0:20]  
-The system explores a plausible path, scores it, and follows the evidence.
+The script lives in [`demo-voiceover-segments.json`](demo-voiceover-segments.json) —
+a list of segments, each naming a voice. It is the single source of truth for both
+the audio and the flat TTS text.
 
-[0:26]  
-But the confidence does not improve enough.
+- **Voices** (ElevenLabs classic pre-made, free tier — swap `voice_id` for your own):
+  - `main` → **Adam** (`pNInz6obpgDQGcFmaJgB`) — narration, dynamic settings.
+  - `anchor` → **Rachel** (`21m00Tcm4TlvDq8ikWAM`) — the anchor-by-render intro, for contrast.
 
-[0:29]  
-So the branch is marked as a dead end.
+## Render pipeline
 
-[0:33]  
-That matters because the failure is visible.
+```bash
+export ELEVENLABS_API_KEY=sk-...
+python tools/generate_voiceover.py     # segments → docs/demo-voiceover-90s.mp3 (multi-voice)
+python tools/render_demo_video.py      # slides + audio → docs/demo-voiceover-90s-slides.mp4
+```
 
-[0:36]  
-We can see where the path stalled, why it was rejected, and backtrack to an earlier decision point.
+`generate_voiceover.py --dry-run` regenerates `demo-voiceover-90s-tts.txt` and prints the
+voice plan without calling the API (spends no credits). The slides and the `.mp3`/`.mp4`
+outputs are build artifacts (git-ignored); the `.json` script is the tracked source.
 
-[0:45]  
-Now we run the exact same case again, but with a different threshold profile.
+## Narrative (voice in brackets)
 
-[0:51]  
-Same problem, same signals, different routing policy.
+1. **[anchor]** Most Kubernetes tools start from live symptoms. KubeVerdict starts one step earlier.
+2. **[anchor]** It renders what should be running — from Helm/GitOps — and compares it to the live cluster.
+3. **[anchor]** The drift between declared intent and live reality becomes the evidence. This is anchor-by-render.
+4. **[main]** BEFORE — `kubectl` shows the pod crash-looping and OOMKilled. Loud symptom, cause elsewhere.
+5. **[main]** AFTER — KubeVerdict renders the expected state and finds the drift: memory 512Mi→128Mi, replicas 3→1.
+6. **[main]** Strict threshold profile: it follows a plausible path and scores it…
+7. **[main]** …but confidence does not improve. Dead end — and the failure stays visible; we backtrack.
+8. **[main]** Same incident, lenient policy: same signals, different routing, cleaner convergence.
+9. **[main]** Networking incident: a valid remediation, but it stops at the human decision gate.
+10. **[main]** Explore, compare, justify — the final operational choice stays with you.
 
-[0:56]  
-This time, the system converges more cleanly toward the useful path.
+## Click Track (recording the UI over the narration)
 
-[1:01]  
-So the goal is not only to produce an answer.
-
-[1:05]  
-The goal is to make the reasoning explicit, reviewable, and tunable.
-
-[1:11]  
-Next, we switch to `h006_networkpolicy_blocked`.
-
-[1:15]  
-Here, the system reaches a valid remediation path for a networking issue.
-
-[1:21]  
-But it does not act automatically.
-
-[1:24]  
-Instead, it stops at the human decision gate.
-
-[1:28]  
-The operator can review the recommendation and choose to approve or reject it.
-
-[1:35]  
-That is the key point of the demo.
-
-[1:38]  
-The system can explore, compare, and justify decisions.
-
-[1:43]  
-But the final operational choice remains under human control.
-
-## Click Track
-
-- Load `h009_liveness_probe_loop`
-- Select `Manual (step-by-step)`
-- Select `Strict demo`
-- Click `Run simulation`
-- Follow one branch to a `dead end`
-- Click `Backtrack`
-- Click `Compare strict vs lenient`
-- Rerun with `Lenient demo`
-- Switch to `h006_networkpolicy_blocked`
-- Run until `Resolution found`
-- Show `Operator decision`
-- Click `approve` or `reject`
-
-## TTS-Friendly Script
-
-This demo shows more than a diagnosis.
-
-It shows the decision process.
-
-We start with a real incident case.
-
-`h009_liveness_probe_loop`.
-
-The service keeps restarting.
-
-The liveness probe timing has drifted.
-
-First, we run the case with a strict threshold profile.
-
-The system explores a plausible path.
-
-It scores that path.
-
-It follows the available evidence.
-
-But the confidence does not improve enough.
-
-So this branch becomes a dead end.
-
-That is important.
-
-The failure is visible.
-
-We can see where the path stalled.
-
-We can see why it was rejected.
-
-And we can backtrack.
-
-Now we run the exact same case again.
-
-Same problem.
-
-Same signals.
-
-But a different threshold profile.
-
-This time, the system converges more cleanly.
-
-So the goal is not only to produce an answer.
-
-The goal is to make the reasoning explicit.
-
-Reviewable.
-
-And tunable.
-
-Next, we switch to `h006_networkpolicy_blocked`.
-
-Here, the system reaches a valid remediation path.
-
-But it does not act automatically.
-
-It stops at the human decision gate.
-
-The operator reviews the recommendation.
-
-Then chooses to approve or reject it.
-
-That is the key point.
-
-The system can explore.
-
-Compare.
-
-And justify decisions.
-
-But the final operational choice remains under human control.
+- Show the **BEFORE** terminal: `kubectl get pods` (CrashLoopBackOff) + `describe` (OOMKilled)
+- Cut to KubeVerdict → **🎯 Render-vs-live** step on `h012_gitops_render_vs_live` (the AFTER drift table)
+- Load `h009_liveness_probe_loop` · `Manual (step-by-step)` · `Strict demo` · `Run simulation`
+- Follow one branch to a `dead end` → `Backtrack`
+- Rerun with `Lenient demo` (cleaner convergence)
+- Switch to `h006_networkpolicy_blocked` → run until `Resolution found`
+- Show `Operator decision` → `approve` / `reject`
