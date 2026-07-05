@@ -1,0 +1,25 @@
+{
+  "_comment": "Dialogue variant of the demo voiceover — a skeptic (voice A) and an expert (voice B) make the *purpose* explicit by voicing and answering the obvious objection (why not just kubectl?). Mapped onto the same render_demo_video scenes (scene index). Rendered by tools/build_dialogue_demo.py; voices here use macOS `say` (no API key). Swap to ElevenLabs/Piper later by changing the engine + voice ids.",
+  "engine": "say",
+  "voices": {
+    "skeptic": {"say": "Daniel", "role": "skeptic (asks the obvious objection)"},
+    "expert":  {"say": "Samantha", "role": "expert (explains the purpose)"}
+  },
+  "rate": 178,
+  "segments": [
+    {"voice": "skeptic", "scene": 0, "text": "A pod is crash-looping in production. Why not just restart it with kubectl?"},
+    {"voice": "expert",  "scene": 0, "text": "Because the cause is rarely where the alert fires. KubeVerdict starts one step earlier."},
+    {"voice": "expert",  "scene": 1, "text": "It renders what should be running, from your Helm and GitOps sources, and compares it to the live cluster. The drift becomes the evidence. This is anchor by render."},
+    {"voice": "skeptic", "scene": 2, "text": "Okay. Here is the incident. Kubectl shows CrashLoopBackOff, and the pod was OOMKilled."},
+    {"voice": "expert",  "scene": 2, "text": "A loud symptom. But look at what was actually declared."},
+    {"voice": "expert",  "scene": 3, "text": "The rendered state declares memory five hundred twelve, and three replicas. Live is one hundred twenty-eight, and one. That drift is the root cause."},
+    {"voice": "skeptic", "scene": 4, "text": "And when the confidence is weak?"},
+    {"voice": "expert",  "scene": 4, "text": "A strict profile follows a plausible path, and scores it."},
+    {"voice": "expert",  "scene": 5, "text": "If it does not improve, it becomes a dead end. Visible, and we backtrack."},
+    {"voice": "expert",  "scene": 6, "text": "Same incident, a lenient policy. Same signals, cleaner convergence."},
+    {"voice": "skeptic", "scene": 7, "text": "So it fixes it automatically?"},
+    {"voice": "expert",  "scene": 7, "text": "No. It stops at the human decision gate. You approve, or reject."},
+    {"voice": "skeptic", "scene": 8, "text": "So the point is?"},
+    {"voice": "expert",  "scene": 8, "text": "Explore, compare, and justify. The final operational choice stays with you."}
+  ]
+}
