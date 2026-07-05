@@ -1,0 +1,28 @@
+{
+  "_comment": "Segmented voiceover script for the KubeVerdict demo. Each segment names a voice from the 'voices' map. Voice IDs below are ElevenLabs classic pre-made voices (available on the free tier); swap voice_id to use your own. generate_voiceover.py renders each segment with its voice and concatenates them into docs/demo-voiceover-90s.mp3.",
+  "voices": {
+    "main": {
+      "voice_id": "pNInz6obpgDQGcFmaJgB",
+      "name": "Adam",
+      "settings": {"stability": 0.40, "similarity_boost": 0.75, "style": 0.55, "use_speaker_boost": true}
+    },
+    "anchor": {
+      "voice_id": "21m00Tcm4TlvDq8ikWAM",
+      "name": "Rachel",
+      "settings": {"stability": 0.35, "similarity_boost": 0.80, "style": 0.65, "use_speaker_boost": true}
+    }
+  },
+  "model_id": "eleven_multilingual_v2",
+  "segments": [
+    {"voice": "anchor", "scene": "anchor_intro", "text": "Most Kubernetes tools start from the live symptoms. KubeVerdict starts one step earlier."},
+    {"voice": "anchor", "scene": "anchor_render", "text": "It renders what should be running, from your Helm and GitOps sources, and compares it to the live cluster."},
+    {"voice": "anchor", "scene": "anchor_evidence", "text": "The drift between declared intent and live reality becomes the evidence. This is anchor by render."},
+    {"voice": "main", "scene": "before_kubectl", "text": "Here is the incident. Kubectl shows the pods crash-looping and out of memory. The symptom is loud, but the cause is somewhere else."},
+    {"voice": "main", "scene": "after_verdict", "text": "KubeVerdict renders the expected state and finds the drift. Memory limit declared five hundred twelve, live one hundred twenty-eight. Replicas declared three, live one."},
+    {"voice": "main", "scene": "strict", "text": "Now the decision process. We run a strict threshold profile. The system follows a plausible path, and scores it."},
+    {"voice": "main", "scene": "dead_end", "text": "But the confidence does not improve enough. The branch becomes a dead end, and the failure stays visible. We can inspect it and backtrack."},
+    {"voice": "main", "scene": "lenient", "text": "We replay the same incident with a more lenient policy. Same signals, different routing. This time it converges cleanly."},
+    {"voice": "main", "scene": "human_gate", "text": "On a networking incident, it reaches a valid remediation. But it does not act automatically. It stops at the human decision gate."},
+    {"voice": "main", "scene": "close", "text": "Explore, compare, and justify. The final operational choice stays with you."}
+  ]
+}
