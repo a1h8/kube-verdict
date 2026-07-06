@@ -20,7 +20,7 @@ make demo
 
 `make demo` runs a **real** render-vs-live RCA on a committed fixture (`h012`): it diffs the `helm template` expected state against the observed cluster and ranks the root cause — the same code that runs in CI (`tests/integration/test_render_vs_live_h012.py`). No mocks.
 
-📺 **Watch:** [general demo](demo/kubeverdict-demo.mp4) · [FAQ — “why not just kubectl?”](demo/kubeverdict-faq.mp4)  *(click to play in GitHub's viewer)*
+📺 **[▶ Watch the 35-second demo](demo/kubeverdict-short.mp4)** — incident → evidence → verdict → human gate.  ·  [View on GitHub](https://github.com/a1h8/kube-verdict)
 
 ✅ Air-gapped by default (Ollama + Mistral) · ✅ No auto-remediation without approval · ✅ 11 failure scenarios reproduced offline in CI (h001–h010 + h012 render-vs-live)
 
@@ -129,13 +129,17 @@ python demo/demo_webhook.py      # alert → RCA → approve → fix
 
 ---
 
-### Decision walkthrough — thresholds, dead-ends & the human gate
+### Advanced decision walkthrough — thresholds, dead-ends & the human gate
 
 A 78-second walkthrough of the decision engine on a real incident: a strict
 threshold rejects a low-confidence path, KubeVerdict backtracks, a lenient
 profile finds a valid remediation, and execution stops at the human gate.
 
 ▶ [Watch the decision walkthrough (78s, MP4)](demo-decision-thresholds.mp4) · subtitles burned in
+
+More: [general demo](demo/kubeverdict-demo.mp4) · [FAQ — “why not just kubectl?”](demo/kubeverdict-faq.mp4)
+
+<sub>Synthetic voice + subtitles. No personal identity attached.</sub>
 
 → [Full demo guide](docs/demo.md)
 
