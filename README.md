@@ -48,8 +48,6 @@ The LLM does not invent the diagnosis. It explains an evidence path built from r
 
 > Status: the current validated scenario set exercises the Helm-values-drift path. A stronger GitOps render-vs-live scenario should be promoted into the validated h0NN set before claiming full render-backed validation.
 
-> ArgoCD detects drift to decide whether to reconcile. KubeVerdict uses the same diff as RCA evidence — not as a sync trigger.
-
 ---
 
 ## Enterprise anchors, not generic RCA
@@ -266,7 +264,7 @@ The same investigation is reachable through several surfaces:
 
 | Document | Content |
 |---|---|
-| [Anchor-by-render](docs/anchor-by-render.md) | The core concept: rendered Helm/GitOps intent as the evidence anchor, why-not-ArgoCD, honest status |
+| [Anchor-by-render](docs/anchor-by-render.md) | The core concept: rendered Helm/GitOps intent as the evidence anchor, drift-as-evidence, honest status |
 | [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, anchor system design, drift detection |
 | [REST API](docs/api.md) | FastAPI endpoints, session lifecycle, request/response examples, SSE stream |
 | [UI reference](docs/ui.md) | Streamlit tabs, pipeline trace steps, anchor pivot table, reasoning journey, router decisions |
