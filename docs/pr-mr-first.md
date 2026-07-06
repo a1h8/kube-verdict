@@ -26,9 +26,8 @@ human review + merge   ← the approval gate moves into the PR
 ArgoCD / Flux reconciles the merged desired state
 ```
 
-This is the differentiator vs auto-remediation tools (Kubernaut) and RCA-only tools (KubeRCA): the
-fix is an auditable artifact, reviewed where infra changes are already reviewed, and rolled back the
-GitOps way (revert the merge) — never an out-of-band mutation.
+The point: the fix is an auditable artifact, reviewed where infra changes are already reviewed, and
+rolled back the GitOps way (revert the merge) — never an out-of-band mutation.
 
 ## Flow
 
