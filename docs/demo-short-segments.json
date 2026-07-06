@@ -1,0 +1,16 @@
+{
+  "_comment": "Short conversion demo (~35s): direct script, slow voice, burned-in subtitles. Flow: Incident → Evidence → Verdict → Human Gate. The 78s decision walkthrough stays as the 'advanced' proof, not the entry point. Rendered by tools/build_short_demo.py (macOS `say`, no API key).",
+  "engine": "say",
+  "voice": "Samantha",
+  "rate": 158,
+  "lines": [
+    {"scene": 0, "text": "A Kubernetes incident is detected."},
+    {"scene": 0, "text": "KubeVerdict does not guess."},
+    {"scene": 1, "text": "It compares the live cluster state with the expected GitOps and Helm-rendered state."},
+    {"scene": 1, "text": "It checks events, manifests, drift, policies and past fixes."},
+    {"scene": 2, "text": "Then it ranks the most likely root cause with evidence."},
+    {"scene": 3, "text": "If a remediation is possible, it proposes it."},
+    {"scene": 3, "text": "But it stops before applying changes."},
+    {"scene": 3, "text": "A human approval gate remains mandatory."}
+  ]
+}
