@@ -20,7 +20,7 @@ make demo
 
 `make demo` runs a **real** render-vs-live RCA on a committed fixture (`h012`): it diffs the `helm template` expected state against the observed cluster and ranks the root cause — the same code that runs in CI (`tests/integration/test_render_vs_live_h012.py`). No mocks.
 
-📺 **Watch:** [general demo](demo/kubeverdict-demo.mp4) · [FAQ — “why not just kubectl?”](demo/kubeverdict-faq.mp4)  *(click to play in GitHub's viewer)*
+📺 **[▶ Watch the 35-second demo](demo/kubeverdict-short.mp4)** — incident → evidence → verdict → human gate.  ·  [View on GitHub](https://github.com/a1h8/kube-verdict)
 
 ✅ Air-gapped by default (Ollama + Mistral) · ✅ No auto-remediation without approval · ✅ 11 failure scenarios reproduced offline in CI (h001–h010 + h012 render-vs-live)
 
@@ -47,8 +47,6 @@ This rendered expected state becomes the evidence anchor. KubeVerdict then compa
 The LLM does not invent the diagnosis. It explains an evidence path built from rendered intent, runtime state, Kubernetes events, policy signals, temporal anomalies and incident memory.
 
 > Status: the current validated scenario set exercises the Helm-values-drift path. A stronger GitOps render-vs-live scenario should be promoted into the validated h0NN set before claiming full render-backed validation.
-
-> ArgoCD detects drift to decide whether to reconcile. KubeVerdict uses the same diff as RCA evidence — not as a sync trigger.
 
 ---
 
@@ -129,13 +127,17 @@ python demo/demo_webhook.py      # alert → RCA → approve → fix
 
 ---
 
-### Decision walkthrough — thresholds, dead-ends & the human gate
+### Advanced decision walkthrough — thresholds, dead-ends & the human gate
 
 A 78-second walkthrough of the decision engine on a real incident: a strict
 threshold rejects a low-confidence path, KubeVerdict backtracks, a lenient
 profile finds a valid remediation, and execution stops at the human gate.
 
 ▶ [Watch the decision walkthrough (78s, MP4)](demo-decision-thresholds.mp4) · subtitles burned in
+
+More: [general demo](demo/kubeverdict-demo.mp4) · [FAQ — “why not just kubectl?”](demo/kubeverdict-faq.mp4)
+
+<sub>Synthetic voice + subtitles. No personal identity attached.</sub>
 
 → [Full demo guide](docs/demo.md)
 
@@ -262,7 +264,7 @@ The same investigation is reachable through several surfaces:
 
 | Document | Content |
 |---|---|
-| [Anchor-by-render](docs/anchor-by-render.md) | The core concept: rendered Helm/GitOps intent as the evidence anchor, why-not-ArgoCD, honest status |
+| [Anchor-by-render](docs/anchor-by-render.md) | The core concept: rendered Helm/GitOps intent as the evidence anchor, drift-as-evidence, honest status |
 | [Architecture](docs/architecture.md) | Full pipeline diagram, LangGraph workflow, evidence-first hypothesis generation, anchor system design, drift detection |
 | [REST API](docs/api.md) | FastAPI endpoints, session lifecycle, request/response examples, SSE stream |
 | [UI reference](docs/ui.md) | Streamlit tabs, pipeline trace steps, anchor pivot table, reasoning journey, router decisions |

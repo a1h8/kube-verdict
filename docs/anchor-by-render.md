@@ -55,14 +55,12 @@ In KubeVerdict this is two cooperating layers (see [architecture.md](architectur
   `anchor.*` drift anchors, which are indexed at ×1.6 weight so they surface above plain cluster
   entities during retrieval.
 
-## Why this is not ArgoCD
+## Drift as evidence, not a sync trigger
 
-> ArgoCD detects drift to decide whether to **reconcile**. KubeVerdict uses the same diff as RCA
-> **evidence** — not as a sync trigger.
-
-GitOps controllers answer "should I re-apply?". KubeVerdict answers "*why did this break, and
-what is the safest fix?*". The drift is the same observation; the purpose is different. ArgoCD
-acts on drift; KubeVerdict *explains* with it, then stops at a human-approved remediation gate.
+A declared-vs-observed diff can be used two ways: to **reconcile** (re-apply the desired state) or
+to **explain** (*why did this break, and what is the safest fix?*). KubeVerdict uses it for the
+second. The drift becomes RCA evidence, ranked into hypotheses, and KubeVerdict stops at a
+human-approved remediation gate rather than acting on the drift automatically.
 
 ## The LLM does not invent the diagnosis
 
