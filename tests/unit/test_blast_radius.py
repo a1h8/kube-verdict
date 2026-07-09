@@ -70,3 +70,40 @@ def test_blast_radius_high_cluster_scoped():
     result = blast_radius_node(state, {})
     assert result["blast_radius"]["risk"] == "HIGH"
     assert result["blast_radius"]["cluster_scoped"] is True
+
+
+# ── Render-vs-live path (h012): drift_evidence drives the risk, not commands ──
+
+def _drift_row(kind, name, namespace, diffs):
+    return {"kind": kind, "name": name, "namespace": namespace, "diffs": diffs}
+
+
+def test_blast_radius_prefers_rendered_diff():
+    """When render-vs-live drift exists, risk comes from the actual changed
+    objects (rendered-diff), not from parsing the command strings."""
+    state = _state(
+        ["kubectl rollout restart deployment/api -n production"],  # would be LOW as heuristic
+        ["deployment/production/api"],
+    )
+    state["drift_evidence"] = [
+        _drift_row("Deployment", "api", "production", [
+            {"field_path": "spec.replicas", "declared": "3", "observed": "1", "severity": "critical"},
+            {"field_path": "container.api.resources.memory", "declared": "512Mi", "observed": "128Mi", "severity": "warning"},
+        ]),
+    ]
+    br = blast_radius_node(state, {})["blast_radius"]
+    assert br["method"] == "rendered-diff"
+    assert br["risk"] == "HIGH"          # critical drift, not the LOW heuristic
+    assert br["changed"] == 2
+    assert br["namespaces"] == ["production"]
+
+
+def test_blast_radius_falls_back_to_heuristic_without_drift():
+    state = _state(
+        ["kubectl rollout restart deployment/api -n prod"],
+        ["deployment/prod/api"],
+    )
+    state["drift_evidence"] = []  # no rendered diff → command heuristic
+    br = blast_radius_node(state, {})["blast_radius"]
+    assert br["method"] == "command-heuristic"
+    assert br["risk"] == "LOW"
