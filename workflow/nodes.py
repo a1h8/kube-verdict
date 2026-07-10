@@ -23,7 +23,10 @@ from decision.models import IncidentReport
 from reasoning.beam_search import MAX_SWITCHES, should_switch_path
 from reasoning.monte_carlo import run_monte_carlo
 from reasoning.template_catalog import TemplateCatalog
-from remediation.blast_radius import compute_blast_radius
+from remediation.blast_radius import (
+    compute_blast_radius,
+    compute_blast_radius_from_diff,
+)
 from vectorstore.embedder import Embedder
 from vectorstore.store import FAISSStore
 from workflow.state import RCAState
@@ -1293,18 +1296,58 @@ def _exec_dry_run(cmd: str) -> tuple[str, str, int]:
 
 
 
+def _drifts_from_evidence(rows: list[dict]) -> tuple[list, list[str]]:
+    """Flatten grouped render-vs-live drift rows into duck-typed drift objects.
+
+    ``rows`` is the per-entity structure produced by ``_render_evidence_rows``:
+    ``{kind, name, namespace, diffs:[{field_path, severity, ...}]}``. We flatten
+    it into ``field_path``/``severity`` objects that ``compute_blast_radius_from_diff``
+    can classify, prefixing the field path with the entity kind/name so it stays a
+    unique resource identifier and cluster-scoped kinds are still detectable.
+    Returns the drift objects and the sorted set of impacted namespaces.
+    """
+    from types import SimpleNamespace
+
+    drifts: list = []
+    namespaces: set[str] = set()
+    for row in rows:
+        kind = row.get("kind", "")
+        name = row.get("name", "")
+        if row.get("namespace"):
+            namespaces.add(row["namespace"])
+        for d in row.get("diffs", []):
+            drifts.append(SimpleNamespace(
+                field_path=f"{kind} {name}.{d.get('field_path', '')}".strip(),
+                severity=d.get("severity", "info"),
+            ))
+    return drifts, sorted(namespaces)
+
+
 def blast_radius_node(state: RCAState, config: RunnableConfig) -> dict:
     """
-    Compute the blast radius of proposed remediation commands before dry-run.
-    Delegates to remediation.blast_radius.compute_blast_radius.
+    Compute the blast radius of proposed remediation before dry-run.
+
+    Prefers the **render-vs-live** path (h012): when ``drift_evidence`` is present
+    (gitops_node rendered the chart with `helm template` and diffed it against the
+    live cluster), the risk is classified from the actual changed objects via
+    ``compute_blast_radius_from_diff``. Falls back to the command-string heuristic
+    (``compute_blast_radius``) when no rendered diff is available.
     """
     report      = state.get("report_dict") or {}
     remediation = report.get("remediation") or []
     affected    = report.get("affected") or []
     rollback    = report.get("rollback") or _generate_rollback(remediation)
 
+    drift_rows = state.get("drift_evidence") or []
+    if drift_rows:
+        drifts, drift_ns = _drifts_from_evidence(drift_rows)
+        if drifts:
+            br = compute_blast_radius_from_diff(drifts, rollback, namespaces=drift_ns)
+            log.info("blast_radius[rendered-diff]: risk=%s  %s", br["risk"], br["summary"])
+            return {"blast_radius": br}
+
     br = compute_blast_radius(remediation, affected, rollback)
-    log.info("blast_radius: risk=%s  %s", br["risk"], br["summary"])
+    log.info("blast_radius[heuristic]: risk=%s  %s", br["risk"], br["summary"])
     return {"blast_radius": br}
 
 
