@@ -37,7 +37,8 @@ async def test_list_tools_over_stdio():
             await session.initialize()
             result = await session.list_tools()
     names = {t.name for t in result.tools}
-    assert names == {"kube_rca", "helm_drift", "expected_state_drift", "blast_radius"}
+    assert names == {"kube_rca", "helm_drift", "expected_state_drift", "blast_radius",
+                     "propose_patch"}
 
 
 async def test_blast_radius_round_trip():
