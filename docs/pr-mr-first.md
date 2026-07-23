@@ -1,8 +1,9 @@
 # PR/MR-first remediation (design)
 
-*Status: **design / target**, not implemented. This document defines the flow and the concrete
-integration points before any code lands. Sections marked **[exists]** reuse current bricks;
-sections marked **[new]** are the work to build.*
+*Status: **phase 1 landed** (`remediation/patch_builder.py` — verdict → declared
+`values.yaml` patch + unified diff, offline-tested on `hNNN`); phases 2–3 (draft-PR
+opening, CI render/diff/policy template) still design. Sections marked **[exists]**
+reuse current bricks; sections marked **[new]** are the work to build.*
 
 ## Why
 
@@ -31,7 +32,7 @@ rolled back the GitOps way (revert the merge) — never an out-of-band mutation.
 
 ## Flow
 
-### 1. Verdict → structured patch  **[new] `remediation/patch_builder.py`**
+### 1. Verdict → structured patch  **[done] `remediation/patch_builder.py`**
 
 Input: `IncidentReport` (`remediation`, `affected`, `root_cause`) plus the anchor drift already on
 the graph (`gitops.*` / `anchor.*` annotations).
