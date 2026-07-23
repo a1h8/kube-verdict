@@ -85,6 +85,66 @@ def _conf_icon(conf: str) -> str:
     return "🔴"
 
 
+_RISK_ICON = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🟠", "CRITICAL": "🔴"}
+
+
+def _render_blast_radius(br: dict) -> None:
+    """Surface the blast radius that gates the verdict.
+
+    Highlights the ``method``: ``rendered-diff`` means the risk was classified
+    from the *actual* changed objects of a `helm template` render diffed against
+    the live cluster (h012 render-vs-live) — real impact, not a command-string
+    estimate. ``command-heuristic`` is the fallback when no rendered diff exists.
+    """
+    if not br:
+        return
+    risk   = (br.get("risk") or "").upper()
+    icon   = _RISK_ICON.get(risk, "⚪")
+    method = br.get("method", "command-heuristic")
+    rendered = method == "rendered-diff"
+
+    method_badge = (
+        "🎯 render-vs-live (real changed objects)" if rendered
+        else "≈ command heuristic (estimate from command strings)"
+    )
+    with st.expander(f"Blast radius — {icon} {risk or '—'}  ·  {method_badge}", expanded=True):
+        if rendered:
+            st.caption(
+                "Risk classified from the **actual objects that change** — the `helm template` "
+                "expected state diffed against the live cluster (render-vs-live). "
+                "This is what gates the verdict, not a guess from the command strings."
+            )
+            by_sev = br.get("by_severity") or {}
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Objects changed", br.get("changed", 0))
+            m2.metric("Critical",        by_sev.get("critical", 0))
+            m3.metric("Warning",         by_sev.get("warning", 0))
+            m4.metric("Rollback",        "✅ yes" if br.get("rollback_available") else "⛔ none")
+        else:
+            st.caption(
+                "No rendered-vs-live diff available for this run — risk estimated by parsing "
+                "the proposed command strings (namespaces, resource kinds, cluster-scope). "
+                "A triage signal, not the real changed set."
+            )
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Commands",  br.get("command_count", 0))
+            m2.metric("Resources", len(br.get("resources") or []))
+            m3.metric("Rollback",  "✅ yes" if br.get("rollback_available") else "⛔ none")
+
+        if br.get("summary"):
+            st.write(br["summary"])
+        ns = br.get("namespaces") or []
+        chips = []
+        if ns:
+            chips.append("ns: " + ", ".join(ns))
+        if br.get("cluster_scoped"):
+            chips.append("⚠ cluster-scoped")
+        if chips:
+            st.caption(" · ".join(chips))
+        if risk == "CRITICAL" and not br.get("rollback_available"):
+            st.error("NO_GO — no safe recovery path (rollback unavailable).", icon="⛔")
+
+
 def _kubeconfig() -> str:
     return cfg.KUBECONFIG or os.path.expanduser("~/.kube/config")
 
@@ -744,6 +804,9 @@ def _render_rca():
     with st.expander(f"Remediation — {len(remediation)} command(s)", expanded=bool(remediation)):
         for cmd in remediation:
             st.code(cmd, language="bash")
+
+    # ── Blast radius (what actually changes — gates the verdict) ──────────────
+    _render_blast_radius(payload.get("blast_radius") or {})
 
     # ── Dry-run output ────────────────────────────────────────────────────────
     # Always read from interrupt_payload so results are available in both
