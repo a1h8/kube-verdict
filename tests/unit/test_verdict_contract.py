@@ -63,6 +63,30 @@ def test_next_steps_reflect_policy():
     assert any("review" in step.lower() for step in env.next_steps)
 
 
+def test_pull_request_absent_by_default():
+    env = VerdictEnvelope.from_state("s", _STATE)
+    assert env.pull_request is None
+
+
+def test_pull_request_projected_when_change_opened():
+    state = {
+        **_STATE,
+        "proposed_change": {
+            "url": "https://github.com/acme/api/pull/7",
+            "branch": "kubeverdict/fix-api-abcd1234",
+            "provider": "github",
+            "draft": True,
+            "number": 7,
+        },
+    }
+    env = VerdictEnvelope.from_state("s", state)
+    assert env.pull_request is not None
+    assert env.pull_request.url.endswith("/pull/7")
+    assert env.pull_request.provider == "github"
+    assert env.pull_request.draft is True
+    assert env.pull_request.number == 7
+
+
 def test_empty_state_is_safe():
     env = VerdictEnvelope.from_state("s", {})
     assert env.policy is None

@@ -36,6 +36,15 @@ class RollbackAction(BaseModel):
     commands: list[str] = Field(default_factory=list)
 
 
+class PullRequestRef(BaseModel):
+    """A draft PR/MR opened for the verdict's fix (PR/MR-first remediation)."""
+    url: str
+    branch: str = ""
+    provider: str = ""            # github | gitlab | gitea
+    draft: bool = True
+    number: int | None = None
+
+
 def _evidence_from_report(report: dict[str, Any]) -> list[EvidenceItem]:
     items: list[EvidenceItem] = []
     for src, key in (
@@ -58,6 +67,25 @@ def _gate_score(state: dict[str, Any]) -> float | None:
             score = (entry.get("snapshot") or {}).get("score")
             return float(score) if score is not None else None
     return None
+
+
+def _pull_request(state: dict[str, Any]) -> "PullRequestRef | None":
+    """Project a proposed change (PR/MR-first) onto the envelope, if one was opened.
+
+    ``state['proposed_change']`` is the dict returned by
+    ``remediation.change_proposer.ProposedChange.to_dict()``. Absent when no draft
+    PR/MR was opened for this investigation.
+    """
+    pc = state.get("proposed_change") or {}
+    if not pc.get("url"):
+        return None
+    return PullRequestRef(
+        url=pc["url"],
+        branch=pc.get("branch", ""),
+        provider=pc.get("provider", ""),
+        draft=bool(pc.get("draft", True)),
+        number=pc.get("number"),
+    )
 
 
 def _next_steps(policy: str | None, reasons: list[str]) -> list[str]:
@@ -86,6 +114,7 @@ class VerdictEnvelope(BaseModel):
     evidence: list[EvidenceItem] = Field(default_factory=list)
     remediation: RemediationAction | None = None
     rollback: RollbackAction | None = None
+    pull_request: PullRequestRef | None = None
     next_steps: list[str] = Field(default_factory=list)
 
     @classmethod
@@ -122,5 +151,6 @@ class VerdictEnvelope(BaseModel):
                 available=bool(br.get("rollback_available", bool(rollback_cmds))),
                 commands=rollback_cmds,
             ) if rollback_cmds or br else None,
+            pull_request=_pull_request(state),
             next_steps=_next_steps(policy, reasons),
         )
