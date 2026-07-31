@@ -188,6 +188,54 @@ _TOOLS = [
             "required": ["chart", "namespace"],
         },
     ),
+    types.Tool(
+        name="propose_patch",
+        description=(
+            "PR/MR-first remediation: turn a verdict's `helm upgrade --set` "
+            "remediation into a declared change to a GitOps values.yaml and, "
+            "optionally, open it as a DRAFT pull/merge request. Dispatches by repo "
+            "host across GitHub, GitLab and Gitea/Forgejo. Default is dry-run: "
+            "returns the unified diff without touching the remote. Set open_pr=true "
+            "(with a write token) to open the draft PR/MR — it is never merged."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "remediation_commands": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Verdict remediation; only `helm upgrade --set` lines are used",
+                },
+                "repo_url": {
+                    "type": "string",
+                    "description": "GitOps repo URL holding the chart values",
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "Path of the values.yaml to patch within the repo",
+                },
+                "base": {
+                    "type": "string",
+                    "description": "Base branch the change targets (default: main)",
+                },
+                "release": {"type": "string", "description": "Helm release name (optional)"},
+                "namespace": {"type": "string", "description": "Namespace (optional)"},
+                "token": {
+                    "type": "string",
+                    "description": "Write token; required only when open_pr=true",
+                },
+                "open_pr": {
+                    "type": "boolean",
+                    "description": "Open a draft PR/MR (default false = dry-run, diff only)",
+                },
+                "provider": {
+                    "type": "string",
+                    "description": "Force platform for self-hosted hosts: github | gitlab | gitea",
+                },
+            },
+            "required": ["remediation_commands", "repo_url", "file_path"],
+        },
+    ),
 ]
 
 
@@ -423,6 +471,24 @@ async def _blast_radius(args: dict[str, Any]) -> dict[str, Any]:
     return await asyncio.to_thread(compute_blast_radius, remediation, affected, rollback)
 
 
+async def _propose_patch(args: dict[str, Any]) -> dict[str, Any]:
+    """Delegate to remediation.propose_patch (PR/MR-first). Dry-run unless open_pr."""
+    from remediation.propose_patch import propose_patch
+
+    return await asyncio.to_thread(
+        propose_patch,
+        args["remediation_commands"],
+        repo_url=args["repo_url"],
+        file_path=args["file_path"],
+        base=args.get("base", "main"),
+        release=args.get("release", ""),
+        namespace=args.get("namespace", ""),
+        token=args.get("token"),
+        open_pr=bool(args.get("open_pr", False)),
+        provider=args.get("provider"),
+    )
+
+
 # Single registry, shared by the MCP call_tool handler and the OpenAI adapter.
 # Maps tool name → implementation attribute; resolved at call time so the
 # functions stay patchable and there is one authoritative tool list.
@@ -431,6 +497,7 @@ _HANDLERS = {
     "helm_drift": "_helm_drift",
     "expected_state_drift": "_expected_state_drift",
     "blast_radius": "_blast_radius",
+    "propose_patch": "_propose_patch",
 }
 
 
