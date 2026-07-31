@@ -28,7 +28,8 @@ rank-bm25>=0.2.2
 opentelemetry-proto>=1.20.0
 
 # MCP server — expose kube_rca / helm_drift / blast_radius as agent tools
-mcp>=1.0.0
+# pin <2: mcp 2.0 removed the low-level Server.list_tools/call_tool API we use
+mcp>=1.0.0,<2
 
 # Utilities
 requests>=2.31.0

@@ -1,8 +1,15 @@
 # PR/MR-first remediation (design)
 
-*Status: **design / target**, not implemented. This document defines the flow and the concrete
-integration points before any code lands. Sections marked **[exists]** reuse current bricks;
-sections marked **[new]** are the work to build.*
+*Status: **phases 1–3 (surface) landed.** Phase 1 (`remediation/patch_builder.py`) —
+verdict → declared `values.yaml` patch + unified diff. Phase 2
+(`remediation/change_proposer.py`) — open that patch as a draft PR/MR, factory
+dispatching by repo host across **GitHub, GitLab and Gitea/Forgejo**. Phase 3
+(`remediation/propose_patch.py`) — the invokable use-case, exposed as the MCP tool
+`propose_patch` and projected onto `VerdictEnvelope.pull_request`; dry-run by default,
+opening the draft PR/MR is opt-in and never auto-merges. All offline-tested (network
+stubbed). **Still open:** the CI render/diff/policy template (needs a CLI entrypoint)
+and the REST `open_pr=true` option. Sections marked **[exists]** reuse current bricks;
+**[new]** are the work to build.*
 
 ## Why
 
@@ -31,7 +38,7 @@ rolled back the GitOps way (revert the merge) — never an out-of-band mutation.
 
 ## Flow
 
-### 1. Verdict → structured patch  **[new] `remediation/patch_builder.py`**
+### 1. Verdict → structured patch  **[done] `remediation/patch_builder.py`**
 
 Input: `IncidentReport` (`remediation`, `affected`, `root_cause`) plus the anchor drift already on
 the graph (`gitops.*` / `anchor.*` annotations).
@@ -51,20 +58,31 @@ Output: a `PatchProposal` **[new]** dataclass:
 This phase is **offline-testable** on the `hNNN` cases (values.yaml in → patched values.yaml +
 diff out) with no network — the first milestone, mirrors how h012 is validated.
 
-### 2. Patch → PR/MR draft  **[new] extend `ingestion/git_provider.py`**
+### 2. Patch → PR/MR draft  **[done] `remediation/change_proposer.py`**
 
-`GitProvider` is read-only today (`get_file`, `list_files`, `local_path`). Add a write path:
+A dedicated write path, separate from the read-only `GitProvider` tree access. One
+factory dispatches by repo host to a per-platform proposer:
 
 ```
-GitProvider.propose_change(patch: PatchProposal, *, draft=True) -> ProposedChange
+make_change_proposer(repo_url, *, base="main", token=..., provider=None) -> ChangeProposer
+    github.com          -> GithubProposer   (REST v3, real draft PR)
+    gitlab.com / gitlab -> GitlabProposer    (REST v4, "Draft:" MR)
+    gitea / forgejo / codeberg -> GiteaProposer  (GitHub-compatible API, "WIP:" title)
+proposer.propose(patch, *, draft=True) -> ProposedChange {url, branch, provider, draft, number}
 ```
 
-- `LocalGitProvider`: create branch `kubeverdict/fix-<release>-<short-hash>`, write the file, commit
-  with a message built from the verdict (root cause + confidence + evidence links), push.
-- `GithubProvider`: use the existing token to create the branch + commit via the REST API (or `gh`),
-  then open a **draft** PR. Body = verdict summary, causal chain, render-vs-live drift table, blast
-  radius, and the rollback note.
-- Return `ProposedChange {url, branch, provider}`.
+Each proposer runs the same three steps against its platform: create branch
+`kubeverdict/fix-<release>-<short-hash>` off the base ref, commit the patched file
+on it, open a **draft** PR/MR whose body carries the verdict evidence (the diff).
+Self-hosted instances pass `provider=` explicitly (host name may not reveal the
+platform); the API base is then `https://<host>/api/<v3|v4|v1>`. Drafts: GitHub uses
+the real `draft` flag, GitLab a `Draft:` title, Gitea a `WIP:` title. **No auto-merge**
+— the draft PR/MR *is* the human gate. Fully offline-tested with a stubbed transport.
+
+*(The design originally proposed extending `ingestion/git_provider.py`; the write
+path landed as a standalone module so read-only tree access stays uncoupled from the
+platform PR/MR APIs. `LocalGitProvider` git-CLI push is deferred — API providers
+cover the GitOps case.)*
 
 **No auto-merge.** The draft PR *is* the human gate — KubeVerdict never merges its own proposal.
 
@@ -89,12 +107,15 @@ the current `helm_rollback` / `rollout_undo`.
 
 ## Data model & surface changes
 
-- **[new]** `PatchProposal`, `ProposedChange` in `remediation/`.
-- **[exists→extend]** `RollbackPlan.strategy` adds `git_revert`.
-- **[exists→extend]** `VerdictEnvelope` (`api/verdict_contract.py`) gains an optional
-  `pull_request: {url, state}` so portal/agent consumers see the proposed change.
-- **[new]** MCP tool `propose_patch(session_id | report)` and REST `POST /api/v1/investigate` option
-  `open_pr=true`, routing through the same investigation service (no parallel path — matches B12).
+- **[done]** `PatchProposal` (`remediation/patch_builder.py`), `ProposedChange`
+  (`remediation/change_proposer.py`).
+- **[exists→extend]** `RollbackPlan.strategy` adds `git_revert`. *(pending)*
+- **[done]** `VerdictEnvelope` (`api/verdict_contract.py`) gains an optional
+  `pull_request: PullRequestRef {url, branch, provider, draft, number}`, populated from
+  `state['proposed_change']`, so portal/agent consumers see the proposed change.
+- **[done]** MCP tool `propose_patch` → `remediation/propose_patch.py` (dry-run by
+  default). **[pending]** REST `POST /api/v1/investigate` option `open_pr=true` and
+  workflow population of `state['proposed_change']`.
 
 ## Scope
 
