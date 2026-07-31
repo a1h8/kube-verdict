@@ -29,6 +29,7 @@ class TestListTools:
         tools = _run(m.list_tools())
         assert {t.name for t in tools} == {
             "kube_rca", "helm_drift", "expected_state_drift", "blast_radius",
+            "propose_patch",
         }
 
     def test_required_fields_declared(self):
@@ -37,6 +38,12 @@ class TestListTools:
         assert by_name["helm_drift"].inputSchema["required"] == ["release", "namespace"]
         assert by_name["expected_state_drift"].inputSchema["required"] == ["chart", "namespace"]
         assert by_name["blast_radius"].inputSchema["required"] == ["remediation_commands"]
+        assert by_name["propose_patch"].inputSchema["required"] == [
+            "remediation_commands", "repo_url", "file_path",
+        ]
+
+    def test_propose_patch_registered_in_handlers(self):
+        assert m._resolve_handler("propose_patch") is m._propose_patch
 
 
 # ─────────────────────────────────────────────────────────────────────────────
