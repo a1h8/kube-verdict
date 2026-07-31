@@ -1,11 +1,15 @@
 # PR/MR-first remediation (design)
 
-*Status: **phases 1–2 landed.** Phase 1 (`remediation/patch_builder.py`) — verdict →
-declared `values.yaml` patch + unified diff. Phase 2 (`remediation/change_proposer.py`)
-— open that patch as a draft PR/MR, with a factory dispatching by repo host across
-**GitHub, GitLab and Gitea/Forgejo**. Both offline-tested (network stubbed). Phase 3
-(CI render/diff/policy template) still design. Sections marked **[exists]** reuse
-current bricks; sections marked **[new]** are the work to build.*
+*Status: **phases 1–3 (surface) landed.** Phase 1 (`remediation/patch_builder.py`) —
+verdict → declared `values.yaml` patch + unified diff. Phase 2
+(`remediation/change_proposer.py`) — open that patch as a draft PR/MR, factory
+dispatching by repo host across **GitHub, GitLab and Gitea/Forgejo**. Phase 3
+(`remediation/propose_patch.py`) — the invokable use-case, exposed as the MCP tool
+`propose_patch` and projected onto `VerdictEnvelope.pull_request`; dry-run by default,
+opening the draft PR/MR is opt-in and never auto-merges. All offline-tested (network
+stubbed). **Still open:** the CI render/diff/policy template (needs a CLI entrypoint)
+and the REST `open_pr=true` option. Sections marked **[exists]** reuse current bricks;
+**[new]** are the work to build.*
 
 ## Why
 
@@ -103,12 +107,15 @@ the current `helm_rollback` / `rollout_undo`.
 
 ## Data model & surface changes
 
-- **[new]** `PatchProposal`, `ProposedChange` in `remediation/`.
-- **[exists→extend]** `RollbackPlan.strategy` adds `git_revert`.
-- **[exists→extend]** `VerdictEnvelope` (`api/verdict_contract.py`) gains an optional
-  `pull_request: {url, state}` so portal/agent consumers see the proposed change.
-- **[new]** MCP tool `propose_patch(session_id | report)` and REST `POST /api/v1/investigate` option
-  `open_pr=true`, routing through the same investigation service (no parallel path — matches B12).
+- **[done]** `PatchProposal` (`remediation/patch_builder.py`), `ProposedChange`
+  (`remediation/change_proposer.py`).
+- **[exists→extend]** `RollbackPlan.strategy` adds `git_revert`. *(pending)*
+- **[done]** `VerdictEnvelope` (`api/verdict_contract.py`) gains an optional
+  `pull_request: PullRequestRef {url, branch, provider, draft, number}`, populated from
+  `state['proposed_change']`, so portal/agent consumers see the proposed change.
+- **[done]** MCP tool `propose_patch` → `remediation/propose_patch.py` (dry-run by
+  default). **[pending]** REST `POST /api/v1/investigate` option `open_pr=true` and
+  workflow population of `state['proposed_change']`.
 
 ## Scope
 
