@@ -141,5 +141,61 @@
         ]
       }
     }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "propose_patch",
+      "description": "PR/MR-first remediation: turn a verdict's `helm upgrade --set` remediation into a declared change to a GitOps values.yaml and, optionally, open it as a DRAFT pull/merge request. Dispatches by repo host across GitHub, GitLab and Gitea/Forgejo. Default is dry-run: returns the unified diff without touching the remote. Set open_pr=true (with a write token) to open the draft PR/MR \u2014 it is never merged.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "remediation_commands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Verdict remediation; only `helm upgrade --set` lines are used"
+          },
+          "repo_url": {
+            "type": "string",
+            "description": "GitOps repo URL holding the chart values"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "Path of the values.yaml to patch within the repo"
+          },
+          "base": {
+            "type": "string",
+            "description": "Base branch the change targets (default: main)"
+          },
+          "release": {
+            "type": "string",
+            "description": "Helm release name (optional)"
+          },
+          "namespace": {
+            "type": "string",
+            "description": "Namespace (optional)"
+          },
+          "token": {
+            "type": "string",
+            "description": "Write token; required only when open_pr=true"
+          },
+          "open_pr": {
+            "type": "boolean",
+            "description": "Open a draft PR/MR (default false = dry-run, diff only)"
+          },
+          "provider": {
+            "type": "string",
+            "description": "Force platform for self-hosted hosts: github | gitlab | gitea"
+          }
+        },
+        "required": [
+          "remediation_commands",
+          "repo_url",
+          "file_path"
+        ]
+      }
+    }
   }
 ]
