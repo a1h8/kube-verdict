@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-api
+  namespace: production
+  uid: 5e7f9c0d-8e1f-11ef-d5c6-0242ac110009
+  resourceVersion: "7241580"
+  creationTimestamp: "2026-05-18T07:00:00Z"
+  labels:
+    app.kubernetes.io/name: inventory-api
+    app.kubernetes.io/instance: inventory-api
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    deployment.kubernetes.io/revision: "5"
+    meta.helm.sh/release-name: inventory-api
+    meta.helm.sh/release-namespace: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: inventory-api
+      app.kubernetes.io/instance: inventory-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: inventory-api
+        app.kubernetes.io/instance: inventory-api
+    spec:
+      containers:
+      - name: inventory-api
+        image: ghcr.io/acme/inventory-api:2.4.0
+        resources:
+          limits:
+            memory: 512Mi
+            cpu: "1"
+          requests:
+            memory: 256Mi
+            cpu: 250m
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+status:
+  observedGeneration: 5
+  replicas: 3
+  updatedReplicas: 3
+  readyReplicas: 1
+  availableReplicas: 1
+  conditions:
+  - type: Available
+    status: "True"
+    reason: MinimumReplicasAvailable
+    message: Deployment has minimum availability.
+    lastTransitionTime: "2026-05-20T09:00:05Z"
+  - type: Progressing
+    status: "True"
+    reason: NewReplicaSetAvailable
+    message: ReplicaSet "inventory-api-7f9c8d6b5" has successfully progressed.
+    lastTransitionTime: "2026-05-20T09:00:05Z"
