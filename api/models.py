@@ -152,3 +152,25 @@ class AlertmanagerPayload(BaseModel):
 class WebhookTriggered(BaseModel):
     session_ids: list[str]
     skipped: int = 0
+
+
+# ── Signal webhook (PatchTST temporal-evidence pipeline) ───────────────────────
+# Mirrors signals/patchtst_detector.py's AnomalyResult / the PatchTST fork's
+# SignalRecord (kb/signal.py) — the native shape of a pushed anomaly signal,
+# not the Alertmanager format.
+
+class SignalAlert(BaseModel):
+    entity_uid: str
+    metric_name: str
+    ts: int                                        # epoch milliseconds
+    severity: str                                   # normal | warning | critical
+    score: float
+    method: str                                     # "patchtst" | "zscore"
+    horizon: str = ""                               # short | medium | long | ""
+    n_points: int = 0
+    labels: dict[str, str] = Field(default_factory=dict)
+    text: str = ""
+
+
+class SignalAlertPayload(BaseModel):
+    alerts: list[SignalAlert] = Field(default_factory=list)
