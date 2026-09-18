@@ -1,0 +1,33 @@
+replicaCount: 3
+
+image:
+  repository: ghcr.io/acme/inventory-api
+  tag: "2.4.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    memory: 512Mi
+    cpu: "1"
+  requests:
+    memory: 256Mi
+    cpu: 250m
+
+service:
+  type: ClusterIP
+  port: 8080
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+etcd:
+  endpoints:
+    - etcd-0.etcd.kube-system.svc:2379
+    - etcd-1.etcd.kube-system.svc:2379
+    - etcd-2.etcd.kube-system.svc:2379

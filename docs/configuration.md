@@ -30,6 +30,41 @@ cp .env.example .env
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama API base URL. Set to `http://ollama:11434` in K8s. |
 | `OLLAMA_MODEL` | `mistral` | Model to use. Any Ollama-compatible model works (e.g. `llama3`, `mixtral`). |
 | `OLLAMA_TIMEOUT` | `120` | HTTP timeout in seconds for LLM calls. Increase for large contexts. |
+| `OLLAMA_NUM_CTX` | `2048` | Context window size passed to Ollama. |
+| `OLLAMA_NUM_PREDICT` | `512` | Max tokens generated per call. |
+
+### sLLM profile — latency-sensitive / strict air-gap edge
+
+`mistral` (7B) is the model the `tests/golden/baseline.json` regression guard was
+recorded against — it stays the validated default. For a deployment prioritizing
+**response latency** and **a genuinely small footprint** (a constrained edge
+node, no GPU, fully offline) over maximum RCA nuance, swap in a small
+instruction-tuned model instead:
+
+| Candidate | Size | Why |
+|---|---|---|
+| `qwen2.5:3b-instruct` | 3B | Best latency/quality balance for structured output on CPU; Apache-2.0 |
+| `phi3:3.8b-mini` | 3.8B | Strong instruction-following at small size; MIT license |
+
+Both pull directly via `ollama pull <name>` and drop in through `OLLAMA_MODEL` —
+no code change, since `evidence-first hypothesis generation` (see
+[architecture.md](architecture.md)) already keeps the LLM's job narrow: it fills
+remaining hypothesis slots and writes the final explanation from a pre-built
+evidence context, not open-ended reasoning from scratch. That division of labor
+is exactly what makes a smaller model viable here, unlike a general-purpose
+chat use case.
+
+**Before trusting a smaller model in production**, regenerate and inspect the
+regression baseline against it — don't assume parity:
+
+```bash
+OLLAMA_MODEL=qwen2.5:3b-instruct python -m tests.golden.update_baseline
+git diff tests/golden/baseline.json   # review every verdict/risk change, not just that it ran
+```
+
+If a scenario's verdict or blast-radius risk shifts, that's the real
+latency-vs-quality trade surfacing — decide per-scenario whether it's
+acceptable, don't silently adopt the smaller model's baseline.
 
 ## Vector store
 
