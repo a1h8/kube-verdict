@@ -1,0 +1,11 @@
+{
+  "scenario": "etcd compaction latency — backend Range calls stop recovering, readiness probe times out",
+  "namespace": "production",
+  "release": "inventory-api",
+  "affected_resources": ["Pod/production/inventory-api-7f9c8d6b5-x2qwe"],
+  "root_cause_contains": ["etcd", "compaction", "latency", "deadline", "timeout", "readiness"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.3,
+  "fallback_expected": true,
+  "notes": "inventory-api reads product data from etcd directly (ETCD_ENDPOINTS). Around 09:30 an etcd compaction cycle begins; KV Range calls that would normally complete in ~50ms start taking 4.5-5.1s and return DeadlineExceeded ('required revision has been compacted'). Unlike a transient compaction spike, the latency never recovers, so the readiness probe (timeoutSeconds=2) keeps failing and the pod stays NotReady. No K8s manifest/Helm drift is involved — the only evidence is the OTel error traces (otel/traces.json) correlated to the pod via HAS_TRACE edges; K8s events alone (readiness probe timeout) do not name the root cause. This is the h013+ B14 case class: a symptom kube-verdict's status-only checks can't diagnose without trace/signal evidence."
+}
