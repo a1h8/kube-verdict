@@ -7,6 +7,16 @@ Reads cases from ``tests/integration/cases/h*/``.  Each case directory has:
   helm/       — values.yaml (declared) + release.json (live deployed values)
   helmfile/   — helmfile.yaml (optional)
   policy/     — PolicyReport YAML from Kyverno/OPA (optional)
+  otel/       — OTLP-derived error-trace fixtures (optional) — JSON files, each
+                a list of normalized trace dicts in the same shape
+                ``OtelBackend.search_error_traces()`` returns live (see
+                ingestion/otel_backend.py):
+                  {trace_id, service_name, status, duration_ms, span_count,
+                   error_message, root_span, error_spans, started_at, pod}
+                ``pod`` names which observed pod (by name) the trace attaches
+                to — fixtures declare the target explicitly rather than
+                replicating OtelCollector's live label-based service
+                resolution.
   expect.json — test expectations
 
 Usage::
@@ -34,8 +44,8 @@ from ingestion.anchor_engine import AnchorEngine
 from ingestion.helm_drift import HelmDriftDetector
 from ingestion.chart_parser import flatten_values
 from ontology.entities import (
-    Deployment, HelmRelease, K8sEvent, Namespace, Pod, PolicyViolation,
-    ResourceQuota,
+    Deployment, HelmRelease, K8sEvent, Namespace, OtelTrace, Pod,
+    PolicyViolation, ResourceQuota,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
@@ -61,6 +71,7 @@ def load_case(case_dir: Path) -> dict:
     helmfile_dir = case_dir / "helmfile"
     kube_dir     = case_dir / "kube"
     policy_dir   = case_dir / "policy"
+    otel_dir     = case_dir / "otel"
 
     values_path   = helm_dir / "values.yaml"
     helmfile_path = helmfile_dir / "helmfile.yaml"
@@ -72,6 +83,7 @@ def load_case(case_dir: Path) -> dict:
         "helmfile":      yaml.safe_load(helmfile_path.read_text()) if helmfile_path.exists() else None,
         "observed":      _load_kube(kube_dir),
         "policy_reports": _load_policy_reports(policy_dir),
+        "otel_traces":   _load_otel(otel_dir),
         "expect":        json.loads((case_dir / "expect.json").read_text()),
     }
 
@@ -112,6 +124,9 @@ def build_graph(case: dict) -> OntologyGraph:
         pod = _pod_from_kubectl(pod_raw)
         graph.add_entity(pod)
         graph.add_edge(Edge(pod.uid, helm_release.uid, RelationshipType.MANAGED_BY_HELM))
+
+    # ── 3b. OTel error traces (fixture) ────────────────────────────────────
+    _wire_otel_traces(graph, case.get("otel_traces", []))
 
     # ── 4. Events ───────────────────────────────────────────────────────────
     for evt_raw in case["observed"].get("events", []):
@@ -256,6 +271,67 @@ def _load_policy_reports(policy_dir: Path) -> list[dict]:
                 reports.append(doc)
 
     return reports
+
+
+# ---------------------------------------------------------------------------
+# OTel trace fixture loader
+# ---------------------------------------------------------------------------
+
+def _load_otel(otel_dir: Path) -> list[dict]:
+    """Load normalized OTel error-trace fixtures from otel/*.json.
+
+    Each file is a JSON list of trace dicts in the same shape
+    OtelBackend.search_error_traces() returns live, plus a ``pod`` key naming
+    the target pod explicitly (fixtures skip live service-label resolution).
+    """
+    traces: list[dict] = []
+    if not otel_dir.is_dir():
+        return traces
+    for fpath in sorted(otel_dir.glob("*.json")):
+        content = json.loads(fpath.read_text())
+        if isinstance(content, list):
+            traces.extend(t for t in content if isinstance(t, dict))
+    return traces
+
+
+def _wire_otel_traces(graph: OntologyGraph, traces: list[dict]) -> None:
+    """Build OtelTrace entities + HAS_TRACE edges from fixture trace dicts.
+
+    Mirrors OtelCollector.collect()'s graph shape (same entity fields,
+    same otel.trace.{id}.status/.error annotations) so context_builder's
+    generic OTEL_TRACE query (rca/context_builder.py) surfaces them exactly
+    like a live-collected trace — the RCA pipeline can't tell the difference.
+    """
+    for trace in traces:
+        tid = trace.get("trace_id", "")
+        if not tid:
+            continue
+        pod_name = trace.get("pod", "")
+        pod = _find_entity(graph, "Pod", pod_name, "") if pod_name else None
+
+        trace_uid = f"otel-trace-{tid}"
+        ot = OtelTrace(
+            uid=trace_uid,
+            name=tid,
+            namespace=pod.namespace if pod else None,
+            trace_id=tid,
+            service_name=trace.get("service_name", pod_name),
+            status=trace.get("status", ""),
+            duration_ms=float(trace.get("duration_ms", 0.0)),
+            span_count=int(trace.get("span_count", 0)),
+            error_message=trace.get("error_message", ""),
+            root_span_name=trace.get("root_span", ""),
+            error_spans=list(trace.get("error_spans", [])),
+            started_at=trace.get("started_at", ""),
+        )
+        graph.add_entity(ot)
+
+        if pod is not None:
+            graph.add_edge(Edge(pod.uid, trace_uid, RelationshipType.HAS_TRACE))
+            prefix = f"otel.trace.{tid}"
+            pod.annotations[f"{prefix}.status"] = trace.get("status", "")
+            if trace.get("error_message"):
+                pod.annotations[f"{prefix}.error"] = trace["error_message"][:200]
 
 
 def _ingest_policy_report(report: dict, graph: OntologyGraph) -> None:
