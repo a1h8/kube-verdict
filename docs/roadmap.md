@@ -123,7 +123,7 @@ only when the capability actually lands.
 
 - [ ] **Evidence Lineage** — dedup raw signals by Kubernetes owner + error family + time window; build lineage graph (evidence → root cause → remediation nodes/edges); expose ranked reasoning paths with alternatives in API and UI
 - [ ] **Monte Carlo Tree Search** — replace greedy beam search with MCTS: UCB1 node selection, rollout via LLM, backpropagation of confidence scores across hypothesis tree
-- [ ] **More h-series cases** — h012+: network latency, cert expiry, etcd compaction, …
+- [x] **More h-series cases (h013+)** — landed: **h013** SLO error-budget burn (p99/p95 latency-SLO breach + multi-window burn-rate alerts on a pod Kubernetes reports healthy, evidence via `prometheus/` fixtures through the real `PrometheusCollector`) and **h015** etcd compaction latency (cause visible only in OTel error traces, via `otel/` fixtures). Both prove the fixture → graph → context-window path deterministically; LLM root-cause text still needs Ollama. **Still open: h014 (cert expiry).** The check turns green once any `h013+` case exists, so this box stays ticked while h014 remains.
 - [ ] **Helmfile multi-release** — case with `helmfile.yaml` covering interdependent releases
 - [ ] **Multi-cluster support** — analyse multiple contexts in one session
 - [ ] **Alertmanager webhook (production)** — auth, dedup, grouping, silences, multi-tenant routing; hardened for real Alertmanager deployments
