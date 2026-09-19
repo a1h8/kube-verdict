@@ -1,0 +1,11 @@
+{
+  "scenario": "SLO error-budget burn — p99/p95 latency breach on a service that is perfectly healthy per Kubernetes",
+  "namespace": "production",
+  "release": "checkout-api",
+  "affected_resources": ["Deployment/production/checkout-api"],
+  "root_cause_contains": ["latency", "slo", "budget", "burn", "p99", "network"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.3,
+  "fallback_expected": true,
+  "notes": "checkout-api has 3/3 replicas Ready, zero restarts, no warning events and no Helm drift — every Kubernetes-status check is green. The only evidence is the Prometheus SLO alerts (prometheus/alerts.json): multi-window burn-rate alerts (14.4x over 1h/5m critical, 6x over 6h/30m warning) and a latency-SLO breach (p99 1.84s vs 400ms, p95 0.92s vs 250ms) whose description isolates the increase to calls to payments-gateway while CPU/memory/restarts stay flat — i.e. the network path to the dependency, not the pod. Two decoy alerts exercise the real PrometheusCollector's filtering: a pending alert (not firing) and a firing alert for a deployment absent from the snapshot (nothing to correlate). This is the h013 case class from B14: an incident invisible to status-only checks, surfaced by SLI/SLO evidence."
+}
