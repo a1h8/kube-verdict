@@ -222,12 +222,6 @@ Cases h001–h010 each have a `test_hybrid_pipeline_NNN.py` running the full pre
 
 **h012** (`test_render_vs_live_h012.py`) validates the **anchor-by-render** path: the expected state is reconstructed by rendering the chart with `helm template` (committed as evidence) and diffed against the observed cluster. The diff/ranking runs deterministically in CI with **no helm binary**; a helm-guarded check re-renders the chart to keep the committed golden faithful. It is a **fixture-based** scenario — it demonstrates the render-vs-live evidence flow, not production-grade telemetry.
 
-**h013 and h015** are the two *telemetry-only* cases: nothing is broken at the Kubernetes-status level that explains the incident, so the evidence comes purely from observability data, replayed from committed fixtures.
-- **h013 — SLO error-budget burn** (`test_prometheus_fixture_h013.py`): a pod with 3/3 replicas Ready, zero restarts and no drift, while Prometheus fires multi-window burn-rate alerts (14.4× over 1h/5m, 6× over 6h/30m) and a p99/p95 latency-SLO breach isolated to one dependency. The alerts run through the **real** `PrometheusCollector` (only its HTTP fetch is swapped for the fixture), so a `pending` alert and an alert with no matching entity are dropped exactly as they would be live.
-- **h015 — etcd compaction latency** (`test_otel_fixture_h015.py`): a pod `Ready=False` on a readiness timeout whose cause appears only in OTel error traces (`DeadlineExceeded` on etcd `Range`).
-
-Both are validated at the **evidence-path level** — fixture → graph → context window, deterministic in CI, no cluster, no Ollama. They do not assert the LLM's root-cause wording (that needs a model and runs through the generic `test_native_helm_dialogue`). On live telemetry: one real Prometheus run was captured in roadmap B13 (`docs/evidence/prometheus-live.md`); no live OTel-backend capture is recorded yet — B13 covers Prometheus only.
-
 ---
 
 ## Quick start
