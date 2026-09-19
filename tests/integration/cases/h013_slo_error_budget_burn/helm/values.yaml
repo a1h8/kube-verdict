@@ -1,0 +1,24 @@
+replicaCount: 3
+
+image:
+  repository: ghcr.io/acme/checkout-api
+  tag: "4.2.1"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    memory: 512Mi
+    cpu: "1"
+  requests:
+    memory: 256Mi
+    cpu: 250m
+
+service:
+  type: ClusterIP
+  port: 8080
+
+slo:
+  availability: 0.995
+  latencyP99Ms: 400
+  latencyP95Ms: 250
+  windowDays: 30
