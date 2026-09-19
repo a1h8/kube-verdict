@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-26T02:38:10.642834+00:00",
+  "generated_at": "2026-09-19T03:45:13.463416+00:00",
   "phases": [
     "Foundation",
     "Decision Engine",
@@ -383,7 +383,7 @@
         },
         {
           "label": "More h-series cases (h013+: network latency, cert expiry, etcd compaction)",
-          "done": false
+          "done": true
         },
         {
           "label": "Helmfile multi-release integration case (interdependent releases)",
@@ -402,7 +402,7 @@
           "done": false
         }
       ],
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "phase": "Next / Frontier"
     }
   ]
