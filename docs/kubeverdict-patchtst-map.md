@@ -1,7 +1,7 @@
 # KubeVerdict ↔ PatchTST — relationship map
 
 One picture of how the two repos divide responsibility, and where the pieces
-built in this cycle (native signal webhook, h015, the 3 observability axes)
+built in this cycle (native signal webhook, h013, h015, the 3 observability axes)
 sit relative to each other. Detail lives in [architecture.md](architecture.md)
 (kube-verdict) and PatchTST's `docs/ARCHITECTURE.md` / `docs/SIGNAL_VALIDATION.md`
 — this is the map, not the territory.
@@ -12,7 +12,7 @@ flowchart TB
         direction TB
         KVG["Ontology graph<br/>K8s + Helm + drift"]
         KVW["LangGraph workflow<br/>hypothesize → analyze → verdict"]
-        KVH["h-series cases<br/>h001–h012 manifest/drift · h015 OTel"]
+        KVH["h-series cases<br/>h001–h012 manifest/drift · h013 Prometheus SLO · h015 OTel"]
         KVWH["POST /api/v1/webhook/signal<br/>api/signal_mapper.py"]
         KVDJ["Decision Journey<br/>dashboard/DecisionJourney.jsx"]
         KVG --> KVW
@@ -75,11 +75,13 @@ flowchart TB
   (kube-verdict) ↔ `kubeverdict-alert` sink (PatchTST) — one schema
   (`SignalAlert` / `AnomalyResult`), one direction (push), best-effort (a
   failed POST never blocks the PatchTST pipeline).
-- **h015 sits in both repos on purpose** — PatchTST validates *can the
+- **h013 and h015 sit in both repos on purpose** — PatchTST validates *can the
   detector see this pattern* (synthetic time series, offline); kube-verdict
-  validates *can the RCA pipeline explain it once evidence arrives* (OTel
-  trace fixtures, offline). Same scenario, two different offline-first checks,
-  no live cluster or cloud spend needed for either.
+  validates *can the RCA pipeline explain it once evidence arrives* — h013 via
+  Prometheus SLO burn-rate / p99-p95 alert fixtures on a pod Kubernetes reports
+  healthy, h015 via OTel trace fixtures. Same scenarios, two different
+  offline-first checks, no live cluster or cloud spend needed for either. (h014,
+  cert expiry, exists only on the PatchTST side so far.)
 - **Axis 1 (Jaeger) is the one dashed line that still means real
   infrastructure** — axes 2 and 3 are both already free (local files /
   existing session store); deploying the actual observability stack (and
