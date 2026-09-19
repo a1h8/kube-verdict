@@ -24,12 +24,7 @@ tests/integration/cases/
 ├── h008_init_container_fail/ ← Init:0/1 — db-migrate init container exits 1
 ├── h009_liveness_probe_loop/ ← liveness timeoutSeconds drift (1s deployed vs 5s declared) restarts healthy pods
 ├── h010_resource_quota_exceeded/ ← pod Pending, namespace ResourceQuota CPU cap full
-├── h011_statefulset_pvc_stuck/ ← StatefulSet rolling update stuck, PVC bound to old pod
-├── h012_gitops_render_vs_live/ ← `helm template` expected state diffed vs live (render-vs-live wedge)
-├── h013_slo_error_budget_burn/ ← healthy pod, p99/p95 latency-SLO breach + burn-rate alerts (Prometheus fixtures)
-│   └── prometheus/           ← raw `/api/v1/alerts` fixtures (incl. a pending + an uncorrelated decoy)
-└── h015_etcd_compaction/     ← pod Ready=False on readiness timeout; cause only visible in OTel error traces
-    └── otel/                 ← normalized error-trace fixtures (DeadlineExceeded on etcd Range)
+└── h011_statefulset_pvc_stuck/ ← StatefulSet rolling update stuck, PVC bound to old pod
 ```
 
 The `case_loader.py` reads all formats (YAML/JSON), runs `HelmDriftDetector` + `AnchorEngine` + `_detect_missing_deps()`, and produces a full `OntologyGraph` — the same pipeline used against a real cluster. It recurses into subdirectories under `kube/` (e.g. `kube/rbac/`) and collects all resource kinds including secrets, configmaps, serviceaccounts, networkpolicies, pvcs, and RBAC objects.
@@ -43,11 +38,8 @@ The `case_loader.py` reads all formats (YAML/JSON), runs `HelmDriftDetector` + `
    helm/values.yaml       # declared chart values
    helm/release.json      # helm get values RELEASE -n NS -o json
    policy/                # optional: kubectl get policyreport -o yaml
-   otel/*.json            # optional: list of normalized error traces (OtelBackend.search_error_traces shape + a `pod` target)
-   prometheus/*.json      # optional: list of raw alerts in Prometheus GET /api/v1/alerts shape
    expect.json            # test expectations
    ```
-   `prometheus/` fixtures are fed through the **real** `PrometheusCollector.collect()` (its HTTP fetch swapped for the fixture list), so label→entity correlation, `HAS_ALERT` edges and `alert.*` annotations match a live cluster — non-`firing` alerts and alerts with no matching entity are dropped exactly as they would be live. `otel/` fixtures build `OtelTrace` nodes + `HAS_TRACE` edges with the same annotation shape `OtelCollector` produces.
 2. Create `tests/unit/test_hybrid_pipeline_NNN.py` to register the case in the UI dropdown and add pipeline assertions.
 3. The case appears automatically in **🧪 Integration Tests** → pipeline trace.
 
@@ -82,17 +74,13 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
 | Liveness probe too aggressive | h009 | ✅ | probe-timeout drift (`timeoutSeconds` declared vs deployed) → `helm upgrade` fix |
 | ResourceQuota exceeded — pod Pending | h010 | ✅ | `ResourceQuota` entity, namespace quota correlation, pending-pod root cause |
 | StatefulSet update stuck — PVC bound to old pod | h011 | ⚠️ | wired in via `test_native_helm_dialogue`, but `test_confidence_score_min` and `test_has_resolvable_path` still fail — open contribution |
-| SLO error-budget burn — p99/p95 latency breach on a pod Kubernetes reports healthy | h013 | ✅ (evidence wiring) | `tests/integration/test_prometheus_fixture_h013.py`: 0 seeds / 0 drift / 0 events yet 3 firing SLO alerts reach `ContextWindow.alerts` (critical first) via the real `PrometheusCollector`; a `pending` alert and an uncorrelated alert are correctly dropped |
-| etcd compaction latency — readiness timeout with no cause in K8s events | h015 | ✅ (evidence wiring) | `tests/integration/test_otel_fixture_h015.py`: 4 OTel error traces → `OtelTrace` nodes + `HAS_TRACE` edges → `ContextWindow.traces` → prompt |
-
-> **Scope of the h013 / h015 checks.** They prove the *evidence path* — fixture → graph → context window — deterministically in CI. They do **not** assert the LLM's final root-cause text: that needs Ollama and runs via the generic `test_native_helm_dialogue` (which picks these cases up automatically) wherever a model is available.
 
 **Each CI run** (`pytest tests/unit/test_hybrid_pipeline_NNN.py`) validates the full pre-LLM pipeline — graph construction, hybrid retrieval (BM25 + FAISS + RRF), context building, anchor/drift/policy scoring, and proposal generation — against a fixed JSON fixture. No Ollama, no cluster.
 
 Components that require a **live environment** (not in CI scope):
 - Live Kubernetes API calls (`k8s_collector.py`, `metrics_server_collector.py`)
-- Prometheus / Alertmanager scrape (`prometheus_collector.py`) — the *network fetch* only; its correlation/annotation logic is exercised offline by h013
-- OTel backends — Tempo / Jaeger (`otel_collector.py`) — the *backend query* only; the resulting trace evidence path is exercised offline by h015
+- Prometheus / Alertmanager scrape (`prometheus_collector.py`)
+- OTel backends — Tempo / Jaeger (`otel_collector.py`)
 - Loki log queries (`loki_source.py`)
 - Ollama LLM inference (multi-path hypothesis reasoning)
 - PatchTST anomaly forecasting on real time series
