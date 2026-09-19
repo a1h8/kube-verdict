@@ -91,13 +91,18 @@ kubeverdict/
 │   │   └── test_helm_case_bank.py
 │   └── integration/
 │       ├── cases/              # ← Native K8s integration test cases
-│       │   ├── case_loader.py  #   kube/*.yaml + helm/ + policy/ → OntologyGraph
+│       │   ├── case_loader.py  #   kube/*.yaml + helm/ + policy/ + otel/ + prometheus/ → OntologyGraph
 │       │   ├── h001_crashloopbackoff/   # CrashLoopBackOff — missing secret
 │       │   ├── h002_imagepullbackoff/   # image tag drift + 401 Unauthorized
 │       │   ├── h003_oomkilled/          # memory limit drift 512Mi → 128Mi
 │       │   ├── h004_missing_configmap/  # CreateContainerConfigError — 3 missing resources
 │       │   ├── h005_rbac_forbidden/     # SA exists, no ClusterRoleBinding → 403 Forbidden
-│       │   └── h006_networkpolicy_blocked/ # egress: [] → DNS + DB + Redis blocked
+│       │   ├── h006_networkpolicy_blocked/ # egress: [] → DNS + DB + Redis blocked
+│       │   ├── …               #   h007–h012 (see docs/test-cases.md)
+│       │   ├── h013_slo_error_budget_burn/ # healthy pod + Prometheus SLO burn-rate / p99 alerts
+│       │   └── h015_etcd_compaction/       # readiness timeout; cause only in OTel error traces
+│       ├── test_prometheus_fixture_h013.py # deterministic evidence-wiring test for h013
+│       ├── test_otel_fixture_h015.py       # deterministic evidence-wiring test for h015
 │       └── use_cases/          # Dialogue simulator + proposal engine
 │
 ├── tools/                      # Dev utilities (case contract, recalibration)
