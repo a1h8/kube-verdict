@@ -17,17 +17,6 @@ Reads cases from ``tests/integration/cases/h*/``.  Each case directory has:
                 to — fixtures declare the target explicitly rather than
                 replicating OtelCollector's live label-based service
                 resolution.
-  prometheus/ — firing-alert fixtures (optional) — JSON files, each a list of
-                raw alerts in the exact shape Prometheus's
-                ``GET /api/v1/alerts`` returns (see
-                ingestion/prometheus_collector.py):
-                  {state, labels: {alertname, severity, namespace, pod|
-                   deployment|statefulset|daemonset|service|node, ...},
-                   annotations: {summary, description}, activeAt}
-                Fed straight into the real ``PrometheusCollector.collect()``
-                (its HTTP fetch is swapped for the fixture list) so
-                label→entity correlation and annotation shape are identical
-                to a live cluster — no correlation logic duplicated here.
   expect.json — test expectations
 
 Usage::
@@ -54,7 +43,6 @@ import yaml
 from ingestion.anchor_engine import AnchorEngine
 from ingestion.helm_drift import HelmDriftDetector
 from ingestion.chart_parser import flatten_values
-from ingestion.prometheus_collector import PrometheusCollector
 from ontology.entities import (
     Deployment, HelmRelease, K8sEvent, Namespace, OtelTrace, Pod,
     PolicyViolation, ResourceQuota,
@@ -84,7 +72,6 @@ def load_case(case_dir: Path) -> dict:
     kube_dir     = case_dir / "kube"
     policy_dir   = case_dir / "policy"
     otel_dir     = case_dir / "otel"
-    prom_dir     = case_dir / "prometheus"
 
     values_path   = helm_dir / "values.yaml"
     helmfile_path = helmfile_dir / "helmfile.yaml"
@@ -97,7 +84,6 @@ def load_case(case_dir: Path) -> dict:
         "observed":      _load_kube(kube_dir),
         "policy_reports": _load_policy_reports(policy_dir),
         "otel_traces":   _load_otel(otel_dir),
-        "prometheus_alerts": _load_prometheus_alerts(prom_dir),
         "expect":        json.loads((case_dir / "expect.json").read_text()),
     }
 
@@ -141,9 +127,6 @@ def build_graph(case: dict) -> OntologyGraph:
 
     # ── 3b. OTel error traces (fixture) ────────────────────────────────────
     _wire_otel_traces(graph, case.get("otel_traces", []))
-
-    # ── 3c. Prometheus firing alerts (fixture) ─────────────────────────────
-    _wire_prometheus_alerts(graph, case.get("prometheus_alerts", []))
 
     # ── 4. Events ───────────────────────────────────────────────────────────
     for evt_raw in case["observed"].get("events", []):
@@ -349,37 +332,6 @@ def _wire_otel_traces(graph: OntologyGraph, traces: list[dict]) -> None:
             pod.annotations[f"{prefix}.status"] = trace.get("status", "")
             if trace.get("error_message"):
                 pod.annotations[f"{prefix}.error"] = trace["error_message"][:200]
-
-
-# ---------------------------------------------------------------------------
-# Prometheus alert fixture loader
-# ---------------------------------------------------------------------------
-
-def _load_prometheus_alerts(prom_dir: Path) -> list[dict]:
-    """Load raw ``/api/v1/alerts``-shaped fixtures from prometheus/*.json."""
-    alerts: list[dict] = []
-    if not prom_dir.is_dir():
-        return alerts
-    for fpath in sorted(prom_dir.glob("*.json")):
-        content = json.loads(fpath.read_text())
-        if isinstance(content, list):
-            alerts.extend(a for a in content if isinstance(a, dict))
-    return alerts
-
-
-def _wire_prometheus_alerts(graph: OntologyGraph, alerts: list[dict]) -> None:
-    """Correlate fixture alerts with graph entities via the real collector.
-
-    PrometheusCollector's HTTP fetch is swapped for the fixture list, so
-    label→entity correlation, PrometheusAlert nodes, HAS_ALERT edges and
-    alert.* annotations are exactly what a live collect() produces — no
-    correlation logic is re-implemented here.
-    """
-    if not alerts:
-        return
-    collector = PrometheusCollector(url="http://fixture.invalid")
-    collector._fetch_alerts = lambda: alerts
-    collector.collect(graph)
 
 
 def _ingest_policy_report(report: dict, graph: OntologyGraph) -> None:
