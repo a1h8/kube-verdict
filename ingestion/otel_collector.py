@@ -138,7 +138,7 @@ class OtelCollector:
 
 def _is_unhealthy(entity: K8sEntity) -> bool:
     if isinstance(entity, Pod):
-        return entity.is_unhealthy
+        return entity.needs_telemetry
     if isinstance(entity, Deployment):
         return entity.is_degraded
     if isinstance(entity, StatefulSet):
