@@ -63,7 +63,8 @@ class LokiSource:
 
     def collect(self, graph: OntologyGraph) -> int:
         """
-        Fetch error/warn logs for unhealthy pods and wire them into the graph.
+        Fetch error/warn logs for pods that need telemetry (phase-unhealthy or
+        running-but-not-ready) and wire them into the graph.
         Returns number of LokiLog nodes created.
         """
         end_ns = int(time.time() * 1_000_000_000)
@@ -75,7 +76,7 @@ class LokiSource:
         # Snapshot to avoid mutating the dict while iterating
         unhealthy_pods = [
             e for e in list(graph.entities(ResourceKind.POD))
-            if isinstance(e, Pod) and e.is_unhealthy
+            if isinstance(e, Pod) and e.needs_telemetry
         ]
 
         for entity in unhealthy_pods:
