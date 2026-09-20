@@ -127,6 +127,18 @@ class Pod(K8sEntity):
     def is_unhealthy(self) -> bool:
         return self.phase not in ("Running", "Succeeded")
 
+    @property
+    def is_not_ready(self) -> bool:
+        """Running but a container is not ready (failing readiness, crashloop)."""
+        return self.phase == "Running" and any(
+            not cs.get("ready", True) for cs in self.container_statuses
+        )
+
+    @property
+    def needs_telemetry(self) -> bool:
+        """Worth pulling logs/traces for; is_unhealthy stays phase-only (seeds, rules, goldens)."""
+        return self.is_unhealthy or self.is_not_ready
+
     def to_text(self) -> str:
         base = super().to_text()
         return (
