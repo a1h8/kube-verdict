@@ -1,7 +1,6 @@
 [
   {
     "trace_id": "6f2a1e0c9d8b4a3f7e6d5c4b3a2f1e0d",
-    "pod": "inventory-api-7f9c8d6b5-x2qwe",
     "service_name": "inventory-api",
     "status": "ERROR",
     "duration_ms": 4820,
@@ -16,7 +15,6 @@
   },
   {
     "trace_id": "8b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e",
-    "pod": "inventory-api-7f9c8d6b5-x2qwe",
     "service_name": "inventory-api",
     "status": "ERROR",
     "duration_ms": 5103,
@@ -31,7 +29,6 @@
   },
   {
     "trace_id": "1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d",
-    "pod": "inventory-api-7f9c8d6b5-x2qwe",
     "service_name": "inventory-api",
     "status": "ERROR",
     "duration_ms": 4655,
@@ -46,7 +43,6 @@
   },
   {
     "trace_id": "3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f",
-    "pod": "inventory-api-7f9c8d6b5-x2qwe",
     "service_name": "inventory-api",
     "status": "ERROR",
     "duration_ms": 4988,
@@ -57,6 +53,19 @@
     "error_spans": [
       {"name": "GET /inventory/sku", "duration_ms": 4988, "status": "ERROR"},
       {"name": "etcdserverpb.KV/Range", "duration_ms": 4950, "status": "ERROR", "attributes": {"rpc.grpc.status_code": 4}}
+    ]
+  },
+  {
+    "trace_id": "9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a",
+    "service_name": "billing-api",
+    "status": "ERROR",
+    "duration_ms": 3120,
+    "span_count": 2,
+    "root_span": "POST /invoices",
+    "error_message": "upstream connect error or disconnect/reset before headers",
+    "started_at": "2026-05-20T09:41:15Z",
+    "error_spans": [
+      {"name": "POST /invoices", "duration_ms": 3120, "status": "ERROR"}
     ]
   }
 ]
