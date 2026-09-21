@@ -4,9 +4,11 @@ h015 — etcd compaction latency (the OTLP-fixture wedge).
 Unlike h001–h011 (K8s manifest/Helm drift evidence only), this case's root
 cause is invisible to K8s events alone: the readiness probe just times out.
 The differentiator is OTel error-trace evidence (otel/traces.json) showing
-sustained DeadlineExceeded errors against etcd Range calls, correlated to the
-pod via HAS_TRACE edges — case_loader._wire_otel_traces / _load_otel
-(tests/integration/cases/case_loader.py).
+sustained DeadlineExceeded errors against etcd Range calls. The traces reach the
+graph through the REAL OtelCollector.collect() (only its backend is a fixture,
+case_loader._FixtureOtelBackend), so the pod is selected by Pod.needs_telemetry
+— it is Running but not ready, which phase-only is_unhealthy would have missed —
+and the service is resolved from its labels, as live.
 
 Deterministic — no cluster, no Ollama, no FAISS embedding (a stub store is
 enough since ContextBuilder's BFS/anchor/trace sections don't need real
@@ -19,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from ontology.entities import OtelTrace, Pod, ResourceKind
+from ontology.entities import Deployment, OtelTrace, Pod, ResourceKind
 from ontology.relationships import RelationshipType
 from rca.context_builder import ContextBuilder
 from tests.integration.cases.case_loader import build_graph, load_case
@@ -62,7 +64,7 @@ class TestOtelFixtureLoading:
         traces_file = CASE_DIR / "otel" / "traces.json"
         assert traces_file.exists()
         raw = json.loads(traces_file.read_text())
-        assert len(raw) == 4
+        assert len(raw) == 5   # 4 for inventory-api + 1 decoy for a service not in the snapshot
 
     def test_four_otel_trace_entities_created(self, graph):
         traces = [
@@ -125,3 +127,33 @@ class TestContextWindowSurfacesTraces:
         prompt = ctx.to_prompt_block()
         assert "TRACES" in prompt
         assert "etcd" in prompt.lower()
+
+
+class TestRealCollectorPath:
+    """h015 goes through the real OtelCollector, so its selection rules apply."""
+
+    def test_decoy_service_is_never_collected(self, graph):
+        traces = [
+            e for e in graph.entities(ResourceKind.OTEL_TRACE) if isinstance(e, OtelTrace)
+        ]
+        assert {t.service_name for t in traces} == {"inventory-api"}
+
+    def test_pod_is_running_but_not_ready(self, pod):
+        assert not pod.is_unhealthy      # phase-only: this pod would have been skipped
+        assert pod.is_not_ready
+        assert pod.needs_telemetry
+
+    def test_traces_attach_to_pod_and_degraded_deployment(self, graph, pod):
+        dep = [e for e in graph.entities() if isinstance(e, Deployment)][0]
+        assert dep.is_degraded
+        assert len(graph.neighbors(dep.uid, RelationshipType.HAS_TRACE)) == 4
+        assert len(graph.neighbors(pod.uid, RelationshipType.HAS_TRACE)) == 4
+
+    def test_pod_link_depends_on_the_readiness_aware_gate(self, monkeypatch):
+        """With the old phase-only selection the pod gets nothing; only the deployment does."""
+        monkeypatch.setattr(Pod, "needs_telemetry", property(lambda self: self.is_unhealthy))
+        g = build_graph(load_case(CASE_DIR))
+        old_pod = [e for e in g.entities() if isinstance(e, Pod)][0]
+        dep = [e for e in g.entities() if isinstance(e, Deployment)][0]
+        assert g.neighbors(old_pod.uid, RelationshipType.HAS_TRACE) == []
+        assert len(g.neighbors(dep.uid, RelationshipType.HAS_TRACE)) == 4
