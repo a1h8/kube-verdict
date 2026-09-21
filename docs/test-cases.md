@@ -43,11 +43,11 @@ The `case_loader.py` reads all formats (YAML/JSON), runs `HelmDriftDetector` + `
    helm/values.yaml       # declared chart values
    helm/release.json      # helm get values RELEASE -n NS -o json
    policy/                # optional: kubectl get policyreport -o yaml
-   otel/*.json            # optional: list of normalized error traces (OtelBackend.search_error_traces shape + a `pod` target)
+   otel/*.json            # optional: list of normalized error traces (OtelBackend.search_error_traces shape)
    prometheus/*.json      # optional: list of raw alerts in Prometheus GET /api/v1/alerts shape
    expect.json            # test expectations
    ```
-   `prometheus/` fixtures are fed through the **real** `PrometheusCollector.collect()` (its HTTP fetch swapped for the fixture list), so label→entity correlation, `HAS_ALERT` edges and `alert.*` annotations match a live cluster — non-`firing` alerts and alerts with no matching entity are dropped exactly as they would be live. `otel/` fixtures build `OtelTrace` nodes + `HAS_TRACE` edges with the same annotation shape `OtelCollector` produces.
+   `prometheus/` fixtures are fed through the **real** `PrometheusCollector.collect()` (its HTTP fetch swapped for the fixture list), so label→entity correlation, `HAS_ALERT` edges and `alert.*` annotations match a live cluster — non-`firing` alerts and alerts with no matching entity are dropped exactly as they would be live. `otel/` fixtures go through the **real** `OtelCollector.collect()` too: a fixture backend answers by `service_name` like a live one, so target selection (`Pod.needs_telemetry` — Running-but-not-ready pods included — and degraded workloads), service-label resolution, `HAS_TRACE` edges and `otel.trace.*` annotations are the live code path, and a trace for a service absent from the snapshot is never collected.
 2. Create `tests/unit/test_hybrid_pipeline_NNN.py` to register the case in the UI dropdown and add pipeline assertions.
 3. The case appears automatically in **🧪 Integration Tests** → pipeline trace.
 
@@ -83,7 +83,7 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
 | ResourceQuota exceeded — pod Pending | h010 | ✅ | `ResourceQuota` entity, namespace quota correlation, pending-pod root cause |
 | StatefulSet update stuck — PVC bound to old pod | h011 | ⚠️ | wired in via `test_native_helm_dialogue`, but `test_confidence_score_min` and `test_has_resolvable_path` still fail — open contribution |
 | SLO error-budget burn — p99/p95 latency breach on a pod Kubernetes reports healthy | h013 | ✅ (evidence wiring) | `tests/integration/test_prometheus_fixture_h013.py`: 0 seeds / 0 drift / 0 events yet 3 firing SLO alerts reach `ContextWindow.alerts` (critical first) via the real `PrometheusCollector`; a `pending` alert and an uncorrelated alert are correctly dropped |
-| etcd compaction latency — readiness timeout with no cause in K8s events | h015 | ✅ (evidence wiring) | `tests/integration/test_otel_fixture_h015.py`: 4 OTel error traces → `OtelTrace` nodes + `HAS_TRACE` edges → `ContextWindow.traces` → prompt |
+| etcd compaction latency — readiness timeout with no cause in K8s events | h015 | ✅ (evidence wiring) | `tests/integration/test_otel_fixture_h015.py`: via the real `OtelCollector`, 4 OTel error traces reach both the Running-but-not-ready pod and the degraded Deployment (`HAS_TRACE`) → `ContextWindow.traces` → prompt; a decoy trace for another service is dropped, and a test shows the pod link disappears under the old phase-only selection |
 
 > **Scope of the h013 / h015 checks.** They prove the *evidence path* — fixture → graph → context window — deterministically in CI. They do **not** assert the LLM's final root-cause text: that needs Ollama and runs via the generic `test_native_helm_dialogue` (which picks these cases up automatically) wherever a model is available.
 
@@ -92,7 +92,7 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
 Components that require a **live environment** (not in CI scope):
 - Live Kubernetes API calls (`k8s_collector.py`, `metrics_server_collector.py`)
 - Prometheus / Alertmanager scrape (`prometheus_collector.py`) — the *network fetch* only; its correlation/annotation logic is exercised offline by h013
-- OTel backends — Tempo / Jaeger (`otel_collector.py`) — the *backend query* only; the resulting trace evidence path is exercised offline by h015
+- OTel backends — Tempo / Jaeger (`otel_collector.py`) — the *backend query* only; the collector's target selection, service resolution and graph wiring are exercised offline by h015 through the real `OtelCollector`
 - Loki log queries (`loki_source.py`)
 - Ollama LLM inference (multi-path hypothesis reasoning)
 - PatchTST anomaly forecasting on real time series
