@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-gateway.readiness.unhealthy.4hxkd
+    namespace: production
+    uid: evt-prod-billing-gateway-readiness-4hxkd
+  type: Warning
+  reason: Unhealthy
+  message: "Readiness probe failed: HTTP probe failed with statuscode: 503"
+  involvedObject:
+    kind: Pod
+    name: billing-gateway-5b7d9c8f6-4hxkd
+    namespace: production
+  count: 92
+  firstTimestamp: "2026-05-22T00:01:10Z"
+  lastTimestamp: "2026-05-22T06:15:00Z"
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-gateway.readiness.unhealthy.v9m2t
+    namespace: production
+    uid: evt-prod-billing-gateway-readiness-v9m2t
+  type: Warning
+  reason: Unhealthy
+  message: "Readiness probe failed: HTTP probe failed with statuscode: 503"
+  involvedObject:
+    kind: Pod
+    name: billing-gateway-5b7d9c8f6-v9m2t
+    namespace: production
+  count: 90
+  firstTimestamp: "2026-05-22T00:01:20Z"
+  lastTimestamp: "2026-05-22T06:15:00Z"
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: letsencrypt-prod.acme.register.failed
+    namespace: production
+    uid: evt-prod-letsencrypt-prod-acme-register
+  type: Warning
+  reason: ErrRegisterACMEAccount
+  message: 'Failed to register ACME account: Post "https://acme-v02.api.letsencrypt.org/acme/new-acct": dial tcp 172.65.32.248:443: i/o timeout'
+  involvedObject:
+    kind: Issuer
+    name: letsencrypt-prod
+    namespace: production
+  count: 1800
+  firstTimestamp: "2026-05-07T02:00:00Z"
+  lastTimestamp: "2026-05-22T06:14:00Z"
+  reportingComponent: cert-manager-issuers

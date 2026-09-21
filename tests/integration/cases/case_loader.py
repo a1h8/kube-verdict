@@ -30,6 +30,15 @@ Reads cases from ``tests/integration/cases/h*/``.  Each case directory has:
                 (its HTTP fetch is swapped for the fixture list) so
                 label→entity correlation and annotation shape are identical
                 to a live cluster — no correlation logic duplicated here.
+  loki/       — log-stream fixtures (optional) — JSON files, each a list of
+                streams in the shape of Loki's ``query_range`` ``data.result``:
+                  {stream: {k8s_pod_name, k8s_namespace_name, ...},
+                   values: [[ts_ns, line], ...]}
+                Served to the real ``LokiSource.collect()`` (only its private
+                ``_query`` is replaced, matching the LogQL label matchers
+                against each stream like Loki does), so pod selection
+                (``Pod.needs_telemetry``), LogQL, level detection, ``LokiLog``
+                nodes and ``HAS_LOG`` edges are the live code path.
   expect.json — test expectations
 
 Usage::
@@ -46,6 +55,7 @@ Usage::
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -56,6 +66,7 @@ import yaml
 from ingestion.anchor_engine import AnchorEngine
 from ingestion.helm_drift import HelmDriftDetector
 from ingestion.chart_parser import flatten_values
+from ingestion.loki_source import LokiSource
 from ingestion.otel_backend import OtelBackend
 from ingestion.otel_collector import OtelCollector
 from ingestion.prometheus_collector import PrometheusCollector
@@ -89,6 +100,7 @@ def load_case(case_dir: Path) -> dict:
     policy_dir   = case_dir / "policy"
     otel_dir     = case_dir / "otel"
     prom_dir     = case_dir / "prometheus"
+    loki_dir     = case_dir / "loki"
 
     values_path   = helm_dir / "values.yaml"
     helmfile_path = helmfile_dir / "helmfile.yaml"
@@ -102,6 +114,7 @@ def load_case(case_dir: Path) -> dict:
         "policy_reports": _load_policy_reports(policy_dir),
         "otel_traces":   _load_otel(otel_dir),
         "prometheus_alerts": _load_prometheus_alerts(prom_dir),
+        "loki_streams":  _load_loki_streams(loki_dir),
         "expect":        json.loads((case_dir / "expect.json").read_text()),
     }
 
@@ -148,6 +161,9 @@ def build_graph(case: dict) -> OntologyGraph:
 
     # ── 3c. Prometheus firing alerts (fixture) ─────────────────────────────
     _wire_prometheus_alerts(graph, case.get("prometheus_alerts", []))
+
+    # ── 3d. Loki log streams (fixture) ─────────────────────────────────────
+    _wire_loki_logs(graph, case.get("loki_streams", []))
 
     # ── 4. Events ───────────────────────────────────────────────────────────
     for evt_raw in case["observed"].get("events", []):
@@ -373,6 +389,54 @@ def _wire_prometheus_alerts(graph: OntologyGraph, alerts: list[dict]) -> None:
     collector = PrometheusCollector(url="http://fixture.invalid")
     collector._fetch_alerts = lambda: alerts
     collector.collect(graph)
+
+
+# ---------------------------------------------------------------------------
+# Loki log-stream fixture loader
+# ---------------------------------------------------------------------------
+
+_LOGQL_MATCHER = re.compile(r'(\w+)="([^"]*)"')
+
+
+def _load_loki_streams(loki_dir: Path) -> list[dict]:
+    """Load Loki ``data.result`` streams ({stream, values}) from loki/*.json."""
+    streams: list[dict] = []
+    if not loki_dir.is_dir():
+        return streams
+    for fpath in sorted(loki_dir.glob("*.json")):
+        content = json.loads(fpath.read_text())
+        if isinstance(content, list):
+            streams.extend(s for s in content if isinstance(s, dict))
+    return streams
+
+
+def _wire_loki_logs(graph: OntologyGraph, streams: list[dict]) -> None:
+    """Serve fixture log streams to the real LokiSource.collect().
+
+    Only the private _query is replaced. Like Loki it matches the LogQL label
+    matchers against each stream's labels and answers newest-first
+    (direction=backward), so which pods get queried (Pod.needs_telemetry), the
+    LogQL built for them, level detection, LokiLog nodes and HAS_LOG edges are
+    the live code path. Fixtures are frozen in time, so the query time window is
+    not applied.
+    """
+    if not streams:
+        return
+
+    def _query(logql: str, start_ns: int, end_ns: int) -> list[tuple[int, str]]:
+        wanted = dict(_LOGQL_MATCHER.findall(logql))
+        rows = [
+            (int(ts), line)
+            for s in streams
+            if all(s.get("stream", {}).get(k) == v for k, v in wanted.items())
+            for ts, line in s.get("values", [])
+        ]
+        rows.sort(key=lambda r: r[0], reverse=True)
+        return rows
+
+    source = LokiSource(url="http://fixture.invalid")
+    source._query = _query
+    source.collect(graph)
 
 
 def _ingest_policy_report(report: dict, graph: OntologyGraph) -> None:

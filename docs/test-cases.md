@@ -28,6 +28,8 @@ tests/integration/cases/
 ├── h012_gitops_render_vs_live/ ← `helm template` expected state diffed vs live (render-vs-live wedge)
 ├── h013_slo_error_budget_burn/ ← healthy pod, p99/p95 latency-SLO breach + burn-rate alerts (Prometheus fixtures)
 │   └── prometheus/           ← raw `/api/v1/alerts` fixtures (incl. a pending + an uncorrelated decoy)
+├── h014_cert_expiry/         ← expired mTLS cert (cert-manager issuer failing); pods Running but not Ready, cause only in logs
+│   └── loki/                 ← Loki `query_range` stream fixtures (x509: certificate has expired)
 └── h015_etcd_compaction/     ← pod Ready=False on readiness timeout; cause only visible in OTel error traces
     └── otel/                 ← normalized error-trace fixtures (DeadlineExceeded on etcd Range)
 ```
@@ -45,9 +47,10 @@ The `case_loader.py` reads all formats (YAML/JSON), runs `HelmDriftDetector` + `
    policy/                # optional: kubectl get policyreport -o yaml
    otel/*.json            # optional: list of normalized error traces (OtelBackend.search_error_traces shape)
    prometheus/*.json      # optional: list of raw alerts in Prometheus GET /api/v1/alerts shape
+   loki/*.json            # optional: list of Loki query_range streams ({stream: {k8s_pod_name, ...}, values: [[ts_ns, line], ...]})
    expect.json            # test expectations
    ```
-   `prometheus/` fixtures are fed through the **real** `PrometheusCollector.collect()` (its HTTP fetch swapped for the fixture list), so label→entity correlation, `HAS_ALERT` edges and `alert.*` annotations match a live cluster — non-`firing` alerts and alerts with no matching entity are dropped exactly as they would be live. `otel/` fixtures go through the **real** `OtelCollector.collect()` too: a fixture backend answers by `service_name` like a live one, so target selection (`Pod.needs_telemetry` — Running-but-not-ready pods included — and degraded workloads), service-label resolution, `HAS_TRACE` edges and `otel.trace.*` annotations are the live code path, and a trace for a service absent from the snapshot is never collected.
+   `prometheus/` fixtures are fed through the **real** `PrometheusCollector.collect()` (its HTTP fetch swapped for the fixture list), so label→entity correlation, `HAS_ALERT` edges and `alert.*` annotations match a live cluster — non-`firing` alerts and alerts with no matching entity are dropped exactly as they would be live. `otel/` fixtures go through the **real** `OtelCollector.collect()` too: a fixture backend answers by `service_name` like a live one, so target selection (`Pod.needs_telemetry` — Running-but-not-ready pods included — and degraded workloads), service-label resolution, `HAS_TRACE` edges and `otel.trace.*` annotations are the live code path, and a trace for a service absent from the snapshot is never collected. `loki/` streams go through the **real** `LokiSource.collect()` as well: only its private `_query` is replaced, matching the LogQL label matchers against each stream's labels like Loki does, so pod selection (`Pod.needs_telemetry`), the LogQL, level detection, `LokiLog` nodes and `HAS_LOG` edges are the live code path (fixtures are frozen in time, so the query time window is not applied).
 2. Create `tests/unit/test_hybrid_pipeline_NNN.py` to register the case in the UI dropdown and add pipeline assertions.
 3. The case appears automatically in **🧪 Integration Tests** → pipeline trace.
 
@@ -83,9 +86,10 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
 | ResourceQuota exceeded — pod Pending | h010 | ✅ | `ResourceQuota` entity, namespace quota correlation, pending-pod root cause |
 | StatefulSet update stuck — PVC bound to old pod | h011 | ⚠️ | wired in via `test_native_helm_dialogue`, but `test_confidence_score_min` and `test_has_resolvable_path` still fail — open contribution |
 | SLO error-budget burn — p99/p95 latency breach on a pod Kubernetes reports healthy | h013 | ✅ (evidence wiring) | `tests/integration/test_prometheus_fixture_h013.py`: 0 seeds / 0 drift / 0 events yet 3 firing SLO alerts reach `ContextWindow.alerts` (critical first) via the real `PrometheusCollector`; a `pending` alert and an uncorrelated alert are correctly dropped |
+| Expired mTLS certificate — cert-manager issuer cannot renew, readiness fails on every replica | h014 | ✅ (evidence wiring) | `tests/integration/test_loki_fixture_h014.py`: pods Running but not Ready are selected by `Pod.needs_telemetry` and their logs reach `ContextWindow.logs` through the real `LokiSource` (error/warn only). Events show the symptom and an issuer warning but never `x509`/`expired`; only the logs do. A same-named pod in another namespace is not returned, and under the old phase-only selection no log is fetched at all |
 | etcd compaction latency — readiness timeout with no cause in K8s events | h015 | ✅ (evidence wiring) | `tests/integration/test_otel_fixture_h015.py`: via the real `OtelCollector`, 4 OTel error traces reach both the Running-but-not-ready pod and the degraded Deployment (`HAS_TRACE`) → `ContextWindow.traces` → prompt; a decoy trace for another service is dropped, and a test shows the pod link disappears under the old phase-only selection |
 
-> **Scope of the h013 / h015 checks.** They prove the *evidence path* — fixture → graph → context window — deterministically in CI. They do **not** assert the LLM's final root-cause text: that needs Ollama and runs via the generic `test_native_helm_dialogue` (which picks these cases up automatically) wherever a model is available.
+> **Scope of the h013 / h014 / h015 checks.** They prove the *evidence path* — fixture → graph → context window — deterministically in CI. They do **not** assert the LLM's final root-cause text: that needs Ollama and runs via the generic `test_native_helm_dialogue` (which picks these cases up automatically) wherever a model is available.
 
 **Each CI run** (`pytest tests/unit/test_hybrid_pipeline_NNN.py`) validates the full pre-LLM pipeline — graph construction, hybrid retrieval (BM25 + FAISS + RRF), context building, anchor/drift/policy scoring, and proposal generation — against a fixed JSON fixture. No Ollama, no cluster.
 
@@ -93,7 +97,7 @@ Components that require a **live environment** (not in CI scope):
 - Live Kubernetes API calls (`k8s_collector.py`, `metrics_server_collector.py`)
 - Prometheus / Alertmanager scrape (`prometheus_collector.py`) — the *network fetch* only; its correlation/annotation logic is exercised offline by h013
 - OTel backends — Tempo / Jaeger (`otel_collector.py`) — the *backend query* only; the collector's target selection, service resolution and graph wiring are exercised offline by h015 through the real `OtelCollector`
-- Loki log queries (`loki_source.py`)
+- Loki log queries (`loki_source.py`) — the *HTTP query* only; pod selection, LogQL, level detection and graph wiring are exercised offline by h014 through the real `LokiSource`
 - Ollama LLM inference (multi-path hypothesis reasoning)
 - PatchTST anomaly forecasting on real time series
 - GitOps diff via `helm template` + GitHub API
