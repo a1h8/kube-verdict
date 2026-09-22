@@ -378,8 +378,10 @@ Heavy objects (`OntologyGraph`, `FAISSStore`, `GitProvider`) are **never stored 
 | `metrics_server_collector.py` | `MetricsServerCollector` — queries `metrics.k8s.io/v1beta1` per namespace; writes `metrics.cpu_m` and `metrics.memory_mi` on `Pod` entities |
 | `prometheus_collector.py` | `PrometheusCollector` — fetches firing alerts from `/api/v1/alerts`; label-matches to K8s entities (pod › deployment › statefulset › daemonset › service › node); writes `alert.*` annotations; creates `PrometheusAlert` nodes with `HAS_ALERT` edges |
 | `otel_backend.py` | `OtelBackend` ABC + `TempoBackend` (Grafana Tempo `/api/search`) + `JaegerBackend` (`/api/services` + `/api/traces`); normalises traces to a common dict schema |
-| `otel_collector.py` | `OtelCollector` — resolves unhealthy entities to service names; fetches error traces via `OtelBackend`; creates `OtelTrace` nodes with `HAS_TRACE` edges; writes `otel.trace.*` annotations |
-| `loki_source.py` | `LokiSource` — queries `/loki/api/v1/query_range` with pod-scoped LogQL; infers log level; extracts OTel trace IDs; creates `LokiLog` nodes with `HAS_LOG` edges |
+| `otel_collector.py` | `OtelCollector` — resolves entities that need telemetry to service names; fetches error traces via `OtelBackend`; creates `OtelTrace` nodes with `HAS_TRACE` edges; writes `otel.trace.*` annotations |
+| `loki_source.py` | `LokiSource` — queries `/loki/api/v1/query_range` with pod-scoped LogQL for pods that need telemetry; infers log level; extracts OTel trace IDs; creates `LokiLog` nodes with `HAS_LOG` edges |
+
+**Which pods the telemetry collectors query.** Both use `Pod.needs_telemetry`: phase-unhealthy pods (`Pending`, `Failed`, `Unknown`) **or** pods that are `Running` with a container `ready: false` (failing readiness, crashloop). `Pod.is_unhealthy` stays phase-only on purpose — it feeds the BFS seeds, the remediation rules and the golden baselines — so a Running-but-not-ready pod is *not* a seed, yet its logs and traces are still fetched. Deployments, StatefulSets and DaemonSets keep their existing degraded checks.
 
 ### Deduplication (`dedup/`)
 
