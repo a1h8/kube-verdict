@@ -100,8 +100,10 @@ kubeverdict/
 │       │   ├── h006_networkpolicy_blocked/ # egress: [] → DNS + DB + Redis blocked
 │       │   ├── …               #   h007–h012 (see docs/test-cases.md)
 │       │   ├── h013_slo_error_budget_burn/ # healthy pod + Prometheus SLO burn-rate / p99 alerts
+│       │   ├── h014_cert_expiry/           # expired mTLS cert; pods Running but not Ready, cause only in Loki logs
 │       │   └── h015_etcd_compaction/       # readiness timeout; cause only in OTel error traces
 │       ├── test_prometheus_fixture_h013.py # deterministic evidence-wiring test for h013
+│       ├── test_loki_fixture_h014.py       # deterministic evidence-wiring test for h014
 │       ├── test_otel_fixture_h015.py       # deterministic evidence-wiring test for h015
 │       └── use_cases/          # Dialogue simulator + proposal engine
 │
