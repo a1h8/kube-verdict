@@ -67,7 +67,7 @@ The beam-search engine already records every routing decision (`edge_log`), ever
 
 ## Loki Full Integration (B10)
 
-Current state: basic LogQL range query against unhealthy pods, `LokiLog` nodes wired via `HAS_LOG` edges, level keyword detection, trace ID regex. The following extensions are needed.
+Current state: basic LogQL range query against pods that need telemetry (phase-unhealthy, or `Running` with a container not ready), `LokiLog` nodes wired via `HAS_LOG` edges, level keyword detection, trace ID regex. The following extensions are needed.
 
 - [ ] **Structured log parsing** — JSON-formatted log lines are parsed into key-value annotations on `LokiLog` nodes (http_status, method, path, latency, user, service); enriches hypothesis context beyond raw line text
 - [ ] **Error clustering** — group identical or near-identical error messages (edit distance + embedding cosine) into a single `LogCluster` node; prevents token explosion in the LLM context and surfaces recurring patterns instead of N duplicate lines
