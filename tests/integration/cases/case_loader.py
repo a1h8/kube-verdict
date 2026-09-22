@@ -12,11 +12,13 @@ Reads cases from ``tests/integration/cases/h*/``.  Each case directory has:
                 ``OtelBackend.search_error_traces()`` returns live (see
                 ingestion/otel_backend.py):
                   {trace_id, service_name, status, duration_ms, span_count,
-                   error_message, root_span, error_spans, started_at, pod}
-                ``pod`` names which observed pod (by name) the trace attaches
-                to — fixtures declare the target explicitly rather than
-                replicating OtelCollector's live label-based service
-                resolution.
+                   error_message, root_span, error_spans, started_at}
+                Served to the real ``OtelCollector.collect()`` by a fixture
+                backend that filters on ``service_name`` like a live one, so
+                target selection (``Pod.needs_telemetry``, degraded
+                workloads), service-label resolution, ``HAS_TRACE`` edges and
+                annotations are the live code path. Traces for a service absent
+                from the snapshot are never collected.
   prometheus/ — firing-alert fixtures (optional) — JSON files, each a list of
                 raw alerts in the exact shape Prometheus's
                 ``GET /api/v1/alerts`` returns (see
@@ -28,6 +30,15 @@ Reads cases from ``tests/integration/cases/h*/``.  Each case directory has:
                 (its HTTP fetch is swapped for the fixture list) so
                 label→entity correlation and annotation shape are identical
                 to a live cluster — no correlation logic duplicated here.
+  loki/       — log-stream fixtures (optional) — JSON files, each a list of
+                streams in the shape of Loki's ``query_range`` ``data.result``:
+                  {stream: {k8s_pod_name, k8s_namespace_name, ...},
+                   values: [[ts_ns, line], ...]}
+                Served to the real ``LokiSource.collect()`` (only its private
+                ``_query`` is replaced, matching the LogQL label matchers
+                against each stream like Loki does), so pod selection
+                (``Pod.needs_telemetry``), LogQL, level detection, ``LokiLog``
+                nodes and ``HAS_LOG`` edges are the live code path.
   expect.json — test expectations
 
 Usage::
@@ -44,6 +55,7 @@ Usage::
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -54,9 +66,12 @@ import yaml
 from ingestion.anchor_engine import AnchorEngine
 from ingestion.helm_drift import HelmDriftDetector
 from ingestion.chart_parser import flatten_values
+from ingestion.loki_source import LokiSource
+from ingestion.otel_backend import OtelBackend
+from ingestion.otel_collector import OtelCollector
 from ingestion.prometheus_collector import PrometheusCollector
 from ontology.entities import (
-    Deployment, HelmRelease, K8sEvent, Namespace, OtelTrace, Pod,
+    Deployment, HelmRelease, K8sEvent, Namespace, Pod,
     PolicyViolation, ResourceQuota,
 )
 from ontology.graph import OntologyGraph
@@ -85,6 +100,7 @@ def load_case(case_dir: Path) -> dict:
     policy_dir   = case_dir / "policy"
     otel_dir     = case_dir / "otel"
     prom_dir     = case_dir / "prometheus"
+    loki_dir     = case_dir / "loki"
 
     values_path   = helm_dir / "values.yaml"
     helmfile_path = helmfile_dir / "helmfile.yaml"
@@ -98,6 +114,7 @@ def load_case(case_dir: Path) -> dict:
         "policy_reports": _load_policy_reports(policy_dir),
         "otel_traces":   _load_otel(otel_dir),
         "prometheus_alerts": _load_prometheus_alerts(prom_dir),
+        "loki_streams":  _load_loki_streams(loki_dir),
         "expect":        json.loads((case_dir / "expect.json").read_text()),
     }
 
@@ -144,6 +161,9 @@ def build_graph(case: dict) -> OntologyGraph:
 
     # ── 3c. Prometheus firing alerts (fixture) ─────────────────────────────
     _wire_prometheus_alerts(graph, case.get("prometheus_alerts", []))
+
+    # ── 3d. Loki log streams (fixture) ─────────────────────────────────────
+    _wire_loki_logs(graph, case.get("loki_streams", []))
 
     # ── 4. Events ───────────────────────────────────────────────────────────
     for evt_raw in case["observed"].get("events", []):
@@ -298,8 +318,9 @@ def _load_otel(otel_dir: Path) -> list[dict]:
     """Load normalized OTel error-trace fixtures from otel/*.json.
 
     Each file is a JSON list of trace dicts in the same shape
-    OtelBackend.search_error_traces() returns live, plus a ``pod`` key naming
-    the target pod explicitly (fixtures skip live service-label resolution).
+    OtelBackend.search_error_traces() returns live. A trace is served to the
+    collector when its ``service_name`` matches the service resolved for an
+    entity, exactly as a live backend would answer.
     """
     traces: list[dict] = []
     if not otel_dir.is_dir():
@@ -311,44 +332,32 @@ def _load_otel(otel_dir: Path) -> list[dict]:
     return traces
 
 
+class _FixtureOtelBackend(OtelBackend):
+    """Serves fixture traces to the real OtelCollector, filtered by service like a live backend."""
+
+    def __init__(self, traces: list[dict]) -> None:
+        super().__init__(url="fixture://otel")
+        self._traces = traces
+
+    def search_error_traces(self, service, namespace, start_ts, end_ts, limit=20):
+        return [t for t in self._traces if t.get("service_name") == service][:limit]
+
+    def get_trace(self, trace_id):
+        return next((t for t in self._traces if t.get("trace_id") == trace_id), None)
+
+
 def _wire_otel_traces(graph: OntologyGraph, traces: list[dict]) -> None:
-    """Build OtelTrace entities + HAS_TRACE edges from fixture trace dicts.
+    """Correlate fixture traces with graph entities via the real collector.
 
-    Mirrors OtelCollector.collect()'s graph shape (same entity fields,
-    same otel.trace.{id}.status/.error annotations) so context_builder's
-    generic OTEL_TRACE query (rca/context_builder.py) surfaces them exactly
-    like a live-collected trace — the RCA pipeline can't tell the difference.
+    OtelCollector.collect() runs unchanged — target selection (Pod.needs_telemetry,
+    degraded workloads), service-name resolution, OtelTrace nodes, HAS_TRACE edges
+    and otel.trace.* annotations. Only the backend is a fixture, and like a live
+    backend it answers by service, so a trace for a service absent from the
+    snapshot is never collected.
     """
-    for trace in traces:
-        tid = trace.get("trace_id", "")
-        if not tid:
-            continue
-        pod_name = trace.get("pod", "")
-        pod = _find_entity(graph, "Pod", pod_name, "") if pod_name else None
-
-        trace_uid = f"otel-trace-{tid}"
-        ot = OtelTrace(
-            uid=trace_uid,
-            name=tid,
-            namespace=pod.namespace if pod else None,
-            trace_id=tid,
-            service_name=trace.get("service_name", pod_name),
-            status=trace.get("status", ""),
-            duration_ms=float(trace.get("duration_ms", 0.0)),
-            span_count=int(trace.get("span_count", 0)),
-            error_message=trace.get("error_message", ""),
-            root_span_name=trace.get("root_span", ""),
-            error_spans=list(trace.get("error_spans", [])),
-            started_at=trace.get("started_at", ""),
-        )
-        graph.add_entity(ot)
-
-        if pod is not None:
-            graph.add_edge(Edge(pod.uid, trace_uid, RelationshipType.HAS_TRACE))
-            prefix = f"otel.trace.{tid}"
-            pod.annotations[f"{prefix}.status"] = trace.get("status", "")
-            if trace.get("error_message"):
-                pod.annotations[f"{prefix}.error"] = trace["error_message"][:200]
+    if not traces:
+        return
+    OtelCollector(_FixtureOtelBackend(traces)).collect(graph)
 
 
 # ---------------------------------------------------------------------------
@@ -380,6 +389,54 @@ def _wire_prometheus_alerts(graph: OntologyGraph, alerts: list[dict]) -> None:
     collector = PrometheusCollector(url="http://fixture.invalid")
     collector._fetch_alerts = lambda: alerts
     collector.collect(graph)
+
+
+# ---------------------------------------------------------------------------
+# Loki log-stream fixture loader
+# ---------------------------------------------------------------------------
+
+_LOGQL_MATCHER = re.compile(r'(\w+)="([^"]*)"')
+
+
+def _load_loki_streams(loki_dir: Path) -> list[dict]:
+    """Load Loki ``data.result`` streams ({stream, values}) from loki/*.json."""
+    streams: list[dict] = []
+    if not loki_dir.is_dir():
+        return streams
+    for fpath in sorted(loki_dir.glob("*.json")):
+        content = json.loads(fpath.read_text())
+        if isinstance(content, list):
+            streams.extend(s for s in content if isinstance(s, dict))
+    return streams
+
+
+def _wire_loki_logs(graph: OntologyGraph, streams: list[dict]) -> None:
+    """Serve fixture log streams to the real LokiSource.collect().
+
+    Only the private _query is replaced. Like Loki it matches the LogQL label
+    matchers against each stream's labels and answers newest-first
+    (direction=backward), so which pods get queried (Pod.needs_telemetry), the
+    LogQL built for them, level detection, LokiLog nodes and HAS_LOG edges are
+    the live code path. Fixtures are frozen in time, so the query time window is
+    not applied.
+    """
+    if not streams:
+        return
+
+    def _query(logql: str, start_ns: int, end_ns: int) -> list[tuple[int, str]]:
+        wanted = dict(_LOGQL_MATCHER.findall(logql))
+        rows = [
+            (int(ts), line)
+            for s in streams
+            if all(s.get("stream", {}).get(k) == v for k, v in wanted.items())
+            for ts, line in s.get("values", [])
+        ]
+        rows.sort(key=lambda r: r[0], reverse=True)
+        return rows
+
+    source = LokiSource(url="http://fixture.invalid")
+    source._query = _query
+    source.collect(graph)
 
 
 def _ingest_policy_report(report: dict, graph: OntologyGraph) -> None:

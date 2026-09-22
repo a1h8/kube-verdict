@@ -1,0 +1,40 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "billing-gateway-5b7d9c8f6-4hxkd",
+      "k8s_namespace_name": "production",
+      "k8s_container_name": "billing-gateway"
+    },
+    "values": [
+      ["1779430241000000000", "level=info msg=\"serving request\" method=POST path=/v1/charges status=502 duration_ms=41"],
+      ["1779430263000000000", "level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:11:03Z is after 2026-05-22T00:00:00Z\""],
+      ["1779430337000000000", "level=warn msg=\"readiness check failing\" reason=\"upstream payments-backend unreachable\""],
+      ["1779430409000000000", "level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:13:29Z is after 2026-05-22T00:00:00Z\""],
+      ["1779430442000000000", "level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:14:02Z is after 2026-05-22T00:00:00Z\""]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "billing-gateway-5b7d9c8f6-v9m2t",
+      "k8s_namespace_name": "production",
+      "k8s_container_name": "billing-gateway"
+    },
+    "values": [
+      ["1779430241000000000", "level=info msg=\"serving request\" method=POST path=/v1/charges status=502 duration_ms=39"],
+      ["1779430263000000000", "level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:11:03Z is after 2026-05-22T00:00:00Z\""],
+      ["1779430337000000000", "level=warn msg=\"readiness check failing\" reason=\"upstream payments-backend unreachable\""],
+      ["1779430409000000000", "level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:13:29Z is after 2026-05-22T00:00:00Z\""],
+      ["1779430484000000000", "level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:14:44Z is after 2026-05-22T00:00:00Z\""]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "billing-gateway-5b7d9c8f6-4hxkd",
+      "k8s_namespace_name": "staging",
+      "k8s_container_name": "billing-gateway"
+    },
+    "values": [
+      ["1779430300000000000", "level=error msg=\"decoy: same pod name in another namespace, must never be returned for production\""]
+    ]
+  }
+]

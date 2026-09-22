@@ -1,0 +1,11 @@
+{
+  "scenario": "Expired mTLS certificate — cert-manager issuer cannot renew, readiness fails on every replica",
+  "namespace": "production",
+  "release": "billing-gateway",
+  "affected_resources": ["Deployment/production/billing-gateway"],
+  "root_cause_contains": ["certificate", "expired", "x509", "tls", "renew", "issuer"],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.3,
+  "fallback_expected": true,
+  "notes": "billing-gateway calls payments-backend over mTLS with a certificate managed by cert-manager. The ACME issuer letsencrypt-prod cannot register its account (i/o timeout to the ACME endpoint), so the certificate was never renewed and expired at 2026-05-22T00:00:00Z. Both pods are Running but not Ready (the /ready probe checks the upstream TLS handshake) and the Deployment is 0/2. Kubernetes events show the symptom (readiness 503) and the issuer warning, but nothing names the expired certificate: only the pods' logs do (x509: certificate has expired or is not yet valid). Those logs reach the graph through the real LokiSource: the pods are Running, so they are selected by Pod.needs_telemetry, not by the phase-only is_unhealthy. The loki/ fixture also holds a decoy stream (same pod name, staging namespace) that the LogQL selector must not return. This is the h014 case class from B14: the log-only signal, completing traces (h015), metrics (h013) and logs."
+}

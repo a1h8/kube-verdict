@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: PodList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: billing-gateway-5b7d9c8f6-4hxkd
+    namespace: production
+    uid: pod-prod-billing-gateway-5b7d9c8f6-4hxkd
+    labels:
+      app.kubernetes.io/name: billing-gateway
+      app.kubernetes.io/instance: billing-gateway
+      pod-template-hash: 5b7d9c8f6
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: billing-gateway-5b7d9c8f6
+      uid: rs-prod-billing-gateway-5b7d9c8f6
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: billing-gateway
+      image: ghcr.io/acme/billing-gateway:3.1.0
+      resources:
+        limits:
+          memory: 256Mi
+          cpu: 500m
+        requests:
+          memory: 128Mi
+          cpu: 100m
+      volumeMounts:
+      - name: tls
+        mountPath: /etc/tls
+        readOnly: true
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8443
+          scheme: HTTPS
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+    volumes:
+    - name: tls
+      secret:
+        secretName: billing-gateway-tls
+  status:
+    phase: Running
+    containerStatuses:
+    - name: billing-gateway
+      ready: false
+      restartCount: 0
+      state:
+        running:
+          startedAt: "2026-05-19T07:00:00Z"
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: "False"
+      reason: ContainersNotReady
+      message: "containers with unready status: [billing-gateway]"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: billing-gateway-5b7d9c8f6-v9m2t
+    namespace: production
+    uid: pod-prod-billing-gateway-5b7d9c8f6-v9m2t
+    labels:
+      app.kubernetes.io/name: billing-gateway
+      app.kubernetes.io/instance: billing-gateway
+      pod-template-hash: 5b7d9c8f6
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: billing-gateway-5b7d9c8f6
+      uid: rs-prod-billing-gateway-5b7d9c8f6
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: billing-gateway
+      image: ghcr.io/acme/billing-gateway:3.1.0
+      resources:
+        limits:
+          memory: 256Mi
+          cpu: 500m
+        requests:
+          memory: 128Mi
+          cpu: 100m
+      volumeMounts:
+      - name: tls
+        mountPath: /etc/tls
+        readOnly: true
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8443
+          scheme: HTTPS
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+    volumes:
+    - name: tls
+      secret:
+        secretName: billing-gateway-tls
+  status:
+    phase: Running
+    containerStatuses:
+    - name: billing-gateway
+      ready: false
+      restartCount: 0
+      state:
+        running:
+          startedAt: "2026-05-19T07:00:00Z"
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: "False"
+      reason: ContainersNotReady
+      message: "containers with unready status: [billing-gateway]"

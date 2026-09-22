@@ -1,0 +1,23 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/acme/billing-gateway
+  tag: "3.1.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    memory: 256Mi
+    cpu: 500m
+  requests:
+    memory: 128Mi
+    cpu: 100m
+
+service:
+  type: ClusterIP
+  port: 8443
+
+tls:
+  secretName: billing-gateway-tls
+  issuerRef: letsencrypt-prod
+  renewBefore: 360h
