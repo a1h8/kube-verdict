@@ -1,0 +1,59 @@
+# OTel Collector — kubeverdict-obs — adds a real trace destination.
+#
+# Base values are the ones already live on the `otel-collector` Helm release
+# (open-telemetry/opentelemetry-collector, deployed 2026-09-25). This file
+# adds an `otlp/tempo` exporter to the `traces` pipeline alongside `debug`, so
+# traces the collector receives from kube-verdict's self-monitoring
+# (telemetry.py) are persisted in Tempo, not only logged to stdout.
+config:
+  exporters:
+    debug:
+      verbosity: basic
+    prometheus:
+      endpoint: 0.0.0.0:8889
+    otlp/tempo:
+      endpoint: tempo.kubeverdict-obs.svc.cluster.local:4317
+      tls:
+        insecure: true
+  processors:
+    batch: {}
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  service:
+    pipelines:
+      metrics:
+        exporters:
+          - prometheus
+        processors:
+          - batch
+        receivers:
+          - otlp
+      traces:
+        exporters:
+          - debug
+          - otlp/tempo
+        processors:
+          - batch
+        receivers:
+          - otlp
+image:
+  repository: otel/opentelemetry-collector-contrib
+mode: deployment
+ports:
+  metrics:
+    containerPort: 8889
+    enabled: true
+    protocol: TCP
+    servicePort: 8889
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi

@@ -1,0 +1,40 @@
+# Grafana — kubeverdict-obs — adds Tempo + Loki datasources.
+#
+# Base values are the ones already live on the `grafana` Helm release
+# (deployed 2026-09-25): admin password, the existing Prometheus datasource,
+# the dashboard sidecar picking up ConfigMaps labeled `grafana_dashboard: "1"`
+# (this is how `kubeverdict-ops-dashboard` / Monitoring Ops, B15, gets loaded).
+# This file adds Tempo and Loki alongside Prometheus so traces/logs are
+# browsable from the same Grafana instance.
+adminPassword: kubeverdict
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - access: proxy
+        isDefault: true
+        name: Prometheus
+        type: prometheus
+        url: http://prometheus-server.kubeverdict-obs.svc
+      - access: proxy
+        name: Tempo
+        type: tempo
+        url: http://tempo.kubeverdict-obs.svc.cluster.local:3200
+      - access: proxy
+        name: Loki
+        type: loki
+        url: http://loki.kubeverdict-obs.svc.cluster.local:3100
+persistence:
+  enabled: false
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
