@@ -38,7 +38,7 @@ flowchart TB
 
     subgraph OBS["Observability — 3 axes"]
         direction LR
-        AX1["Axis 1 — Jaeger<br/>live trace backend<br/>(needs real infra)"]
+        AX1["Axis 1 — OTLP + Grafana<br/>self-observability backend<br/>(needs real infra)"]
         AX2["Axis 2 — Decision Journey<br/>per-session, built (B9)"]
         AX3["Axis 3 — PatchTST validation<br/>per-scenario, built this cycle"]
     end
@@ -83,8 +83,15 @@ flowchart TB
   pods Running but not ready), h015 via OTel trace fixtures. Same scenarios, two
   different offline-first checks, no live cluster or cloud spend needed for
   either.
-- **Axis 1 (Jaeger) is the one dashed line that still means real
+- **Axis 1 (OTLP + Grafana) is the one dashed line that still means real
   infrastructure** — axes 2 and 3 are both already free (local files /
   existing session store); deploying the actual observability stack (and
   picking GCP vs. a sovereign provider) is the one step in this whole map
-  that isn't done by just writing more code.
+  that isn't done by just writing more code. Axis 1 is kube-verdict's own
+  self-observability (API request latency, error rate, LLM call duration,
+  collector fallback counts — see B15 in `roadmap.md`), not a duplicate of
+  PatchTST's validation dashboard (Axis 3), which stays in the PatchTST repo.
+
+Before wiring `DEPLOY` (GCP Dataflow / sovereign Flink-on-K8s) for real: see
+[patchtst-readiness.md](patchtst-readiness.md) for the narrower question of
+what kube-verdict specifically needs proven from PatchTST first.
