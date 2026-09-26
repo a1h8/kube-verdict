@@ -1,0 +1,56 @@
+# Scenario h014 — expired mTLS certificate
+# billing-gateway can reach nothing behind its TLS upstream because the
+# certificate has expired; its readiness probe targets a port nothing
+# listens on, so the pod goes Running but never Ready — for real, not a
+# fixture. K8s events show only a generic probe failure; the root cause
+# (x509: certificate has expired) is visible exclusively in the container's
+# logs, which Alloy ships to the live Loki deployed for this pass
+# (see docs/local-observability-stack.md).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-gateway
+  namespace: kubeverdict-demo
+  labels:
+    app: billing-gateway
+    app.kubernetes.io/name: billing-gateway
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing-gateway
+  template:
+    metadata:
+      labels:
+        app: billing-gateway
+        app.kubernetes.io/name: billing-gateway
+    spec:
+      containers:
+      - name: billing-gateway
+        image: busybox:1.36
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "[billing-gateway] Starting v3.1.0"
+          while true; do
+            echo "level=info msg=\"serving request\" method=POST path=/v1/charges status=502"
+            sleep 4
+            echo "level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time $(date -u +%Y-%m-%dT%H:%M:%SZ) is after 2026-05-22T00:00:00Z\""
+            sleep 4
+            echo "level=warn msg=\"readiness check failing\" reason=\"upstream payments-backend unreachable\""
+            sleep 4
+          done
+        readinessProbe:
+          tcpSocket:
+            port: 8443
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          failureThreshold: 1
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"

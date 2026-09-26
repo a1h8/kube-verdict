@@ -114,8 +114,13 @@ class TempoBackend(OtelBackend):
         end_ts: int,
         limit: int = 20,
     ) -> list[dict]:
+        # TraceQL, not the legacy `tags=` param: `tags` only matches span/resource
+        # *attributes* — `status` is an intrinsic (span.Status), not an attribute,
+        # so `tags=service.name=X status.code=STATUS_CODE_ERROR` is silently
+        # unsatisfiable (verified live against a real Tempo: 516/516 traces
+        # scanned, 0 ever returned, no error — the query is just never true).
         params = {
-            "tags": f"service.name={service} status.code=STATUS_CODE_ERROR",
+            "q": f'{{resource.service.name="{service}" && status=error}}',
             "start": start_ts,
             "end":   end_ts,
             "limit": limit,
@@ -138,7 +143,10 @@ class TempoBackend(OtelBackend):
         data = self._get(f"/api/traces/{trace_id}")
         if not data:
             return None
-        return _normalise_tempo_trace(data)
+        # Real Tempo's GET /api/traces/{id} body is just {"batches": [...]} —
+        # no top-level traceID to read back (verified live) — pass the ID we
+        # already have instead of relying on data.get("traceID").
+        return _normalise_tempo_trace(data, trace_id)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -201,8 +209,11 @@ class JaegerBackend(OtelBackend):
 # Normalisation helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _normalise_tempo_trace(data: dict) -> dict:
-    """Convert Tempo trace JSON → normalised dict."""
+def _normalise_tempo_trace(data: dict, trace_id: str = "") -> dict:
+    """Convert Tempo trace JSON → normalised dict. `trace_id` should be the ID
+    the caller fetched with — the trace body itself carries no top-level
+    traceID in real Tempo (only `data.get("traceID")` as a fixture-only
+    fallback, for tests/backward-compat)."""
     batches = data.get("batches", [])
     error_spans: list[dict] = []
     root_span_name = ""
@@ -245,7 +256,7 @@ def _normalise_tempo_trace(data: dict) -> dict:
                         error_message = msg
 
     return {
-        "trace_id":      data.get("traceID", ""),
+        "trace_id":      trace_id or data.get("traceID", ""),
         "service_name":  service_name,
         "status":        "ERROR" if error_spans else "OK",
         "duration_ms":   duration_ms,

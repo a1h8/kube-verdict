@@ -58,3 +58,6 @@ app.include_router(health_router)
 app.include_router(sessions_router)
 app.include_router(webhook_router)
 app.include_router(investigate_router)
+
+import telemetry  # noqa: E402
+telemetry.instrument(app)

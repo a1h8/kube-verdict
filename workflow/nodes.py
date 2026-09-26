@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -16,6 +17,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
 import config as cfg
+import telemetry
 from rca.analyzer import RCAAnalyzer, _generate_rollback
 from rca.context_builder import ContextBuilder
 from decision.decision_engine import DecisionEngine
@@ -44,6 +46,8 @@ EXAMPLE_MATCH_THRESHOLD = 0.65   # cosine similarity (IndexFlatIP, L2-normalised
 
 def _stats(state: RCAState, step: str, data: dict) -> dict:
     """Merge per-step telemetry into ingestion_stats without overwriting other steps."""
+    if data.get("fallback"):
+        telemetry.record_collector_fallback(step)
     current = dict(state.get("ingestion_stats") or {})
     current[step] = data
     return {"ingestion_stats": current}
@@ -885,7 +889,9 @@ def hypothesize_node(state: RCAState, config: RunnableConfig) -> dict:
             f"Reply with ONLY {needed} line(s), one per line, no numbering, no prefix.\n"
         )
         try:
+            _t0 = time.perf_counter()
             raw = llm.generate(prompt)
+            telemetry.record_llm_call_duration(time.perf_counter() - _t0, node="hypothesize")
             for h in _parse_hypotheses(raw):
                 if h not in seen_hyps and len(ordered) < MAX_PATHS:
                     seen_hyps.add(h)
