@@ -50,6 +50,10 @@ config:
   prometheusUrl: ""
   otelEnabled: "false"
   otelBackendUrl: ""
+  # Self-observability (B15) — kube-verdict's own OTLP export, not evidence ingestion
+  otelSelfMonitoringEnabled: "false"
+  otelExporterOtlpEndpoint: ""
+  otelServiceName: "kube-verdict-api"
   lokiEnabled: "false"
   lokiUrl: ""
   gitopsEnabled: "false"
