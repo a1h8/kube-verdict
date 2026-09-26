@@ -38,3 +38,8 @@ sidecar:
     enabled: true
     label: grafana_dashboard
     labelValue: "1"
+    # kube-verdict ships its own dashboard ConfigMap (grafana_dashboard: "1")
+    # from its own Helm release in the kubeverdict namespace, not this one
+    # (kubeverdict-obs) -- the sidecar only watches its own namespace by
+    # default, so it needs to search across namespaces to find it.
+    searchNamespace: ALL

@@ -7,7 +7,7 @@ narrative vitrine rather than left as isolated tools (B15, `docs/roadmap.md`):
 |---|---|---|---|
 | **Evaluation Score** | How mature is KubeVerdict overall? | React + Vite, GitHub Pages | Built |
 | **Decision Journey** (`#/journey`) | Why did this specific session reach this verdict? | React, consumes the API, SSE live | Built, incl. evidence panel (logs/traces behind each hypothesis) — B15 |
-| **Monitoring Ops** | Is the KubeVerdict service itself healthy right now? | Grafana reading OTLP (metrics + traces exported by `telemetry.py`) | Instrumentation built (B15); Grafana dashboard itself pending, needs real infra |
+| **Monitoring Ops** | Is the KubeVerdict service itself healthy right now? | Grafana reading OTLP (metrics + traces exported by `telemetry.py`) | Instrumentation + dashboard JSON + Helm provisioning built (B15); needs `OTEL_SELF_MONITORING_ENABLED=true` on the live release + a rendered-panel check |
 
 Not to be confused with PatchTST's own validation dashboard (`tools/render_dashboard.py`,
 Axis 3 in `kubeverdict-patchtst-map.md`) — that one lives in the PatchTST repo and stays

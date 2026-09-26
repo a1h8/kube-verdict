@@ -17,7 +17,7 @@ on 2026-09-25:
 | Release | Chart | Purpose |
 |---|---|---|
 | `prometheus` | `prometheus-community/prometheus` | metrics — feeds the Monitoring Ops Grafana dashboard |
-| `grafana` | `grafana/grafana` | dashboards — `kubeverdict-ops` (Axis 1, B15) already loaded via the `grafana_dashboard: "1"` sidecar label |
+| `grafana` | `grafana/grafana` | dashboards — `kubeverdict-ops` (Axis 1, B15) via the `grafana_dashboard: "1"` sidecar label, now provisioned as IaC by kube-verdict's own chart (`templates/grafana-dashboard.yaml`) rather than a manual ConfigMap |
 | `otel-collector` | `open-telemetry/opentelemetry-collector` | receives OTLP from `kube-verdict`'s self-monitoring (`telemetry.py`); metrics exporter → Prometheus scrape; **traces exporter → `debug` only (not stored, not queryable)** |
 
 Plus `kube-verdict` (namespace `kubeverdict`) with

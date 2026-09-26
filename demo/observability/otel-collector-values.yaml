@@ -41,6 +41,15 @@ config:
           - batch
         receivers:
           - otlp
+# Prometheus (prometheus-community/prometheus chart) auto-discovers scrape
+# targets from these annotations (kubernetes_sd_configs: pod role) -- without
+# them the prometheus exporter above is reachable but never actually scraped,
+# so kube-verdict's self-monitoring metrics never reach Prometheus/Grafana.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8889"
+  prometheus.io/path: /metrics
+
 image:
   repository: otel/opentelemetry-collector-contrib
 mode: deployment
