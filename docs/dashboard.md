@@ -1,3 +1,24 @@
+# Dashboards
+
+KubeVerdict has 3 dashboards, each answering a different question, linked into one
+narrative vitrine rather than left as isolated tools (B15, `docs/roadmap.md`):
+
+| Dashboard | Question it answers | Stack | Status |
+|---|---|---|---|
+| **Evaluation Score** | How mature is KubeVerdict overall? | React + Vite, GitHub Pages | Built |
+| **Decision Journey** (`#/journey`) | Why did this specific session reach this verdict? | React, consumes the API, SSE live | Built, incl. evidence panel (logs/traces behind each hypothesis) — B15 |
+| **Monitoring Ops** | Is the KubeVerdict service itself healthy right now? | Grafana reading OTLP (metrics + traces exported by `telemetry.py`) | Instrumentation built (B15); Grafana dashboard itself pending, needs real infra |
+
+Not to be confused with PatchTST's own validation dashboard (`tools/render_dashboard.py`,
+Axis 3 in `kubeverdict-patchtst-map.md`) — that one lives in the PatchTST repo and stays
+there; it is not one of KubeVerdict's 3.
+
+This page documents the **Evaluation Score** dashboard. See `docs/ui.md` for the Streamlit
+UI's own internal "Dashboard" tab (ingestion pipeline stats) — a debugging surface, not one
+of the 3 above.
+
+---
+
 # Evaluation Score Dashboard
 
 An interactive maturity tracker for KubeVerdict — built with React + Vite, deployed automatically to GitHub Pages on every push to `main`.

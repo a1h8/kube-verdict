@@ -17,6 +17,9 @@ data:
   PROMETHEUS_URL:        {{ .Values.config.prometheusUrl | quote }}
   OTEL_ENABLED:          {{ .Values.config.otelEnabled | quote }}
   OTEL_BACKEND_URL:      {{ .Values.config.otelBackendUrl | quote }}
+  OTEL_SELF_MONITORING_ENABLED: {{ .Values.config.otelSelfMonitoringEnabled | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT:  {{ .Values.config.otelExporterOtlpEndpoint | quote }}
+  OTEL_SERVICE_NAME:            {{ .Values.config.otelServiceName | quote }}
   LOKI_ENABLED:          {{ .Values.config.lokiEnabled | quote }}
   LOKI_URL:              {{ .Values.config.lokiUrl | quote }}
   GITOPS_ENABLED:        {{ .Values.config.gitopsEnabled | quote }}
