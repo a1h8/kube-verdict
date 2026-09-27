@@ -280,7 +280,7 @@ class _ApiServerProxy:
                         return self
             except (urllib.error.URLError, ConnectionError, OSError):
                 time.sleep(1)
-        raise TimeoutError(f"apiserver proxy did not come up within 30s")
+        raise TimeoutError("apiserver proxy did not come up within 30s")
 
     def url_for(self, namespace: str, service: str, port: int) -> str:
         return (f"{self.base}/api/v1/namespaces/{namespace}/services/"
@@ -496,8 +496,8 @@ def capture(context: str, scenario_id: str, index: int, *,
                 print(f"  waiting for Tempo's tag-search index to catch up "
                       f"(WAL→block flush) for service={scenario['otel_service']} …")
                 if not wait_tempo_searchable(tempo_url, scenario["otel_service"], apply_time):
-                    print(f"  !! Tempo search still empty after the wait — "
-                          f"proceeding anyway, trace correlation may come back 0",
+                    print("  !! Tempo search still empty after the wait — "
+                          "proceeding anyway, trace correlation may come back 0",
                           file=sys.stderr)
 
             # Force a fresh LLM analysis per capture (no example-cache reuse), and
