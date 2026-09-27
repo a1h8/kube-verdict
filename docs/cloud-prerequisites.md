@@ -28,6 +28,7 @@ see Axis 1 in `docs/kubeverdict-patchtst-map.md` and B15 in `docs/roadmap.md`.
 - GCP: GKE Autopilot (fastest to stand up, managed node pools) — avoid standard GKE unless node-level control is actually needed
 - Scaleway: Kapsule (managed K8s)
 - Both: one small node pool is enough for the demo scale (h013/h014/h015 + kube-verdict + Grafana + observability backends)
+- Terraform for both is already written (`terraform/gcp/`, `terraform/scaleway/`) — cluster provisioning only, not applied anywhere yet since no account/billing exists for either cloud. See `terraform/README.md`.
 
 ## 3. Observability backends — must be real, not fixtures
 
