@@ -80,6 +80,11 @@ OTEL_TIMEOUT: int = _int("OTEL_TIMEOUT", 30)
 # OTLP push receiver (used when OTEL_BACKEND_TYPE=otlp)
 OTLP_HOST: str = os.getenv("OTLP_HOST", "0.0.0.0")
 OTLP_PORT: int = _int("OTLP_PORT", 4318)
+
+# ── Self-observability (B15) — kube-verdict's own OTLP export, not evidence ingestion ──
+OTEL_SELF_MONITORING_ENABLED: bool = os.getenv("OTEL_SELF_MONITORING_ENABLED", "false").lower() == "true"
+OTEL_EXPORTER_OTLP_ENDPOINT: str = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+OTEL_SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME", "kube-verdict-api")
 OTLP_MAX_TRACES: int = _int("OTLP_MAX_TRACES", 2_000)
 
 # ── Loki (logs) ────────────────────────────────────────────────────────────────

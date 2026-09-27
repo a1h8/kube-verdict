@@ -1,0 +1,72 @@
+{
+  "title": "KubeVerdict — Monitoring Ops (Axis 1, B15)",
+  "uid": "kubeverdict-ops",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request latency (p95, ms) by route",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_milliseconds_bucket{job=\"kube-verdict-api\"}[5m])) by (le, http_target))",
+          "legendFormat": "{{http_target}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Error rate (5xx) by route",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_duration_milliseconds_count{job=\"kube-verdict-api\", http_status_code=~\"5..\"}[5m])) by (http_target)",
+          "legendFormat": "{{http_target}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "LLM call duration (p95, s) by node",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(kubeverdict_llm_call_duration_seconds_bucket[5m])) by (le, node))",
+          "legendFormat": "{{node}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Collector fallback rate by collector",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(kubeverdict_collector_fallback_total[5m])) by (collector)",
+          "legendFormat": "{{collector}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Active requests",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        { "expr": "sum(http_server_active_requests{job=\"kube-verdict-api\"})" }
+      ]
+    }
+  ]
+}

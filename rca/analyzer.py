@@ -2,10 +2,12 @@ from __future__ import annotations
 import logging
 import re
 import textwrap
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Iterator
 
+import telemetry
 from llm.ollama_client import OllamaClient
 from ontology.graph import OntologyGraph
 from rca.context_builder import ContextBuilder, ContextWindow
@@ -249,7 +251,9 @@ class RCAAnalyzer:
             len(ctx.events), len(ctx.helm), len(ctx.related),
         )
 
+        _t0 = time.perf_counter()
         analysis = self.llm.generate(prompt, system=_SYSTEM_PROMPT)
+        telemetry.record_llm_call_duration(time.perf_counter() - _t0, node="analyze")
 
         report = RCAReport(
             query=query,
