@@ -27,6 +27,11 @@ rank-bm25>=0.2.2
 # OTLP push receiver — decode protobuf trace exports (OTLP/HTTP default format)
 opentelemetry-proto>=1.20.0
 
+# Self-observability (B15) — kube-verdict's own OTLP export, not evidence ingestion
+opentelemetry-sdk>=1.20.0
+opentelemetry-exporter-otlp-proto-grpc>=1.20.0
+opentelemetry-instrumentation-fastapi>=0.41b0
+
 # MCP server — expose kube_rca / helm_drift / blast_radius as agent tools
 # pin <2: mcp 2.0 removed the low-level Server.list_tools/call_tool API we use
 mcp>=1.0.0,<2
