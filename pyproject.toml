@@ -32,6 +32,10 @@ dependencies = [
     # OTLP receiver + MCP server
     "opentelemetry-proto>=1.20.0",
     "mcp>=1.0.0,<2",  # 2.0 removed low-level Server.list_tools/call_tool API
+    # Self-observability (B15) — kube-verdict's own OTLP export, not evidence ingestion
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
+    "opentelemetry-instrumentation-fastapi>=0.41b0",
     # Utilities
     "requests>=2.31.0",
     "pyyaml>=6.0.1",
@@ -50,7 +54,7 @@ dev = [
 # Flat layout: enumerate the application packages explicitly so editable installs
 # (`pip install -e .`) don't fail auto-discovery on the many top-level dirs.
 [tool.setuptools]
-py-modules = ["config", "main"]
+py-modules = ["config", "main", "telemetry"]
 
 [tool.setuptools.packages.find]
 include = [

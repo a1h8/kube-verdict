@@ -38,6 +38,7 @@ WORKDIR /app
 # Copy application source — every package imported on the streamlit/API runtime path.
 # (cases/ is test-fixture data and dashboard/ is a separate JS build — neither is needed here.)
 COPY config.py         ./
+COPY telemetry.py      ./
 COPY main.py           ./
 COPY mcp_server.py     ./
 COPY api/              ./api/
