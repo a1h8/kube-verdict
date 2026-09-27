@@ -397,7 +397,7 @@ The temporal detector (`signals/patchtst_detector.py`) can produce forecast resi
 
 > Read it as *"PatchTST provides temporal evidence that strengthens or weakens KubeVerdict RCA hypotheses"* — **not** *"KubeVerdict predicts incidents with PatchTST."*
 
-**Attribution.** The PatchTST model is consumed via the HuggingFace [`transformers`](https://github.com/huggingface/transformers) implementation of *"A Time Series is Worth 64 Words: Long-term Forecasting with Transformers"* (Nie et al., ICLR 2023) — original implementation: [yuqinie98/PatchTST](https://github.com/yuqinie98/PatchTST) (Apache-2.0). KubeVerdict vendors no PatchTST source; `signals/patchtst_detector.py` is an original detector built on the library model. A companion operational fork — [a1h8/PatchTST](https://github.com/a1h8/PatchTST) — adapts PatchTST into a temporal-evidence pipeline for KubeVerdict.
+**Attribution.** The PatchTST model is consumed via the HuggingFace [`transformers`](https://github.com/huggingface/transformers) implementation of *"A Time Series is Worth 64 Words: Long-term Forecasting with Transformers"* (Nie et al., ICLR 2023) — original implementation: [yuqinie98/PatchTST](https://github.com/yuqinie98/PatchTST) (Apache-2.0). KubeVerdict vendors no PatchTST source; `signals/patchtst_detector.py` is an original detector built on the library model. Temporal evidence is developed independently in [a1h8/temporal-evidence-engine](https://github.com/a1h8/temporal-evidence-engine), which uses PatchTST as a model backend.
 
 ---
 
