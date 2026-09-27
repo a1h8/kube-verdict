@@ -171,6 +171,38 @@ function Paths({ state }) {
   );
 }
 
+// B15: renders `hypothesis_sources` — the deterministic rule hits (RemediationEngine)
+// that grounded each hypothesis before the LLM ranked them, already returned by
+// /state but previously unrendered. Shows the concrete evidence lines (Loki logs,
+// OTel spans, Prometheus alerts) behind a hypothesis, not just the reasoning text.
+function HypothesisEvidencePanel({ state }) {
+  const sources = state.hypothesis_sources || [];
+  if (!sources.length) return null;
+  return (
+    <div style={box}>
+      <h3 style={{ color: C.text, marginBottom: 4 }}>Evidence behind the hypotheses — {sources.length}</h3>
+      <p style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>
+        Deterministic rule hits that grounded each hypothesis — the concrete logs / traces / metrics, not just reasoning text.
+      </p>
+      {sources.map((s, i) => (
+        <div key={i} style={{ borderLeft: "2px solid #60a5fa", paddingLeft: 12,
+          marginBottom: i < sources.length - 1 ? 12 : 0 }}>
+          <div style={{ color: C.text, fontSize: 14 }}>
+            <code style={{ color: C.sub }}>{s.rule_id}</code>{" "}
+            {s.weight != null && <span style={{ color: C.dim }}>[{Number(s.weight).toFixed(2)}]</span>}{" "}
+            {s.symptom} → <b>{s.affected}</b>
+          </div>
+          {(s.evidence || []).length > 0 && (
+            <ul style={{ margin: "6px 0 0 18px", color: C.sub, fontSize: 12.5 }}>
+              {s.evidence.map((e, j) => <li key={j}>{e}</li>)}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // B9: per-collector fallback overlay — green OK / red FALLBACK badge with the
 // collector error surfaced as a tooltip (from ingestion_stats[*].fallback/error).
 function FallbackStatus({ state }) {
@@ -381,6 +413,7 @@ function IntrospectionPanel({ sessionId, state, live, onUpdate }) {
       <BeamTree state={state} />
       <Timeline state={state} />
       <Paths state={state} />
+      <HypothesisEvidencePanel state={state} />
     </>
   );
 }

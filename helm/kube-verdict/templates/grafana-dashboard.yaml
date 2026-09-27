@@ -1,0 +1,21 @@
+# Provisions the Monitoring Ops dashboard (Axis 1, B15) into Grafana via the
+# kube-prometheus-stack/grafana chart's sidecar (kiwigrid/k8s-sidecar): it
+# watches for ConfigMaps labeled `grafana_dashboard: "1"` and loads any key
+# ending in .json as a dashboard. See demo/observability/grafana-values.yaml
+# for the matching sidecar config (searchNamespace: ALL — Grafana lives in
+# a different namespace, kubeverdict-obs, than this release).
+#
+# The dashboard JSON itself lives in dashboards/monitoring-ops.json (single
+# source of truth, embedded here rather than duplicated) — edit that file,
+# not this template, to change panels/queries.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubeverdict.fullname" . }}-grafana-dashboard
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeverdict.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  monitoring-ops.json: |
+{{ .Files.Get "dashboards/monitoring-ops.json" | indent 4 }}
