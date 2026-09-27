@@ -91,6 +91,12 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
 
 > **Scope of the h013 / h014 / h015 checks.** They prove the *evidence path* — fixture → graph → context window — deterministically in CI. They do **not** assert the LLM's final root-cause text: that needs Ollama and runs via the generic `test_native_helm_dialogue` (which picks these cases up automatically) wherever a model is available.
 
+Live captures (`tools/b13_capture.py`) get the same root-cause check, against
+ground truth, outside CI: see [veracity-benchmark.md](veracity-benchmark.md)
+— it's how the first two live h014/h015 captures were caught getting the root
+cause wrong (both graded `FAIL`) instead of that only being visible by
+re-reading `docs/evidence/prometheus-live.md` prose by hand.
+
 **Each CI run** (`pytest tests/unit/test_hybrid_pipeline_NNN.py`) validates the full pre-LLM pipeline — graph construction, hybrid retrieval (BM25 + FAISS + RRF), context building, anchor/drift/policy scoring, and proposal generation — against a fixed JSON fixture. No Ollama, no cluster.
 
 Components that require a **live environment** (not in CI scope):

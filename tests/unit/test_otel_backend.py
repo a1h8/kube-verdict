@@ -278,6 +278,20 @@ class TestTempoBackend:
         with patch("requests.get", side_effect=req.ConnectionError):
             assert b.get_trace("missing") is None
 
+    def test_get_trace_id_from_param_when_body_has_no_traceid(self):
+        # Regression: real Tempo's GET /api/traces/{id} body is just
+        # {"batches": [...]} — no top-level traceID (verified against a live
+        # cluster) — unlike the _tempo_trace() fixture above, which bakes one
+        # in. Without passing trace_id through, every trace_id came back "",
+        # and OtelCollector.collect() silently skipped every trace it found.
+        body = _tempo_trace("tid-not-used-by-body")
+        del body["traceID"]
+        b = TempoBackend(url="http://tempo:3100")
+        with patch("requests.get", return_value=_mock_resp(body)):
+            result = b.get_trace("real-trace-id")
+        assert result is not None
+        assert result["trace_id"] == "real-trace-id"
+
     def test_search_error_traces(self):
         search_resp = {"traces": [{"traceID": "abc123"}]}
         trace_resp = _tempo_trace("abc123")
