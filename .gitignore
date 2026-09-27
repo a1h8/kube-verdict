@@ -65,3 +65,10 @@ docs/demo-dialogue.mp3
 docs/demo-dialogue.mp4
 docs/demo-short.mp3
 docs/demo-short.mp4
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
