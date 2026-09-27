@@ -1,0 +1,22 @@
+# kube-verdict — kubeverdict-obs — points LokiSource / TempoBackend at the
+# real backends deployed by this pass (see docs/local-observability-stack.md).
+# Merges with the values already live on the `kube-verdict` release
+# (self-monitoring OTLP export, image) — reused verbatim below so this file
+# is the full, reproducible source of truth for the release.
+config:
+  # Already live (self-monitoring OTLP export — telemetry.py → otel-collector)
+  otelExporterOtlpEndpoint: http://otel-collector-opentelemetry-collector.kubeverdict-obs.svc:4317
+  otelSelfMonitoringEnabled: "true"
+  otelServiceName: kube-verdict-api
+
+  # New — evidence collectors read from the real Tempo/Loki deployed in this pass
+  otelEnabled: "true"
+  otelBackendUrl: "http://tempo.kubeverdict-obs.svc.cluster.local:3200"
+  lokiEnabled: "true"
+  lokiUrl: "http://loki.kubeverdict-obs.svc.cluster.local:3100"
+image:
+  pullPolicy: IfNotPresent
+  repository: kube-verdict
+  tag: obs-demo
+persistence:
+  enabled: false

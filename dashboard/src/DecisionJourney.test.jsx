@@ -193,6 +193,44 @@ describe("DecisionJourney", () => {
     expect(screen.queryByText(/expected state \(helm template\) vs live/)).not.toBeInTheDocument();
   });
 
+  // ── B15: evidence behind the hypotheses (hypothesis_sources) ──────────────
+  it("renders the evidence panel with the rule hits and evidence lines behind each hypothesis", async () => {
+    loadSample.mockResolvedValue({
+      session_id: "smp",
+      state: {
+        ...SAMPLE,
+        hypothesis_sources: [
+          {
+            rule_id: "cert-expired",
+            symptom: "readiness fails on every replica",
+            affected: "billing-gateway",
+            weight: 0.92,
+            evidence: ["x509: certificate has expired or is not yet valid"],
+          },
+        ],
+      },
+    });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+    await screen.findByText("HUMAN REVIEW");
+
+    expect(screen.getByText(/Evidence behind the hypotheses/)).toBeInTheDocument();
+    expect(screen.getByText("cert-expired")).toBeInTheDocument();
+    expect(screen.getByText("billing-gateway")).toBeInTheDocument();
+    expect(screen.getByText(/x509: certificate has expired/)).toBeInTheDocument();
+  });
+
+  it("hides the evidence panel when there are no hypothesis sources", async () => {
+    loadSample.mockResolvedValue({ session_id: "smp", state: SAMPLE });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+    await screen.findByText("HUMAN REVIEW");
+
+    expect(screen.queryByText(/Evidence behind the hypotheses/)).not.toBeInTheDocument();
+  });
+
   it("renders a NO-GO verdict with its blocking reason", async () => {
     loadSample.mockResolvedValue({
       session_id: "smp",
