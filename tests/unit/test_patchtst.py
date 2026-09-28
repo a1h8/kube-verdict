@@ -158,6 +158,42 @@ class TestZScoreFallback:
         result = detector.detect(seg)
         assert result.entity_uid == "pod-xyz"
 
+    def test_recent_tail_bounded_ages_out_faster_than_unbounded(self):
+        # Regression: recent_q used to be len(z)//4 -- an ever-growing
+        # fraction of the whole window -- so a blip that happened well into a
+        # long-running series stayed inside "recent" (and kept scoring
+        # critical) for many more points than a bounded tail would allow.
+        # Isolate the zscore path (n < MIN_LEN_FOR_PATCHTST=80) and contrast
+        # capped vs effectively-uncapped tails on the identical growing
+        # series with a single blip at index 60.
+        capped = PatchTSTDetector(max_recent_zscore=8)
+        uncapped = PatchTSTDetector(max_recent_zscore=1_000_000)  # ~ old len(z)//4 behavior
+        blip_at = 60
+
+        def still_anomalous(det, total_len):
+            sig = np.zeros(total_len, dtype=np.float32)
+            sig[blip_at] = 100.0
+            seg = SignalSegment("u", "m", sig)
+            return det.detect(seg).is_anomalous
+
+        # Right after the blip, both should catch it.
+        assert still_anomalous(capped, blip_at + 4)
+        assert still_anomalous(uncapped, blip_at + 4)
+
+        # A good bit later (but still short enough to stay on the zscore
+        # path), the capped tail has aged the blip out; the uncapped one,
+        # whose tail keeps growing with the window, still hasn't.
+        later_len = blip_at + 16
+        assert not still_anomalous(capped, later_len)
+        assert still_anomalous(uncapped, later_len)
+
+    def test_recent_tail_still_catches_a_true_recent_spike(self, detector):
+        sig = np.zeros(60, dtype=np.float32)
+        sig[-2:] = 100.0  # spike right at the tail end
+        seg = SignalSegment("u", "m", sig)
+        result = detector.detect(seg)
+        assert result.is_anomalous
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PatchTSTDetector — PatchTST path
