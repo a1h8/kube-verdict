@@ -117,6 +117,7 @@ class PatchTSTDetector:
         lr: float = 5e-4,
         warning_threshold: float = 1.8,
         critical_threshold: float = 3.0,
+        max_recent_zscore: int = 8,
     ) -> None:
         self.patch_length = patch_length
         self.context_length = context_length
@@ -128,6 +129,7 @@ class PatchTSTDetector:
         self.lr = lr
         self.warning_threshold = warning_threshold
         self.critical_threshold = critical_threshold
+        self.max_recent_zscore = max_recent_zscore
 
     # ─────────────────────────────────────────────────────────────────────────
     # Public API
@@ -263,7 +265,16 @@ class PatchTSTDetector:
                 severity="normal", score=0.0, n_points=len(values), method="zscore",
             )
         z = np.abs((values - mu) / sigma)
-        recent_q = max(1, len(z) // 4)
+        # Cap the recent tail to an absolute size. Without it, a quarter of an
+        # ever-growing cumulative window means the tail itself grows, so a
+        # single isolated blip stays inside "recent" -- and therefore scored
+        # against -- for many ticks after it happened, not just the tick it
+        # occurred on. Bounding the tail makes a one-off blip age out almost
+        # immediately, the way a real sustained deviation (which keeps
+        # refilling the tail with bad points) does not. Mirrors the identical
+        # fix in the companion PatchTST repo's ZScoreDetector -- this fallback
+        # is meant to behave the same way (see that class's docstring).
+        recent_q = min(max(1, len(z) // 4), self.max_recent_zscore)
         score = float(z[-recent_q:].max())
 
         return AnomalyResult(
