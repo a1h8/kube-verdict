@@ -30,6 +30,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
+# helm CLI -- ingestion/helm_collector.py shells out to `helm list` to find
+# releases (the RBAC grants read on Helm CRDs for exactly this). Not a pip
+# package; the static binary is the only way to get it into a python:3.11-slim
+# image without an extra package repo.
+ARG TARGETARCH=amd64
+ARG HELM_VERSION=v3.22.0
+RUN curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
+        -o /tmp/helm.tar.gz \
+    && tar -xzf /tmp/helm.tar.gz -C /tmp \
+    && mv "/tmp/linux-${TARGETARCH}/helm" /usr/local/bin/helm \
+    && rm -rf /tmp/helm.tar.gz "/tmp/linux-${TARGETARCH}"
+
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
 
