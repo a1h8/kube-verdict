@@ -69,6 +69,7 @@ spec:
               # Replace with your registry / image tag after `docker build`
               image: ghcr.io/a1h8/kube-verdict:latest
               imagePullPolicy: IfNotPresent
+              command: ["python", "main.py"]
               args:
                 - "--query"
                 - "unhealthy pods, drift, crashloops, pending PVCs"
@@ -122,6 +123,7 @@ spec:
         - name: kubeverdict
           image: ghcr.io/a1h8/kube-verdict:latest
           imagePullPolicy: IfNotPresent
+          command: ["python", "main.py"]
           args:
             - "--query"
             - "pods are crashlooping"
