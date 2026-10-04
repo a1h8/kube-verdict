@@ -72,24 +72,19 @@ A dropdown (or `?session=` query param) picks which session to narrate:
   each (`docs/roadmap.md` B14): SLO burn-rate (Prometheus), cert expiry (Loki),
   etcd compaction (OTel). Each needs real `reasoning_history` / `edge_log` /
   `hypothesis_sources` and `ingestion_stats` with the matching collector
-  `fallback: false`. **Live evidence to source this from is uneven across the
-  three — checked against `tests/golden/` and `docs/evidence/` directly, not
-  assumed:**
-  - **h015 (OTel)** — captured live twice, frozen in `tests/golden/real_003.json`
-    and `real_004.json` (commit `727d82c`, after fixing two real Tempo bugs).
-    Richest source to build the fixture from.
-  - **h014 (Loki)** — captured live once (`docs/evidence/prometheus-live.md`,
-    2026-09-26T10:37), but only as narrative prose, not frozen as a golden JSON.
-    Usable, but the fixture's `reasoning_history`/`edge_log` will need to be
-    reconstructed from that write-up rather than copied from a structured file.
-  - **h013 (Prometheus)** — **no live capture exists at all.** Only the
-    deterministic fixture (`tests/integration/cases/h013_*/`) validated through
-    the real collector code path offline — it has never been run against an
-    actual firing SLO burn-rate alert. Building a "live-looking" sample for it
-    today means authoring plausible-but-not-actually-observed content, which
-    undercuts the vitrine's whole point (proving signals are really connected).
-    **Capturing h013 live first** (same `tools/b13_capture.py` path used for
-    h001/h002/h015) should happen before this fixture is written, not after.
+  `fallback: false`.
+- **Where they come from — offline, not live** (decision 2026-10-04: no per-case
+  live session; everything is prepared offline and validated live once, at the end).
+  They are **generated** by the offline end-to-end test
+  (`docs/test-cases.md` → *Broadened offline coverage* §1): each case's fixtures run
+  through the real collectors and the real workflow with a deterministic mock LLM,
+  and the resulting session state is frozen as `dashboard/src/sampleJourneys/h01N.json`.
+  Nothing is hand-authored, so h013 — which has no live capture — is treated exactly
+  like h014/h015. Each fixture carries `source: "fixture-replay"`, and the vitrine
+  shows that label, so replayed data is never presented as a live capture. Existing
+  live material (`tests/golden/real_003.json` / `real_004.json` for h015,
+  `docs/evidence/prometheus-live.md` for h014) stays provenance evidence, not the
+  fixture source.
 
 ## Relation to the GCP/Scaleway goal
 
@@ -105,11 +100,11 @@ itself — not more dashboard code.
 ## Acceptance criteria
 
 - [ ] `#/vitrine` renders all 4 sections from a single session id, local or fixture.
-- [ ] Works with zero backend running, using the new `SAMPLE_JOURNEY`-shaped fixtures
-  described in *Session source* (h015 built from `real_003.json` / `real_004.json`, h014
-  reconstructed from `docs/evidence/prometheus-live.md`, h013 only once it has been
-  captured live) — not the `real_00N.json` golden files themselves, which carry no
-  reasoning/evidence to render. Mirrors how the Score dashboard needs no backend.
+- [ ] Works with zero backend running, using the generated
+  `dashboard/src/sampleJourneys/h01N.json` fixtures (see *Session source*) — not the
+  `real_00N.json` golden files, which carry no reasoning/evidence to render. Mirrors
+  how the Score dashboard needs no backend.
+- [ ] Each step shows whether the session is `fixture-replay` or live.
 - [ ] Monitoring Ops embed/link is driven by a config flag, not hardcoded to one Grafana instance.
 - [ ] Linked from the hero section in `App.jsx`.
 - [ ] Component test following the existing `DecisionJourney.test.jsx` pattern.
