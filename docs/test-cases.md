@@ -123,6 +123,10 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    `helm/kube-verdict/dashboards/monitoring-ops.json` is actually produced, with the
    labels the query groups by (`node`, `collector`, status code). Covers the 3 panels
    never seen with real data (error rate, LLM call duration, collector fallback rate).
+   **Implemented.** The real `telemetry.instrument()` runs with the OTLP exporters
+   stubbed and an `InMemoryMetricReader`; the fallback goes through the real
+   `workflow.nodes._stats()`. Proves the names/labels line up — not that a real OTel
+   Collector + Prometheus scrape them (that stays the single live check at the end).
 3. **Degraded paths** — `tests/integration/test_collector_fallback_paths.py`. For h013,
    h014, h015, the case's own collector is made unreachable in turn. Asserts
    `ingestion_stats` flips that collector to `fallback: true`, the
