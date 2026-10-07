@@ -133,6 +133,16 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    `kubeverdict.collector.fallback` counter increments for it, the signal's evidence is
    absent from the context window, and the verdict's confidence is lower than in the
    connected run (point 1) — never silently the same verdict.
+   **Prerequisite landed (2026-10-07):** `otel_node` used to store a failing trace or
+   log backend as `traces_fallback` / `logs_fallback` strings under one `otel` entry,
+   with no `fallback: true` flag — so a dead Loki or Tempo was invisible to the B9
+   overlay, to `_ingestion_failures()` and to the fallback counter, and this test could
+   not have asserted anything. It now writes two entries, `otel` (traces) and `loki`
+   (logs), each `{count, fallback: false}`, `{fallback: true, error}` or
+   `{skipped: true}`, both through `_stats()`. Covered by the `otel_node` tests in
+   `tests/unit/test_workflow_nodes_coverage.py`; `tools/b13_capture.py` reads the new
+   shape. The legacy Streamlit `ui/app.py` still builds its own stats in the old shape
+   (separate code path, not touched). The integration test itself is still to write.
 4. **Combined multi-signal case h016** — `tests/integration/cases/h016_multi_signal/` +
    `tests/integration/test_multi_signal_h016.py`. One incident where Prometheus alerts,
    Loki logs and OTel traces are all present at once, plus one decoy per signal (another
