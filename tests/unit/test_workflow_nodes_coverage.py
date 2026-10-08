@@ -167,6 +167,81 @@ def test_otel_node_empty_when_no_graph(monkeypatch):
     assert result == {} or result.get("ingestion_stats", {}).get("otel", {}).get("skipped")
 
 
+# otel_node writes separate `otel` (traces) and `loki` (logs) entries, each with its
+# own `fallback` flag — before, failures were stored as `traces_fallback` /
+# `logs_fallback` strings under `otel`, invisible to the B9 overlay,
+# _ingestion_failures() and the collector-fallback counter.
+
+def _enable_otel_and_loki(monkeypatch):
+    import config as cfg
+    monkeypatch.setattr(cfg, "OTEL_ENABLED", True)
+    monkeypatch.setattr(cfg, "LOKI_ENABLED", True)
+
+
+def test_otel_node_both_ok_reports_two_entries_without_fallback(monkeypatch):
+    _enable_otel_and_loki(monkeypatch)
+    with patch("ingestion.otel_backend.build_backend"), \
+         patch("ingestion.otel_collector.OtelCollector") as otel, \
+         patch("ingestion.loki_source.LokiSource") as loki:
+        otel.return_value.collect.return_value = 4
+        loki.return_value.collect.return_value = 7
+        stats = otel_node(_state(), _config(graph=_empty_graph()))["ingestion_stats"]
+    assert stats["otel"] == {"traces": 4, "fallback": False}
+    assert stats["loki"] == {"logs": 7, "fallback": False}
+
+
+def test_otel_node_loki_failure_is_a_loki_fallback_only(monkeypatch):
+    _enable_otel_and_loki(monkeypatch)
+    with patch("ingestion.otel_backend.build_backend"), \
+         patch("ingestion.otel_collector.OtelCollector") as otel, \
+         patch("ingestion.loki_source.LokiSource", side_effect=OSError("loki down")), \
+         patch("telemetry.record_collector_fallback") as counter:
+        otel.return_value.collect.return_value = 2
+        result = otel_node(_state(), _config(graph=_empty_graph()))
+    stats = result["ingestion_stats"]
+    assert stats["loki"] == {"fallback": True, "error": "loki down"}
+    assert stats["otel"]["fallback"] is False
+    assert _nodes_mod._ingestion_failures(result) == ["loki"]
+    counter.assert_called_once_with("loki")
+
+
+def test_otel_node_trace_failure_is_an_otel_fallback(monkeypatch):
+    _enable_otel_and_loki(monkeypatch)
+    with patch("ingestion.otel_backend.build_backend", side_effect=OSError("tempo down")), \
+         patch("ingestion.loki_source.LokiSource") as loki, \
+         patch("telemetry.record_collector_fallback") as counter:
+        loki.return_value.collect.return_value = 0
+        result = otel_node(_state(), _config(graph=_empty_graph()))
+    stats = result["ingestion_stats"]
+    assert stats["otel"] == {"fallback": True, "error": "tempo down"}
+    assert stats["loki"]["fallback"] is False
+    assert _nodes_mod._ingestion_failures(result) == ["otel"]
+    counter.assert_called_once_with("otel")
+
+
+def test_otel_node_disabled_side_is_skipped_not_fallback(monkeypatch):
+    import config as cfg
+    monkeypatch.setattr(cfg, "OTEL_ENABLED", False)
+    monkeypatch.setattr(cfg, "LOKI_ENABLED", True)
+    with patch("ingestion.loki_source.LokiSource") as loki:
+        loki.return_value.collect.return_value = 1
+        stats = otel_node(_state(), _config(graph=_empty_graph()))["ingestion_stats"]
+    assert stats["otel"] == {"skipped": True}
+    assert stats["loki"] == {"logs": 1, "fallback": False}
+
+
+def test_otel_node_keeps_earlier_steps_stats(monkeypatch):
+    _enable_otel_and_loki(monkeypatch)
+    state = {**_state(), "ingestion_stats": {"prometheus": {"alerts": 3, "fallback": False}}}
+    with patch("ingestion.otel_backend.build_backend"), \
+         patch("ingestion.otel_collector.OtelCollector") as otel, \
+         patch("ingestion.loki_source.LokiSource") as loki:
+        otel.return_value.collect.return_value = 0
+        loki.return_value.collect.return_value = 0
+        stats = otel_node(state, _config(graph=_empty_graph()))["ingestion_stats"]
+    assert set(stats) == {"prometheus", "otel", "loki"}
+
+
 # ---------------------------------------------------------------------------
 # gitops_node — skip (disabled or no URL)
 # ---------------------------------------------------------------------------
