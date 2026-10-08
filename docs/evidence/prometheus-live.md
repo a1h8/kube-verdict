@@ -7,6 +7,11 @@ Real runs captured against a live k3s cluster by `tools/b13_capture.py` — proo
 - *Snapshots, not CI baselines.* The verdict comes from a live LLM analysis plus Monte-Carlo stability sims, and the analysis prompt embeds a timestamp — so the same scenario can yield a different verdict on a later run. The `real_00N.json` files are frozen *captured* verdicts (provenance evidence), **not** deterministic fixtures, and are deliberately not wired into the B11 regression guard (which stays on the synthetic h001–h010 baseline).
 - *0 alerts correlated is expected here.* `fallback=False` proves the collector reached the real Prometheus; the cluster's firing alerts are cluster-scoped (e.g. KubeProxyDown) and a fresh <2-minute incident has not tripped any `for:`-gated rule yet, so none map onto the demo-namespace entities. The proof is the live connection, not the count.
 
+> **Format note (2026-10-07):** captures below dated before this note show Loki/OTel as
+> `` `otel` node logs_fallback=… `` / `` traces_fallback=… ``. Since then `otel_node` writes
+> separate `otel` and `loki` stats entries, so new captures read
+> `` `loki` stat fallback=… `` / `` `otel` stat fallback=… ``. Older entries are left as recorded.
+
 ## h001_crashloopbackoff — captured 2026-06-26T02:32:18.737964+00:00
 
 - **Cluster context:** `k3d-k0rdent` (live k3s)

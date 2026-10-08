@@ -266,17 +266,22 @@ def otel_node(state: RCAState, config: RunnableConfig) -> dict:
     Fetch OTel error traces (Tempo/Jaeger) and Loki logs for unhealthy entities.
     Skipped when both OTEL_ENABLED and LOKI_ENABLED are false.
     Fails silently — observability data is enrichment, not a blocker.
+
+    Writes two ingestion_stats entries, ``otel`` (traces) and ``loki`` (logs), each
+    with its own ``fallback`` flag, so a failing backend shows up in the B9 overlay,
+    in _ingestion_failures() and in the kubeverdict.collector.fallback counter.
     """
     if not cfg.OTEL_ENABLED and not cfg.LOKI_ENABLED:
         log.info("otel: disabled — skipping")
-        return _stats(state, "otel", {"skipped": True})
+        update = _stats(state, "otel", {"skipped": True})
+        return _stats({**state, **update}, "loki", {"skipped": True})
 
     graph, _ = _get_infra(config)
     if graph is None:
         log.info("otel: no graph — skipping")
         return {}
 
-    otel_stat: dict = {}
+    otel_stat: dict = {"skipped": True}
     if cfg.OTEL_ENABLED:
         try:
             from ingestion.otel_backend import build_backend
@@ -290,11 +295,12 @@ def otel_node(state: RCAState, config: RunnableConfig) -> dict:
             )
             count = OtelCollector(backend, lookback_hours=cfg.OTEL_LOOKBACK_HOURS).collect(graph)
             log.info("otel: %d trace(s) ingested", count)
-            otel_stat["traces"] = count
+            otel_stat = {"traces": count, "fallback": False}
         except Exception as exc:
             log.warning("otel traces failed (%s) — continuing without trace data", exc)
-            otel_stat["traces_fallback"] = str(exc)
+            otel_stat = {"fallback": True, "error": str(exc)}
 
+    loki_stat: dict = {"skipped": True}
     if cfg.LOKI_ENABLED:
         try:
             from ingestion.loki_source import LokiSource
@@ -305,12 +311,13 @@ def otel_node(state: RCAState, config: RunnableConfig) -> dict:
             )
             count = loki.collect(graph)
             log.info("loki: %d log(s) ingested", count)
-            otel_stat["logs"] = count
+            loki_stat = {"logs": count, "fallback": False}
         except Exception as exc:
             log.warning("loki logs failed (%s) — continuing without log data", exc)
-            otel_stat["logs_fallback"] = str(exc)
+            loki_stat = {"fallback": True, "error": str(exc)}
 
-    return _stats(state, "otel", otel_stat or {"skipped": True})
+    update = _stats(state, "otel", otel_stat)
+    return _stats({**state, **update}, "loki", loki_stat)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
