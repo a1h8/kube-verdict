@@ -88,9 +88,21 @@ class K8sCollector:
             self._ingress_api = k8s_client.NetworkingV1Api(self._api_client)
             self._ingress_lister = self._list_ingress_v1
         else:
-            # 1.14–1.18: networking.k8s.io/v1beta1
-            self._ingress_api = k8s_client.NetworkingV1beta1Api(self._api_client)
-            self._ingress_lister = self._list_ingress_v1beta1
+            # 1.14–1.18: networking.k8s.io/v1beta1. The kubernetes client dropped
+            # NetworkingV1beta1Api in 37.0.0 — without it, skip ingresses rather
+            # than fail the whole collector on an old cluster.
+            beta_api = getattr(k8s_client, "NetworkingV1beta1Api", None)
+            if beta_api is not None:
+                self._ingress_api = beta_api(self._api_client)
+                self._ingress_lister = self._list_ingress_v1beta1
+            else:
+                log.warning(
+                    "Cluster %s serves Ingress only as networking.k8s.io/v1beta1, which "
+                    "this kubernetes client no longer supports — ingresses are skipped",
+                    self.kube_version,
+                )
+                self._ingress_api = None
+                self._ingress_lister = self._skip_ingresses
 
         self._discovery = APIServerDiscovery(self._api_client)
 
@@ -398,6 +410,9 @@ class K8sCollector:
                         rules.append({"host": rule.host or "", "path": path.path or "/",
                                       "service": svc_name})
             self._add_ingress(graph, item, namespace, rules, ingress_class)
+
+    def _skip_ingresses(self, graph: OntologyGraph, namespace: str) -> None:
+        """Pre-1.19 cluster with a client lacking NetworkingV1beta1Api."""
 
     def _list_ingress_v1beta1(self, graph: OntologyGraph, namespace: str) -> None:
         """networking.k8s.io/v1beta1 — K8s < 1.19 (removed in 1.22)."""

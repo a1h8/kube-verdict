@@ -529,6 +529,8 @@ This split is intentional: field-level anchors come from the rendered output (ge
 
 K3s suffixes (`v1.28.3+k3s1`) are parsed correctly by the `_parse_int()` regex.
 
+The Python `kubernetes` client is a second axis: 37.0.0 removed `NetworkingV1beta1Api`. On a pre-1.19 cluster `K8sCollector` uses it when the installed client still ships it, and otherwise logs a warning and skips ingresses instead of failing at construction (`tests/unit/test_k8s_ingress_api_selection.py`). Found when CI on `main` started resolving `kubernetes>=29.0.0` to 37.0.0 (2026-10-08).
+
 ## Drift detection
 
 ### HelmDriftDetector (ingestion-time)
