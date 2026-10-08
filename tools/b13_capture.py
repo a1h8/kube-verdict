@@ -406,6 +406,7 @@ def write_veracity(index: int, scenario_id: str, summary: dict, keywords: list[s
 def append_evidence(scenario_id: str, context: str, summary: dict, reason: str) -> None:
     prom = summary["_ingestion_stats"].get("prometheus", {})
     otel = summary["_ingestion_stats"].get("otel", {})
+    loki = summary["_ingestion_stats"].get("loki", {})
     alerts = prom.get("alerts", 0)
     when = datetime.now(timezone.utc).isoformat()
     block = [
@@ -415,15 +416,15 @@ def append_evidence(scenario_id: str, context: str, summary: dict, reason: str) 
         f"- **Live Prometheus alerts correlated:** {alerts} "
         f"(`prometheus` node fallback={prom.get('fallback', 'n/a')})",
     ]
-    if "logs" in otel or "logs_fallback" in otel:
+    if "fallback" in loki:
         block.append(
-            f"- **Live Loki logs correlated:** {otel.get('logs', 0)} "
-            f"(`otel` node logs_fallback={otel.get('logs_fallback', 'n/a')})"
+            f"- **Live Loki logs correlated:** {loki.get('logs', 0)} "
+            f"(`loki` stat fallback={loki['fallback']})"
         )
-    if "traces" in otel or "traces_fallback" in otel:
+    if "fallback" in otel:
         block.append(
             f"- **Live OTel traces correlated:** {otel.get('traces', 0)} "
-            f"(`otel` node traces_fallback={otel.get('traces_fallback', 'n/a')})"
+            f"(`otel` stat fallback={otel['fallback']})"
         )
     block += [
         f"- **Verdict:** `{summary['_triple']['verdict']}` · "

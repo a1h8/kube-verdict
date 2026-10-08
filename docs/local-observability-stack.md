@@ -130,8 +130,12 @@ the same tool that already captured `h001`/`h002` against live Prometheus
   never detects.
 - Wires `LOKI_ENABLED`/`LOKI_URL` (h014) and `OTEL_ENABLED`/`OTEL_BACKEND_URL`
   (h015) through the same proxy mechanism, and reports
-  `ingestion_stats.otel.{logs,traces}` in the evidence block (both live under
-  the single `otel` stats key per `workflow/nodes.py::otel_node`).
+  `ingestion_stats.loki.logs` and `ingestion_stats.otel.traces` in the evidence
+  block. `workflow/nodes.py::otel_node` writes them as two separate stats
+  entries, `otel` (traces) and `loki` (logs), each with its own `fallback` flag
+  (until 2026-10-07 both lived under a single `otel` key with
+  `logs_fallback` / `traces_fallback` strings — see `docs/test-cases.md` →
+  *Broadened offline coverage* §3).
 
 **Evidence** appended to the existing `docs/evidence/prometheus-live.md` —
 kept at that path (not renamed) because `tools/roadmap.py` checks for that
