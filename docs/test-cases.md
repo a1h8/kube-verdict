@@ -150,6 +150,31 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    > a separate follow-up, not part of this test. It also asserted a non-empty
    > `reasoning_history` without saying how: with a mock that answers HIGH at once the
    > list stays empty, hence the LOW-then-HIGH script above.
+   **Implemented (2026-10-09).** `tests/integration/workflow_harness.py` (shared
+   runner: `case_loader.build_graph(case, wire_signals=False)`, collectors served by
+   the fixtures from inside `prometheus_node` / `otel_node`, scripted LLM),
+   `tests/integration/test_workflow_e2e_h013_h015.py` and
+   `tools/freeze_journey_fixtures.py` → `dashboard/src/sampleJourneys/h013.json`,
+   `h014.json`, `h015.json`. All three cases: case collector `fallback: false` with
+   data (3 alerts / 10 logs / 4 traces), evidence in every analyze prompt, confidence
+   edges `retry → next_path → review`, one archived path, verdict `HUMAN_REVIEW`
+   (production namespace), run stopped at the human gate. Also pinned for
+   reproducibility: Monte Carlo seeded, PatchTST range queries empty (synthetic
+   mode), dry-run not executed. A test re-runs the tool and fails if a frozen file
+   drifts from the code (timestamps aside), so the fixtures cannot be hand-edited.
+
+   Observed while implementing, not changed here:
+   - for h014 / h015 the final hypothesis comes from a Kubernetes-status rule
+     (*Deployment degraded*, *Helm chart drift*), while the root cause the LLM
+     writes is the signal one (cert expiry, etcd) — the gap the *signal-aware
+     hypothesis rules* roadmap item addresses;
+   - `log_human_decision` writes a `human → reject` edge ("no human decision
+     received — defaulting to reject") *before* the interrupt, so a journey waiting
+     for review already shows a reject entry in `edge_log`.
+   - the scripted remediation must be reversible (`helm upgrade` / `rollout
+     restart`): diagnostic-only commands have no rollback, and the policy gate
+     then returns `NO_GO`, as designed.
+
 2. **Monitoring Ops panels checked offline** —
    `tests/unit/test_monitoring_ops_metric_names.py`. Emits every self-monitoring metric
    from `telemetry.py` into an in-memory reader (HTTP server duration/active requests
