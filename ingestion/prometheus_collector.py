@@ -58,6 +58,9 @@ class PrometheusCollector:
         self.url = url.rstrip("/")
         self.token = token
         self.timeout = timeout
+        # Set when the last collect() could not reach Prometheus — collect() still
+        # returns 0, so callers that only read the count keep working.
+        self.last_error: str | None = None
 
     # ------------------------------------------------------------------
 
@@ -65,7 +68,9 @@ class PrometheusCollector:
         """
         Fetch firing alerts, correlate with graph entities, annotate.
         Returns number of alerts successfully correlated to an entity.
+        A request failure returns 0 and is recorded in ``last_error``.
         """
+        self.last_error = None
         alerts = self._fetch_alerts()
         if not alerts:
             return 0
@@ -157,9 +162,11 @@ class PrometheusCollector:
             return alerts
         except requests.Timeout:
             log.warning("prometheus: request timed out after %ds", self.timeout)
+            self.last_error = f"timed out after {self.timeout}s"
             return []
         except requests.RequestException as exc:
             log.warning("prometheus: request failed: %s", exc)
+            self.last_error = str(exc)
             return []
 
     def _correlate(self, labels: dict, graph: OntologyGraph) -> K8sEntity | None:

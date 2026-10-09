@@ -52,12 +52,18 @@ class OtelCollector:
     def __init__(self, backend: OtelBackend, lookback_hours: int = 1) -> None:
         self.backend = backend
         self.lookback_hours = lookback_hours
+        # Backend failure seen during the last collect() (count still returned).
+        self.last_error: str | None = None
 
     def collect(self, graph: OntologyGraph) -> int:
         """
         Correlate error traces with graph entities.
         Returns the number of OtelTrace nodes created.
+        A backend request failure is recorded in ``last_error``.
         """
+        self.last_error = None
+        if hasattr(self.backend, "last_error"):
+            self.backend.last_error = None
         end_ts = int(time.time())
         start_ts = end_ts - self.lookback_hours * 3600
 
@@ -128,6 +134,7 @@ class OtelCollector:
                     "otel: %s/%s → %d error trace(s)", entity.kind.value, entity.name, len(traces),
                 )
 
+        self.last_error = getattr(self.backend, "last_error", None)
         log.info("otel: %d OtelTrace node(s) created", trace_count)
         return trace_count
 
