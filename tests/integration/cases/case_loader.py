@@ -126,10 +126,14 @@ def load_case(case_dir: Path) -> dict:
     return case
 
 
-def build_graph(case: dict) -> OntologyGraph:
+def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
     """
     Build an OntologyGraph from a loaded native case dict.
     Runs HelmDriftDetector + AnchorEngine on the result.
+
+    ``wire_signals=False`` builds the Kubernetes-only graph: the Prometheus /
+    Loki / OTel fixtures are left for the workflow's own collector nodes to
+    fetch (see ``tests/integration/workflow_harness.py``).
     """
     graph  = OntologyGraph()
     ns     = case["expect"].get("namespace", "default")
@@ -156,14 +160,15 @@ def build_graph(case: dict) -> OntologyGraph:
         graph.add_entity(pod)
         graph.add_edge(Edge(pod.uid, helm_release.uid, RelationshipType.MANAGED_BY_HELM))
 
-    # ── 3b. OTel error traces (fixture) ────────────────────────────────────
-    _wire_otel_traces(graph, case.get("otel_traces", []))
+    if wire_signals:
+        # ── 3b. OTel error traces (fixture) ────────────────────────────────
+        _wire_otel_traces(graph, case.get("otel_traces", []))
 
-    # ── 3c. Prometheus firing alerts (fixture) ─────────────────────────────
-    _wire_prometheus_alerts(graph, case.get("prometheus_alerts", []))
+        # ── 3c. Prometheus firing alerts (fixture) ─────────────────────────
+        _wire_prometheus_alerts(graph, case.get("prometheus_alerts", []))
 
-    # ── 3d. Loki log streams (fixture) ─────────────────────────────────────
-    _wire_loki_logs(graph, case.get("loki_streams", []))
+        # ── 3d. Loki log streams (fixture) ─────────────────────────────────
+        _wire_loki_logs(graph, case.get("loki_streams", []))
 
     # ── 4. Events ───────────────────────────────────────────────────────────
     for evt_raw in case["observed"].get("events", []):
@@ -423,6 +428,17 @@ def _wire_loki_logs(graph: OntologyGraph, streams: list[dict]) -> None:
     if not streams:
         return
 
+    source = LokiSource(url="http://fixture.invalid")
+    source._query = fixture_loki_query(streams)
+    source.collect(graph)
+
+
+def fixture_loki_query(streams: list[dict]):
+    """A stand-in for ``LokiSource._query`` answering from fixture streams.
+
+    Like Loki it matches the LogQL label matchers against each stream's labels
+    and answers newest-first; the time window is not applied (frozen fixtures).
+    """
     def _query(logql: str, start_ns: int, end_ns: int) -> list[tuple[int, str]]:
         wanted = dict(_LOGQL_MATCHER.findall(logql))
         rows = [
@@ -434,9 +450,7 @@ def _wire_loki_logs(graph: OntologyGraph, streams: list[dict]) -> None:
         rows.sort(key=lambda r: r[0], reverse=True)
         return rows
 
-    source = LokiSource(url="http://fixture.invalid")
-    source._query = _query
-    source.collect(graph)
+    return _query
 
 
 def _ingest_policy_report(report: dict, graph: OntologyGraph) -> None:

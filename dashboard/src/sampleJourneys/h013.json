@@ -1,0 +1,629 @@
+{
+  "source": "fixture-replay",
+  "case": "h013_slo_error_budget_burn",
+  "session_id": "fixture-replay-h013",
+  "status": "AWAITING_REVIEW",
+  "query": "why is checkout-api slow",
+  "kube_version": "unknown",
+  "confidence": "HIGH",
+  "verdict": "HUMAN_REVIEW",
+  "verdict_reasons": [
+    "namespace 'production' is production — always HUMAN_REVIEW minimum"
+  ],
+  "current_hypothesis": "Dependency latency to payments-gateway burns the checkout-api SLO error budget",
+  "candidate_paths": [
+    "A recent checkout-api rollout introduced a slow code path"
+  ],
+  "reasoning_history": [
+    {
+      "step": 1,
+      "hypothesis": "checkout-api pods are CPU-throttled under load",
+      "confidence": "LOW",
+      "summary": "The evidence for this hypothesis is inconclusive.",
+      "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n",
+      "report_dict": {
+        "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
+        "kube_version": "unknown",
+        "timestamp": "2026-10-09T03:05:44.642497+00:00",
+        "summary": "The evidence for this hypothesis is inconclusive.",
+        "affected": [
+          "(none confirmed)"
+        ],
+        "root_cause": "Not established — the context does not support this hypothesis.",
+        "causal_chain": [
+          "No corroborating signal found.",
+          "Hypothesis not confirmed."
+        ],
+        "remediation": [
+          "kubectl get events -n production"
+        ],
+        "rollback": [],
+        "confidence": "LOW — the context does not support this hypothesis.",
+        "context_stats": {
+          "seeds": 0,
+          "drift": 0,
+          "events": 0,
+          "helm": 1,
+          "related": 2,
+          "total": 20,
+          "anchors": [
+            "Deployment/production/checkout-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
+            "Deployment/production/checkout-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
+            "Deployment/production/checkout-api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).",
+            "Deployment/production/checkout-api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.",
+            "Deployment/production/checkout-api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.",
+            "Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.",
+            "Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.",
+            "Deployment/production/checkout-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.",
+            "Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+            "Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
+            "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
+            "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
+            "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
+            "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill."
+          ],
+          "retrieval": {},
+          "jaccard": {
+            "candidates": 2,
+            "kept": 2
+          }
+        },
+        "events": [],
+        "traces": [],
+        "alerts": [
+          "kind=PrometheusAlert name=SLOErrorBudgetBurnFast severity=critical state=firing namespace=production summary='checkout-api is burning its 30d error budget 14.4x too fast (1h/5m windows)' description='At this rate 2% of the 30-day error budget is consumed every hour and the whole budget is gone in ~2 days. SLI (requests answered successfully within 1s) is 92.8% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=1h/5m burn_rate=14.4 activeAt=2026-05-21T09:12:11.481Z",
+          "kind=PrometheusAlert name=SLOErrorBudgetBurnSlow severity=warning state=firing namespace=production summary='checkout-api is burning its 30d error budget 6x too fast (6h/30m windows)' description='5% of the 30-day error budget was consumed in the last 6 hours - a sustained degradation, not a blip. SLI is 97.0% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=6h/30m burn_rate=6 activeAt=2026-05-21T08:41:03.117Z",
+          "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s. The increase is isolated to calls to upstream=payments-gateway; CPU, memory and restart counts on checkout-api are flat, which points at the network path to the dependency rather than at the pod.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
+        ],
+        "anchor_fixes": [],
+        "policy_violations": [],
+        "pre_llm_confidence": {
+          "score": 0.71,
+          "label": "HIGH",
+          "reasons": [
+            "BFS depth 4/5 → 0.20",
+            "Jaccard diversity 100% → 0.25",
+            "TF-IDF features 2/20 → 0.02",
+            "Anchors matched 14 → 0.15",
+            "Critical signals 3 → 0.09",
+            "Helm drift items 0 → 0.00"
+          ]
+        },
+        "blast_radius": {
+          "risk": "LOW",
+          "summary": "1 resource(s) — ns: production",
+          "resources": [
+            "(none confirmed)"
+          ],
+          "namespaces": [
+            "production"
+          ],
+          "cluster_scoped": false,
+          "command_count": 1,
+          "rollback_available": false,
+          "method": "command-heuristic"
+        },
+        "decision": {
+          "verdict": "NO_GO",
+          "reasons": [
+            "rollback_available=False — no safe recovery path"
+          ],
+          "score": 0.71,
+          "risk": "LOW",
+          "rollback_available": false,
+          "namespace": "production",
+          "mc_win_rate": 1.0
+        },
+        "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n"
+      },
+      "retry_count": 1
+    }
+  ],
+  "hypothesis_sources": [],
+  "path_confidence_history": [
+    "HIGH"
+  ],
+  "edge_log": [
+    {
+      "router": "confidence",
+      "edge_taken": "retry",
+      "reason": "confidence=LOW — retrying with wider context (1/2)",
+      "snapshot": {
+        "confidence": "LOW",
+        "retry_count": 0,
+        "max_retries": 2,
+        "candidates_remaining": 2,
+        "ingestion_failures": [],
+        "path_conf_history": [
+          "LOW"
+        ],
+        "declining": false,
+        "beam_switches": 0
+      },
+      "ts": "2026-10-09T03:05:44.636629+00:00"
+    },
+    {
+      "router": "confidence",
+      "edge_taken": "next_path",
+      "reason": "probability declining — LOW×2 on this path (retry 1), switching to next hypothesis (2 remaining)",
+      "snapshot": {
+        "confidence": "LOW",
+        "retry_count": 1,
+        "max_retries": 2,
+        "candidates_remaining": 2,
+        "ingestion_failures": [],
+        "path_conf_history": [
+          "LOW",
+          "LOW"
+        ],
+        "declining": true,
+        "beam_switches": 1
+      },
+      "ts": "2026-10-09T03:05:44.643502+00:00"
+    },
+    {
+      "router": "confidence",
+      "edge_taken": "review",
+      "reason": "confidence=HIGH — forwarding to human review",
+      "snapshot": {
+        "confidence": "HIGH",
+        "retry_count": 0,
+        "max_retries": 2,
+        "candidates_remaining": 1,
+        "ingestion_failures": [],
+        "path_conf_history": [
+          "HIGH"
+        ],
+        "declining": false,
+        "beam_switches": 1
+      },
+      "ts": "2026-10-09T03:05:44.650063+00:00"
+    },
+    {
+      "router": "policy",
+      "edge_taken": "human_review",
+      "reason": "HUMAN_REVIEW: namespace 'production' is production — always HUMAN_REVIEW minimum",
+      "snapshot": {
+        "score": 0.85,
+        "risk": "LOW",
+        "rollback_available": true,
+        "namespace": "production",
+        "mc_win_rate": 0.835,
+        "max_switches_reached": false,
+        "verdict": "HUMAN_REVIEW"
+      },
+      "ts": "2026-10-09T03:05:44.654147+00:00"
+    },
+    {
+      "router": "human",
+      "edge_taken": "reject",
+      "reason": "no human decision received — defaulting to reject",
+      "snapshot": {
+        "human_decision": "(none)",
+        "confidence": "HIGH",
+        "remediation_count": 1,
+        "dry_run_failures": 0
+      },
+      "ts": "2026-10-09T03:05:44.656628+00:00"
+    }
+  ],
+  "ingestion_stats": {
+    "ingest": {
+      "skipped": true,
+      "reason": "pre-built"
+    },
+    "metrics": {
+      "skipped": true
+    },
+    "prometheus": {
+      "alerts": 3,
+      "fallback": false
+    },
+    "otel": {
+      "traces": 0,
+      "fallback": false
+    },
+    "loki": {
+      "logs": 0,
+      "fallback": false
+    },
+    "gitops": {
+      "skipped": true
+    },
+    "anchor": {
+      "total": 14,
+      "manifest": 0,
+      "schema": 14,
+      "fallback": false
+    },
+    "signals": {
+      "total": 2,
+      "anomalous": 2,
+      "mode": "real",
+      "fallback": false
+    }
+  },
+  "drift_evidence": [],
+  "report": {
+    "query": "HYPOTHESIS TO INVESTIGATE:\nDependency latency to payments-gateway burns the checkout-api SLO error budget\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
+    "kube_version": "unknown",
+    "timestamp": "2026-10-09T03:05:44.649186+00:00",
+    "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
+    "affected": [
+      "Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing"
+    ],
+    "root_cause": "The p99 latency (1.84s vs a 400ms SLO) comes from calls to payments-gateway; CPU, memory and restarts are flat, so the network path to the dependency is the cause, not the pod.",
+    "causal_chain": [
+      "Calls from checkout-api to payments-gateway slow down.",
+      "p99 latency breaches the 400ms SLO.",
+      "Multi-window burn-rate alerts fire (14.4x fast, 6x slow)."
+    ],
+    "remediation": [
+      "kubectl rollout restart deployment/checkout-api -n production"
+    ],
+    "rollback": [
+      "kubectl rollout undo deployment/checkout-api -n production"
+    ],
+    "confidence": "HIGH — the burn-rate and latency alerts agree and isolate payments-gateway.",
+    "context_stats": {
+      "seeds": 0,
+      "drift": 0,
+      "events": 0,
+      "helm": 1,
+      "related": 2,
+      "total": 20,
+      "anchors": [
+        "Deployment/production/checkout-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
+        "Deployment/production/checkout-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
+        "Deployment/production/checkout-api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).",
+        "Deployment/production/checkout-api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.",
+        "Deployment/production/checkout-api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.",
+        "Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.",
+        "Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.",
+        "Deployment/production/checkout-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.",
+        "Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+        "Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
+        "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
+        "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
+        "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
+        "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill."
+      ],
+      "retrieval": {},
+      "jaccard": {
+        "candidates": 2,
+        "kept": 2
+      }
+    },
+    "events": [],
+    "traces": [],
+    "alerts": [
+      "kind=PrometheusAlert name=SLOErrorBudgetBurnFast severity=critical state=firing namespace=production summary='checkout-api is burning its 30d error budget 14.4x too fast (1h/5m windows)' description='At this rate 2% of the 30-day error budget is consumed every hour and the whole budget is gone in ~2 days. SLI (requests answered successfully within 1s) is 92.8% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=1h/5m burn_rate=14.4 activeAt=2026-05-21T09:12:11.481Z",
+      "kind=PrometheusAlert name=SLOErrorBudgetBurnSlow severity=warning state=firing namespace=production summary='checkout-api is burning its 30d error budget 6x too fast (6h/30m windows)' description='5% of the 30-day error budget was consumed in the last 6 hours - a sustained degradation, not a blip. SLI is 97.0% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=6h/30m burn_rate=6 activeAt=2026-05-21T08:41:03.117Z",
+      "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s. The increase is isolated to calls to upstream=payments-gateway; CPU, memory and restart counts on checkout-api are flat, which points at the network path to the dependency rather than at the pod.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
+    ],
+    "anchor_fixes": [],
+    "policy_violations": [],
+    "pre_llm_confidence": {
+      "score": 0.66,
+      "label": "MEDIUM",
+      "reasons": [
+        "BFS depth 3/5 → 0.15",
+        "Jaccard diversity 100% → 0.25",
+        "TF-IDF features 2/20 → 0.02",
+        "Anchors matched 14 → 0.15",
+        "Critical signals 3 → 0.09",
+        "Helm drift items 0 → 0.00"
+      ]
+    },
+    "blast_radius": {
+      "risk": "LOW",
+      "summary": "1 resource(s) — ns: production",
+      "resources": [
+        "Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing"
+      ],
+      "namespaces": [
+        "production"
+      ],
+      "cluster_scoped": false,
+      "command_count": 1,
+      "rollback_available": true,
+      "method": "command-heuristic"
+    },
+    "decision": {
+      "verdict": "HUMAN_REVIEW",
+      "reasons": [
+        "score 0.66 < 0.85 AUTO threshold",
+        "namespace 'production' is production — always HUMAN_REVIEW minimum"
+      ],
+      "score": 0.66,
+      "risk": "LOW",
+      "rollback_available": true,
+      "namespace": "production",
+      "mc_win_rate": 1.0
+    },
+    "raw_analysis": "### 1. Summary\ncheckout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.\n\n### 2. Affected resources\n- Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing\n\n### 3. Root cause\nThe p99 latency (1.84s vs a 400ms SLO) comes from calls to payments-gateway; CPU, memory and restarts are flat, so the network path to the dependency is the cause, not the pod.\n\n### 4. Causal chain\n1. Calls from checkout-api to payments-gateway slow down.\n2. p99 latency breaches the 400ms SLO.\n3. Multi-window burn-rate alerts fire (14.4x fast, 6x slow).\n\n### 5. Remediation\nkubectl rollout restart deployment/checkout-api -n production\n\n### 6. Confidence\nHIGH — the burn-rate and latency alerts agree and isolate payments-gateway.\n"
+  },
+  "events": [],
+  "traces": [],
+  "alerts": [
+    "kind=PrometheusAlert name=SLOErrorBudgetBurnFast severity=critical state=firing namespace=production summary='checkout-api is burning its 30d error budget 14.4x too fast (1h/5m windows)' description='At this rate 2% of the 30-day error budget is consumed every hour and the whole budget is gone in ~2 days. SLI (requests answered successfully within 1s) is 92.8% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=1h/5m burn_rate=14.4 activeAt=2026-05-21T09:12:11.481Z",
+    "kind=PrometheusAlert name=SLOErrorBudgetBurnSlow severity=warning state=firing namespace=production summary='checkout-api is burning its 30d error budget 6x too fast (6h/30m windows)' description='5% of the 30-day error budget was consumed in the last 6 hours - a sustained degradation, not a blip. SLI is 97.0% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=6h/30m burn_rate=6 activeAt=2026-05-21T08:41:03.117Z",
+    "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s. The increase is isolated to calls to upstream=payments-gateway; CPU, memory and restart counts on checkout-api are flat, which points at the network path to the dependency rather than at the pod.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
+  ],
+  "anchor_fixes": [],
+  "policy_violations": [],
+  "causal_chain": [
+    "Calls from checkout-api to payments-gateway slow down.",
+    "p99 latency breaches the 400ms SLO.",
+    "Multi-window burn-rate alerts fire (14.4x fast, 6x slow)."
+  ],
+  "suggestions": [
+    "kubectl rollout restart deployment/checkout-api -n production"
+  ],
+  "dry_run_results": [
+    {
+      "original_cmd": "kubectl rollout restart deployment/checkout-api -n production",
+      "dry_cmd": "kubectl rollout restart deployment/checkout-api -n production --dry-run=server",
+      "output": "[fixture-replay: dry-run not executed]",
+      "exit_code": 0
+    }
+  ],
+  "blast_radius": {
+    "risk": "LOW",
+    "summary": "1 resource(s) — ns: production",
+    "resources": [
+      "Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing"
+    ],
+    "namespaces": [
+      "production"
+    ],
+    "cluster_scoped": false,
+    "command_count": 1
+  },
+  "incident_report": {
+    "severity": "HIGH — the burn-rate and latency alerts agree and isolate payments-gateway.",
+    "confidence": "HIGH — the burn-rate and latency alerts agree and isolate payments-gateway.",
+    "root_cause": "The p99 latency (1.84s vs a 400ms SLO) comes from calls to payments-gateway; CPU, memory and restarts are flat, so the network path to the dependency is the cause, not the pod.",
+    "impact": [
+      "Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing"
+    ],
+    "evidence": [
+      "kind=PrometheusAlert name=SLOErrorBudgetBurnFast severity=critical state=firing namespace=production summary='checkout-api is burning its 30d error budget 14.4x too fast (1h/5m windows)' description='At this rate 2% of the 30-day error budget is consumed every hour and the whole budget is gone in ~2 days. SLI (requests answered successfully within 1s) is 92.8% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=1h/5m burn_rate=14.4 activeAt=2026-05-21T09:12:11.481Z",
+      "kind=PrometheusAlert name=SLOErrorBudgetBurnSlow severity=warning state=firing namespace=production summary='checkout-api is burning its 30d error budget 6x too fast (6h/30m windows)' description='5% of the 30-day error budget was consumed in the last 6 hours - a sustained degradation, not a blip. SLI is 97.0% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=6h/30m burn_rate=6 activeAt=2026-05-21T08:41:03.117Z",
+      "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s. The increase is isolated to calls to upstream=payments-gateway; CPU, memory and restart counts on checkout-api are flat, which points at the network path to the dependency rather than at the pod.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
+    ],
+    "remediation": [
+      "kubectl rollout restart deployment/checkout-api -n production"
+    ],
+    "rollback": [
+      "kubectl rollout undo deployment/checkout-api -n production"
+    ]
+  },
+  "review_payload": {
+    "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
+    "root_cause": "The p99 latency (1.84s vs a 400ms SLO) comes from calls to payments-gateway; CPU, memory and restarts are flat, so the network path to the dependency is the cause, not the pod.",
+    "remediation": [
+      "kubectl rollout restart deployment/checkout-api -n production"
+    ],
+    "confidence": "HIGH",
+    "kube_version": "unknown",
+    "current_hypothesis": "Dependency latency to payments-gateway burns the checkout-api SLO error budget",
+    "reasoning_history": [
+      {
+        "step": 1,
+        "hypothesis": "checkout-api pods are CPU-throttled under load",
+        "confidence": "LOW",
+        "summary": "The evidence for this hypothesis is inconclusive.",
+        "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n",
+        "report_dict": {
+          "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
+          "kube_version": "unknown",
+          "timestamp": "2026-10-09T03:05:44.642497+00:00",
+          "summary": "The evidence for this hypothesis is inconclusive.",
+          "affected": [
+            "(none confirmed)"
+          ],
+          "root_cause": "Not established — the context does not support this hypothesis.",
+          "causal_chain": [
+            "No corroborating signal found.",
+            "Hypothesis not confirmed."
+          ],
+          "remediation": [
+            "kubectl get events -n production"
+          ],
+          "rollback": [],
+          "confidence": "LOW — the context does not support this hypothesis.",
+          "context_stats": {
+            "seeds": 0,
+            "drift": 0,
+            "events": 0,
+            "helm": 1,
+            "related": 2,
+            "total": 20,
+            "anchors": [
+              "Deployment/production/checkout-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
+              "Deployment/production/checkout-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
+              "Deployment/production/checkout-api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).",
+              "Deployment/production/checkout-api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.",
+              "Deployment/production/checkout-api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.",
+              "Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.",
+              "Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.",
+              "Deployment/production/checkout-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.",
+              "Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+              "Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
+              "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
+              "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
+              "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
+              "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill."
+            ],
+            "retrieval": {},
+            "jaccard": {
+              "candidates": 2,
+              "kept": 2
+            }
+          },
+          "events": [],
+          "traces": [],
+          "alerts": [
+            "kind=PrometheusAlert name=SLOErrorBudgetBurnFast severity=critical state=firing namespace=production summary='checkout-api is burning its 30d error budget 14.4x too fast (1h/5m windows)' description='At this rate 2% of the 30-day error budget is consumed every hour and the whole budget is gone in ~2 days. SLI (requests answered successfully within 1s) is 92.8% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=1h/5m burn_rate=14.4 activeAt=2026-05-21T09:12:11.481Z",
+            "kind=PrometheusAlert name=SLOErrorBudgetBurnSlow severity=warning state=firing namespace=production summary='checkout-api is burning its 30d error budget 6x too fast (6h/30m windows)' description='5% of the 30-day error budget was consumed in the last 6 hours - a sustained degradation, not a blip. SLI is 97.0% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=6h/30m burn_rate=6 activeAt=2026-05-21T08:41:03.117Z",
+            "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s. The increase is isolated to calls to upstream=payments-gateway; CPU, memory and restart counts on checkout-api are flat, which points at the network path to the dependency rather than at the pod.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
+          ],
+          "anchor_fixes": [],
+          "policy_violations": [],
+          "pre_llm_confidence": {
+            "score": 0.71,
+            "label": "HIGH",
+            "reasons": [
+              "BFS depth 4/5 → 0.20",
+              "Jaccard diversity 100% → 0.25",
+              "TF-IDF features 2/20 → 0.02",
+              "Anchors matched 14 → 0.15",
+              "Critical signals 3 → 0.09",
+              "Helm drift items 0 → 0.00"
+            ]
+          },
+          "blast_radius": {
+            "risk": "LOW",
+            "summary": "1 resource(s) — ns: production",
+            "resources": [
+              "(none confirmed)"
+            ],
+            "namespaces": [
+              "production"
+            ],
+            "cluster_scoped": false,
+            "command_count": 1,
+            "rollback_available": false,
+            "method": "command-heuristic"
+          },
+          "decision": {
+            "verdict": "NO_GO",
+            "reasons": [
+              "rollback_available=False — no safe recovery path"
+            ],
+            "score": 0.71,
+            "risk": "LOW",
+            "rollback_available": false,
+            "namespace": "production",
+            "mc_win_rate": 1.0
+          },
+          "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n"
+        },
+        "retry_count": 1
+      }
+    ],
+    "paths_explored": 2,
+    "blast_radius": {
+      "risk": "LOW",
+      "summary": "1 resource(s) — ns: production",
+      "resources": [
+        "Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing"
+      ],
+      "namespaces": [
+        "production"
+      ],
+      "cluster_scoped": false,
+      "command_count": 1,
+      "rollback_available": true,
+      "method": "command-heuristic"
+    },
+    "dry_run_results": [
+      {
+        "original_cmd": "kubectl rollout restart deployment/checkout-api -n production",
+        "dry_cmd": "kubectl rollout restart deployment/checkout-api -n production --dry-run=server",
+        "output": "[fixture-replay: dry-run not executed]",
+        "exit_code": 0
+      }
+    ],
+    "example_match": false,
+    "matched_example_id": "",
+    "no_solution": false,
+    "edge_log": [
+      {
+        "router": "confidence",
+        "edge_taken": "retry",
+        "reason": "confidence=LOW — retrying with wider context (1/2)",
+        "snapshot": {
+          "confidence": "LOW",
+          "retry_count": 0,
+          "max_retries": 2,
+          "candidates_remaining": 2,
+          "ingestion_failures": [],
+          "path_conf_history": [
+            "LOW"
+          ],
+          "declining": false,
+          "beam_switches": 0
+        },
+        "ts": "2026-10-09T03:05:44.636629+00:00"
+      },
+      {
+        "router": "confidence",
+        "edge_taken": "next_path",
+        "reason": "probability declining — LOW×2 on this path (retry 1), switching to next hypothesis (2 remaining)",
+        "snapshot": {
+          "confidence": "LOW",
+          "retry_count": 1,
+          "max_retries": 2,
+          "candidates_remaining": 2,
+          "ingestion_failures": [],
+          "path_conf_history": [
+            "LOW",
+            "LOW"
+          ],
+          "declining": true,
+          "beam_switches": 1
+        },
+        "ts": "2026-10-09T03:05:44.643502+00:00"
+      },
+      {
+        "router": "confidence",
+        "edge_taken": "review",
+        "reason": "confidence=HIGH — forwarding to human review",
+        "snapshot": {
+          "confidence": "HIGH",
+          "retry_count": 0,
+          "max_retries": 2,
+          "candidates_remaining": 1,
+          "ingestion_failures": [],
+          "path_conf_history": [
+            "HIGH"
+          ],
+          "declining": false,
+          "beam_switches": 1
+        },
+        "ts": "2026-10-09T03:05:44.650063+00:00"
+      },
+      {
+        "router": "policy",
+        "edge_taken": "human_review",
+        "reason": "HUMAN_REVIEW: namespace 'production' is production — always HUMAN_REVIEW minimum",
+        "snapshot": {
+          "score": 0.85,
+          "risk": "LOW",
+          "rollback_available": true,
+          "namespace": "production",
+          "mc_win_rate": 0.835,
+          "max_switches_reached": false,
+          "verdict": "HUMAN_REVIEW"
+        },
+        "ts": "2026-10-09T03:05:44.654147+00:00"
+      },
+      {
+        "router": "human",
+        "edge_taken": "reject",
+        "reason": "no human decision received — defaulting to reject",
+        "snapshot": {
+          "human_decision": "(none)",
+          "confidence": "HIGH",
+          "remediation_count": 1,
+          "dry_run_failures": 0
+        },
+        "ts": "2026-10-09T03:05:44.656628+00:00"
+      }
+    ],
+    "hypothesis_sources": []
+  },
+  "error": null
+}
