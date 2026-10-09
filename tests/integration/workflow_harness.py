@@ -14,6 +14,11 @@ backend — so ``ingestion_stats`` records what a live run would.
 Everything with a side effect or a random draw is pinned: example lookup off,
 dry-run kubectl not executed, Monte Carlo seeded, PatchTST range queries return
 nothing (synthetic mode). The LLM is scripted (ScriptedLLM).
+
+``run_case(key, cut=...)`` makes one collector's backend unreachable instead:
+its fixture is withdrawn and ``requests.get`` raises ``ConnectionError`` in
+that collector's module, so the real collector code meets the outage (spec:
+*Broadened offline coverage* §3).
 """
 from __future__ import annotations
 
@@ -25,8 +30,11 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import requests
+
 import config as cfg
 from ingestion.loki_source import LokiSource
+from ingestion.otel_backend import TempoBackend
 from ingestion.prometheus_collector import PrometheusCollector
 from reasoning.monte_carlo import run_monte_carlo
 from signals.prometheus_source import PrometheusMetricSource
@@ -74,6 +82,7 @@ class CaseScript:
     prompt_evidence: tuple[str, ...]   # strings the analyze prompt must contain
     collector: str                     # ingestion_stats key of the case's signal
     count_key: str                     # its count field
+    signal_marker: str                 # only the case's signal puts this in the prompt
 
     @property
     def case_dir(self) -> Path:
@@ -113,6 +122,7 @@ HIGH — the burn-rate and latency alerts agree and isolate payments-gateway.
         prompt_evidence=("14.4x", "payments-gateway"),
         collector="prometheus",
         count_key="alerts",
+        signal_marker="14.4x",
     ),
     "h014": CaseScript(
         case="h014_cert_expiry",
@@ -146,6 +156,7 @@ HIGH — the x509 expiry log line names the cause directly.
         prompt_evidence=("x509", "payments-backend"),
         collector="loki",
         count_key="logs",
+        signal_marker="x509",
     ),
     "h015": CaseScript(
         case="h015_etcd_compaction",
@@ -179,6 +190,7 @@ HIGH — the error traces show the etcd Range latency directly.
         prompt_evidence=("etcd", "TRACES"),
         collector="otel",
         count_key="traces",
+        signal_marker="TRACES",
     ),
 }
 
@@ -188,7 +200,9 @@ class ScriptedLLM:
 
     Two LOW answers on the first hypothesis make log_confidence_decision see a
     declining path (LOW×2) and switch to the next one, so archive_path really
-    runs and reasoning_history is non-empty; every later analyze answers HIGH.
+    runs and reasoning_history is non-empty. Later analyze calls answer HIGH
+    only when the case's evidence is actually in the prompt — LOW otherwise, so
+    a run without the signal cannot reach HIGH just because the script says so.
     """
 
     model = "scripted"
@@ -208,7 +222,11 @@ class ScriptedLLM:
         if prompt.startswith(_HYPOTHESIZE_PROMPT_PREFIX):
             return "\n".join(f"{i}. {h}" for i, h in enumerate(self._script.hypotheses, 1))
         self.analyze_prompts.append(prompt)
-        return self._low if len(self.analyze_prompts) <= 2 else self._script.final_response
+        if len(self.analyze_prompts) <= 2:
+            return self._low
+        if all(needle in prompt for needle in self._script.prompt_evidence):
+            return self._script.final_response
+        return self._low
 
 
 class StubStore:
@@ -232,8 +250,17 @@ class CaseRun:
     expect: dict = field(default_factory=dict)
 
 
-def run_case(key: str) -> CaseRun:
-    """Run one scripted case (``h013`` / ``h014`` / ``h015``) through the workflow."""
+CUTTABLE = ("prometheus", "loki", "otel")
+_UNREACHABLE = requests.ConnectionError("connection refused (fixture-replay: backend cut)")
+
+
+def run_case(key: str, cut: str | None = None) -> CaseRun:
+    """Run one scripted case (``h013`` / ``h014`` / ``h015``) through the workflow.
+
+    ``cut`` — one of CUTTABLE — makes that collector's backend unreachable.
+    """
+    if cut is not None and cut not in CUTTABLE:
+        raise ValueError(f"cut must be one of {CUTTABLE}, got {cut!r}")
     script = CASE_SCRIPTS[key]
     case = load_case(script.case_dir)
     namespace = case["expect"].get("namespace", "default")
@@ -251,13 +278,29 @@ def run_case(key: str) -> CaseRun:
         }.items():
             stack.enter_context(patch.object(cfg, name, value))
         stack.enter_context(patch.dict(os.environ, {"EXAMPLE_LOOKUP_DISABLED": "1"}))
-        stack.enter_context(patch.object(
-            PrometheusCollector, "_fetch_alerts", lambda self: alerts))
-        stack.enter_context(patch.object(
-            LokiSource, "_query", lambda self, logql, start, end: loki_query(logql, start, end)))
-        stack.enter_context(patch(
-            "ingestion.otel_backend.build_backend",
-            lambda *a, **k: _FixtureOtelBackend(traces)))
+        if cut == "prometheus":
+            stack.enter_context(patch(
+                "ingestion.prometheus_collector.requests.get", side_effect=_UNREACHABLE))
+        else:
+            stack.enter_context(patch.object(
+                PrometheusCollector, "_fetch_alerts", lambda self: alerts))
+        if cut == "loki":
+            stack.enter_context(patch(
+                "ingestion.loki_source.requests.get", side_effect=_UNREACHABLE))
+        else:
+            stack.enter_context(patch.object(
+                LokiSource, "_query",
+                lambda self, logql, start, end: loki_query(logql, start, end)))
+        if cut == "otel":
+            stack.enter_context(patch(
+                "ingestion.otel_backend.build_backend",
+                lambda *a, **k: TempoBackend(url="http://tempo.fixture.invalid")))
+            stack.enter_context(patch(
+                "ingestion.otel_backend.requests.get", side_effect=_UNREACHABLE))
+        else:
+            stack.enter_context(patch(
+                "ingestion.otel_backend.build_backend",
+                lambda *a, **k: _FixtureOtelBackend(traces)))
         stack.enter_context(patch.object(
             PrometheusMetricSource, "_range_query", lambda self, *a, **k: None))
         stack.enter_context(patch(
@@ -268,7 +311,7 @@ def run_case(key: str) -> CaseRun:
 
         workflow = build_graph()
         config = {"configurable": {
-            "thread_id": f"fixture-replay-{key}",
+            "thread_id": f"fixture-replay-{key}" + (f"-cut-{cut}" if cut else ""),
             "graph": graph, "store": StubStore(), "llm": llm,
         }}
         workflow.invoke({"query": script.query, "namespaces": [namespace]}, config)
