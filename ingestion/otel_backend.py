@@ -40,6 +40,8 @@ class OtelBackend(ABC):
         self.url = url.rstrip("/")
         self.token = token
         self.timeout = timeout
+        # Last request failure seen by _get(); OtelCollector resets and reads it.
+        self.last_error: str | None = None
 
     @abstractmethod
     def search_error_traces(
@@ -88,9 +90,11 @@ class OtelBackend(ABC):
             return resp.json()
         except requests.Timeout:
             log.warning("otel: request timed out: %s", path)
+            self.last_error = f"timed out after {self.timeout}s"
             return None
         except requests.RequestException as exc:
             log.warning("otel: request failed (%s): %s", exc, path)
+            self.last_error = str(exc)
             return None
 
 

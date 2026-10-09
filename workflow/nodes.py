@@ -217,6 +217,12 @@ def prometheus_node(state: RCAState, config: RunnableConfig) -> dict:
             timeout=cfg.PROMETHEUS_TIMEOUT,
         )
         count = collector.collect(graph)
+        if collector.last_error:
+            log.warning("prometheus: unreachable (%s) — continuing without alert data",
+                        collector.last_error)
+            return _stats(state, "prometheus", {
+                "alerts": count, "fallback": True, "error": collector.last_error,
+            })
         log.info("prometheus: %d alert(s) correlated", count)
         return _stats(state, "prometheus", {"alerts": count, "fallback": False})
     except Exception as exc:
@@ -293,9 +299,16 @@ def otel_node(state: RCAState, config: RunnableConfig) -> dict:
                 otlp_port=cfg.OTLP_PORT,
                 otlp_max_traces=cfg.OTLP_MAX_TRACES,
             )
-            count = OtelCollector(backend, lookback_hours=cfg.OTEL_LOOKBACK_HOURS).collect(graph)
-            log.info("otel: %d trace(s) ingested", count)
-            otel_stat = {"traces": count, "fallback": False}
+            otel_collector = OtelCollector(backend, lookback_hours=cfg.OTEL_LOOKBACK_HOURS)
+            count = otel_collector.collect(graph)
+            if otel_collector.last_error:
+                log.warning("otel traces: backend failed (%s) — %d trace(s) collected",
+                            otel_collector.last_error, count)
+                otel_stat = {"traces": count, "fallback": True,
+                             "error": otel_collector.last_error}
+            else:
+                log.info("otel: %d trace(s) ingested", count)
+                otel_stat = {"traces": count, "fallback": False}
         except Exception as exc:
             log.warning("otel traces failed (%s) — continuing without trace data", exc)
             otel_stat = {"fallback": True, "error": str(exc)}
@@ -310,8 +323,13 @@ def otel_node(state: RCAState, config: RunnableConfig) -> dict:
                 max_logs_per_pod=cfg.LOKI_MAX_LOGS_PER_POD,
             )
             count = loki.collect(graph)
-            log.info("loki: %d log(s) ingested", count)
-            loki_stat = {"logs": count, "fallback": False}
+            if loki.last_error:
+                log.warning("loki: query failed (%s) — %d log(s) collected",
+                            loki.last_error, count)
+                loki_stat = {"logs": count, "fallback": True, "error": loki.last_error}
+            else:
+                log.info("loki: %d log(s) ingested", count)
+                loki_stat = {"logs": count, "fallback": False}
         except Exception as exc:
             log.warning("loki logs failed (%s) — continuing without log data", exc)
             loki_stat = {"fallback": True, "error": str(exc)}

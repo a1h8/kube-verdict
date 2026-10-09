@@ -184,7 +184,9 @@ def test_otel_node_both_ok_reports_two_entries_without_fallback(monkeypatch):
          patch("ingestion.otel_collector.OtelCollector") as otel, \
          patch("ingestion.loki_source.LokiSource") as loki:
         otel.return_value.collect.return_value = 4
+        otel.return_value.last_error = None
         loki.return_value.collect.return_value = 7
+        loki.return_value.last_error = None
         stats = otel_node(_state(), _config(graph=_empty_graph()))["ingestion_stats"]
     assert stats["otel"] == {"traces": 4, "fallback": False}
     assert stats["loki"] == {"logs": 7, "fallback": False}
@@ -197,6 +199,7 @@ def test_otel_node_loki_failure_is_a_loki_fallback_only(monkeypatch):
          patch("ingestion.loki_source.LokiSource", side_effect=OSError("loki down")), \
          patch("telemetry.record_collector_fallback") as counter:
         otel.return_value.collect.return_value = 2
+        otel.return_value.last_error = None
         result = otel_node(_state(), _config(graph=_empty_graph()))
     stats = result["ingestion_stats"]
     assert stats["loki"] == {"fallback": True, "error": "loki down"}
@@ -211,6 +214,7 @@ def test_otel_node_trace_failure_is_an_otel_fallback(monkeypatch):
          patch("ingestion.loki_source.LokiSource") as loki, \
          patch("telemetry.record_collector_fallback") as counter:
         loki.return_value.collect.return_value = 0
+        loki.return_value.last_error = None
         result = otel_node(_state(), _config(graph=_empty_graph()))
     stats = result["ingestion_stats"]
     assert stats["otel"] == {"fallback": True, "error": "tempo down"}
@@ -225,6 +229,7 @@ def test_otel_node_disabled_side_is_skipped_not_fallback(monkeypatch):
     monkeypatch.setattr(cfg, "LOKI_ENABLED", True)
     with patch("ingestion.loki_source.LokiSource") as loki:
         loki.return_value.collect.return_value = 1
+        loki.return_value.last_error = None
         stats = otel_node(_state(), _config(graph=_empty_graph()))["ingestion_stats"]
     assert stats["otel"] == {"skipped": True}
     assert stats["loki"] == {"logs": 1, "fallback": False}
@@ -237,9 +242,46 @@ def test_otel_node_keeps_earlier_steps_stats(monkeypatch):
          patch("ingestion.otel_collector.OtelCollector") as otel, \
          patch("ingestion.loki_source.LokiSource") as loki:
         otel.return_value.collect.return_value = 0
+        otel.return_value.last_error = None
         loki.return_value.collect.return_value = 0
+        loki.return_value.last_error = None
         stats = otel_node(state, _config(graph=_empty_graph()))["ingestion_stats"]
     assert set(stats) == {"prometheus", "otel", "loki"}
+
+
+# A collector that swallows a request failure still returns a count; the node reads
+# its last_error so an unreachable backend is a fallback, not "collected 0".
+
+def test_prometheus_node_unreachable_backend_is_a_fallback(monkeypatch):
+    import config as cfg
+    monkeypatch.setattr(cfg, "PROMETHEUS_ENABLED", True)
+    with patch("ingestion.prometheus_collector.PrometheusCollector") as prom, \
+         patch("telemetry.record_collector_fallback") as counter:
+        prom.return_value.collect.return_value = 0
+        prom.return_value.last_error = "connection refused"
+        result = prometheus_node(_state(), _config(graph=_empty_graph()))
+    assert result["ingestion_stats"]["prometheus"] == {
+        "alerts": 0, "fallback": True, "error": "connection refused",
+    }
+    counter.assert_called_once_with("prometheus")
+
+
+def test_otel_node_backend_errors_are_fallbacks_with_partial_counts(monkeypatch):
+    _enable_otel_and_loki(monkeypatch)
+    with patch("ingestion.otel_backend.build_backend"), \
+         patch("ingestion.otel_collector.OtelCollector") as otel, \
+         patch("ingestion.loki_source.LokiSource") as loki, \
+         patch("telemetry.record_collector_fallback") as counter:
+        otel.return_value.collect.return_value = 1
+        otel.return_value.last_error = "tempo timed out"
+        loki.return_value.collect.return_value = 3
+        loki.return_value.last_error = "loki 503"
+        result = otel_node(_state(), _config(graph=_empty_graph()))
+    stats = result["ingestion_stats"]
+    assert stats["otel"] == {"traces": 1, "fallback": True, "error": "tempo timed out"}
+    assert stats["loki"] == {"logs": 3, "fallback": True, "error": "loki 503"}
+    assert sorted(_nodes_mod._ingestion_failures(result)) == ["loki", "otel"]
+    assert sorted(c.args[0] for c in counter.call_args_list) == ["loki", "otel"]
 
 
 # ---------------------------------------------------------------------------

@@ -205,6 +205,53 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    `tests/unit/test_workflow_nodes_coverage.py`; `tools/b13_capture.py` reads the new
    shape. The legacy Streamlit `ui/app.py` still builds its own stats in the old shape
    (separate code path, not touched). The integration test itself is still to write.
+   **Second prerequisite (found 2026-10-09): collectors swallow backend failures.**
+   `PrometheusCollector._fetch_alerts`, `LokiSource._query` and the OTel backends'
+   `search_error_traces` catch `requests` timeouts / errors, log a warning and return
+   an empty list. No exception reaches the node, so a dead Prometheus, Loki or Tempo
+   is recorded as `{alerts|logs|traces: 0, fallback: false}` — "collected, found
+   nothing" — and stays invisible to the overlay, `_ingestion_failures()` and the
+   fallback counter. Simulating the outage at the HTTP edge (the honest way) would make
+   this test fail as written; simulating it above the collector would bypass the very
+   code under test.
+   Fix, backward compatible: each collector keeps returning 0 / `[]` but records the
+   failure in a `last_error` attribute (reset at the start of `collect()`).
+   `prometheus_node` and `otel_node` read it: when set, the entry becomes
+   `{fallback: true, error, <count>}` — through `_stats()`, so the counter increments.
+   A partial Loki / trace collection (some queries failed) is also `fallback: true`,
+   with the count of what did arrive. Other callers (`services`, the legacy UI) see
+   no change. Unit tests cover `last_error` for the three collectors and both nodes.
+   *Test shape, refined:* the outage is injected at the HTTP edge (`requests.get`
+   raising `ConnectionError`) for the case's collector only, the others staying on
+   their fixtures. "Lower confidence" is asserted on two levels: the deterministic
+   pre-LLM context score (`report.pre_llm_confidence.score`, which does not depend on
+   the mock) is lower than in the connected run, and the final label — with a mock
+   that answers HIGH only when the case's evidence is actually in the prompt — is
+   never HIGH. The confidence decisions in `edge_log` name the failed collector
+   (`ingestion failures: [...]`).
+   **Finding while implementing (2026-10-09): the pre-LLM score does not drop.**
+   With the case's collector cut, `pre_llm_confidence.score` went 0.66 → 0.62 (h013)
+   but **rose** 0.49 → 0.54 for h014 and h015. `compute_confidence`
+   (`rca/confidence.py`) counts firing alerts but neither logs nor traces, ignores
+   ingestion failures, and rewards Jaccard diversity and BFS depth — the degraded run
+   retries more (deeper BFS) and has fewer near-duplicate log lines. It measures the
+   shape of the context, not whether evidence is present. The test therefore does
+   **not** assert on that score; it asserts what holds: the collector's
+   `fallback: true` with its error, the fallback counter, the signal's evidence absent
+   from every analyze prompt, the failed collector named in every confidence decision,
+   the other collectors untouched, and a final label that is never HIGH (evidence-gated
+   mock). Making the score evidence- and failure-aware is a separate change (roadmap:
+   *Evidence-aware pre-LLM score*): it moves the calibration of h001–h015, the
+   decision-engine thresholds and the veracity benchmark, so it gets its own spec.
+   **Implemented (2026-10-09).** `tests/integration/test_collector_fallback_paths.py`,
+   on the §1 harness (`run_case(key, cut=...)`). For h013 / h014 / h015 with
+   Prometheus / Loki / OTel cut: `fallback: true` with the error and a zero count, the
+   fallback counter called once for that collector only, the other collectors
+   untouched, the signal marker (14.4x / x509 / TRACES) absent from every analyze
+   prompt, every confidence decision naming the failed collector, and a final label
+   never HIGH where the connected run reaches HIGH. Verdicts: h013 → `NO_GO` (the
+   LOW answer's remediation has no rollback), h014 / h015 stay `HUMAN_REVIEW` at LOW
+   confidence.
 4. **Combined multi-signal case h016** — `tests/integration/cases/h016_multi_signal/` +
    `tests/integration/test_multi_signal_h016.py`. One incident where Prometheus alerts,
    Loki logs and OTel traces are all present at once, plus one decoy per signal (another
