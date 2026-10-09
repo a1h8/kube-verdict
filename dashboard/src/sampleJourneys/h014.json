@@ -1,0 +1,717 @@
+{
+  "source": "fixture-replay",
+  "case": "h014_cert_expiry",
+  "session_id": "fixture-replay-h014",
+  "status": "AWAITING_REVIEW",
+  "query": "why is billing-gateway not ready",
+  "kube_version": "unknown",
+  "confidence": "HIGH",
+  "verdict": "HUMAN_REVIEW",
+  "verdict_reasons": [
+    "namespace 'production' is production — always HUMAN_REVIEW minimum",
+    "MC win_rate 0% < 80% stability threshold"
+  ],
+  "current_hypothesis": "Deployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway",
+  "candidate_paths": [
+    "Helm chart drift from declared: Deployment/billing-gateway → HelmRelease/billing-gateway"
+  ],
+  "reasoning_history": [
+    {
+      "step": 1,
+      "hypothesis": "Helm drift — cluster state diverged from chart declaration affecting Deployment/production/billing-gateway",
+      "confidence": "LOW",
+      "summary": "The evidence for this hypothesis is inconclusive.",
+      "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n",
+      "report_dict": {
+        "query": "HYPOTHESIS TO INVESTIGATE:\nHelm drift — cluster state diverged from chart declaration affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
+        "kube_version": "unknown",
+        "timestamp": "2026-10-09T03:06:02.335225+00:00",
+        "summary": "The evidence for this hypothesis is inconclusive.",
+        "affected": [
+          "(none confirmed)",
+          "Deployment/production/billing-gateway"
+        ],
+        "root_cause": "Not established — the context does not support this hypothesis.",
+        "causal_chain": [
+          "No corroborating signal found.",
+          "Hypothesis not confirmed."
+        ],
+        "remediation": [
+          "kubectl get events -n production",
+          "[rule:helm_drift w=0.95] Helm drift — cluster state diverged from chart declaration (Deployment/production/billing-gateway)",
+          "# Drift details:",
+          "kubectl get deployment billing-gateway -n production -o jsonpath='{.spec}'",
+          "# Restore declared state:",
+          "helm upgrade billing-gateway demo/charts/billing-gateway -n production",
+          "# Or diff first:",
+          "helm diff upgrade billing-gateway demo/charts/billing-gateway -n production",
+          "[rule:degraded_deployment w=0.82] Deployment degraded — fewer replicas ready than desired (Deployment/production/billing-gateway)",
+          "kubectl describe deployment billing-gateway -n production",
+          "kubectl rollout status deployment/billing-gateway -n production",
+          "kubectl get pods -n production -l app=billing-gateway",
+          "kubectl logs -l app=billing-gateway -n production --tail=50 --prefix"
+        ],
+        "rollback": [],
+        "confidence": "LOW (rule-assisted — top: helm_drift w=0.95, 2 hypothesis(es))",
+        "context_stats": {
+          "seeds": 4,
+          "drift": 1,
+          "events": 3,
+          "helm": 1,
+          "related": 0,
+          "total": 37,
+          "anchors": [
+            "Deployment/production/billing-gateway: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
+            "Deployment/production/billing-gateway: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
+            "Deployment/production/billing-gateway: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).",
+            "Deployment/production/billing-gateway: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.",
+            "Deployment/production/billing-gateway: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.",
+            "Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.",
+            "Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.",
+            "Deployment/production/billing-gateway: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.",
+            "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+            "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
+            "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
+            "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
+            "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
+            "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.",
+            "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+            "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
+            "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
+            "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
+            "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
+            "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill."
+          ],
+          "retrieval": {},
+          "jaccard": {
+            "candidates": 0,
+            "kept": 0
+          }
+        },
+        "events": [
+          "kind=Event type=Warning reason=ErrRegisterACMEAccount involved=Issuer/letsencrypt-prod namespace=production count=1800 message=Failed to register ACME account: Post \"https://acme-v02.api.letsencrypt.org/acme/new-acct\": dial tcp 172.65.32.248:443: i/o timeout",
+          "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-4hxkd namespace=production count=92 message=Readiness probe failed: HTTP probe failed with statuscode: 503",
+          "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-v9m2t namespace=production count=90 message=Readiness probe failed: HTTP probe failed with statuscode: 503"
+        ],
+        "traces": [],
+        "alerts": [],
+        "anchor_fixes": [],
+        "policy_violations": [],
+        "pre_llm_confidence": {
+          "score": 0.54,
+          "label": "MEDIUM",
+          "reasons": [
+            "BFS depth 4/5 → 0.20",
+            "Jaccard diversity 0% → 0.00",
+            "TF-IDF features 0/20 → 0.00",
+            "Anchors matched 20 → 0.15",
+            "Critical signals 4 → 0.12",
+            "Helm drift items 1 → 0.07"
+          ]
+        },
+        "blast_radius": {
+          "risk": "LOW",
+          "summary": "2 resource(s) — ns: production",
+          "resources": [
+            "(none confirmed)",
+            "Deployment/production/billing-gateway"
+          ],
+          "namespaces": [
+            "production"
+          ],
+          "cluster_scoped": false,
+          "command_count": 13,
+          "rollback_available": false,
+          "method": "command-heuristic"
+        },
+        "decision": {
+          "verdict": "NO_GO",
+          "reasons": [
+            "score 0.54 < 0.6 minimum",
+            "rollback_available=False — no safe recovery path"
+          ],
+          "score": 0.54,
+          "risk": "LOW",
+          "rollback_available": false,
+          "namespace": "production",
+          "mc_win_rate": 1.0
+        },
+        "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n"
+      },
+      "retry_count": 1
+    }
+  ],
+  "hypothesis_sources": [
+    {
+      "rule_id": "helm_drift",
+      "symptom": "Helm drift — cluster state diverged from chart declaration",
+      "affected": "Deployment/production/billing-gateway",
+      "weight": 0.95,
+      "evidence": [
+        "1 drift field(s)",
+        "entity is unhealthy + drift"
+      ]
+    },
+    {
+      "rule_id": "degraded_deployment",
+      "symptom": "Deployment degraded — fewer replicas ready than desired",
+      "affected": "Deployment/production/billing-gateway",
+      "weight": 0.82,
+      "evidence": [
+        "0% replicas ready"
+      ]
+    }
+  ],
+  "path_confidence_history": [
+    "HIGH"
+  ],
+  "edge_log": [
+    {
+      "router": "confidence",
+      "edge_taken": "retry",
+      "reason": "confidence=LOW — retrying with wider context (1/2)",
+      "snapshot": {
+        "confidence": "LOW",
+        "retry_count": 0,
+        "max_retries": 2,
+        "candidates_remaining": 2,
+        "ingestion_failures": [],
+        "path_conf_history": [
+          "LOW"
+        ],
+        "declining": false,
+        "beam_switches": 0
+      },
+      "ts": "2026-10-09T03:06:02.331449+00:00"
+    },
+    {
+      "router": "confidence",
+      "edge_taken": "next_path",
+      "reason": "probability declining — LOW×2 on this path (retry 1), switching to next hypothesis (2 remaining)",
+      "snapshot": {
+        "confidence": "LOW",
+        "retry_count": 1,
+        "max_retries": 2,
+        "candidates_remaining": 2,
+        "ingestion_failures": [],
+        "path_conf_history": [
+          "LOW",
+          "LOW"
+        ],
+        "declining": true,
+        "beam_switches": 1
+      },
+      "ts": "2026-10-09T03:06:02.336848+00:00"
+    },
+    {
+      "router": "confidence",
+      "edge_taken": "review",
+      "reason": "confidence=HIGH — forwarding to human review",
+      "snapshot": {
+        "confidence": "HIGH",
+        "retry_count": 0,
+        "max_retries": 2,
+        "candidates_remaining": 1,
+        "ingestion_failures": [],
+        "path_conf_history": [
+          "HIGH"
+        ],
+        "declining": false,
+        "beam_switches": 1
+      },
+      "ts": "2026-10-09T03:06:02.342329+00:00"
+    },
+    {
+      "router": "policy",
+      "edge_taken": "human_review",
+      "reason": "HUMAN_REVIEW: namespace 'production' is production — always HUMAN_REVIEW minimum; MC win_rate 0% < 80% stability threshold",
+      "snapshot": {
+        "score": 0.85,
+        "risk": "LOW",
+        "rollback_available": true,
+        "namespace": "production",
+        "mc_win_rate": 0.0,
+        "max_switches_reached": false,
+        "verdict": "HUMAN_REVIEW"
+      },
+      "ts": "2026-10-09T03:06:02.345711+00:00"
+    },
+    {
+      "router": "human",
+      "edge_taken": "reject",
+      "reason": "no human decision received — defaulting to reject",
+      "snapshot": {
+        "human_decision": "(none)",
+        "confidence": "HIGH",
+        "remediation_count": 1,
+        "dry_run_failures": 0
+      },
+      "ts": "2026-10-09T03:06:02.347272+00:00"
+    }
+  ],
+  "ingestion_stats": {
+    "ingest": {
+      "skipped": true,
+      "reason": "pre-built"
+    },
+    "metrics": {
+      "skipped": true
+    },
+    "prometheus": {
+      "alerts": 0,
+      "fallback": false
+    },
+    "otel": {
+      "traces": 0,
+      "fallback": false
+    },
+    "loki": {
+      "logs": 10,
+      "fallback": false
+    },
+    "gitops": {
+      "skipped": true
+    },
+    "anchor": {
+      "total": 20,
+      "manifest": 0,
+      "schema": 20,
+      "fallback": false
+    },
+    "signals": {
+      "total": 6,
+      "anomalous": 6,
+      "mode": "real",
+      "fallback": false
+    }
+  },
+  "drift_evidence": [],
+  "report": {
+    "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
+    "kube_version": "unknown",
+    "timestamp": "2026-10-09T03:06:02.341327+00:00",
+    "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
+    "affected": [
+      "Deployment/production/billing-gateway — 0/2 Ready"
+    ],
+    "root_cause": "The pods log \"x509: certificate has expired\"; the cert-manager issuer letsencrypt-prod cannot reach its ACME endpoint, so the certificate was not renewed.",
+    "causal_chain": [
+      "ACME issuer cannot register its account.",
+      "The mTLS certificate expires without renewal.",
+      "TLS handshake to payments-backend fails, /ready returns 503."
+    ],
+    "remediation": [
+      "helm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01"
+    ],
+    "rollback": [
+      "helm rollback billing-gateway -n production"
+    ],
+    "confidence": "HIGH — the x509 expiry log line names the cause directly.",
+    "context_stats": {
+      "seeds": 4,
+      "drift": 1,
+      "events": 3,
+      "helm": 1,
+      "related": 0,
+      "total": 37,
+      "anchors": [
+        "Deployment/production/billing-gateway: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
+        "Deployment/production/billing-gateway: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
+        "Deployment/production/billing-gateway: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).",
+        "Deployment/production/billing-gateway: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.",
+        "Deployment/production/billing-gateway: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.",
+        "Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.",
+        "Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.",
+        "Deployment/production/billing-gateway: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.",
+        "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+        "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
+        "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
+        "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
+        "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
+        "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.",
+        "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+        "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
+        "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
+        "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
+        "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
+        "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill."
+      ],
+      "retrieval": {},
+      "jaccard": {
+        "candidates": 0,
+        "kept": 0
+      }
+    },
+    "events": [
+      "kind=Event type=Warning reason=ErrRegisterACMEAccount involved=Issuer/letsencrypt-prod namespace=production count=1800 message=Failed to register ACME account: Post \"https://acme-v02.api.letsencrypt.org/acme/new-acct\": dial tcp 172.65.32.248:443: i/o timeout",
+      "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-4hxkd namespace=production count=92 message=Readiness probe failed: HTTP probe failed with statuscode: 503",
+      "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-v9m2t namespace=production count=90 message=Readiness probe failed: HTTP probe failed with statuscode: 503"
+    ],
+    "traces": [],
+    "alerts": [],
+    "anchor_fixes": [],
+    "policy_violations": [],
+    "pre_llm_confidence": {
+      "score": 0.49,
+      "label": "MEDIUM",
+      "reasons": [
+        "BFS depth 3/5 → 0.15",
+        "Jaccard diversity 0% → 0.00",
+        "TF-IDF features 0/20 → 0.00",
+        "Anchors matched 20 → 0.15",
+        "Critical signals 4 → 0.12",
+        "Helm drift items 1 → 0.07"
+      ]
+    },
+    "blast_radius": {
+      "risk": "LOW",
+      "summary": "1 resource(s) — ns: production",
+      "resources": [
+        "Deployment/production/billing-gateway — 0/2 Ready"
+      ],
+      "namespaces": [
+        "production"
+      ],
+      "cluster_scoped": false,
+      "command_count": 1,
+      "rollback_available": true,
+      "method": "command-heuristic"
+    },
+    "decision": {
+      "verdict": "NO_GO",
+      "reasons": [
+        "score 0.49 < 0.6 minimum"
+      ],
+      "score": 0.49,
+      "risk": "LOW",
+      "rollback_available": true,
+      "namespace": "production",
+      "mc_win_rate": 1.0
+    },
+    "raw_analysis": "### 1. Summary\nbilling-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.\n\n### 2. Affected resources\n- Deployment/production/billing-gateway — 0/2 Ready\n\n### 3. Root cause\nThe pods log \"x509: certificate has expired\"; the cert-manager issuer letsencrypt-prod cannot reach its ACME endpoint, so the certificate was not renewed.\n\n### 4. Causal chain\n1. ACME issuer cannot register its account.\n2. The mTLS certificate expires without renewal.\n3. TLS handshake to payments-backend fails, /ready returns 503.\n\n### 5. Remediation\nhelm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01\n\n### 6. Confidence\nHIGH — the x509 expiry log line names the cause directly.\n"
+  },
+  "events": [
+    "kind=Event type=Warning reason=ErrRegisterACMEAccount involved=Issuer/letsencrypt-prod namespace=production count=1800 message=Failed to register ACME account: Post \"https://acme-v02.api.letsencrypt.org/acme/new-acct\": dial tcp 172.65.32.248:443: i/o timeout",
+    "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-4hxkd namespace=production count=92 message=Readiness probe failed: HTTP probe failed with statuscode: 503",
+    "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-v9m2t namespace=production count=90 message=Readiness probe failed: HTTP probe failed with statuscode: 503"
+  ],
+  "traces": [],
+  "alerts": [],
+  "anchor_fixes": [],
+  "policy_violations": [],
+  "causal_chain": [
+    "ACME issuer cannot register its account.",
+    "The mTLS certificate expires without renewal.",
+    "TLS handshake to payments-backend fails, /ready returns 503."
+  ],
+  "suggestions": [
+    "helm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01"
+  ],
+  "dry_run_results": [
+    {
+      "original_cmd": "helm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01",
+      "dry_cmd": "helm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01 --dry-run=server",
+      "output": "[fixture-replay: dry-run not executed]",
+      "exit_code": 0
+    }
+  ],
+  "blast_radius": {
+    "risk": "LOW",
+    "summary": "1 resource(s) — ns: production",
+    "resources": [
+      "Deployment/production/billing-gateway — 0/2 Ready"
+    ],
+    "namespaces": [
+      "production"
+    ],
+    "cluster_scoped": false,
+    "command_count": 1
+  },
+  "incident_report": {
+    "severity": "HIGH — the x509 expiry log line names the cause directly.",
+    "confidence": "HIGH — the x509 expiry log line names the cause directly.",
+    "root_cause": "The pods log \"x509: certificate has expired\"; the cert-manager issuer letsencrypt-prod cannot reach its ACME endpoint, so the certificate was not renewed.",
+    "impact": [
+      "Deployment/production/billing-gateway — 0/2 Ready"
+    ],
+    "evidence": [
+      "kind=Event type=Warning reason=ErrRegisterACMEAccount involved=Issuer/letsencrypt-prod namespace=production count=1800 message=Failed to register ACME account: Post \"https://acme-v02.api.letsencrypt.org/acme/new-acct\": dial tcp 172.65.32.248:443: i/o timeout",
+      "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-4hxkd namespace=production count=92 message=Readiness probe failed: HTTP probe failed with statuscode: 503",
+      "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-v9m2t namespace=production count=90 message=Readiness probe failed: HTTP probe failed with statuscode: 503"
+    ],
+    "remediation": [
+      "helm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01"
+    ],
+    "rollback": [
+      "helm rollback billing-gateway -n production"
+    ]
+  },
+  "review_payload": {
+    "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
+    "root_cause": "The pods log \"x509: certificate has expired\"; the cert-manager issuer letsencrypt-prod cannot reach its ACME endpoint, so the certificate was not renewed.",
+    "remediation": [
+      "helm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01"
+    ],
+    "confidence": "HIGH",
+    "kube_version": "unknown",
+    "current_hypothesis": "Deployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway",
+    "reasoning_history": [
+      {
+        "step": 1,
+        "hypothesis": "Helm drift — cluster state diverged from chart declaration affecting Deployment/production/billing-gateway",
+        "confidence": "LOW",
+        "summary": "The evidence for this hypothesis is inconclusive.",
+        "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n",
+        "report_dict": {
+          "query": "HYPOTHESIS TO INVESTIGATE:\nHelm drift — cluster state diverged from chart declaration affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
+          "kube_version": "unknown",
+          "timestamp": "2026-10-09T03:06:02.335225+00:00",
+          "summary": "The evidence for this hypothesis is inconclusive.",
+          "affected": [
+            "(none confirmed)",
+            "Deployment/production/billing-gateway"
+          ],
+          "root_cause": "Not established — the context does not support this hypothesis.",
+          "causal_chain": [
+            "No corroborating signal found.",
+            "Hypothesis not confirmed."
+          ],
+          "remediation": [
+            "kubectl get events -n production",
+            "[rule:helm_drift w=0.95] Helm drift — cluster state diverged from chart declaration (Deployment/production/billing-gateway)",
+            "# Drift details:",
+            "kubectl get deployment billing-gateway -n production -o jsonpath='{.spec}'",
+            "# Restore declared state:",
+            "helm upgrade billing-gateway demo/charts/billing-gateway -n production",
+            "# Or diff first:",
+            "helm diff upgrade billing-gateway demo/charts/billing-gateway -n production",
+            "[rule:degraded_deployment w=0.82] Deployment degraded — fewer replicas ready than desired (Deployment/production/billing-gateway)",
+            "kubectl describe deployment billing-gateway -n production",
+            "kubectl rollout status deployment/billing-gateway -n production",
+            "kubectl get pods -n production -l app=billing-gateway",
+            "kubectl logs -l app=billing-gateway -n production --tail=50 --prefix"
+          ],
+          "rollback": [],
+          "confidence": "LOW (rule-assisted — top: helm_drift w=0.95, 2 hypothesis(es))",
+          "context_stats": {
+            "seeds": 4,
+            "drift": 1,
+            "events": 3,
+            "helm": 1,
+            "related": 0,
+            "total": 37,
+            "anchors": [
+              "Deployment/production/billing-gateway: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
+              "Deployment/production/billing-gateway: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
+              "Deployment/production/billing-gateway: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).",
+              "Deployment/production/billing-gateway: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.",
+              "Deployment/production/billing-gateway: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.",
+              "Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.",
+              "Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.",
+              "Deployment/production/billing-gateway: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.",
+              "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+              "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
+              "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
+              "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
+              "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
+              "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.",
+              "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+              "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
+              "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
+              "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
+              "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
+              "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill."
+            ],
+            "retrieval": {},
+            "jaccard": {
+              "candidates": 0,
+              "kept": 0
+            }
+          },
+          "events": [
+            "kind=Event type=Warning reason=ErrRegisterACMEAccount involved=Issuer/letsencrypt-prod namespace=production count=1800 message=Failed to register ACME account: Post \"https://acme-v02.api.letsencrypt.org/acme/new-acct\": dial tcp 172.65.32.248:443: i/o timeout",
+            "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-4hxkd namespace=production count=92 message=Readiness probe failed: HTTP probe failed with statuscode: 503",
+            "kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-v9m2t namespace=production count=90 message=Readiness probe failed: HTTP probe failed with statuscode: 503"
+          ],
+          "traces": [],
+          "alerts": [],
+          "anchor_fixes": [],
+          "policy_violations": [],
+          "pre_llm_confidence": {
+            "score": 0.54,
+            "label": "MEDIUM",
+            "reasons": [
+              "BFS depth 4/5 → 0.20",
+              "Jaccard diversity 0% → 0.00",
+              "TF-IDF features 0/20 → 0.00",
+              "Anchors matched 20 → 0.15",
+              "Critical signals 4 → 0.12",
+              "Helm drift items 1 → 0.07"
+            ]
+          },
+          "blast_radius": {
+            "risk": "LOW",
+            "summary": "2 resource(s) — ns: production",
+            "resources": [
+              "(none confirmed)",
+              "Deployment/production/billing-gateway"
+            ],
+            "namespaces": [
+              "production"
+            ],
+            "cluster_scoped": false,
+            "command_count": 13,
+            "rollback_available": false,
+            "method": "command-heuristic"
+          },
+          "decision": {
+            "verdict": "NO_GO",
+            "reasons": [
+              "score 0.54 < 0.6 minimum",
+              "rollback_available=False — no safe recovery path"
+            ],
+            "score": 0.54,
+            "risk": "LOW",
+            "rollback_available": false,
+            "namespace": "production",
+            "mc_win_rate": 1.0
+          },
+          "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n"
+        },
+        "retry_count": 1
+      }
+    ],
+    "paths_explored": 2,
+    "blast_radius": {
+      "risk": "LOW",
+      "summary": "1 resource(s) — ns: production",
+      "resources": [
+        "Deployment/production/billing-gateway — 0/2 Ready"
+      ],
+      "namespaces": [
+        "production"
+      ],
+      "cluster_scoped": false,
+      "command_count": 1,
+      "rollback_available": true,
+      "method": "command-heuristic"
+    },
+    "dry_run_results": [
+      {
+        "original_cmd": "helm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01",
+        "dry_cmd": "helm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01 --dry-run=server",
+        "output": "[fixture-replay: dry-run not executed]",
+        "exit_code": 0
+      }
+    ],
+    "example_match": false,
+    "matched_example_id": "",
+    "no_solution": false,
+    "edge_log": [
+      {
+        "router": "confidence",
+        "edge_taken": "retry",
+        "reason": "confidence=LOW — retrying with wider context (1/2)",
+        "snapshot": {
+          "confidence": "LOW",
+          "retry_count": 0,
+          "max_retries": 2,
+          "candidates_remaining": 2,
+          "ingestion_failures": [],
+          "path_conf_history": [
+            "LOW"
+          ],
+          "declining": false,
+          "beam_switches": 0
+        },
+        "ts": "2026-10-09T03:06:02.331449+00:00"
+      },
+      {
+        "router": "confidence",
+        "edge_taken": "next_path",
+        "reason": "probability declining — LOW×2 on this path (retry 1), switching to next hypothesis (2 remaining)",
+        "snapshot": {
+          "confidence": "LOW",
+          "retry_count": 1,
+          "max_retries": 2,
+          "candidates_remaining": 2,
+          "ingestion_failures": [],
+          "path_conf_history": [
+            "LOW",
+            "LOW"
+          ],
+          "declining": true,
+          "beam_switches": 1
+        },
+        "ts": "2026-10-09T03:06:02.336848+00:00"
+      },
+      {
+        "router": "confidence",
+        "edge_taken": "review",
+        "reason": "confidence=HIGH — forwarding to human review",
+        "snapshot": {
+          "confidence": "HIGH",
+          "retry_count": 0,
+          "max_retries": 2,
+          "candidates_remaining": 1,
+          "ingestion_failures": [],
+          "path_conf_history": [
+            "HIGH"
+          ],
+          "declining": false,
+          "beam_switches": 1
+        },
+        "ts": "2026-10-09T03:06:02.342329+00:00"
+      },
+      {
+        "router": "policy",
+        "edge_taken": "human_review",
+        "reason": "HUMAN_REVIEW: namespace 'production' is production — always HUMAN_REVIEW minimum; MC win_rate 0% < 80% stability threshold",
+        "snapshot": {
+          "score": 0.85,
+          "risk": "LOW",
+          "rollback_available": true,
+          "namespace": "production",
+          "mc_win_rate": 0.0,
+          "max_switches_reached": false,
+          "verdict": "HUMAN_REVIEW"
+        },
+        "ts": "2026-10-09T03:06:02.345711+00:00"
+      },
+      {
+        "router": "human",
+        "edge_taken": "reject",
+        "reason": "no human decision received — defaulting to reject",
+        "snapshot": {
+          "human_decision": "(none)",
+          "confidence": "HIGH",
+          "remediation_count": 1,
+          "dry_run_failures": 0
+        },
+        "ts": "2026-10-09T03:06:02.347272+00:00"
+      }
+    ],
+    "hypothesis_sources": [
+      {
+        "rule_id": "helm_drift",
+        "symptom": "Helm drift — cluster state diverged from chart declaration",
+        "affected": "Deployment/production/billing-gateway",
+        "weight": 0.95,
+        "evidence": [
+          "1 drift field(s)",
+          "entity is unhealthy + drift"
+        ]
+      },
+      {
+        "rule_id": "degraded_deployment",
+        "symptom": "Deployment degraded — fewer replicas ready than desired",
+        "affected": "Deployment/production/billing-gateway",
+        "weight": 0.82,
+        "evidence": [
+          "0% replicas ready"
+        ]
+      }
+    ]
+  },
+  "error": null
+}
