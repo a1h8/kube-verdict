@@ -229,6 +229,20 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    that answers HIGH only when the case's evidence is actually in the prompt — is
    never HIGH. The confidence decisions in `edge_log` name the failed collector
    (`ingestion failures: [...]`).
+   **Finding while implementing (2026-10-09): the pre-LLM score does not drop.**
+   With the case's collector cut, `pre_llm_confidence.score` went 0.66 → 0.62 (h013)
+   but **rose** 0.49 → 0.54 for h014 and h015. `compute_confidence`
+   (`rca/confidence.py`) counts firing alerts but neither logs nor traces, ignores
+   ingestion failures, and rewards Jaccard diversity and BFS depth — the degraded run
+   retries more (deeper BFS) and has fewer near-duplicate log lines. It measures the
+   shape of the context, not whether evidence is present. The test therefore does
+   **not** assert on that score; it asserts what holds: the collector's
+   `fallback: true` with its error, the fallback counter, the signal's evidence absent
+   from every analyze prompt, the failed collector named in every confidence decision,
+   the other collectors untouched, and a final label that is never HIGH (evidence-gated
+   mock). Making the score evidence- and failure-aware is a separate change (roadmap:
+   *Evidence-aware pre-LLM score*): it moves the calibration of h001–h015, the
+   decision-engine thresholds and the veracity benchmark, so it gets its own spec.
 4. **Combined multi-signal case h016** — `tests/integration/cases/h016_multi_signal/` +
    `tests/integration/test_multi_signal_h016.py`. One incident where Prometheus alerts,
    Loki logs and OTel traces are all present at once, plus one decoy per signal (another
