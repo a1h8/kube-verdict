@@ -243,6 +243,15 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    mock). Making the score evidence- and failure-aware is a separate change (roadmap:
    *Evidence-aware pre-LLM score*): it moves the calibration of h001–h015, the
    decision-engine thresholds and the veracity benchmark, so it gets its own spec.
+   **Implemented (2026-10-09).** `tests/integration/test_collector_fallback_paths.py`,
+   on the §1 harness (`run_case(key, cut=...)`). For h013 / h014 / h015 with
+   Prometheus / Loki / OTel cut: `fallback: true` with the error and a zero count, the
+   fallback counter called once for that collector only, the other collectors
+   untouched, the signal marker (14.4x / x509 / TRACES) absent from every analyze
+   prompt, every confidence decision naming the failed collector, and a final label
+   never HIGH where the connected run reaches HIGH. Verdicts: h013 → `NO_GO` (the
+   LOW answer's remediation has no rollback), h014 / h015 stay `HUMAN_REVIEW` at LOW
+   confidence.
 4. **Combined multi-signal case h016** — `tests/integration/cases/h016_multi_signal/` +
    `tests/integration/test_multi_signal_h016.py`. One incident where Prometheus alerts,
    Loki logs and OTel traces are all present at once, plus one decoy per signal (another
