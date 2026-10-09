@@ -60,13 +60,18 @@ class LokiSource:
         self.timeout = timeout
         self.lookback_hours = lookback_hours
         self.max_logs = max_logs_per_pod
+        # Set when a query of the last collect() failed — collect() still returns
+        # what did arrive, so callers that only read the count keep working.
+        self.last_error: str | None = None
 
     def collect(self, graph: OntologyGraph) -> int:
         """
         Fetch error/warn logs for pods that need telemetry (phase-unhealthy or
         running-but-not-ready) and wire them into the graph.
         Returns number of LokiLog nodes created.
+        A failed query is skipped and recorded in ``last_error``.
         """
+        self.last_error = None
         end_ns = int(time.time() * 1_000_000_000)
         start_ns = end_ns - self.lookback_hours * 3600 * 1_000_000_000
 
@@ -155,9 +160,11 @@ class LokiSource:
             return results
         except requests.Timeout:
             log.warning("loki: request timed out for query %s", logql[:80])
+            self.last_error = f"timed out after {self.timeout}s"
             return []
         except requests.RequestException as exc:
             log.warning("loki: request failed (%s)", exc)
+            self.last_error = str(exc)
             return []
 
     def _headers(self) -> dict[str, str]:
