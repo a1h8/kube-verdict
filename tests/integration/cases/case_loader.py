@@ -67,7 +67,7 @@ from ingestion.anchor_engine import AnchorEngine
 from ingestion.helm_drift import HelmDriftDetector
 from ingestion.chart_parser import flatten_values
 from ingestion.loki_source import LokiSource
-from ingestion.otel_backend import OtelBackend
+from ingestion.otel_backend import OtelBackend, in_namespace
 from ingestion.otel_collector import OtelCollector
 from ingestion.prometheus_collector import PrometheusCollector
 from ontology.entities import (
@@ -338,14 +338,17 @@ def _load_otel(otel_dir: Path) -> list[dict]:
 
 
 class _FixtureOtelBackend(OtelBackend):
-    """Serves fixture traces to the real OtelCollector, filtered by service like a live backend."""
+    """Serves fixture traces to the real OtelCollector, filtered by service and namespace like a live backend."""
 
     def __init__(self, traces: list[dict]) -> None:
         super().__init__(url="fixture://otel")
         self._traces = traces
 
     def search_error_traces(self, service, namespace, start_ts, end_ts, limit=20):
-        return [t for t in self._traces if t.get("service_name") == service][:limit]
+        return [
+            t for t in self._traces
+            if t.get("service_name") == service and in_namespace(t, namespace)
+        ][:limit]
 
     def get_trace(self, trace_id):
         return next((t for t in self._traces if t.get("trace_id") == trace_id), None)

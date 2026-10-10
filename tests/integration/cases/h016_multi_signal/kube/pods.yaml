@@ -1,0 +1,451 @@
+apiVersion: v1
+kind: PodList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-6d8f7c9b5-2kq7p
+    namespace: production
+    uid: pod-prod-orders-api-6d8f7c9b5-2kq7p
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 6d8f7c9b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-6d8f7c9b5
+      uid: rs-prod-orders-api-6d8f7c9b5
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:2.4.1
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+  status:
+    phase: Running
+    containerStatuses:
+    - name: orders-api
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-05-28T08:00:00Z'
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: 'True'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-6d8f7c9b5-4mvxz
+    namespace: production
+    uid: pod-prod-orders-api-6d8f7c9b5-4mvxz
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 6d8f7c9b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-6d8f7c9b5
+      uid: rs-prod-orders-api-6d8f7c9b5
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:2.4.1
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+  status:
+    phase: Running
+    containerStatuses:
+    - name: orders-api
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-05-28T08:00:00Z'
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: 'True'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-6d8f7c9b5-8rt2n
+    namespace: production
+    uid: pod-prod-orders-api-6d8f7c9b5-8rt2n
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 6d8f7c9b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-6d8f7c9b5
+      uid: rs-prod-orders-api-6d8f7c9b5
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:2.4.1
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+  status:
+    phase: Running
+    containerStatuses:
+    - name: orders-api
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-05-28T08:00:00Z'
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: 'True'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-6d8f7c9b5-b6wq3
+    namespace: production
+    uid: pod-prod-orders-api-6d8f7c9b5-b6wq3
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 6d8f7c9b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-6d8f7c9b5
+      uid: rs-prod-orders-api-6d8f7c9b5
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:2.4.1
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+  status:
+    phase: Running
+    containerStatuses:
+    - name: orders-api
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-05-28T08:00:00Z'
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: 'True'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-6d8f7c9b5-d9hs1
+    namespace: production
+    uid: pod-prod-orders-api-6d8f7c9b5-d9hs1
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 6d8f7c9b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-6d8f7c9b5
+      uid: rs-prod-orders-api-6d8f7c9b5
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:2.4.1
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+  status:
+    phase: Running
+    containerStatuses:
+    - name: orders-api
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-05-28T08:00:00Z'
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: 'True'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-6d8f7c9b5-f3lc8
+    namespace: production
+    uid: pod-prod-orders-api-6d8f7c9b5-f3lc8
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 6d8f7c9b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-6d8f7c9b5
+      uid: rs-prod-orders-api-6d8f7c9b5
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:2.4.1
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+  status:
+    phase: Running
+    containerStatuses:
+    - name: orders-api
+      ready: false
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-06-02T09:58:00Z'
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: 'False'
+      reason: ContainersNotReady
+      message: 'containers with unready status: [orders-api]'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-6d8f7c9b5-j7pz4
+    namespace: production
+    uid: pod-prod-orders-api-6d8f7c9b5-j7pz4
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 6d8f7c9b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-6d8f7c9b5
+      uid: rs-prod-orders-api-6d8f7c9b5
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:2.4.1
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+  status:
+    phase: Running
+    containerStatuses:
+    - name: orders-api
+      ready: false
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-06-02T09:58:00Z'
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: 'False'
+      reason: ContainersNotReady
+      message: 'containers with unready status: [orders-api]'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-6d8f7c9b5-n5ky6
+    namespace: production
+    uid: pod-prod-orders-api-6d8f7c9b5-n5ky6
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 6d8f7c9b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-6d8f7c9b5
+      uid: rs-prod-orders-api-6d8f7c9b5
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:2.4.1
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+  status:
+    phase: Running
+    containerStatuses:
+    - name: orders-api
+      ready: false
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-06-02T09:58:00Z'
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: 'False'
+      reason: ContainersNotReady
+      message: 'containers with unready status: [orders-api]'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-7b5c4d8f9-q2w8e
+    namespace: production
+    uid: pod-prod-catalog-api-7b5c4d8f9-q2w8e
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: catalog-api
+      pod-template-hash: 7b5c4d8f9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-7b5c4d8f9
+      uid: rs-prod-catalog-api-7b5c4d8f9
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:1.9.0
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+  status:
+    phase: Running
+    containerStatuses:
+    - name: catalog-api
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-05-30T08:00:00Z'
+      lastState: {}
+    conditions:
+    - type: Ready
+      status: 'True'

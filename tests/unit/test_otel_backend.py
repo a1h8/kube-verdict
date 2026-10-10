@@ -13,6 +13,7 @@ from ingestion.otel_backend import (
     _normalise_jaeger_trace,
     _normalise_tempo_trace,
     build_backend,
+    in_namespace,
 )
 
 
@@ -28,14 +29,19 @@ def _mock_resp(json_data: dict, status: int = 200) -> MagicMock:
     return r
 
 
-def _tempo_trace(trace_id: str = "abc123", with_error: bool = True) -> dict:
+def _tempo_trace(
+    trace_id: str = "abc123", with_error: bool = True, namespace: str = "",
+) -> dict:
     error_code = 2 if with_error else 1
+    attributes = [{"key": "service.name", "value": {"stringValue": "checkout"}}]
+    if namespace:
+        attributes.append({"key": "k8s.namespace.name", "value": {"stringValue": namespace}})
     return {
         "traceID": trace_id,
         "batches": [
             {
                 "resource": {
-                    "attributes": [{"key": "service.name", "value": {"stringValue": "checkout"}}]
+                    "attributes": attributes
                 },
                 "scopeSpans": [
                     {
@@ -55,8 +61,13 @@ def _tempo_trace(trace_id: str = "abc123", with_error: bool = True) -> dict:
     }
 
 
-def _jaeger_trace(trace_id: str = "def456", with_error: bool = True) -> dict:
+def _jaeger_trace(
+    trace_id: str = "def456", with_error: bool = True, namespace: str = "",
+) -> dict:
     tags = [{"key": "error", "value": True}] if with_error else []
+    process: dict = {"serviceName": "order-svc"}
+    if namespace:
+        process["tags"] = [{"key": "k8s.namespace.name", "type": "string", "value": namespace}]
     return {
         "traceID": trace_id,
         "spans": [
@@ -68,7 +79,7 @@ def _jaeger_trace(trace_id: str = "def456", with_error: bool = True) -> dict:
                 "tags": tags,
             }
         ],
-        "processes": {"p1": {"serviceName": "order-svc"}},
+        "processes": {"p1": process},
     }
 
 
@@ -377,6 +388,65 @@ class TestJaegerBackend:
         with patch("requests.get", side_effect=req.ConnectionError):
             traces = b.search_error_traces("svc", "ns", 0, 9999)
         assert traces == []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Namespace filter — the same service name in two namespaces must not mix
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestNamespaceFilter:
+    def test_in_namespace_rule(self):
+        assert in_namespace({"namespace": "production"}, "production")
+        assert not in_namespace({"namespace": "staging"}, "production")
+        assert in_namespace({"namespace": ""}, "production")      # cannot tell: kept
+        assert in_namespace({}, "production")
+        assert in_namespace({"namespace": "staging"}, "")         # no namespace asked
+
+    def test_tempo_normalise_reads_resource_namespace(self):
+        assert _normalise_tempo_trace(_tempo_trace(namespace="production"))["namespace"] == "production"
+        assert _normalise_tempo_trace(_tempo_trace())["namespace"] == ""
+
+    def test_jaeger_normalise_reads_process_tag(self):
+        assert _normalise_jaeger_trace(_jaeger_trace(namespace="production"))["namespace"] == "production"
+        assert _normalise_jaeger_trace(_jaeger_trace())["namespace"] == ""
+
+    def test_tempo_search_drops_other_namespace(self):
+        search_resp = {"traces": [{"traceID": "prod"}, {"traceID": "stg"}, {"traceID": "none"}]}
+        responses = [
+            _mock_resp(search_resp),
+            _mock_resp(_tempo_trace("prod", namespace="production")),
+            _mock_resp(_tempo_trace("stg", namespace="staging")),
+            _mock_resp(_tempo_trace("none")),
+        ]
+        b = TempoBackend(url="http://tempo:3100")
+        with patch("requests.get", side_effect=responses) as mock_get:
+            traces = b.search_error_traces("checkout", "production", 1000, 2000)
+        assert [t["trace_id"] for t in traces] == ["prod", "none"]
+        # the TraceQL itself is unchanged: filtering it there would drop untagged traces
+        q = mock_get.call_args_list[0][1]["params"]["q"]
+        assert q == '{resource.service.name="checkout" && status=error}'
+
+    def test_jaeger_search_drops_other_namespace(self):
+        resp = {"data": [
+            _jaeger_trace("prod", namespace="production"),
+            _jaeger_trace("stg", namespace="staging"),
+            _jaeger_trace("none"),
+        ]}
+        b = JaegerBackend(url="http://jaeger:16686")
+        with patch("requests.get", return_value=_mock_resp(resp)):
+            traces = b.search_error_traces("order-svc", "production", 0, 9999)
+        assert [t["trace_id"] for t in traces] == ["prod", "none"]
+
+    def test_fixture_backend_drops_other_namespace(self):
+        from tests.integration.cases.case_loader import _FixtureOtelBackend
+        fixture = [
+            {"trace_id": "prod", "service_name": "orders-api", "namespace": "production"},
+            {"trace_id": "stg", "service_name": "orders-api", "namespace": "staging"},
+            {"trace_id": "none", "service_name": "orders-api"},
+            {"trace_id": "other", "service_name": "catalog-api", "namespace": "production"},
+        ]
+        traces = _FixtureOtelBackend(fixture).search_error_traces("orders-api", "production", 0, 1)
+        assert [t["trace_id"] for t in traces] == ["prod", "none"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
