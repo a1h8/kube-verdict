@@ -41,14 +41,16 @@ def _span(
 def _payload(
     service: str = "checkout",
     spans: list[dict] | None = None,
+    namespace: str = "",
 ) -> dict:
+    attributes = [{"key": "service.name", "value": {"stringValue": service}}]
+    if namespace:
+        attributes.append({"key": "k8s.namespace.name", "value": {"stringValue": namespace}})
     return {
         "resourceSpans": [
             {
                 "resource": {
-                    "attributes": [
-                        {"key": "service.name", "value": {"stringValue": service}}
-                    ]
+                    "attributes": attributes
                 },
                 "scopeSpans": [{"spans": spans or [_span()]}],
             }
@@ -269,6 +271,20 @@ class TestOtlpReceiverBackendInterface:
             assert all(t["trace_id"] != "err-trace" for t in results)
         finally:
             r.stop()
+
+    def test_search_error_traces_filters_by_namespace(self):
+        r = OtlpReceiver(port=_free_port())
+        now = int(time.time())
+        for trace_id, namespace in (("prod", "production"), ("stg", "staging"), ("none", "")):
+            r._ingest(_payload(
+                service="orders-api", namespace=namespace,
+                spans=[_span(trace_id=trace_id, is_error=True,
+                             start_nano=now * 1_000_000_000,
+                             end_nano=(now + 1) * 1_000_000_000)],
+            ))
+        results = r.search_error_traces("orders-api", "production", now - 60, now + 60)
+        assert sorted(t["trace_id"] for t in results) == ["none", "prod"]
+        assert r.get_trace("prod")["namespace"] == "production"
 
     def test_get_trace_returns_none_for_unknown(self):
         r = self._populated_receiver()
