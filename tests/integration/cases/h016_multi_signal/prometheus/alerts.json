@@ -1,0 +1,48 @@
+[
+  {
+    "labels": {
+      "alertname": "PostgresConnectionsSaturated",
+      "severity": "critical",
+      "namespace": "production",
+      "deployment": "orders-api",
+      "db": "postgres-primary"
+    },
+    "annotations": {
+      "summary": "postgres-primary connections at 100/100 (max_connections)",
+      "description": "Every connection slot on postgres-primary is in use; 97 are held by orders-api clients. New connections are refused."
+    },
+    "state": "firing",
+    "activeAt": "2026-06-02T09:59:02.114Z",
+    "value": "1e+02"
+  },
+  {
+    "labels": {
+      "alertname": "OrdersApiHighErrorRate",
+      "severity": "warning",
+      "namespace": "production",
+      "deployment": "orders-api"
+    },
+    "annotations": {
+      "summary": "orders-api 5xx ratio at 38% on POST /orders",
+      "description": "5xx responses rose from 0.2% to 38% over 10 minutes; latency p99 5.1s."
+    },
+    "state": "firing",
+    "activeAt": "2026-06-02T10:00:41.903Z",
+    "value": "3.8e-01"
+  },
+  {
+    "labels": {
+      "alertname": "OrdersApiHighErrorRate",
+      "severity": "warning",
+      "namespace": "staging",
+      "deployment": "orders-api"
+    },
+    "annotations": {
+      "summary": "staging canary 5xx ratio at 61% on POST /orders",
+      "description": "staging canary build fails payment-sandbox calls."
+    },
+    "state": "firing",
+    "activeAt": "2026-06-02T09:40:12.551Z",
+    "value": "6.1e-01"
+  }
+]

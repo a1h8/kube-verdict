@@ -1,0 +1,86 @@
+[
+  {
+    "trace_id": "4e7a2c1b9d0f8e3a6b5c4d2e1f0a9b8c",
+    "service_name": "orders-api",
+    "namespace": "production",
+    "status": "ERROR",
+    "duration_ms": 5012,
+    "span_count": 4,
+    "root_span": "POST /orders",
+    "error_message": "503 Service Unavailable",
+    "started_at": "2026-06-02T10:01:14Z",
+    "error_spans": [
+      {
+        "name": "POST /orders",
+        "error": "503 Service Unavailable"
+      },
+      {
+        "name": "db.connect",
+        "error": "pool timeout after 5000ms: postgres-primary refused the connection (too many clients already)"
+      }
+    ]
+  },
+  {
+    "trace_id": "7b1d3f5a9c2e4b6d8f0a1c3e5b7d9f2a",
+    "service_name": "orders-api",
+    "namespace": "production",
+    "status": "ERROR",
+    "duration_ms": 5008,
+    "span_count": 4,
+    "root_span": "POST /orders",
+    "error_message": "503 Service Unavailable",
+    "started_at": "2026-06-02T10:03:47Z",
+    "error_spans": [
+      {
+        "name": "POST /orders",
+        "error": "503 Service Unavailable"
+      },
+      {
+        "name": "db.connect",
+        "error": "pool timeout after 5000ms: postgres-primary refused the connection (too many clients already)"
+      }
+    ]
+  },
+  {
+    "trace_id": "a2c4e6f8b1d3f5a7c9e2b4d6f8a1c3e5",
+    "service_name": "orders-api",
+    "namespace": "production",
+    "status": "ERROR",
+    "duration_ms": 5021,
+    "span_count": 4,
+    "root_span": "POST /orders",
+    "error_message": "503 Service Unavailable",
+    "started_at": "2026-06-02T10:05:02Z",
+    "error_spans": [
+      {
+        "name": "POST /orders",
+        "error": "503 Service Unavailable"
+      },
+      {
+        "name": "db.connect",
+        "error": "pool timeout after 5000ms: postgres-primary refused the connection (too many clients already)"
+      }
+    ]
+  },
+  {
+    "trace_id": "f0e1d2c3b4a5968778695a4b3c2d1e0f",
+    "service_name": "orders-api",
+    "namespace": "staging",
+    "status": "ERROR",
+    "duration_ms": 812,
+    "span_count": 4,
+    "root_span": "POST /orders",
+    "error_message": "502 Bad Gateway",
+    "started_at": "2026-06-02T09:41:09Z",
+    "error_spans": [
+      {
+        "name": "POST /orders",
+        "error": "502 Bad Gateway"
+      },
+      {
+        "name": "payment-sandbox.charge",
+        "error": "payment-sandbox returned 401 Unauthorized"
+      }
+    ]
+  }
+]

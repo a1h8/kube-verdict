@@ -1,0 +1,78 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "orders-api-6d8f7c9b5-f3lc8",
+      "k8s_namespace_name": "production",
+      "k8s_container_name": "orders-api"
+    },
+    "values": [
+      [
+        "1780394405000000000",
+        "level=error msg=\"db connect failed\" db=postgres-primary err=\"pq: FATAL: remaining connection slots are reserved for non-replication superuser connections\""
+      ],
+      [
+        "1780394411000000000",
+        "level=error msg=\"pool timeout after 5000ms\" db=postgres-primary pool_size=20 in_use=0"
+      ],
+      [
+        "1780394420000000000",
+        "level=warn msg=\"readiness check failing\" reason=\"database unreachable\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "orders-api-6d8f7c9b5-j7pz4",
+      "k8s_namespace_name": "production",
+      "k8s_container_name": "orders-api"
+    },
+    "values": [
+      [
+        "1780394465000000000",
+        "level=error msg=\"db connect failed\" db=postgres-primary err=\"pq: FATAL: remaining connection slots are reserved for non-replication superuser connections\""
+      ],
+      [
+        "1780394471000000000",
+        "level=error msg=\"pool timeout after 5000ms\" db=postgres-primary pool_size=20 in_use=0"
+      ],
+      [
+        "1780394480000000000",
+        "level=warn msg=\"readiness check failing\" reason=\"database unreachable\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "orders-api-6d8f7c9b5-n5ky6",
+      "k8s_namespace_name": "production",
+      "k8s_container_name": "orders-api"
+    },
+    "values": [
+      [
+        "1780394525000000000",
+        "level=error msg=\"db connect failed\" db=postgres-primary err=\"pq: FATAL: remaining connection slots are reserved for non-replication superuser connections\""
+      ],
+      [
+        "1780394531000000000",
+        "level=error msg=\"pool timeout after 5000ms\" db=postgres-primary pool_size=20 in_use=0"
+      ],
+      [
+        "1780394540000000000",
+        "level=warn msg=\"readiness check failing\" reason=\"database unreachable\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "catalog-api-7b5c4d8f9-q2w8e",
+      "k8s_namespace_name": "production",
+      "k8s_container_name": "catalog-api"
+    },
+    "values": [
+      [
+        "1780394490000000000",
+        "level=error msg=\"catalog-index rebuild failed\" err=\"search shard unavailable, retrying\""
+      ]
+    ]
+  }
+]
