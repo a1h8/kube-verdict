@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-api
+  namespace: production
+  uid: 3c9e1f7a-b412-11ef-a8d2-0242ac110016
+  labels:
+    app.kubernetes.io/name: orders-api
+    app.kubernetes.io/instance: orders-api
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    deployment.kubernetes.io/revision: '7'
+    meta.helm.sh/release-name: orders-api
+    meta.helm.sh/release-namespace: production
+spec:
+  replicas: 8
+  selector:
+    matchLabels: &id001
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      containers:
+      - name: orders-api
+        image: ghcr.io/acme/orders-api:2.4.1
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+status:
+  observedGeneration: 7
+  replicas: 8
+  updatedReplicas: 8
+  readyReplicas: 5
+  availableReplicas: 5
+  conditions:
+  - type: Available
+    status: 'True'
+    reason: MinimumReplicasAvailable
+    message: Deployment has minimum availability.
+    lastTransitionTime: '2026-05-28T08:00:20Z'
+  - type: Progressing
+    status: 'False'
+    reason: ProgressDeadlineExceeded
+    message: ReplicaSet "orders-api-6d8f7c9b5" has timed out progressing.
+    lastTransitionTime: '2026-06-02T10:08:00Z'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-api
+  namespace: production
+  uid: 5e1a3b9c-b412-11ef-a8d2-0242ac110017
+  labels:
+    app.kubernetes.io/name: catalog-api
+    app.kubernetes.io/instance: catalog-api
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    deployment.kubernetes.io/revision: '3'
+    meta.helm.sh/release-name: catalog-api
+    meta.helm.sh/release-namespace: production
+spec:
+  replicas: 1
+  selector:
+    matchLabels: &id001
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: catalog-api
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      containers:
+      - name: catalog-api
+        image: ghcr.io/acme/catalog-api:1.9.0
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+status:
+  observedGeneration: 3
+  replicas: 1
+  updatedReplicas: 1
+  readyReplicas: 1
+  availableReplicas: 1
+  conditions:
+  - type: Available
+    status: 'True'
+    reason: MinimumReplicasAvailable
+    message: Deployment has minimum availability.
+    lastTransitionTime: '2026-05-30T08:00:20Z'

@@ -1,9 +1,10 @@
 """
 Run an integration case through the real LangGraph workflow, offline.
 
-Shared by tests/integration/test_workflow_e2e_h013_h015.py and
-tools/freeze_journey_fixtures.py (spec: docs/test-cases.md → *Broadened offline
-coverage* §1).
+Shared by tests/integration/test_workflow_e2e_h013_h015.py,
+tests/integration/test_collector_fallback_paths.py,
+tests/integration/test_multi_signal_h016.py and tools/freeze_journey_fixtures.py
+(spec: docs/test-cases.md → *Broadened offline coverage* §1, §3, §4).
 
 The case's Kubernetes snapshot is pre-built (case_loader, ``wire_signals=False``);
 its Prometheus / Loki / OTel fixtures are then fetched by the workflow's own
@@ -38,6 +39,7 @@ from ingestion.otel_backend import TempoBackend
 from ingestion.prometheus_collector import PrometheusCollector
 from reasoning.monte_carlo import run_monte_carlo
 from signals.prometheus_source import PrometheusMetricSource
+from ontology.graph import OntologyGraph
 from tests.integration.cases.case_loader import (
     _FixtureOtelBackend,
     build_graph as build_case_graph,
@@ -73,6 +75,14 @@ LOW — the context does not support this hypothesis.
 
 
 @dataclass(frozen=True)
+class Signal:
+    """One observability signal of a case, as the workflow records it."""
+    collector: str                     # ingestion_stats key
+    count_key: str                     # its count field
+    marker: str                        # only this signal puts this in the prompt
+
+
+@dataclass(frozen=True)
 class CaseScript:
     """What the scripted LLM answers for one case, and what must reach it."""
     case: str
@@ -80,13 +90,28 @@ class CaseScript:
     hypotheses: tuple[str, ...]
     final_response: str
     prompt_evidence: tuple[str, ...]   # strings the analyze prompt must contain
-    collector: str                     # ingestion_stats key of the case's signal
-    count_key: str                     # its count field
-    signal_marker: str                 # only the case's signal puts this in the prompt
+    signals: tuple[Signal, ...]
 
     @property
     def case_dir(self) -> Path:
         return CASES_ROOT / self.case
+
+    def _single(self) -> Signal:
+        if len(self.signals) != 1:
+            raise AttributeError(f"{self.case} has {len(self.signals)} signals, not one")
+        return self.signals[0]
+
+    @property
+    def collector(self) -> str:
+        return self._single().collector
+
+    @property
+    def count_key(self) -> str:
+        return self._single().count_key
+
+    @property
+    def signal_marker(self) -> str:
+        return self._single().marker
 
 
 CASE_SCRIPTS: dict[str, CaseScript] = {
@@ -120,9 +145,7 @@ kubectl rollout restart deployment/checkout-api -n production
 HIGH — the burn-rate and latency alerts agree and isolate payments-gateway.
 """,
         prompt_evidence=("14.4x", "payments-gateway"),
-        collector="prometheus",
-        count_key="alerts",
-        signal_marker="14.4x",
+        signals=(Signal("prometheus", "alerts", "14.4x"),),
     ),
     "h014": CaseScript(
         case="h014_cert_expiry",
@@ -154,9 +177,7 @@ helm upgrade billing-gateway ./chart -n production --set certManager.issuer=lets
 HIGH — the x509 expiry log line names the cause directly.
 """,
         prompt_evidence=("x509", "payments-backend"),
-        collector="loki",
-        count_key="logs",
-        signal_marker="x509",
+        signals=(Signal("loki", "logs", "x509"),),
     ),
     "h015": CaseScript(
         case="h015_etcd_compaction",
@@ -188,9 +209,50 @@ helm upgrade inventory-api ./chart -n production --set readinessProbe.timeoutSec
 HIGH — the error traces show the etcd Range latency directly.
 """,
         prompt_evidence=("etcd", "TRACES"),
-        collector="otel",
-        count_key="traces",
-        signal_marker="TRACES",
+        signals=(Signal("otel", "traces", "TRACES"),),
+    ),
+}
+
+# Cases with several signals at once. Kept apart from CASE_SCRIPTS, whose
+# single-signal cases are looped over by the e2e, degraded-path and vitrine
+# freeze code.
+MULTI_SIGNAL_SCRIPTS: dict[str, CaseScript] = {
+    "h016": CaseScript(
+        case="h016_multi_signal",
+        query="why are orders-api pods not ready",
+        hypotheses=(
+            "orders-api replicas cannot get a database connection from postgres-primary",
+            "orders-api readiness probe timeout is too short",
+            "A recent orders-api image introduced a crash on POST /orders",
+        ),
+        final_response="""\
+### 1. Summary
+Three orders-api replicas are not Ready because postgres-primary has no connection slot left for them.
+
+### 2. Affected resources
+- Deployment/production/orders-api — 5/8 Ready
+
+### 3. Root cause
+orders-api was scaled to 8 replicas with a pool of 20 connections each: 160 > the 100 max_connections of postgres-primary. The replicas started last are refused ("remaining connection slots are reserved"), their /ready probe fails and POST /orders times out in db.connect.
+
+### 4. Causal chain
+1. orders-api scales from 3 to 8 replicas.
+2. The connection pools ask for more than max_connections (100/100 in use).
+3. New replicas are refused, db.connect times out after 5000ms.
+4. /ready returns 503 and the 5xx rate on POST /orders rises.
+
+### 5. Remediation
+helm upgrade orders-api ./chart -n production --set database.poolSize=10
+
+### 6. Confidence
+HIGH — the saturation alert, the refused-connection logs and the db.connect traces agree.
+""",
+        prompt_evidence=("100/100", "remaining connection slots", "db.connect"),
+        signals=(
+            Signal("prometheus", "alerts", "100/100"),
+            Signal("loki", "logs", "remaining connection slots"),
+            Signal("otel", "traces", "db.connect"),
+        ),
     ),
 }
 
@@ -248,6 +310,7 @@ class CaseRun:
     review_payload: dict | None
     llm: ScriptedLLM
     expect: dict = field(default_factory=dict)
+    graph: OntologyGraph | None = None   # after the collector nodes ran
 
 
 CUTTABLE = ("prometheus", "loki", "otel")
@@ -255,13 +318,13 @@ _UNREACHABLE = requests.ConnectionError("connection refused (fixture-replay: bac
 
 
 def run_case(key: str, cut: str | None = None) -> CaseRun:
-    """Run one scripted case (``h013`` / ``h014`` / ``h015``) through the workflow.
+    """Run one scripted case (``h013`` … ``h016``) through the workflow.
 
     ``cut`` — one of CUTTABLE — makes that collector's backend unreachable.
     """
     if cut is not None and cut not in CUTTABLE:
         raise ValueError(f"cut must be one of {CUTTABLE}, got {cut!r}")
-    script = CASE_SCRIPTS[key]
+    script = {**CASE_SCRIPTS, **MULTI_SIGNAL_SCRIPTS}[key]
     case = load_case(script.case_dir)
     namespace = case["expect"].get("namespace", "default")
     graph = build_case_graph(case, wire_signals=False)
@@ -328,4 +391,5 @@ def run_case(key: str, cut: str | None = None) -> CaseRun:
         review_payload=review_payload,
         llm=llm,
         expect=case["expect"],
+        graph=graph,
     )

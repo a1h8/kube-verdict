@@ -1,0 +1,21 @@
+{
+  "scenario": "Postgres connection exhaustion \u2014 orders-api scaled 3 \u2192 8 with a 20-connection pool each, past postgres-primary max_connections",
+  "namespace": "production",
+  "release": "orders-api",
+  "query": "why are orders-api pods not ready",
+  "affected_resources": [
+    "Deployment/production/orders-api"
+  ],
+  "root_cause_contains": [
+    "connection",
+    "pool",
+    "max_connections",
+    "postgres",
+    "replicas",
+    "scale"
+  ],
+  "confidence": "MEDIUM",
+  "confidence_score_min": 0.3,
+  "fallback_expected": true,
+  "notes": "orders-api was scaled from 3 to 8 replicas; each pod opens a pool of 20 connections, so 160 > the 100 max_connections of postgres-primary. The three replicas started last cannot connect: Running but not Ready (the /ready probe pings the database), Deployment 5/8. Each signal carries one piece and none names all of it: Prometheus shows the database saturated (100/100, most slots held by orders-api) and the 5xx rate; Loki shows the refused connections on the not-ready pods (remaining connection slots are reserved, pool timeout); OTel shows POST /orders failing in db.connect. One decoy per signal, each testing a filter h013-h015 do not: an OrdersApiHighErrorRate alert in staging for a deployment of the same name (dropped by the namespace check in PrometheusCollector._find_entity), a Ready catalog-api pod with ERROR log lines (not queried: LokiSource only selects pods that need telemetry), and an orders-api error trace from staging (dropped by the namespace filter on trace search). Spec: docs/test-cases.md, Broadened offline coverage section 4."
+}
