@@ -9,6 +9,7 @@ Both backends return a normalised list of trace dicts:
   {
     "trace_id":     str,
     "service_name": str,
+    "namespace":    str,          # k8s.namespace.name, "" when the trace has none
     "status":       "OK" | "ERROR" | "UNSET",
     "duration_ms":  float,
     "span_count":   int,
@@ -54,7 +55,8 @@ class OtelBackend(ABC):
     ) -> list[dict]:
         """
         Return normalised error traces for the given service within the
-        time range [start_ts, end_ts] (Unix seconds).
+        time range [start_ts, end_ts] (Unix seconds). Traces from another
+        namespace are dropped; a trace with no namespace is kept.
         """
 
     @abstractmethod
@@ -140,6 +142,9 @@ class TempoBackend(OtelBackend):
             full = self.get_trace(tid)
             if full:
                 traces.append(full)
+        # Namespace filtered here, not in the TraceQL: a `resource.k8s.namespace.name`
+        # clause would also drop traces from apps that never set the attribute.
+        traces = [t for t in traces if in_namespace(t, namespace)]
         log.debug("tempo: found %d error traces for service=%s", len(traces), service)
         return traces
 
@@ -194,10 +199,11 @@ class JaegerBackend(OtelBackend):
         data = self._get("/api/traces", params)
         if not data:
             return []
+        # /api/traces has no resource-attribute filter: namespace filtered here.
         traces = [
-            _normalise_jaeger_trace(t)
-            for t in data.get("data", [])
-            if t
+            trace
+            for trace in (_normalise_jaeger_trace(t) for t in data.get("data", []) if t)
+            if in_namespace(trace, namespace)
         ]
         log.debug("jaeger: found %d error traces for service=%s", len(traces), service)
         return traces
@@ -213,6 +219,16 @@ class JaegerBackend(OtelBackend):
 # Normalisation helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+def in_namespace(trace: dict, namespace: str) -> bool:
+    """True unless the trace names a namespace other than ``namespace``.
+
+    Same service name in two namespaces must not mix; a trace that carries
+    no namespace cannot be told apart and is kept, as before.
+    """
+    trace_ns = trace.get("namespace", "")
+    return not namespace or not trace_ns or trace_ns == namespace
+
+
 def _normalise_tempo_trace(data: dict, trace_id: str = "") -> dict:
     """Convert Tempo trace JSON → normalised dict. `trace_id` should be the ID
     the caller fetched with — the trace body itself carries no top-level
@@ -223,6 +239,7 @@ def _normalise_tempo_trace(data: dict, trace_id: str = "") -> dict:
     root_span_name = ""
     error_message = ""
     service_name = ""
+    namespace = ""
     started_at = ""
     total_spans = 0
     duration_ms = 0.0
@@ -235,6 +252,9 @@ def _normalise_tempo_trace(data: dict, trace_id: str = "") -> dict:
         svc = resource_attrs.get("service.name", "")
         if svc and not service_name:
             service_name = svc
+        ns = resource_attrs.get("k8s.namespace.name", "")
+        if ns and not namespace:
+            namespace = ns
 
         for scope in batch.get("scopeSpans", []):
             for span in scope.get("spans", []):
@@ -262,6 +282,7 @@ def _normalise_tempo_trace(data: dict, trace_id: str = "") -> dict:
     return {
         "trace_id":      trace_id or data.get("traceID", ""),
         "service_name":  service_name,
+        "namespace":     namespace,
         "status":        "ERROR" if error_spans else "OK",
         "duration_ms":   duration_ms,
         "span_count":    total_spans,
@@ -278,13 +299,20 @@ def _normalise_jaeger_trace(data: dict) -> dict:
     processes = data.get("processes", {})
     error_spans: list[dict] = []
     service_name = ""
+    namespace = ""
     started_at = ""
     duration_ms = 0.0
 
     if spans:
         root = spans[0]
         pid = root.get("processID", "")
-        service_name = processes.get(pid, {}).get("serviceName", "")
+        process = processes.get(pid, {})
+        service_name = process.get("serviceName", "")
+        namespace = next(
+            (str(t.get("value", "")) for t in process.get("tags", [])
+             if t.get("key") == "k8s.namespace.name"),
+            "",
+        )
         started_at = _micro_to_iso(root.get("startTime", 0))
         duration_ms = root.get("duration", 0) / 1000.0   # μs → ms
 
@@ -304,6 +332,7 @@ def _normalise_jaeger_trace(data: dict) -> dict:
     return {
         "trace_id":      data.get("traceID", ""),
         "service_name":  service_name,
+        "namespace":     namespace,
         "status":        "ERROR" if error_spans else "OK",
         "duration_ms":   duration_ms,
         "span_count":    len(spans),

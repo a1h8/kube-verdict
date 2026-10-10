@@ -36,7 +36,7 @@ from collections import deque
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
-from ingestion.otel_backend import OtelBackend
+from ingestion.otel_backend import OtelBackend, in_namespace
 
 log = logging.getLogger(__name__)
 
@@ -154,6 +154,7 @@ class OtlpReceiver(OtelBackend):
                 and (not service or t.get("service_name", "") == service
                      or service in t.get("service_name", ""))
                 and _ts_in_range(t.get("started_at", ""), start_ts, end_ts)
+                and in_namespace(t, namespace)
             ]
         return results[:limit]
 
@@ -171,21 +172,25 @@ class OtlpReceiver(OtelBackend):
                 resource_span.get("resource", {}).get("attributes", [])
             )
             service_name = resource_attrs.get("service.name", "")
+            namespace = resource_attrs.get("k8s.namespace.name", "")
 
             for scope_span in resource_span.get("scopeSpans", []):
                 for span in scope_span.get("spans", []):
                     trace_id = span.get("traceId", "")
                     if not trace_id:
                         continue
-                    self._merge_span(trace_id, service_name, span)
+                    self._merge_span(trace_id, service_name, span, namespace)
 
-    def _merge_span(self, trace_id: str, service_name: str, span: dict) -> None:
+    def _merge_span(
+        self, trace_id: str, service_name: str, span: dict, namespace: str = "",
+    ) -> None:
         with self._lock:
             existing = self._traces.get(trace_id)
             if existing is None:
                 existing = {
                     "trace_id":      trace_id,
                     "service_name":  service_name,
+                    "namespace":     namespace,
                     "status":        "UNSET",
                     "duration_ms":   0.0,
                     "span_count":    0,
