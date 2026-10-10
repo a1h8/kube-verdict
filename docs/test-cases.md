@@ -259,6 +259,89 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    the context window together, each decoy is dropped, and no signal crowds another out
    of the context budget.
 
+   *Scenario (2026-10-10).* `orders-api` in `production` was scaled 3 → 8 replicas;
+   each pod keeps a pool of 20 connections, so 160 > the 100 `max_connections` of
+   `postgres-primary`. New connections are refused, `/ready` (which pings the DB)
+   fails on part of the replicas: pods Running but not Ready — so `Pod.needs_telemetry`
+   selects them for Loki and OTel, while Kubernetes alone only shows the readiness
+   symptom. Each signal carries one piece of the chain, none names all of it:
+   - **Prometheus** (`prometheus/alerts.json`): `PostgresConnectionsSaturated`
+     (`deployment=orders-api`, 100/100) and `OrdersApiHighErrorRate` (5xx 38 %), both
+     firing on `production`;
+   - **Loki** (`loki/streams.json`): on the not-ready pods,
+     `FATAL: remaining connection slots are reserved` and `pool timeout after 5000ms`;
+   - **OTel** (`otel/traces.json`): `orders-api` error traces whose `db.connect` span
+     to `postgres-primary` times out.
+   The root cause (pool size × replicas > `max_connections`) needs the three together;
+   the scripted LLM answers HIGH only if one marker from *each* family is in the
+   prompt.
+
+   *Decoys — one per signal, each testing a filter the earlier cases did not.*
+   h013 already covers a pending alert and an alert for an absent deployment; h014
+   a log stream for the same pod name in `staging`. h016 adds:
+   - **Prometheus:** `OrdersApiHighErrorRate` firing with `namespace=staging`,
+     `deployment=orders-api`. Only `production/orders-api` exists in the snapshot,
+     so the decoy is dropped only if `_find_entity`'s namespace check holds —
+     without it, it would correlate to the production Deployment.
+   - **Loki:** `catalog-api` in `production`, Running *and* Ready, with ERROR lines
+     in its stream. Must not be queried: `LokiSource` only selects pods that
+     `needs_telemetry`.
+   - **OTel:** an `orders-api` error trace from `staging` (same service name, other
+     namespace, its own error message). **Fails today** — see the prerequisite below.
+
+   *Prerequisite (found 2026-10-10): trace search ignores the namespace.*
+   `OtelCollector` passes `namespace` to `search_error_traces`, but `TempoBackend`
+   queries `{resource.service.name="X" && status=error}`, `JaegerBackend` sends
+   `service` + `error=true` only, the OTLP receiver matches on service only, and
+   `_FixtureOtelBackend` too. With the same service name deployed in two
+   namespaces, traces from both are attached to the production pod. Fix, backward
+   compatible:
+   - every normalised trace carries a `namespace` field — Tempo and the OTLP
+     receiver from the `k8s.namespace.name` resource attribute, Jaeger from the
+     same process tag; `""` when the trace has none;
+   - one rule, `in_namespace()` in `ingestion/otel_backend.py`, applied after the
+     search by the three backends and the fixture backend: a trace from another
+     namespace is dropped, a trace with no namespace is kept (cannot tell — same
+     behaviour as today), so h015's fixture is unchanged.
+   *Changed while implementing:* the first draft put the namespace in the Tempo
+   TraceQL. Rejected: that clause also drops traces from apps that never set the
+   attribute, contradicting the "no namespace = kept" rule, and an `= nil`
+   alternative is not verified against a live Tempo. Cost of filtering after the
+   search: the backend's `limit` (20) applies before the filter, so many traces
+   from other namespaces can reduce what is left — acceptable for now.
+   Unit tests: both normalisers, the three backends' searches (the TraceQL is
+   asserted unchanged) and the fixture backend.
+
+   *Crowding — what is tested and what is not.* No shared budget exists, so
+   cross-family crowding cannot happen by construction; the test asserts it
+   anyway (all three sections non-empty in the same prompt) so a future global
+   budget cannot regress it silently. Within a family the caps are real
+   (`LOKI_MAX_LOGS_PER_POD` = 20 newest lines per pod, then 20 logs / 20 traces in
+   graph order in the context), so h016 keeps its fixture volume under them and
+   asserts every key line survives. Ranking inside a capped family (an older
+   FATAL line pushed out by 20 newer warnings) is *not* covered here — a separate
+   item if it matters.
+
+   *Test shape.* Same harness as §1/§3 (`workflow_harness.run_case("h016")`).
+   `CaseScript.collector` / `count_key` / `signal_marker` become tuples (one entry
+   per family; h013–h015 pass a single entry), so `run_case(..., cut=...)` also
+   works on h016. Asserts:
+   - `ingestion_stats`: `prometheus`, `loki`, `otel` all `fallback: false`, with the
+     expected counts (decoys excluded);
+   - every HIGH analyze prompt contains the three section headers (`Firing
+     Prometheus alerts`, `### TRACES`, `### LOGS`) and one marker from each
+     (`100/100`, `remaining connection slots`, `db.connect`);
+   - no decoy marker appears in any analyze prompt, and the graph has no
+     `PrometheusAlert` for `staging`, no `LokiLog` for `catalog-api`, no `OtelTrace`
+     for the staging trace id;
+   - the run reaches HIGH and a verdict, like h013–h015.
+   One extra check reuses §3: cutting each collector in turn removes only that
+   family from the prompt and the label is never HIGH.
+
+   *Out of scope.* No signal-aware rule (`hypothesis_sources` stays
+   Kubernetes-only), no change to `compute_confidence`, no vitrine fixture (can be
+   added to `tools/freeze_journey_fixtures.py` afterwards).
+
 Live captures (`tools/b13_capture.py`) get the same root-cause check, against
 ground truth, outside CI: see [veracity-benchmark.md](veracity-benchmark.md)
 — it's how the first two live h014/h015 captures were caught getting the root
