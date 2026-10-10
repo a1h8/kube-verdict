@@ -323,9 +323,8 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    item if it matters.
 
    *Test shape.* Same harness as §1/§3 (`workflow_harness.run_case("h016")`).
-   `CaseScript.collector` / `count_key` / `signal_marker` become tuples (one entry
-   per family; h013–h015 pass a single entry), so `run_case(..., cut=...)` also
-   works on h016. Asserts:
+   A case lists its signals as a tuple of `Signal(collector, count_key, marker)`
+   (h013–h015 have one), so `run_case(..., cut=...)` also works on h016. Asserts:
    - `ingestion_stats`: `prometheus`, `loki`, `otel` all `fallback: false`, with the
      expected counts (decoys excluded);
    - every HIGH analyze prompt contains the three section headers (`Firing
@@ -341,6 +340,27 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    *Out of scope.* No signal-aware rule (`hypothesis_sources` stays
    Kubernetes-only), no change to `compute_confidence`, no vitrine fixture (can be
    added to `tools/freeze_journey_fixtures.py` afterwards).
+   **Implemented (2026-10-10).** Prerequisite: `in_namespace()` in
+   `ingestion/otel_backend.py`, applied by Tempo, Jaeger, the OTLP receiver and the
+   fixture backend. Case: `tests/integration/cases/h016_multi_signal/` — 8
+   orders-api replicas (3 Running not Ready), a Ready catalog-api pod, 2 alerts +
+   1 staging decoy, 9 log lines on the 3 not-ready pods + 1 catalog-api decoy line,
+   3 traces + 1 staging decoy. Test: `tests/integration/test_multi_signal_h016.py`.
+   Observed: `prometheus` 2 alerts, `loki` 9 logs, `otel` 3 traces, all
+   `fallback: false`; the three sections and their markers in every analyze
+   prompt; no decoy marker in any prompt nor in the graph; HIGH, verdict
+   `HUMAN_REVIEW`, run stopped at the human gate. Cutting each collector in turn
+   removes only that signal's marker and the label is never HIGH. With the
+   namespace filter disabled the staging trace is collected (4 traces) and its
+   marker reaches the prompt, so the decoy does test the fix.
+   *Changed while implementing:* h016 sits in `MULTI_SIGNAL_SCRIPTS`, not
+   `CASE_SCRIPTS`: the §1 / §3 tests and `tools/freeze_journey_fixtures.py` loop
+   over `CASE_SCRIPTS` and would otherwise take h016 as a single-signal case and
+   require a vitrine fixture. `CaseRun` now also returns the graph, for the
+   "decoy not in the graph" checks.
+   *Observed, not changed:* one h016 run takes ~20–45 s against ~2 s for h013–h015.
+   The time is PatchTST in synthetic mode, which trains one small model per
+   entity it watches (14 here, with 8 replicas). The module takes ~4 min.
 
 Live captures (`tools/b13_capture.py`) get the same root-cause check, against
 ground truth, outside CI: see [veracity-benchmark.md](veracity-benchmark.md)
