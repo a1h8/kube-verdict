@@ -408,7 +408,7 @@ Read from the code on 2026-10-11, to be confirmed in each case's implementation 
 | P3 | `ReplicaSet` has no image and no revision. A rollout ("new ReplicaSet 20 min before") cannot be read from the graph. `created_at` exists on the base entity. | `ontology/entities.py` (`ReplicaSet`) | h019, h020 |
 | P4 | **No PodDisruptionBudget entity** in the typed ontology. | `ontology/entities.py` | h025 |
 | P5 | `run_case(..., cut=...)` cuts **one** collector. h023 needs all three. | `tests/integration/workflow_harness.py` | h023 |
-| P6 | Grading v2 (`must_not_contain`, `expected_outcome`, `contains_all`) does not exist. | `tools/b13_capture.py` (`grade_veracity`) | all, + h014/h015 retrofit |
+| P6 | Grading v2 (`must_not_contain`, `expected_outcome`, `contains_all`). **Done**: `tools/veracity.py`. | `tools/b13_capture.py` (`grade_veracity`) | all, + h014/h015 retrofit |
 
 P1–P5 are small and backward compatible: each one adds a kind, a field or a
 parameter, and existing cases do not use it. Each gets its own spec-then-fix commit
@@ -533,7 +533,8 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
 
 ### Order
 
-1. P6 (grading v2) + h014/h015 retrofit, which affects no fixture.
+1. P6 (grading v2) + h014/h015 retrofit, which affects no fixture. **Done (2026-10-11)**:
+   `tools/veracity.py`, `tests/unit/test_veracity.py`.
 2. h024 and h022 (no loader prerequisite), then h023 (P5).
 3. h017 (P1), h019 (P1, P3), h025 (P4), then the multi-namespace cases h018, h020,
    h021 (P2).
