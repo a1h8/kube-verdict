@@ -1,6 +1,7 @@
 # Scenario catalog v2 — scenarios that measure veracity
 
-> Status: **spec only, not implemented** (2026-10-11). Comes before any live run on
+> Status: spec (2026-10-11). **Grading v2 implemented** (`tools/veracity.py`, see
+> `docs/veracity-benchmark.md` § Grading v2). Cases h017–h025 and the replay harness: not yet. Comes before any live run on
 > GCP / Scaleway (`docs/cloud-prerequisites.md` §5).
 
 ## Why
