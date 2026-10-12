@@ -146,6 +146,6 @@ as `docs/veracity-benchmark.md` § *What this does not touch*.
 
 - Which Ollama models form the baseline (size and quantization that fit the sovereign
   target)?
-- Is h022/h023 graded only on the LLM label, or also on the verdict (`HUMAN_REVIEW`
-  expected)?
+- ~~Is h022 graded only on the LLM label?~~ Decided 2026-10-12: LOW label **and**
+  verdict `HUMAN_REVIEW`. h023 not decided yet.
 - How many variants per family are needed before SLM training is worth it?

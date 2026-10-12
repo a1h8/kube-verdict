@@ -494,8 +494,10 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
 - *Decoy.* The old warning event.
 - *expect.json.* `root_cause_contains`: []. `must_not_contain`: crash, oom, image,
   probe.
-- *Needs.* P6 only. Open question (scenarios-v2.md): also require verdict
-  `HUMAN_REVIEW`?
+- *Decided (2026-10-12):* PASS needs a LOW label **and** verdict `HUMAN_REVIEW`
+  (neither `GO` nor `NO_GO`: nothing to approve, nothing to block). `grade()` does
+  not read the verdict yet; this is added with h022's implementation.
+- *Needs.* P6.
 
 ### h023 — negative: not enough evidence
 
