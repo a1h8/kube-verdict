@@ -532,12 +532,54 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
   command (`kubectl get events …`) as a remediation with no rollback.
   `test_verdict_is_human_review` is `xfail(strict=True)`, so it fails the day the
   verdict changes and the mark must be removed.
-  *Open decision.* (a) Treat a remediation made only of read-only commands
-  (`kubectl get/describe/logs/top`) like an empty one: nothing to roll back. This
-  also moves verdicts that end on the harness's LOW answer (`kubectl get events`),
-  e.g. h013 with Prometheus cut goes from `NO_GO` to `HUMAN_REVIEW`
-  (`test_collector_fallback_paths.py`), so it needs its own spec. (b) Keep the gate
-  and accept `NO_GO` for "no incident", which reverses the 2026-10-12 decision.
+  *Decided (2026-10-12): diagnostics are not remediation.* Two narrower options were
+  rejected (treat a read-only remediation as empty in the gate; accept `NO_GO` for "no
+  incident"): both treat the symptom. The defect is upstream. The analyze prompt
+  already says "Do NOT list diagnostic commands such as kubectl describe, kubectl
+  logs, or kubectl get" under *Remediation* (`rca/analyzer.py`), but nothing enforces
+  it, and the rule fallback (`_apply_rule_fallback`, for every LOW answer) itself
+  appends `RemediationEngine` commands that are mostly `kubectl describe / get / logs /
+  top`. Each of them counts as an action with no rollback, so **any LOW run can end
+  `NO_GO` for that reason alone**, not only h022.
+
+  *Prerequisite: split diagnostics from remediation in the report.* Spec:
+  - `RCAReport` gets a `diagnostics: list[str]` field, next to `remediation`, and
+    `to_dict()` / `verdict_summary()` expose it. Additive: no existing key changes.
+  - One classifier, `is_read_only(cmd)`, in `rca/analyzer.py`. A line is read-only
+    when every segment of it is: the first segment is `kubectl get | describe | logs
+    | top | explain | events | api-resources | version | auth can-i | diff` or `helm
+    status | get | history | list | ls | show | template | diff | lint`, later pipe
+    segments are text filters (`grep`, `head`, `tail`, `jq`, `yq`, `awk`, `sort`,
+    `wc`), and there is no `;`, `&&`, `||` or `>`. Anything else — mutating commands,
+    unknown commands, prose — stays in `remediation`. Unknown is treated as an action,
+    so the gate never gets more permissive by mistake.
+  - Applied in `_parse_analysis` (after extracting section 5) and in
+    `_apply_rule_fallback`. There, each hypothesis's `[rule:…]` header line goes with
+    its commands: into `remediation` if the hypothesis has at least one action, into
+    `diagnostics` too if it has at least one check.
+  - `rollback`, blast radius, dry-run and the gate keep reading `remediation` only,
+    so they never see a diagnostic. The prompt is not changed: the rule it states is
+    now enforced, not altered.
+  - With no action left, `remediation` is empty. Existing code then gives
+    `rollback_available: true`, risk LOW, and with the LOW label's gate score
+    (0.62 ≥ 0.60) a `HUMAN_REVIEW` verdict in production. The human-gate payload
+    already flags `no_solution` for an empty remediation.
+
+  *Expected effects, to check when implementing:*
+  - h022 → `HUMAN_REVIEW`; the `xfail` mark is removed.
+  - Runs that end on a LOW answer whose only "remediation" is diagnostic change
+    verdict, e.g. h013 with Prometheus cut (`NO_GO` today, recorded in §3) →
+    `HUMAN_REVIEW`. `test_collector_fallback_paths.py` accepts both; §3's text is
+    updated with what is observed.
+  - The golden guard (`tests/golden/`) feeds remediation straight to the decision
+    engine, so it does not move; it is re-run to prove it.
+  - Unit tests: `is_read_only` (each verb, pipes, chains, redirects, prose, unknown),
+    the parser split, the rule-fallback header placement, and `to_dict` exposing
+    `diagnostics`.
+
+  *Out of scope:* showing `diagnostics` in the dashboard (separate UI item); a
+  `NO_ACTION` verdict and a pre-LLM "no incident" short-circuit (options (d) and (e)
+  of the 2026-10-12 discussion, not scheduled).
 
 ### h023 — negative: not enough evidence
 
