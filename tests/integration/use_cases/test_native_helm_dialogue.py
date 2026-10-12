@@ -39,6 +39,7 @@ from tests.integration.use_cases.dialogue_simulator import (
     render_tree,
     write_json,
 )
+from tools.veracity import grade
 from vectorstore.embedder import Embedder
 from vectorstore.store import FAISSStore
 
@@ -143,21 +144,25 @@ class TestNativeHelmDialogue:
         )
 
     def test_root_cause_keywords(self, native_dialogue):
-        """At least 50% of root_cause_contains keywords from expect.json must appear."""
+        """The answer passes grading v2 (tools/veracity.py) against expect.json.
+
+        Same text as before (analysis + root cause + affected + remediation), now
+        also honouring root_cause_contains_all, root_cause_must_not_contain and
+        expected_outcome. expected_verdict is not checked here: this test runs
+        the analyzer, not the workflow's policy gate.
+        """
         root, case, case_name = native_dialogue
-        keywords  = case["expect"]["root_cause_contains"]
+        expect = {k: v for k, v in case["expect"].items() if k != "expected_verdict"}
         full_text = (
             root.report.raw_analysis + " " +
             root.report.root_cause + " " +
             " ".join(root.report.affected) + " " +
             " ".join(root.report.remediation)
-        ).lower()
-
-        matched   = [kw for kw in keywords if kw.lower() in full_text]
-        threshold = max(1, len(keywords) // 2)
-        assert len(matched) >= threshold, (
-            f"{case_name}: {len(matched)}/{len(keywords)} keywords matched ({matched!r}). "
-            f"Missing: {[kw for kw in keywords if kw.lower() not in full_text]!r}"
+        )
+        result = grade(full_text, expect, confidence=root.label)
+        assert result["veracity"] == "PASS", (
+            f"{case_name}: {result['reason']} — matched={result['matched_groups']!r} "
+            f"forbidden={result['forbidden_matched']!r}"
         )
 
     def test_fix_command_present(self, native_dialogue):

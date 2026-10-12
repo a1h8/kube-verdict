@@ -522,6 +522,22 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
   If it does, the test is not weakened: the observed verdict is recorded here, and
   changing the gate for a no-incident outcome is a separate decision.
 - *Needs.* P6 (+ `expected_verdict`).
+- **Implemented (2026-10-12)**, `tests/integration/test_negative_h022.py`. Observed:
+  the three collectors `fallback: false` with 0 alerts / logs / traces, the
+  `BackOff` decoy in every analyze prompt, final label LOW, and `grade()` PASS on
+  the root cause. **The verdict is `NO_GO`, not `HUMAN_REVIEW`**, for one reason
+  only: `rollback_available=False — no safe recovery path` (`max_switches_reached`
+  is not hit). Cause: `remediation/blast_radius.py` returns
+  `rollback_available=True` for an *empty* remediation, but counts a read-only
+  command (`kubectl get events …`) as a remediation with no rollback.
+  `test_verdict_is_human_review` is `xfail(strict=True)`, so it fails the day the
+  verdict changes and the mark must be removed.
+  *Open decision.* (a) Treat a remediation made only of read-only commands
+  (`kubectl get/describe/logs/top`) like an empty one: nothing to roll back. This
+  also moves verdicts that end on the harness's LOW answer (`kubectl get events`),
+  e.g. h013 with Prometheus cut goes from `NO_GO` to `HUMAN_REVIEW`
+  (`test_collector_fallback_paths.py`), so it needs its own spec. (b) Keep the gate
+  and accept `NO_GO` for "no incident", which reverses the 2026-10-12 decision.
 
 ### h023 — negative: not enough evidence
 
@@ -555,6 +571,10 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
     truth can be read from the context the model gets;
   - final label HIGH, and `grade()` PASSes on the final root cause.
 - *Needs.* P6.
+- **Implemented (2026-10-12)**, `tests/integration/test_multi_cause_h024.py`.
+  Observed: `queue-credentials` and `256Mi` in every analyze prompt, each keyword
+  group of `root_cause_contains_all` readable from every prompt, final label HIGH,
+  `grade()` PASS on the scripted two-cause answer.
 
 ### h025 — change: PodDisruptionBudget blocks a node drain
 

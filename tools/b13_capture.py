@@ -379,7 +379,7 @@ def write_golden(index: int, scenario_id: str, summary: dict) -> Path:
 
 
 GRADING_KEYS = ("root_cause_contains", "root_cause_contains_all",
-                "root_cause_must_not_contain", "expected_outcome")
+                "root_cause_must_not_contain", "expected_outcome", "expected_verdict")
 
 
 def write_veracity(index: int, scenario_id: str, summary: dict, scenario: dict) -> Path:
@@ -390,7 +390,8 @@ def write_veracity(index: int, scenario_id: str, summary: dict, scenario: dict) 
     example, or the LLM would be pointed at its own past mistake as ground truth."""
     root_cause = (summary.get("root_cause") or "").strip()
     expect = {k: scenario[k] for k in GRADING_KEYS if k in scenario}
-    result = grade(root_cause, expect, confidence=summary.get("confidence") or "")
+    result = grade(root_cause, expect, confidence=summary.get("confidence") or "",
+                   verdict=summary.get("verdict") or "")
     pre_llm = summary.get("pre_llm_confidence") or {}
     stats = summary.get("_ingestion_stats") or {}
     path = VERACITY_DIR / f"real_{index:03d}.json"

@@ -15,6 +15,8 @@ Fields read from ``expect``:
 - ``expected_outcome`` — ``cause`` (default), ``no_incident`` or
   ``insufficient_evidence``. For the last two the answer PASSes when its
   confidence label is LOW and it names no forbidden keyword.
+- ``expected_verdict`` — when set, the policy verdict must equal it
+  (h022: ``HUMAN_REVIEW``, nothing to approve and nothing to block).
 """
 from __future__ import annotations
 
@@ -29,7 +31,7 @@ def _group_passes(matched: list[str], keywords: list[str]) -> bool:
     return len(matched) >= max(1, len(keywords) // 2)
 
 
-def grade(root_cause: str, expect: dict, confidence: str = "") -> dict:
+def grade(root_cause: str, expect: dict, confidence: str = "", verdict: str = "") -> dict:
     """Grade one answer against one case's expectations.
 
     Returns ``veracity`` (PASS/FAIL), ``reason``, ``matched_keywords`` (flat),
@@ -65,6 +67,11 @@ def grade(root_cause: str, expect: dict, confidence: str = "") -> dict:
         else:
             reason = f"{outcome}: LOW and no cause named"
         passed = label == "LOW" and not forbidden
+
+    expected_verdict = expect.get("expected_verdict")
+    if passed and expected_verdict and (verdict or "") != expected_verdict:
+        passed = False
+        reason = f"verdict {verdict or 'missing'}, {expected_verdict} expected"
 
     return {
         "veracity": "PASS" if passed else "FAIL",

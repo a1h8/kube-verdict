@@ -98,6 +98,27 @@ class TestNegative:
         assert r["forbidden_matched"] == ["crash", "oom"]
 
 
+class TestExpectedVerdict:
+    EXPECT = {"expected_outcome": "no_incident", "expected_verdict": "HUMAN_REVIEW"}
+
+    def test_matching_verdict_passes(self):
+        assert grade("No incident", self.EXPECT, confidence="LOW",
+                     verdict="HUMAN_REVIEW")["veracity"] == "PASS"
+
+    @pytest.mark.parametrize("verdict", ["NO_GO", "AUTO", ""])
+    def test_other_verdict_fails(self, verdict):
+        r = grade("No incident", self.EXPECT, confidence="LOW", verdict=verdict)
+        assert r["veracity"] == "FAIL"
+        assert "HUMAN_REVIEW expected" in r["reason"]
+
+    def test_wrong_label_reason_wins(self):
+        r = grade("No incident", self.EXPECT, confidence="HIGH", verdict="NO_GO")
+        assert "LOW expected" in r["reason"]
+
+    def test_unset_verdict_is_not_checked(self):
+        assert grade("x509 certificate expired", CERT, verdict="NO_GO")["veracity"] == "PASS"
+
+
 class TestLiveCorpus:
     @pytest.mark.parametrize("scenario_id", [k for k, v in SCENARIOS.items()
                                              if any(g in v for g in GRADING_KEYS)])
