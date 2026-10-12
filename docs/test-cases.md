@@ -393,9 +393,15 @@ for the solver, not for a filter. The offline test (mock LLM) asserts that the c
 carrier **and** the decoy are both in the analyze prompt. Veracity (right cause, decoy
 not named) is graded by the replay harness only, per solver.
 
-**`rules` baseline.** Each offline test records the top pre-LLM hypothesis
-(`hypothesis_sources`) next to the expected cause. It does not assert that it is
-correct. The value is the baseline that the LLM is compared against.
+**`rules` baseline.** Measured by the replay harness (`--solver rules`), not by the
+offline tests: a test cannot durably "record" a value without asserting it.
+
+**Generic Ollama test.** `tests/integration/use_cases/test_native_helm_dialogue.py`
+runs every case against a real model when Ollama is up, which makes it a first
+veracity replay. Its keyword test switches to `grade()` so that tier-C fields
+(`contains_all`, `must_not_contain`, `expected_outcome`) are honoured. It still grades
+the full answer text, as before (root cause + analysis + remediation). Known limit
+of keyword grading: an answer saying "not a memory issue" names the decoy and FAILs.
 
 ### Prerequisites found while writing this spec
 
@@ -495,9 +501,27 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
 - *expect.json.* `root_cause_contains`: []. `must_not_contain`: crash, oom, image,
   probe.
 - *Decided (2026-10-12):* PASS needs a LOW label **and** verdict `HUMAN_REVIEW`
-  (neither `GO` nor `NO_GO`: nothing to approve, nothing to block). `grade()` does
-  not read the verdict yet; this is added with h022's implementation.
-- *Needs.* P6.
+  (neither `AUTO` nor `NO_GO`: nothing to approve, nothing to block). Generic form:
+  an optional `expected_verdict` in `expect.json`, checked by `grade(...,
+  verdict=...)` when set. h022 declares `"expected_verdict": "HUMAN_REVIEW"`.
+- *Fixtures.* `kube/`: 3 `ledger` pods Running and Ready (one with `restartCount: 1`,
+  last terminated 3 h ago), the Deployment 3/3, one `BackOff` warning event from 3 h
+  ago. `helm/`: values equal to the release (no drift). No `prometheus/`, `loki/`
+  or `otel/` file: the collectors run and find nothing.
+- *Test shape* (`tests/integration/test_negative_h022.py`, harness `run_case`). The
+  scripted LLM always answers LOW with "no incident" (it has no evidence to answer
+  otherwise). Asserts:
+  - Prometheus, Loki, OTel `fallback: false` with a zero count: nothing found is
+    not an outage;
+  - the decoy `BackOff` event reaches the analyze prompt;
+  - final label LOW, and `grade()` PASSes on the final root cause, label and verdict;
+  - verdict `HUMAN_REVIEW`.
+- *Risk known before running it.* The policy gate (`decision/policy_gate.py`) gives
+  `NO_GO` when the beam search exhausts every path (`max_switches_reached`) or when no
+  rollback is derived, and an all-LOW run with a read-only remediation may hit both.
+  If it does, the test is not weakened: the observed verdict is recorded here, and
+  changing the gate for a no-incident outcome is a separate decision.
+- *Needs.* P6 (+ `expected_verdict`).
 
 ### h023 — negative: not enough evidence
 
@@ -518,7 +542,19 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
 - *Expected.* Both causes named. A single answer that is right on one of them FAILs.
 - *expect.json.* `root_cause_contains_all`:
   `[["secret", "queue-credentials", "missing"], ["oom", "memory", "limit", "256mi"]]`.
-- *Needs.* P6. Fixtures use only existing kinds (h003 + h004 patterns).
+- *Fixtures.* Existing kinds only (h003 + h004 patterns). A case has one Helm
+  release, so `release` is `api` (the drift lives there); the worker's cause is
+  found by the missing-dependency detector, not by Helm.
+- *Test shape* (`tests/integration/test_multi_cause_h024.py`, harness `run_case`).
+  Scripted hypotheses: one per cause, plus a decoy ("worker image tag is wrong").
+  The scripted LLM answers HIGH only when the prompt carries the evidence of
+  **both** causes (`queue-credentials` and `256Mi`), LOW otherwise. Asserts:
+  - both markers in every analyze prompt: neither cause crowds the other out;
+  - *answerable*: for each keyword group of `root_cause_contains_all`, enough
+    keywords (the grading threshold) appear in the analyze prompt, so the ground
+    truth can be read from the context the model gets;
+  - final label HIGH, and `grade()` PASSes on the final root cause.
+- *Needs.* P6.
 
 ### h025 — change: PodDisruptionBudget blocks a node drain
 
