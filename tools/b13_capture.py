@@ -61,6 +61,8 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))  # import the app packages (services, workflow, …)
 
+from tools.veracity import grade  # noqa: E402
+
 # Prometheus lives here in the demo cluster (kube-prometheus-stack). We reach it
 # through the apiserver service-proxy rather than `kubectl port-forward`: on this
 # k3d cluster the kubelet streaming path 502s, but the service proxy (cluster
@@ -126,6 +128,8 @@ SCENARIOS: dict[str, dict] = {
         # same list as tests/integration/cases/h014_cert_expiry/expect.json —
         # we authored the injected fault, so this is ground truth, not a guess.
         "root_cause_contains": ["certificate", "expired", "x509", "tls", "renew", "issuer"],
+        # the decoy the first live capture fell for ("memory issue")
+        "root_cause_must_not_contain": ["memory", "oom"],
     },
     "h015_etcd_compaction": {
         "manifest": "demo/manifests/10-etcd-compaction.yaml",
@@ -136,6 +140,8 @@ SCENARIOS: dict[str, dict] = {
         "otel_service": "inventory-api",
         # same list as tests/integration/cases/h015_etcd_compaction/expect.json
         "root_cause_contains": ["etcd", "compaction", "latency", "deadline", "timeout", "readiness"],
+        # the decoy the first live capture fell for ("incompatible container image")
+        "root_cause_must_not_contain": ["image", "pull"],
     },
 }
 
@@ -372,33 +378,34 @@ def write_golden(index: int, scenario_id: str, summary: dict) -> Path:
     return path
 
 
-def grade_veracity(root_cause: str, keywords: list[str]) -> tuple[str, list[str]]:
-    """Same rule as `test_root_cause_keywords` in
-    tests/integration/use_cases/test_native_helm_dialogue.py: at least half the
-    ground-truth keywords (min 1) must appear, case-insensitive, for a PASS."""
-    text = root_cause.lower()
-    matched = [kw for kw in keywords if kw.lower() in text]
-    threshold = max(1, len(keywords) // 2)
-    return ("PASS" if len(matched) >= threshold else "FAIL"), matched
+GRADING_KEYS = ("root_cause_contains", "root_cause_contains_all",
+                "root_cause_must_not_contain", "expected_outcome")
 
 
-def write_veracity(index: int, scenario_id: str, summary: dict, keywords: list[str]) -> Path:
+def write_veracity(index: int, scenario_id: str, summary: dict, scenario: dict) -> Path:
     """Ground-truth root-cause check, paired 1:1 with tests/golden/real_00N.json
     by index. Deliberately kept out of data/examples/ (the FAISS store of
     *verified-correct* resolutions `workflow.nodes.save_example` feeds back as
     RAG context) — a FAIL here must never be retrieved as a resolved-incident
     example, or the LLM would be pointed at its own past mistake as ground truth."""
     root_cause = (summary.get("root_cause") or "").strip()
-    veracity, matched = grade_veracity(root_cause, keywords)
+    expect = {k: scenario[k] for k in GRADING_KEYS if k in scenario}
+    result = grade(root_cause, expect, confidence=summary.get("confidence") or "")
+    pre_llm = summary.get("pre_llm_confidence") or {}
+    stats = summary.get("_ingestion_stats") or {}
     path = VERACITY_DIR / f"real_{index:03d}.json"
     VERACITY_DIR.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({
         "scenario_id": scenario_id,
         "captured_at": datetime.now(timezone.utc).isoformat(),
-        "root_cause_contains": keywords,
-        "matched_keywords": matched,
+        **expect,
+        **result,
         "actual_root_cause": root_cause,
-        "veracity": veracity,
+        # was a wrong answer confident? (docs/scenarios-v2.md § Grading v2)
+        "confidence": summary.get("confidence") or "",
+        "pre_llm_confidence_score": pre_llm.get("score"),
+        "verdict": summary.get("verdict"),
+        "fallbacks": sorted(k for k, v in stats.items() if isinstance(v, dict) and v.get("fallback")),
     }, indent=2, sort_keys=True) + "\n")
     return path
 
@@ -513,8 +520,8 @@ def capture(context: str, scenario_id: str, index: int, *,
         golden = write_golden(index, scenario_id, summary)
         append_evidence(scenario_id, context, summary, reason)
         print(f"  → {golden.relative_to(ROOT)}  {summary['_triple']}")
-        if scenario.get("root_cause_contains"):
-            veracity_path = write_veracity(index, scenario_id, summary, scenario["root_cause_contains"])
+        if any(k in scenario for k in GRADING_KEYS):
+            veracity_path = write_veracity(index, scenario_id, summary, scenario)
             veracity_data = json.loads(veracity_path.read_text())
             print(f"  → {veracity_path.relative_to(ROOT)}  veracity={veracity_data['veracity']} "
                   f"matched={veracity_data['matched_keywords']}")

@@ -45,6 +45,28 @@ one of them was ever checked against ground truth:
   check. Veracity needs a binary, auditable answer ("did it name the real
   cause"), not "how close is this text to some other text."
 
+## Grading v2 (2026-10-11)
+
+The rule moved to `tools/veracity.py` (`grade()`), shared by `b13_capture.py` and
+the future replay harness (`docs/scenarios-v2.md`). The rule above is unchanged when
+a case only declares `root_cause_contains`. Three optional `expect.json` fields:
+
+- `root_cause_must_not_contain`: the decoy. Any of these keywords in the root cause
+  is a FAIL, even when the ground-truth keywords match. h014 (`memory`, `oom`) and
+  h015 (`image`, `pull`) declare the decoys their first live captures fell for.
+- `root_cause_contains_all`: multi-cause cases, one keyword list per cause, all
+  must pass.
+- `expected_outcome`: `no_incident` / `insufficient_evidence` PASS on a LOW label
+  with no forbidden keyword.
+
+`write_veracity()` now also records `confidence` (the LLM label),
+`pre_llm_confidence_score`, `verdict` and `fallbacks` (collectors with
+`fallback: true`), plus `reason`, `matched_groups` and `forbidden_matched`. A wrong
+answer given with HIGH confidence is then visible in the record. `real_003` /
+`real_004` are left as captured (they predate these fields). A unit test regrades
+them with the v2 rule: both still FAIL and both name their decoy. Another test
+keeps `SCENARIOS` grading keys equal to each case's `expect.json`.
+
 ## What this does *not* touch
 
 `knowledge/example_store.py` / `data/examples/*.json` (FAISS `example:` UIDs)

@@ -4,6 +4,7 @@
   "release": "inventory-api",
   "affected_resources": ["Pod/production/inventory-api-7f9c8d6b5-x2qwe"],
   "root_cause_contains": ["etcd", "compaction", "latency", "deadline", "timeout", "readiness"],
+  "root_cause_must_not_contain": ["image", "pull"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.3,
   "fallback_expected": true,
