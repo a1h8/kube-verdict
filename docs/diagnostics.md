@@ -19,7 +19,7 @@ to run one nor how to read its output. And the system could run them itself.
 | 1 | Structured diagnostics: each check carries its hypothesis, purpose, and what confirms / refutes it | implemented (2026-10-13) |
 | 2 | The LLM proposes checks in their own prompt section, in the step-1 shape, instead of being told not to | implemented (2026-10-13), kept only if the replay shows no drop |
 | 3 | Show diagnostics at the human gate and in the dashboard, grouped by hypothesis | implemented (2026-10-13) |
-| 4 | Run read-only checks automatically and feed their output back as evidence | to spec, with a security spec |
+| 4 | Run read-only checks automatically and feed their output back as evidence | spec below — not implemented, needs a go |
 
 Step 4 is last on purpose: "read-only" is not "safe". `kubectl get secret -o yaml`
 changes nothing and leaks secrets. Auto-execution needs a read-only service account
@@ -218,4 +218,78 @@ No execution from the dashboard (step 4). No new endpoint. The vitrine
   empty fields hidden, the "not part of the approval" title, the empty-remediation
   message, nothing rendered when there are no diagnostics.
 - `tests/unit`: the gate payload carries `diagnostics`, the API incident report too.
+
+## Step 4 — run the checks, feed the output back as evidence
+
+> Spec (2026-10-13). Not implemented: it reads a live cluster on its own, so it needs an
+> explicit go, after the step-2 replay comparison.
+
+### Why
+
+A check the operator has to run by hand turns into a question asked after the verdict.
+If the system runs it itself, the output becomes evidence **before** the verdict:
+hypothesis → checks → output → re-analysis. This is the step that can raise veracity,
+not only presentation.
+
+### Security — "read-only" is not "safe"
+
+1. **RBAC is the guarantee, not command parsing.** Checks run with kube-verdict's own
+   service account. The gate is what that account is allowed to do, not
+   `is_read_only()`, which only selects candidates.
+   - *Found 2026-10-13, open decision:* `k8s/rbac.yaml` grants `get / list / watch` on
+     `secrets` (values readable), while the Helm chart's `rbac.yaml` does not grant
+     `secrets` at all. The two deployments disagree. It is not a free removal: the
+     missing-dependency detector (h001, h004) needs to know whether a referenced Secret
+     exists, and RBAC cannot grant "names only" — `list` on `secrets` returns the
+     data. Either the detector moves to a metadata-only read (still `list`, data not
+     fetched by the code, but readable by the account), or it infers existence from
+     events (`secret "x" not found`) and `secrets` is dropped from both RBAC files.
+     What a Helm deployment does today without the grant (a 403 on listing Secrets)
+     is to be checked as part of that decision.
+   - At startup, a `SelfSubjectRulesReview` per watched namespace. If any verb other
+     than `get / list / watch` is allowed anywhere, auto-execution is disabled and
+     recorded as `fallback: true` with the reason. Readable `secrets` is recorded as a
+     warning; the executor refuses the kind anyway (rule 3).
+2. **No shell, no command string executed.** A check is parsed into a structured query
+   — verb (`get / describe / logs / top / events`), kind, name, namespace, label
+   selector, and a small allowlisted flag set (`--previous`, `--tail`, `-o wide`,
+   `--show-labels`) — and run through the Kubernetes Python client. Anything that does
+   not parse into that shape (pipes, `jsonpath`, `helm`, unknown flags) is shown to the
+   operator and never run. There is no `subprocess` call, so there is nothing to inject.
+3. **Never Secrets**: the kind `secrets` is refused by the executor itself, even for
+   names.
+4. **Caps**: at most 5 checks per hypothesis path and 10 per session; 10 s per call;
+   output cut to 4 KB and 50 log lines; logs only from pods already in the graph.
+5. **Redaction** before the output enters the prompt or the state: `Bearer …`,
+   `password=`, `token=`, `AKIA…`, private keys.
+6. **Off by default**: `CHECKS_AUTORUN_ENABLED=false`. When on, every executed check is
+   recorded (command, parsed query, byte count, digest, duration) in `edge_log` and
+   shown in the Decision Journey next to the check.
+
+### Flow
+
+A new node `run_checks`, after `analyze` and before the confidence router, only when
+the label is LOW or MEDIUM and the report has rule or LLM checks. Outputs enter the
+context as a `### CHECKS` section, and **one** extra analyze runs on the same
+hypothesis (bounded: never a loop). The re-analysis answer replaces the first one;
+both are kept in `reasoning_history`.
+
+### Offline and measured
+
+- A case may ship `checks/`: a JSON map from the parsed query to an output, served by
+  a fixture executor like the Prometheus / Loki / OTel fixtures. An unmapped check
+  returns "no output".
+- The veracity replay gets `--autorun-checks`. Step 4 is kept only if the pass rate
+  rises over the step-2 baseline without more overconfidence.
+
+### Tests
+
+- Parser: each allowed shape, and each refusal (pipe, jsonpath, helm, unknown flag,
+  `secrets`).
+- RBAC self-check: an allowed `create` → disabled with the reason; readable `secrets` →
+  warning, executor still refuses the kind.
+- Caps and redaction.
+- One case end to end offline (h014 first: `kubectl logs` on the not-ready pod returns
+  the `x509` line through `checks/`): the second analyze prompt carries the check
+  output, and the run is recorded in `edge_log`.
 
