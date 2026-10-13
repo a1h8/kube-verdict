@@ -378,3 +378,165 @@ Components that require a **live environment** (not in CI scope):
 - Ollama LLM inference (multi-path hypothesis reasoning)
 - PatchTST anomaly forecasting on real time series
 - GitOps diff via `helm template` + GitHub API
+
+## Scenario catalog v2 — tier C cases
+
+> Spec only, not implemented (2026-10-11). Why these cases and how they are graded:
+> [scenarios-v2.md](scenarios-v2.md). This section gives each case its fixtures, where
+> the cause is, its decoy and what is missing in the code to build it.
+
+**How tier C differs from h013–h016.** In h013–h016 a decoy is *wrong data*: another
+namespace, an absent service, a Ready pod. A filter must drop it, and the test asserts
+that it never reaches the prompt. In tier C the decoy is *true data*, in the right
+namespace, but it is not the cause. It **must** reach the prompt, because the trap is
+for the solver, not for a filter. The offline test (mock LLM) asserts that the cause
+carrier **and** the decoy are both in the analyze prompt. Veracity (right cause, decoy
+not named) is graded by the replay harness only, per solver.
+
+**`rules` baseline.** Each offline test records the top pre-LLM hypothesis
+(`hypothesis_sources`) next to the expected cause. It does not assert that it is
+correct. The value is the baseline that the LLM is compared against.
+
+### Prerequisites found while writing this spec
+
+Read from the code on 2026-10-11, to be confirmed in each case's implementation PR:
+
+| # | Gap | Where | Needed by |
+|---|---|---|---|
+| P1 | `kube/` loader only knows Pod, Deployment, Event, Secret, ConfigMap, ServiceAccount, NetworkPolicy, PVC, RBAC, ResourceQuota. **No StatefulSet, ReplicaSet, Node, Job, PodDisruptionBudget.** | `tests/integration/cases/case_loader.py` (`_load_kube`) | h017, h019, h020, h021, h025 |
+| P2 | A case has **one namespace** (`expect.json` → `namespace`, used by `build_graph`). Objects in another namespace cannot be represented. | `case_loader.build_graph` | h018, h020, h021 |
+| P3 | `ReplicaSet` has no image and no revision. A rollout ("new ReplicaSet 20 min before") cannot be read from the graph. `created_at` exists on the base entity. | `ontology/entities.py` (`ReplicaSet`) | h019, h020 |
+| P4 | **No PodDisruptionBudget entity** in the typed ontology. | `ontology/entities.py` | h025 |
+| P5 | `run_case(..., cut=...)` cuts **one** collector. h023 needs all three. | `tests/integration/workflow_harness.py` | h023 |
+| P6 | Grading v2 (`must_not_contain`, `expected_outcome`, `contains_all`). **Done**: `tools/veracity.py`. | `tools/b13_capture.py` (`grade_veracity`) | all, + h014/h015 retrofit |
+
+P1–P5 are small and backward compatible: each one adds a kind, a field or a
+parameter, and existing cases do not use it. Each gets its own spec-then-fix commit
+in the first case's PR that needs it, as for h016's `in_namespace()`.
+
+### h017 — cascade: upstream Redis OOM, downstream CrashLoop
+
+- *Scenario.* `session-api` (Deployment, `production`, 3 replicas) is in
+  CrashLoopBackOff. It exits on start because it cannot reach `redis-master:6379`.
+  `redis-master-0` (StatefulSet) is OOMKilled and restarting, because its `maxmemory`
+  is higher than its container limit.
+- *Cause carrier.* `redis-master-0` status (`lastState.terminated.reason: OOMKilled`,
+  restartCount) + `session-api` logs `dial tcp 10.0.3.12:6379: connect: connection refused`.
+- *Decoy.* The loud CrashLoopBackOff events on `session-api` itself. The trap is to
+  answer "fix session-api" (image, config, probes).
+- *Fixtures.* `kube/` (session-api and redis-master pods, the StatefulSet, events), `loki/` (session-api
+  streams), `helm/` (redis values: `maxmemory` vs `resources.limits.memory`).
+- *expect.json.* `root_cause_contains`: redis, upstream, dependency, oom, maxmemory,
+  refused. `must_not_contain`: image, configmap, secret.
+- *Needs.* P1 (StatefulSet).
+
+### h018 — cascade: CoreDNS down, timeouts in two namespaces
+
+- *Scenario.* `cart`, `search` (`production`) and `reports` (`analytics`) time out on
+  every outbound call. CoreDNS pods in `kube-system` are in CrashLoopBackOff (a broken
+  `Corefile` after an edit: `plugin/forward: not an IP address`).
+- *Cause carrier.* `kube-system` CoreDNS pods + their logs, and app logs
+  `lookup orders.production.svc.cluster.local: i/o timeout`.
+- *Decoy.* A NetworkPolicy in `analytics` that restricts egress but allows DNS. The
+  trap is "NetworkPolicy blocks egress" (h006 pattern).
+- *expect.json.* `root_cause_contains`: coredns, dns, corefile, kube-system, lookup.
+  `must_not_contain`: networkpolicy, egress.
+- *Needs.* P2 (three namespaces).
+
+### h019 — change: ConfigMap rollout 20 minutes before
+
+- *Scenario.* `checkout` returns 5xx since 14:20. At 14:00 a Helm upgrade changed
+  `DB_URL` in the ConfigMap (wrong port, 5433 instead of 5432). A new ReplicaSet
+  (revision 7) was created at 14:01, and the pods are Running and Ready (the probe
+  does not check the DB).
+- *Cause carrier.* Helm drift (`helm/values.yaml` declares 5432, `release.json`
+  deploys 5433), the revision-7 ReplicaSet `created_at`, and logs
+  `connection to db:5433 refused`.
+- *Decoy.* `CheckoutHighCPU` alert firing on the same pods (retry loops burn CPU).
+  The trap is "raise the CPU limit".
+- *expect.json.* `root_cause_contains`: db_url, configmap, port, 5433, rollout,
+  revision. `must_not_contain`: cpu, limit, throttl.
+- *Needs.* P1 (ReplicaSet), P3 (revision).
+
+### h020 — decoy: image regression hidden by a memory alert elsewhere
+
+- *Scenario.* `pricing` (`production`) burns its p99 latency SLO. The cause is image
+  `pricing:2.14.0`, rolled out 30 min ago (an N+1 query). In `batch`, a
+  `MemoryPressure` alert fires on an unrelated pod, and it is louder (critical).
+- *Cause carrier.* New ReplicaSet with the new image tag, and OTel traces where
+  `pricing` spans have 40 `SELECT` child spans each (2.13 had 1).
+- *Decoy.* The critical memory alert in `batch`. It is a real alert, and h013's
+  "critical first" ordering puts it at the top of the alerts section.
+- *expect.json.* `root_cause_contains`: image, 2.14, regression, rollout, query,
+  latency. `must_not_contain`: memory, oom.
+- *Needs.* P1, P2, P3.
+
+### h021 — node: batch job saturating the node CPU
+
+- *Scenario.* `search` (`production`) has random latency spikes, only on pods on
+  `node-b`. A CronJob in `etl` runs on `node-b` without CPU limits and uses every
+  core.
+- *Cause carrier.* `search` pods' `node_name`, the `etl` Job pod on the same node, and
+  a `NodeCPUSaturated` alert with `node=node-b` (alerts already correlate on the
+  `node` label).
+- *Decoy.* `search`'s own CPU limits, which are tight but unchanged.
+- *expect.json.* `root_cause_contains`: node, noisy, neighbor, etl, job, saturat.
+  `must_not_contain`: open. A single keyword such as `limit` does not work, because
+  the right fix (put limits on the job) contains it too. Phrases such as
+  `raise the cpu limit` are brittle. To settle when grading v2 is implemented.
+- *Needs.* P1 (Node, Job), P2 (`etl`).
+
+### h022 — negative: nothing is broken
+
+- *Scenario.* Every pod in `production` is Running and Ready. One `BackOff` warning
+  event from 3 h ago (one restart, since resolved), and no firing alert.
+- *Expected.* `expected_outcome: no_incident`: a LOW label and no specific cause named.
+- *Decoy.* The old warning event.
+- *expect.json.* `root_cause_contains`: []. `must_not_contain`: crash, oom, image,
+  probe.
+- *Decided (2026-10-12):* PASS needs a LOW label **and** verdict `HUMAN_REVIEW`
+  (neither `GO` nor `NO_GO`: nothing to approve, nothing to block). `grade()` does
+  not read the verdict yet; this is added with h022's implementation.
+- *Needs.* P6.
+
+### h023 — negative: not enough evidence
+
+- *Scenario.* `ledger` pods are Running but not Ready. No event names a cause. The
+  Prometheus, Loki and OTel backends are all unreachable.
+- *Expected.* `expected_outcome: insufficient_evidence`: a LOW label, the three
+  collectors `fallback: true`, and no specific cause named.
+- *Link.* This is the case where today's pre-LLM score must drop
+  (*Evidence-aware pre-LLM score*). It is recorded, not asserted, until that change
+  lands.
+- *Needs.* P5 (cut three collectors), P6.
+
+### h024 — multi-cause: two faults at once
+
+- *Scenario.* In `production`, `worker` is in CreateContainerConfigError (Secret
+  `queue-credentials` missing), and `api` is OOMKilled (Helm drift: limit 256Mi
+  deployed, 1Gi declared). The two are independent.
+- *Expected.* Both causes named. A single answer that is right on one of them FAILs.
+- *expect.json.* `root_cause_contains_all`:
+  `[["secret", "queue-credentials", "missing"], ["oom", "memory", "limit", "256mi"]]`.
+- *Needs.* P6. Fixtures use only existing kinds (h003 + h004 patterns).
+
+### h025 — change: PodDisruptionBudget blocks a node drain
+
+- *Scenario.* A node upgrade is stuck: `node-c` is cordoned and the drain never
+  finishes. PDB `payments-pdb` has `minAvailable: 3` with 3 replicas, so no eviction
+  is ever allowed.
+- *Cause carrier.* The PDB object (`disruptionsAllowed: 0`) and eviction events
+  `Cannot evict pod as it would violate the pod's disruption budget`.
+- *Decoy.* `node-c` `NodeNotReady` / `SchedulingDisabled` events. The trap is "node
+  or kubelet issue".
+- *expect.json.* `root_cause_contains`: poddisruptionbudget, pdb, minavailable,
+  evict, drain. `must_not_contain`: notready, kubelet.
+- *Needs.* P1 (Node, PDB), P4.
+
+### Order
+
+1. P6 (grading v2) + h014/h015 retrofit, which affects no fixture. **Done (2026-10-11)**:
+   `tools/veracity.py`, `tests/unit/test_veracity.py`.
+2. h024 and h022 (no loader prerequisite), then h023 (P5).
+3. h017 (P1), h019 (P1, P3), h025 (P4), then the multi-namespace cases h018, h020,
+   h021 (P2).
