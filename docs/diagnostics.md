@@ -17,7 +17,7 @@ to run one nor how to read its output. And the system could run them itself.
 |---|---|---|
 | 0 | `is_read_only()` splits read-only lines out of `remediation` into `diagnostics`; gate fails closed on an unknown namespace or no command | done |
 | 1 | Structured diagnostics: each check carries its hypothesis, purpose, and what confirms / refutes it | implemented (2026-10-13) |
-| 2 | The LLM proposes checks in their own prompt section, in the step-1 shape, instead of being told not to | spec below |
+| 2 | The LLM proposes checks in their own prompt section, in the step-1 shape, instead of being told not to | implemented (2026-10-13), kept only if the replay shows no drop |
 | 3 | Show diagnostics at the human gate and in the dashboard, grouped by hypothesis | to spec |
 | 4 | Run read-only checks automatically and feed their output back as evidence | to spec, with a security spec |
 
@@ -119,7 +119,8 @@ The dashboard (step 3).
 
 ## Step 2 — the LLM proposes its own checks
 
-> Spec (2026-10-13), not implemented.
+> Implemented 2026-10-13 (`PROMPT_VERSION = "v2"`). Decision pending the replay
+> comparison below: baseline `v1` running, `v2` next.
 
 ### Why
 

@@ -126,3 +126,74 @@ def test_to_dict_exposes_diagnostics():
     }]
     assert d["remediation"] == []
 
+
+
+# ── Step 2: section 7 "Checks" proposed by the LLM (docs/diagnostics.md) ────────
+_ANSWER_V2 = _ANSWER + """
+### 7. Checks
+{checks}
+"""
+
+
+def _report_v2(remediation: str, checks: str) -> RCAReport:
+    ctx = ContextWindow(seeds=[], drift=[], events=[], helm=[], related=[], traces=[], logs=[])
+    return RCAReport(query="q", kube_version="1.30", context=ctx,
+                     raw_analysis=_ANSWER_V2.format(remediation=remediation, checks=checks))
+
+
+def test_full_check_line_is_structured():
+    r = _report_v2("- helm upgrade api ./chart -n prod",
+                   "- kubectl describe pod api-0 -n prod | verifies: why the container stopped"
+                   " | confirms if: OOMKilled, exit 137 | refutes if: exit 0")
+    assert r.diagnostics == [Diagnostic(
+        command="kubectl describe pod api-0 -n prod", source="llm",
+        purpose="why the container stopped", confirms_if="OOMKilled, exit 137",
+        refutes_if="exit 0")]
+
+
+def test_bare_command_and_backticks_are_accepted():
+    r = _report_v2("- helm upgrade api ./chart -n prod", "- `kubectl top pod api-0 -n prod`")
+    assert [(d.command, d.purpose) for d in r.diagnostics] == [("kubectl top pod api-0 -n prod", "")]
+
+
+@pytest.mark.parametrize("line", [
+    "- kubectl delete pod api-0 -n prod | verifies: nothing",
+    "- kubectl get secret db -o yaml -n prod | verifies: the password",
+    "- kubectl get secrets -ojson | verifies: all of them",
+    "- kubectl get secret db --output=jsonpath='{.data}'",
+])
+def test_actions_and_secret_reads_never_enter_through_section_7(line):
+    r = _report_v2("- helm upgrade api ./chart -n prod", line)
+    assert r.diagnostics == []
+    assert r.remediation == ["helm upgrade api ./chart -n prod"]
+
+
+def test_listing_secret_names_is_allowed():
+    r = _report_v2("", "- kubectl get secrets -n prod | verifies: which secrets exist")
+    assert [d.command for d in r.diagnostics] == ["kubectl get secrets -n prod"]
+
+
+def test_at_most_five_checks_deduplicated():
+    lines = "\n".join(f"- kubectl get pods -n ns{i}" for i in range(8))
+    r = _report_v2("", "- kubectl get pods -n ns0\n" + lines)
+    assert [d.command for d in r.diagnostics] == [f"kubectl get pods -n ns{i}" for i in range(5)]
+
+
+def test_confidence_does_not_swallow_section_7():
+    r = _report_v2("", "- kubectl get pods -n prod")
+    assert r.confidence == "LOW"
+
+
+def test_proposed_checks_come_before_recovered_ones_without_duplicates():
+    r = _report_v2("- kubectl get events -n prod\n- kubectl describe pod api-0 -n prod",
+                   "- kubectl describe pod api-0 -n prod | verifies: the last state")
+    assert [(d.command, d.purpose) for d in r.diagnostics] == [
+        ("kubectl describe pod api-0 -n prod", "the last state"),
+        ("kubectl get events -n prod", ""),
+    ]
+
+
+def test_answer_without_section_7_parses_as_before():
+    r = _report("- kubectl get events -n prod")
+    assert r.confidence == "LOW"
+    assert [d.command for d in r.diagnostics] == ["kubectl get events -n prod"]

@@ -79,8 +79,8 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
 
     ### 5. Remediation
     Commands that directly FIX the root cause (kubectl apply, kubectl rollout restart,
-    helm upgrade…). Do NOT list diagnostic commands such as kubectl describe,
-    kubectl logs, or kubectl get — those are investigation, not remediation.
+    helm upgrade…). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)
+    go in section 7, not here.
 
     ### 6. Confidence
     Choose LOW | MEDIUM | HIGH using this rule:
@@ -89,6 +89,13 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
     - If one causal link is inferred rather than observed, answer MEDIUM.
     - If context is sparse or contradictory, answer LOW.
     Start your answer with exactly one word: HIGH, MEDIUM, or LOW.
+
+    ### 7. Checks
+    Up to 5 read-only commands that would confirm or rule out the root cause above,
+    one per line:
+    - <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>
+    Read-only only (kubectl get / describe / logs / top, helm status / get / diff).
+    Never print Secret values (no kubectl get secret -o yaml or -o json).
 """)
 
 # ---------------------------------------------------------------------------
@@ -97,7 +104,7 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
 
 # Version of the analyze prompt above. Recorded by the veracity replay so runs made
 # with different prompts are never compared as one (docs/diagnostics.md § Step 2).
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"   # v2: section 7 "Checks" (docs/diagnostics.md § Step 2)
 
 
 def _generate_rollback(remediation: list[str]) -> list[str]:
@@ -337,7 +344,8 @@ def _parse_analysis(report: RCAReport) -> None:
 
     report.summary = _extract_section(text, "1. Summary", "2. Affected")
     report.root_cause = _extract_section(text, "3. Root cause", "4. Causal")
-    report.confidence = _extract_section(text, "6. Confidence", None)
+    has_checks = re.search(r"7\. Checks", text, re.IGNORECASE) is not None
+    report.confidence = _extract_section(text, "6. Confidence", "7. Checks" if has_checks else None)
 
     affected_block = _extract_section(text, "2. Affected resources", "3. Root")
     report.affected = _extract_bullets(affected_block)
@@ -349,7 +357,45 @@ def _parse_analysis(report: RCAReport) -> None:
     report.remediation, checks = split_diagnostics(_extract_bullets(remed_block))
     # Read-only lines the LLM put under Remediation: no hypothesis or expected
     # output yet — step 2 of docs/diagnostics.md gives the LLM its own section.
-    report.diagnostics = [Diagnostic.from_llm_line(line) for line in checks]
+    recovered = [Diagnostic.from_llm_line(line) for line in checks]
+    proposed = _parse_checks(_extract_section(text, "7. Checks", None)) if has_checks else []
+    seen = {d.command for d in proposed}
+    report.diagnostics = proposed + [d for d in recovered if d.command not in seen]
+
+
+_MAX_LLM_CHECKS = 5
+_SECRET_READ = re.compile(
+    r"\bget\s+secrets?\b.*(-o|--output)[ =]?(yaml|json|jsonpath|go-template)", re.IGNORECASE)
+
+
+def _parse_checks(block: str) -> list[Diagnostic]:
+    """Section 7: ``- <command> | verifies: … | confirms if: … | refutes if: …``.
+
+    Only read-only commands are kept (an action can never enter through here),
+    never one that prints Secret data, at most five, deduplicated on the command.
+    """
+    out: list[Diagnostic] = []
+    for raw in block.splitlines():
+        line = raw.strip()
+        if not line.startswith(("-", "*", "•")):
+            continue
+        command, *fields = [part.strip() for part in line.lstrip("-*• ").split(" | ")]
+        command = command.strip("`")
+        if not is_read_only(command) or _SECRET_READ.search(command):
+            log.info("section 7: dropped non read-only or Secret-reading check: %s", command)
+            continue
+        if any(d.command == command for d in out):
+            continue
+        parsed = {"verifies": "", "confirms if": "", "refutes if": ""}
+        for field_text in fields:
+            key, _, value = field_text.partition(":")
+            if key.strip().lower() in parsed:
+                parsed[key.strip().lower()] = value.strip()
+        out.append(Diagnostic(command=command, source="llm", purpose=parsed["verifies"],
+                              confirms_if=parsed["confirms if"], refutes_if=parsed["refutes if"]))
+        if len(out) == _MAX_LLM_CHECKS:
+            break
+    return out
 
 
 def _extract_section(text: str, start_marker: str, end_marker: str | None) -> str:
