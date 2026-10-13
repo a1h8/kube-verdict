@@ -103,3 +103,10 @@ def test_llm_solver_refuses_without_ollama(tmp_path, monkeypatch):
     monkeypatch.setattr("llm.ollama_client.OllamaClient", Down)
     assert vr.main(["--solver", "llm", "--out", str(tmp_path)]) == 2
     assert not list(tmp_path.iterdir())
+
+
+def test_replay_does_not_leak_example_lookup_disabled(tmp_path, monkeypatch):
+    monkeypatch.delenv("EXAMPLE_LOOKUP_DISABLED", raising=False)
+    vr.main(["--solver", "rules", "--cases", "h004", "--out", str(tmp_path)])
+    import os
+    assert "EXAMPLE_LOOKUP_DISABLED" not in os.environ

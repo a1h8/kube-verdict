@@ -227,24 +227,33 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Model {client.model} not pulled — nothing written.", file=sys.stderr)
             return 2
 
-    os.environ["EXAMPLE_LOOKUP_DISABLED"] = "1"   # never read data/examples/ during a replay
-    runs = 1 if solver == "rules" else args.runs
-    for case_name in cases:
-        for run in range(1, runs + 1):
-            path = record_path(out_dir, solver, case_name, run)
-            if args.resume and path.exists():
-                continue
-            try:
-                record = (solve_rules(case_name) if solver == "rules"
-                          else solve_llm(case_name, client, run))
-            except Exception as exc:  # one failed run must not stop an hours-long replay
-                print(f"{case_name} run {run}: ERROR — {type(exc).__name__}: {exc} "
-                      "(not recorded; --resume retries it)", file=sys.stderr)
-                continue
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
-            print(f"{case_name} run {run}: {record['veracity']} — {record['reason']}")
-            (out_dir / "REPORT.md").write_text(render_report(load_records(out_dir), _header(args.solver)))
+    # never read data/examples/ during a replay; restored after, so a caller in the
+    # same process (the test suite) does not inherit it
+    previous = os.environ.get("EXAMPLE_LOOKUP_DISABLED")
+    os.environ["EXAMPLE_LOOKUP_DISABLED"] = "1"
+    try:
+        runs = 1 if solver == "rules" else args.runs
+        for case_name in cases:
+            for run in range(1, runs + 1):
+                path = record_path(out_dir, solver, case_name, run)
+                if args.resume and path.exists():
+                    continue
+                try:
+                    record = (solve_rules(case_name) if solver == "rules"
+                              else solve_llm(case_name, client, run))
+                except Exception as exc:  # one failed run must not stop an hours-long replay
+                    print(f"{case_name} run {run}: ERROR — {type(exc).__name__}: {exc} "
+                          "(not recorded; --resume retries it)", file=sys.stderr)
+                    continue
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+                print(f"{case_name} run {run}: {record['veracity']} — {record['reason']}")
+                (out_dir / "REPORT.md").write_text(render_report(load_records(out_dir), _header(args.solver)))
+    finally:
+        if previous is None:
+            os.environ.pop("EXAMPLE_LOOKUP_DISABLED", None)
+        else:
+            os.environ["EXAMPLE_LOOKUP_DISABLED"] = previous
     return 0
 
 
