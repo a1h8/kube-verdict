@@ -17,7 +17,7 @@ to run one nor how to read its output. And the system could run them itself.
 |---|---|---|
 | 0 | `is_read_only()` splits read-only lines out of `remediation` into `diagnostics`; gate fails closed on an unknown namespace or no command | done |
 | 1 | Structured diagnostics: each check carries its hypothesis, purpose, and what confirms / refutes it | implemented (2026-10-13) |
-| 2 | The LLM proposes checks in their own prompt section, in the step-1 shape, instead of being told not to | to spec |
+| 2 | The LLM proposes checks in their own prompt section, in the step-1 shape, instead of being told not to | spec below |
 | 3 | Show diagnostics at the human gate and in the dashboard, grouped by hypothesis | to spec |
 | 4 | Run read-only checks automatically and feed their output back as evidence | to spec, with a security spec |
 
@@ -116,3 +116,64 @@ The dashboard (step 3).
   declaring at least one check with a non-empty purpose and confirms_if.
 - h022: its diagnostics are `source="llm"` (the scripted answer's
   `kubectl get events`), verdict unchanged.
+
+## Step 2 — the LLM proposes its own checks
+
+> Spec (2026-10-13), not implemented.
+
+### Why
+
+The analyze prompt tells the model "Do NOT list diagnostic commands" under *Remediation*
+(`rca/analyzer.py`). What it knows about how to verify its own diagnosis is thrown away.
+When it lists them anyway, step 0 recovers them as bare `Diagnostic(source="llm")`, with
+no purpose and no expected output. Step 2 gives those checks a place and the step-1
+shape.
+
+### Prompt
+
+A new section **after** *Confidence*, so the existing numbering, parser markers and the
+20 scripted answers in the tests do not move:
+
+```
+### 7. Checks
+Up to 5 read-only commands that would confirm or rule out the root cause above,
+one per line:
+- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>
+Read-only only (kubectl get / describe / logs / top, helm status / get / diff).
+Never print Secret values (no `kubectl get secret -o yaml|json`).
+```
+
+*Remediation* keeps "commands that directly FIX the root cause". Its last sentence
+becomes "Diagnostic commands go in section 7, not here".
+
+### Parser
+
+- *Confidence* now ends at `7. Checks` when the section exists. Answers without it
+  parse as today.
+- Each `- ` line in section 7 is split on ` | ` and read by prefix (`verifies:`,
+  `confirms if:`, `refutes if:`). Missing fields stay `""`, so a bare command is still
+  accepted.
+- Kept only if `is_read_only(command)`. A non-read-only line is dropped and logged:
+  an action can never enter through section 7. A command that reads Secret data
+  (`get secret|secrets` with `-o yaml|json|jsonpath`) is dropped too.
+- At most 5 kept. They become `Diagnostic(source="llm", purpose=…, confirms_if=…,
+  refutes_if=…)` and are placed **before** the step-0 recovered lines. Deduplicated on
+  the command.
+
+### Measured, not assumed
+
+The prompt change can change the answers themselves, not only add a section. The
+veracity replay (`tools/veracity_replay.py --solver llm`) runs on the same cases before
+(baseline, current prompt) and after. Step 2 is kept if the pass rate does not drop. The
+report records the prompt version (`prompt: v1 | v2`, a constant in `rca/analyzer.py`)
+so the two runs are never mixed.
+
+### Tests
+
+- Parser: a full line, a bare command, a non-read-only line dropped, a Secret-reading
+  line dropped, more than 5 lines capped, no section 7 (unchanged parse), *Confidence*
+  not swallowing section 7.
+- `to_dict()` exposes LLM checks with their fields.
+- The scripted answers (no section 7) keep producing the same reports: the existing
+  workflow tests are the regression check.
+

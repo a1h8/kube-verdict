@@ -95,6 +95,11 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
 # Report
 # ---------------------------------------------------------------------------
 
+# Version of the analyze prompt above. Recorded by the veracity replay so runs made
+# with different prompts are never compared as one (docs/diagnostics.md § Step 2).
+PROMPT_VERSION = "v1"
+
+
 def _generate_rollback(remediation: list[str]) -> list[str]:
     """Generate best-effort inverse commands for each remediation command."""
     rollback: list[str] = []

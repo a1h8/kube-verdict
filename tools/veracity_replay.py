@@ -77,8 +77,9 @@ def _key(case_name: str) -> str:
 # ── solvers ─────────────────────────────────────────────────────────────────────
 
 def _base_record(case_name: str, expect: dict, solver: str, model: str, run: int) -> dict:
+    from rca.analyzer import PROMPT_VERSION
     return {"case": case_name, "tier": tier_of(case_name, expect), "solver": solver,
-            "model": model, "run": run,
+            "model": model, "run": run, "prompt": PROMPT_VERSION,
             "expected_outcome": expect.get("expected_outcome", "cause"),
             "started_at": datetime.now(timezone.utc).isoformat()}
 
@@ -214,8 +215,10 @@ def main(argv: list[str] | None = None) -> int:
     client = None
     if solver == "llm":
         from llm.ollama_client import OllamaClient
-        os.environ.setdefault("OLLAMA_TIMEOUT", "900")
-        client = OllamaClient(model=model or None)
+        # CPU-only Ollama: one analyze call can take minutes (b13 notes). Passed to the
+        # client directly: config.OLLAMA_TIMEOUT was read at import time.
+        timeout = int(os.environ.get("REPLAY_OLLAMA_TIMEOUT", "900"))
+        client = OllamaClient(model=model or None, timeout=timeout)
         if not client.is_available():
             print(f"Ollama not reachable at {client.url} — nothing written.", file=sys.stderr)
             return 2
@@ -230,7 +233,13 @@ def main(argv: list[str] | None = None) -> int:
             path = record_path(out_dir, solver, case_name, run)
             if args.resume and path.exists():
                 continue
-            record = solve_rules(case_name) if solver == "rules" else solve_llm(case_name, client, run)
+            try:
+                record = (solve_rules(case_name) if solver == "rules"
+                          else solve_llm(case_name, client, run))
+            except Exception as exc:  # one failed run must not stop an hours-long replay
+                print(f"{case_name} run {run}: ERROR — {type(exc).__name__}: {exc} "
+                      "(not recorded; --resume retries it)", file=sys.stderr)
+                continue
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
             print(f"{case_name} run {run}: {record['veracity']} — {record['reason']}")
