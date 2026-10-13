@@ -63,8 +63,8 @@ native cases ──► run_case(real model) ──► grade() ──► tests/ve
 
 ## Gate
 
-- [ ] `tools/veracity_replay.py` with `--solver rules|llm:<model>`, `--cases`, `--runs`
-- [ ] First full report on the 18 native cases, committed
+- [x] `tools/veracity_replay.py` with `--solver rules|llm:<model>`, `--cases`, `--runs` (2026-10-13)
+- [ ] First full report on the 18 native cases, committed — `rules`: 4/18 (2026-10-13); `llm`: needs Ollama
 - [ ] Each failure classified as model error or pipeline error
 - [ ] Report re-run after every scenario batch (`scenarios.md`)
 

@@ -1,5 +1,6 @@
 {
   "scenario": "CreateContainerConfigError — missing ConfigMap and Secrets",
+  "query": "api-gateway pod does not start in production",
   "namespace": "production",
   "release": "api-gateway",
   "affected_resources": ["Pod/production/api-gateway-5c7d9b8f4-x2k9p"],

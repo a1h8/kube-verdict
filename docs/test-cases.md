@@ -738,3 +738,20 @@ rendering from fixed records; the query prerequisite (every native case has a
 
 **Out of scope.** Changing the prompt or the model; live capture (`tools/b13_capture.py`
 keeps doing that); the vitrine using replay journeys (`target/vitrine-live.md` item 2).
+
+**Implemented (2026-10-13).** `tools/veracity_replay.py`, `run_case(..., llm=...)` with
+`RecordingLLM` in `tests/integration/workflow_harness.py`, a `query` in every native
+`expect.json`, `tests/unit/test_veracity_replay.py`.
+*Changed while implementing:* the `rules` solver does not check `expected_verdict`
+(no policy gate runs without the workflow). Two queries first leaked a keyword by
+substring (`slow` contains `slo`, `restarts` contains `restart`). The test on queries
+caught it, and both were reworded.
+
+**First result: `rules` solver, 2026-10-13, 4/18.** Tier A 3/12 (h001, h004, h010),
+tier B 0/4, tier C 1/2 (h022). Finding: the generic `helm_drift` rule is the top
+hypothesis on 9 of 18 cases, including h014 and h015, whose cause is not a Helm
+change. Its base weight (0.88) plus its boosts (+0.03 to +0.06 per drift field,
++0.04 when the entity is unhealthy) outrank the specific rules (`oom_kill` on h003).
+The fixtures' small `values.yaml` / `release.json` differences are enough to fire it.
+Not changed here: it is the baseline the LLM is compared to. The `llm` solver needs a
+reachable Ollama, and its first report is the next step.

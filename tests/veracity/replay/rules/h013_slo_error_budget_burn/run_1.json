@@ -1,0 +1,25 @@
+{
+  "answerable": null,
+  "case": "h013_slo_error_budget_burn",
+  "confidence": "LOW",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "pre_llm_confidence_score": null,
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "",
+  "rule_id": null,
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-10-13T04:43:22.398112+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.01
+}

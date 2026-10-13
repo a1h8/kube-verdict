@@ -1,0 +1,23 @@
+{
+  "answerable": null,
+  "case": "h022_no_incident",
+  "confidence": "LOW",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "",
+  "pre_llm_confidence_score": null,
+  "reason": "no_incident: LOW and no cause named",
+  "root_cause": "",
+  "rule_id": null,
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-10-13T04:43:22.537571+00:00",
+  "tier": "C",
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.03
+}

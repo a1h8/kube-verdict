@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""Veracity replay — grade a real model (or the rules alone) on the native cases.
+
+Spec: docs/test-cases.md → *Veracity replay harness*; why: docs/target/veracity.md.
+
+Runs each case through the same offline workflow as the CI tests
+(``workflow_harness.run_case``: real collectors on fixtures, real LangGraph
+workflow), but answered by a real model instead of ``ScriptedLLM``. No cluster
+is touched. Every run is graded with ``tools.veracity.grade`` and recorded as
+``tests/veracity/replay/<solver>/<case>/run_<n>.json``; ``REPORT.md`` is
+rewritten after each run.
+
+Usage::
+
+    python tools/veracity_replay.py --solver rules
+    python tools/veracity_replay.py --solver llm --runs 3 --resume
+    python tools/veracity_replay.py --solver llm:mistral --cases h013,h014
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from tools.veracity import grade  # noqa: E402
+
+CASES_ROOT = ROOT / "tests/integration/cases"
+REPLAY_DIR = ROOT / "tests/veracity/replay"
+GRADING_KEYS = ("root_cause_contains", "root_cause_contains_all",
+                "root_cause_must_not_contain", "expected_outcome", "expected_verdict")
+TIERS = ("A", "B", "C", "M")
+
+
+# ── pure helpers (unit-tested) ──────────────────────────────────────────────────
+
+def tier_of(case_name: str, expect: dict) -> str:
+    """A h001–h012, B h013–h016, C h017–h029, M h030+; ``expect["tier"]`` overrides."""
+    if expect.get("tier"):
+        return expect["tier"]
+    n = int(re.match(r"h(\d+)", case_name).group(1))
+    return "A" if n <= 12 else "B" if n <= 16 else "C" if n <= 29 else "M"
+
+
+def grading_expect(expect: dict) -> dict:
+    return {k: expect[k] for k in GRADING_KEYS if k in expect}
+
+
+def answerable(expect: dict, prompts: list[str]) -> bool | None:
+    """Is the ground truth readable from what the model was given?
+
+    ``None`` for negative cases (nothing to find) or when no prompt was recorded.
+    """
+    if expect.get("expected_outcome", "cause") != "cause" or not prompts:
+        return None
+    truth = {k: expect[k] for k in ("root_cause_contains", "root_cause_contains_all") if k in expect}
+    return grade("\n".join(prompts), truth)["veracity"] == "PASS"
+
+
+def native_cases() -> list[str]:
+    return [d.name for d in sorted(CASES_ROOT.glob("h[0-9]*/"))
+            if any(k in json.loads((d / "expect.json").read_text()) for k in GRADING_KEYS)]
+
+
+def _key(case_name: str) -> str:
+    return case_name.split("_", 1)[0]
+
+
+# ── solvers ─────────────────────────────────────────────────────────────────────
+
+def _base_record(case_name: str, expect: dict, solver: str, model: str, run: int) -> dict:
+    return {"case": case_name, "tier": tier_of(case_name, expect), "solver": solver,
+            "model": model, "run": run,
+            "expected_outcome": expect.get("expected_outcome", "cause"),
+            "started_at": datetime.now(timezone.utc).isoformat()}
+
+
+def solve_rules(case_name: str) -> dict:
+    """Top RemediationEngine hypothesis on the case graph, no LLM, label LOW."""
+    from rca.remediation_engine import RemediationEngine
+    from tests.integration.cases.case_loader import build_graph, load_case
+
+    t0 = time.perf_counter()
+    case = load_case(CASES_ROOT / case_name)
+    expect = case["expect"]
+    hypotheses = RemediationEngine().score(build_graph(case))
+    top = hypotheses[0] if hypotheses else None
+    root_cause = f"{top.symptom}. {top.explanation} ({top.affected})" if top else ""
+    record = _base_record(case_name, expect, "rules", "", 1)
+    # no policy gate runs for the rules solver, so expected_verdict is not checked
+    rules_expect = {k: v for k, v in grading_expect(expect).items() if k != "expected_verdict"}
+    record.update(grade(root_cause, rules_expect, confidence="LOW"))
+    record.update({
+        "wall_s": round(time.perf_counter() - t0, 2), "answerable": None,
+        "confidence": "LOW", "pre_llm_confidence_score": None, "verdict": None,
+        "fallbacks": [], "signals_mode": None, "root_cause": root_cause,
+        "rule_id": top.rule_id if top else None,
+    })
+    return record
+
+
+def solve_llm(case_name: str, client, run: int) -> dict:
+    """The offline workflow on the case fixtures, answered by ``client``."""
+    from tests.integration.workflow_harness import run_case
+
+    t0 = time.perf_counter()
+    result = run_case(_key(case_name), llm=client)
+    expect = result.expect
+    state = result.state
+    report = state.get("report_dict") or {}
+    stats = state.get("ingestion_stats") or {}
+    record = _base_record(case_name, expect, "llm", client.model, run)
+    record.update(grade(report.get("root_cause", ""), grading_expect(expect),
+                        confidence=state.get("confidence") or "",
+                        verdict=state.get("verdict") or ""))
+    record.update({
+        "wall_s": round(time.perf_counter() - t0, 2),
+        "answerable": answerable(expect, result.llm.analyze_prompts),
+        "confidence": state.get("confidence") or "",
+        "pre_llm_confidence_score": (report.get("pre_llm_confidence") or {}).get("score"),
+        "verdict": state.get("verdict"),
+        "fallbacks": sorted(k for k, v in stats.items() if isinstance(v, dict) and v.get("fallback")),
+        "signals_mode": (stats.get("signals") or {}).get("mode"),
+        "root_cause": report.get("root_cause", ""),
+    })
+    return record
+
+
+# ── records and report ──────────────────────────────────────────────────────────
+
+def record_path(out_dir: Path, solver: str, case_name: str, run: int) -> Path:
+    return out_dir / solver / case_name / f"run_{run}.json"
+
+
+def load_records(out_dir: Path) -> list[dict]:
+    return [json.loads(p.read_text()) for p in sorted(out_dir.glob("*/*/run_*.json"))]
+
+
+def _rate(n: int, d: int) -> str:
+    return f"{n}/{d}" if d else "—"
+
+
+def render_report(records: list[dict], header: str = "") -> str:
+    lines = ["# Veracity replay report", ""]
+    if header:
+        lines += [header, ""]
+    lines += ["Generated by `tools/veracity_replay.py` — do not edit. "
+              "Spec: `docs/test-cases.md` → *Veracity replay harness*.", ""]
+    for solver in sorted({r["solver"] for r in records}):
+        rows = [r for r in records if r["solver"] == solver]
+        model = ", ".join(sorted({r["model"] for r in rows if r["model"]})) or "—"
+        lines += [f"## {solver} ({model})", "",
+                  "| Tier / case | Pass | Answerable | Model errors | Overconfident | False alarms | Mean wall s |",
+                  "|---|---|---|---|---|---|---|"]
+        groups: list[tuple[str, list[dict]]] = []
+        for tier in TIERS:
+            tier_rows = [r for r in rows if r["tier"] == tier]
+            if not tier_rows:
+                continue
+            groups.append((f"**Tier {tier}**", tier_rows))
+            for case in sorted({r["case"] for r in tier_rows}):
+                groups.append((case, [r for r in tier_rows if r["case"] == case]))
+        for label, rs in groups:
+            passed = sum(r["veracity"] == "PASS" for r in rs)
+            ans = [r for r in rs if r.get("answerable") is not None]
+            model_err = sum(r["veracity"] == "FAIL" and r.get("answerable") is True for r in rs)
+            over = sum(r["veracity"] == "FAIL" and (r.get("confidence") or "").upper() == "HIGH"
+                       for r in rs)
+            false_alarms = sum(r.get("expected_outcome", "cause") != "cause"
+                               and r["veracity"] == "FAIL" for r in rs)
+            wall = sum(r.get("wall_s") or 0 for r in rs) / len(rs)
+            lines.append(f"| {label} | {_rate(passed, len(rs))} | "
+                         f"{_rate(sum(bool(r['answerable']) for r in ans), len(ans))} | "
+                         f"{model_err} | {over} | {false_alarms} | {wall:.1f} |")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def _header(solver: str) -> str:
+    try:
+        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
+                                capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        commit = "unknown"
+    return f"Last run: {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC, solver `{solver}`, commit `{commit}`."
+
+
+# ── CLI ─────────────────────────────────────────────────────────────────────────
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="Grade a real model or the rules on the native cases")
+    ap.add_argument("--solver", required=True, help="rules | llm | llm:<model>")
+    ap.add_argument("--cases", default="", help="comma-separated keys, e.g. h001,h014 (default: all)")
+    ap.add_argument("--runs", type=int, default=3, help="runs per case for llm (rules: always 1)")
+    ap.add_argument("--resume", action="store_true", help="skip runs already recorded")
+    ap.add_argument("--out", default=str(REPLAY_DIR), help=argparse.SUPPRESS)
+    args = ap.parse_args(argv)
+
+    out_dir = Path(args.out)
+    solver, _, model = args.solver.partition(":")
+    if solver not in ("rules", "llm"):
+        ap.error("--solver must be rules, llm or llm:<model>")
+    wanted = {k.strip() for k in args.cases.split(",") if k.strip()}
+    cases = [c for c in native_cases() if not wanted or _key(c) in wanted]
+
+    client = None
+    if solver == "llm":
+        from llm.ollama_client import OllamaClient
+        os.environ.setdefault("OLLAMA_TIMEOUT", "900")
+        client = OllamaClient(model=model or None)
+        if not client.is_available():
+            print(f"Ollama not reachable at {client.url} — nothing written.", file=sys.stderr)
+            return 2
+        if not client.model_is_pulled():
+            print(f"Model {client.model} not pulled — nothing written.", file=sys.stderr)
+            return 2
+
+    os.environ["EXAMPLE_LOOKUP_DISABLED"] = "1"   # never read data/examples/ during a replay
+    runs = 1 if solver == "rules" else args.runs
+    for case_name in cases:
+        for run in range(1, runs + 1):
+            path = record_path(out_dir, solver, case_name, run)
+            if args.resume and path.exists():
+                continue
+            record = solve_rules(case_name) if solver == "rules" else solve_llm(case_name, client, run)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+            print(f"{case_name} run {run}: {record['veracity']} — {record['reason']}")
+            (out_dir / "REPORT.md").write_text(render_report(load_records(out_dir), _header(args.solver)))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

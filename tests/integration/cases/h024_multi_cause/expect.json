@@ -1,5 +1,6 @@
 {
   "scenario": "Two independent faults at once — worker missing its Secret, api OOMKilled by a memory limit drift",
+  "query": "why are api and worker down in production",
   "namespace": "production",
   "release": "api",
   "affected_resources": ["Pod/production/worker-58c9d7b6f-h4m8n", "Deployment/production/api"],

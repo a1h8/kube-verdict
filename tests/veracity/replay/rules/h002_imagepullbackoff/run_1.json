@@ -1,0 +1,29 @@
+{
+  "answerable": null,
+  "case": "h002_imagepullbackoff",
+  "confidence": "LOW",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "drift"
+    ]
+  ],
+  "matched_keywords": [
+    "drift"
+  ],
+  "model": "",
+  "pre_llm_confidence_score": null,
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "Helm drift \u2014 cluster state diverged from chart declaration. A resource was manually changed after Helm deployment. Run helm upgrade to restore the declared state. (HelmRelease/production/ml-inference)",
+  "rule_id": "helm_drift",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-10-13T04:43:22.217145+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.02
+}

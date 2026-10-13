@@ -1,5 +1,6 @@
 {
   "scenario": "StatefulSet rolling update stuck — PVC bound to old pod prevents rescheduling",
+  "query": "kafka-2 never comes back after the rolling update in the data namespace",
   "namespace": "data",
   "release": "kafka",
   "affected_resources": ["Pod/data/kafka-2"],

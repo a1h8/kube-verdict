@@ -363,6 +363,31 @@ class ScriptedLLM:
         return self._low
 
 
+class RecordingLLM:
+    """Wraps a real LLM for the veracity replay: same answers, analyze prompts kept.
+
+    Spec: docs/test-cases.md → *Veracity replay harness*. Keeping the prompts is
+    what lets the replay tell "the evidence was not there" from "the model was
+    wrong" (``answerable``).
+    """
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+        self.model = getattr(inner, "model", "unknown")
+        self.analyze_prompts: list[str] = []
+
+    def is_available(self) -> bool:
+        return self._inner.is_available()
+
+    def model_is_pulled(self) -> bool:
+        return self._inner.model_is_pulled()
+
+    def generate(self, prompt: str, system: str | None = None, **kwargs: Any) -> str:
+        if not prompt.startswith(_HYPOTHESIZE_PROMPT_PREFIX):
+            self.analyze_prompts.append(prompt)
+        return self._inner.generate(prompt, system=system, **kwargs)
+
+
 class StubStore:
     """No FAISS / embedding: retrieval returns nothing, the graph carries the evidence."""
 
@@ -380,7 +405,7 @@ class CaseRun:
     state: dict[str, Any]
     status: str                      # "AWAITING_REVIEW" | "COMPLETED"
     review_payload: dict | None
-    llm: ScriptedLLM
+    llm: ScriptedLLM | RecordingLLM
     expect: dict = field(default_factory=dict)
     graph: OntologyGraph | None = None   # after the collector nodes ran
 
@@ -389,18 +414,34 @@ CUTTABLE = ("prometheus", "loki", "otel")
 _UNREACHABLE = requests.ConnectionError("connection refused (fixture-replay: backend cut)")
 
 
-def run_case(key: str, cut: str | None = None) -> CaseRun:
-    """Run one scripted case (``h013`` … ``h016``, ``h022``, ``h024``) through the workflow.
+def case_dir_for(key: str) -> Path:
+    """``h014`` → ``tests/integration/cases/h014_cert_expiry``."""
+    matches = sorted(CASES_ROOT.glob(f"{key}_*/"))
+    if len(matches) != 1:
+        raise KeyError(f"{key}: expected one case directory, found {len(matches)}")
+    return matches[0]
 
+
+def run_case(key: str, cut: str | None = None, llm: Any = None) -> CaseRun:
+    """Run one case through the workflow.
+
+    Without ``llm``: a scripted case (``h013`` … ``h016``, ``h022``, ``h024``),
+    answered by ``ScriptedLLM``. With ``llm``: any native case, answered by that
+    model (wrapped in ``RecordingLLM``), with ``expect.json["query"]`` as the query.
     ``cut`` — one of CUTTABLE — makes that collector's backend unreachable.
     """
     if cut is not None and cut not in CUTTABLE:
         raise ValueError(f"cut must be one of {CUTTABLE}, got {cut!r}")
-    script = {**CASE_SCRIPTS, **MULTI_SIGNAL_SCRIPTS, **TIER_C_SCRIPTS}[key]
-    case = load_case(script.case_dir)
+    if llm is None:
+        script = {**CASE_SCRIPTS, **MULTI_SIGNAL_SCRIPTS, **TIER_C_SCRIPTS}[key]
+        case = load_case(script.case_dir)
+        query = script.query
+    else:
+        case = load_case(case_dir_for(key))
+        query = case["expect"]["query"]
     namespace = case["expect"].get("namespace", "default")
     graph = build_case_graph(case, wire_signals=False)
-    llm = ScriptedLLM(script, namespace)
+    llm = ScriptedLLM(script, namespace) if llm is None else RecordingLLM(llm)
 
     alerts = case.get("prometheus_alerts", [])
     loki_query = fixture_loki_query(case.get("loki_streams", []))
@@ -449,7 +490,7 @@ def run_case(key: str, cut: str | None = None) -> CaseRun:
             "thread_id": f"fixture-replay-{key}" + (f"-cut-{cut}" if cut else ""),
             "graph": graph, "store": StubStore(), "llm": llm,
         }}
-        workflow.invoke({"query": script.query, "namespaces": [namespace]}, config)
+        workflow.invoke({"query": query, "namespaces": [namespace]}, config)
         snapshot = workflow.get_state(config)
 
     review_payload = None

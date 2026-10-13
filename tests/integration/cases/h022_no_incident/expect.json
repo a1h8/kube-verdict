@@ -1,5 +1,6 @@
 {
   "scenario": "No incident — every ledger pod Ready, one resolved restart 3 h ago",
+  "query": "is something wrong with ledger in production",
   "namespace": "production",
   "release": "ledger",
   "affected_resources": [],
