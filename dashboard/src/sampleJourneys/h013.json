@@ -24,7 +24,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
         "kube_version": "unknown",
-        "timestamp": "2026-10-12T05:47:03.845624+00:00",
+        "timestamp": "2026-10-13T04:25:27.680110+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)"
@@ -36,7 +36,15 @@
         ],
         "remediation": [],
         "diagnostics": [
-          "kubectl get events -n production"
+          {
+            "command": "kubectl get events -n production",
+            "source": "llm",
+            "hypothesis": "",
+            "affected": "",
+            "purpose": "",
+            "confirms_if": "",
+            "refutes_if": ""
+          }
         ],
         "rollback": [],
         "confidence": "LOW — the context does not support this hypothesis.",
@@ -139,7 +147,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-12T05:47:03.839159+00:00"
+      "ts": "2026-10-13T04:25:27.673509+00:00"
     },
     {
       "router": "confidence",
@@ -158,7 +166,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-12T05:47:03.846732+00:00"
+      "ts": "2026-10-13T04:25:27.681407+00:00"
     },
     {
       "router": "confidence",
@@ -176,7 +184,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-12T05:47:03.853638+00:00"
+      "ts": "2026-10-13T04:25:27.697255+00:00"
     },
     {
       "router": "policy",
@@ -191,7 +199,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-12T05:47:03.857543+00:00"
+      "ts": "2026-10-13T04:25:27.705178+00:00"
     },
     {
       "router": "human",
@@ -203,7 +211,7 @@
         "remediation_count": 1,
         "dry_run_failures": 0
       },
-      "ts": "2026-10-12T05:47:03.859735+00:00"
+      "ts": "2026-10-13T04:25:27.707236+00:00"
     }
   ],
   "ingestion_stats": {
@@ -246,7 +254,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\nDependency latency to payments-gateway burns the checkout-api SLO error budget\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
     "kube_version": "unknown",
-    "timestamp": "2026-10-12T05:47:03.852288+00:00",
+    "timestamp": "2026-10-13T04:25:27.694374+00:00",
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
     "affected": [
       "Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing"
@@ -418,7 +426,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
           "kube_version": "unknown",
-          "timestamp": "2026-10-12T05:47:03.845624+00:00",
+          "timestamp": "2026-10-13T04:25:27.680110+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)"
@@ -430,7 +438,15 @@
           ],
           "remediation": [],
           "diagnostics": [
-            "kubectl get events -n production"
+            {
+              "command": "kubectl get events -n production",
+              "source": "llm",
+              "hypothesis": "",
+              "affected": "",
+              "purpose": "",
+              "confirms_if": "",
+              "refutes_if": ""
+            }
           ],
           "rollback": [],
           "confidence": "LOW — the context does not support this hypothesis.",
@@ -555,7 +571,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-12T05:47:03.839159+00:00"
+        "ts": "2026-10-13T04:25:27.673509+00:00"
       },
       {
         "router": "confidence",
@@ -574,7 +590,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-12T05:47:03.846732+00:00"
+        "ts": "2026-10-13T04:25:27.681407+00:00"
       },
       {
         "router": "confidence",
@@ -592,7 +608,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-12T05:47:03.853638+00:00"
+        "ts": "2026-10-13T04:25:27.697255+00:00"
       },
       {
         "router": "policy",
@@ -607,7 +623,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-12T05:47:03.857543+00:00"
+        "ts": "2026-10-13T04:25:27.705178+00:00"
       },
       {
         "router": "human",
@@ -619,7 +635,7 @@
           "remediation_count": 1,
           "dry_run_failures": 0
         },
-        "ts": "2026-10-12T05:47:03.859735+00:00"
+        "ts": "2026-10-13T04:25:27.707236+00:00"
       }
     ],
     "hypothesis_sources": []

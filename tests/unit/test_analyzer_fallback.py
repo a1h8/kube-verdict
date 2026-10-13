@@ -109,7 +109,7 @@ class TestFallbackPopulatesEmptyFields:
     def test_rule_commands_appended_read_only_ones_as_diagnostics(self):
         # oom_kill only proposes checks (describe / top): diagnostics, never remediation
         r = _apply_rule_fallback(_report(), _oom_graph())
-        assert any("kubectl" in c for c in r.diagnostics)
+        assert any("kubectl" in d.command for d in r.diagnostics)
         assert not any(is_read_only(c) for c in r.remediation)
 
 
@@ -163,10 +163,11 @@ class TestFallbackPreservesExistingFields:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestFallbackMultipleHypotheses:
-    def test_hypothesis_headers_present(self):
+    def test_hypotheses_present(self):
         r = _apply_rule_fallback(_report(), _oom_graph())
-        headers = [c for c in r.remediation + r.diagnostics if c.startswith("[rule:")]
-        assert len(headers) >= 1
+        assert "oom_kill" in {d.hypothesis for d in r.diagnostics}
+        # a header is an action group label: only in remediation, never in diagnostics
+        assert not any(d.command.startswith("[rule:") for d in r.diagnostics)
 
     def test_top_hypothesis_drives_summary(self):
         r = _apply_rule_fallback(_report(), _oom_graph())
@@ -258,28 +259,31 @@ class TestConfidenceFormat:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestRemediationStructure:
-    def test_headers_precede_their_commands(self):
+    def test_rule_diagnostics_are_structured(self):
         r = _apply_rule_fallback(_report(), _oom_graph())
-        header_idx = next(
-            (i for i, c in enumerate(r.diagnostics) if c.startswith("[rule:")), None
-        )
-        assert header_idx is not None
-        # at least one kubectl command after the first header
-        after = r.diagnostics[header_idx + 1:]
-        assert any("kubectl" in c for c in after)
+        assert r.diagnostics
+        for d in r.diagnostics:
+            assert d.source == "rule"
+            assert d.hypothesis and d.affected
+            assert d.purpose and d.confirms_if
+            assert d.command.startswith("kubectl")
 
     def test_no_duplicate_commands(self):
         r = _apply_rule_fallback(_report(), _oom_graph())
         assert len(r.remediation) == len(set(r.remediation))
 
-    def test_highest_weight_header_first(self):
-        r = _apply_rule_fallback(_report(), _oom_graph())
-        headers = [c for c in r.diagnostics if c.startswith("[rule:")]
-        assert len(headers) >= 1
-        # extract weights
-        import re
-        weights = [float(re.search(r"w=(\d+\.\d+)", h).group(1)) for h in headers]
+    def test_diagnostics_follow_hypothesis_weight(self):
+        from rca.remediation_engine import RemediationEngine
+        graph = _demo_graph()
+        weight = {(h.rule_id, h.affected): h.weight for h in RemediationEngine().score(graph)}
+        r = _apply_rule_fallback(_report(), graph)
+        weights = [weight[(d.hypothesis, d.affected)] for d in r.diagnostics]
         assert weights == sorted(weights, reverse=True)
+
+    def test_diagnostics_deduplicated_per_resource(self):
+        r = _apply_rule_fallback(_report(), _demo_graph())
+        keys = [(d.command, d.affected) for d in r.diagnostics]
+        assert len(keys) == len(set(keys))
 
     def test_existing_commands_at_start(self):
         pre_cmd = "kubectl get pods -n prod"
@@ -338,14 +342,20 @@ def _demo_graph() -> OntologyGraph:
     return g
 
 
+def _mentions(r, rule_id: str) -> bool:
+    """The rule shows up as an action group, a diagnostic hypothesis or the confidence."""
+    return (any(rule_id in c for c in r.remediation + [r.confidence])
+            or rule_id in {d.hypothesis for d in r.diagnostics})
+
+
 class TestDemoScenarios:
     def test_crashloop_db_scenario(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        assert any("crashloop_db" in c for c in r.remediation + r.diagnostics + [r.confidence])
+        assert _mentions(r, "crashloop_db")
 
     def test_oom_scenario(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        assert any("oom_kill" in c for c in r.remediation + r.diagnostics + [r.confidence])
+        assert _mentions(r, "oom_kill")
 
     def test_missing_config_scenario(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
@@ -353,11 +363,11 @@ class TestDemoScenarios:
 
     def test_image_pull_scenario(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        assert any("image_pull" in c for c in r.remediation)
+        assert _mentions(r, "image_pull_backoff")
 
     def test_pending_unschedulable_scenario(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        assert any("pending_unschedulable" in c for c in r.diagnostics)
+        assert _mentions(r, "pending_unschedulable")
 
     def test_all_five_pods_in_affected(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
@@ -380,16 +390,16 @@ class TestDemoScenarios:
 
     def test_remediation_commands_are_executable(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        kubectl_cmds = [c for c in r.remediation + r.diagnostics if c.startswith("kubectl")]
+        kubectl_cmds = [c for c in r.remediation + [d.command for d in r.diagnostics]
+                        if c.startswith("kubectl")]
         assert len(kubectl_cmds) >= 5  # at least one per scenario
 
     def test_actions_and_checks_are_split(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        assert "kubectl get services -n demo" in r.diagnostics
+        assert "kubectl get services -n demo" in {d.command for d in r.diagnostics}
         assert "kubectl create secret generic <name> --from-literal=KEY=VALUE -n demo" in r.remediation
         assert not any(is_read_only(c) for c in r.remediation)
-        assert all(is_read_only(c) for c in r.diagnostics
-                   if not c.startswith(("[rule:", "#")))
+        assert all(is_read_only(d.command) for d in r.diagnostics)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

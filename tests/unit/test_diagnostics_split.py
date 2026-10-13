@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from rca.analyzer import RCAReport, is_read_only, split_diagnostics
+from rca.analyzer import RCAReport
+from rca.diagnostics import Diagnostic, is_read_only, split_diagnostics
 from rca.context_builder import ContextWindow
 
 
@@ -27,6 +28,8 @@ from rca.context_builder import ContextWindow
     "helm template api ./chart",
     "helm diff upgrade api ./chart -n prod",
     "helm lint ./chart",
+    "kubectl rollout status deployment/api -n prod",
+    "kubectl rollout history deployment/api -n prod",
     "$ kubectl get pods",
     "kubectl describe nodes | grep -A5 Taints",
     "kubectl get pods -o json | jq '.items[].metadata.name' | sort | head",
@@ -45,6 +48,7 @@ def test_read_only(cmd):
     "kubectl patch deployment api -p '{}'",
     "kubectl scale deployment api --replicas=3",
     "kubectl auth reconcile -f rbac.yaml",
+    "kubectl rollout undo deployment/api -n prod",
     "helm upgrade api ./chart -n prod",
     "helm rollback api -n prod",
     "helm uninstall api -n prod",
@@ -102,7 +106,7 @@ def _report(remediation: str) -> RCAReport:
 def test_parser_moves_diagnostics_out_of_remediation():
     r = _report("- kubectl get events -n prod\n- helm upgrade api ./chart -n prod")
     assert r.remediation == ["helm upgrade api ./chart -n prod"]
-    assert r.diagnostics == ["kubectl get events -n prod"]
+    assert r.diagnostics == [Diagnostic(command="kubectl get events -n prod", source="llm")]
     assert r.rollback == ["helm rollback api -n prod"]
 
 
@@ -110,10 +114,15 @@ def test_only_diagnostics_leaves_remediation_empty():
     r = _report("kubectl get events -n prod --field-selector involvedObject.name=api-0")
     assert r.remediation == []
     assert r.rollback == []
-    assert r.diagnostics == ["kubectl get events -n prod --field-selector involvedObject.name=api-0"]
+    assert [d.command for d in r.diagnostics] == [
+        "kubectl get events -n prod --field-selector involvedObject.name=api-0"]
 
 
 def test_to_dict_exposes_diagnostics():
     d = _report("- kubectl get events -n prod").to_dict()
-    assert d["diagnostics"] == ["kubectl get events -n prod"]
+    assert d["diagnostics"] == [{
+        "command": "kubectl get events -n prod", "source": "llm", "hypothesis": "",
+        "affected": "", "purpose": "", "confirms_if": "", "refutes_if": "",
+    }]
     assert d["remediation"] == []
+
