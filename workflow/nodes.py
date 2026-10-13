@@ -1440,6 +1440,7 @@ def log_policy_decision_node(state: RCAState) -> dict:
         namespace=namespace,
         mc_win_rate=mc_win_rate,
         max_switches_reached=max_hit,
+        command_count=br.get("command_count"),
     )
     verdict = result.verdict.value  # "AUTO" | "HUMAN_REVIEW" | "NO_GO"
     edge    = result.edge           # "auto" | "human_review" | "no_go"

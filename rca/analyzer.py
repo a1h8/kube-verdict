@@ -94,6 +94,53 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
 # Report
 # ---------------------------------------------------------------------------
 
+_READ_ONLY_VERBS = {
+    "kubectl": {"get", "describe", "logs", "top", "explain", "events",
+                "api-resources", "version", "diff"},
+    "helm": {"status", "get", "history", "list", "ls", "show", "template", "diff", "lint"},
+}
+_TEXT_FILTERS = {"grep", "head", "tail", "jq", "yq", "awk", "sort", "wc"}
+_CHAINING = re.compile(r";|&&|\|\||>")
+
+
+def is_read_only(cmd: str) -> bool:
+    """True when the line only reads the cluster: a diagnostic, not a remediation.
+
+    Unknown commands and prose are not read-only, so the policy gate keeps
+    treating them as actions (docs/test-cases.md § h022).
+    """
+    line = cmd.strip().lstrip("$ ").strip()
+    if not line or _CHAINING.search(line):
+        return False
+    first, *filters = [seg.split() for seg in line.split("|")]
+    if any(not seg or seg[0] not in _TEXT_FILTERS for seg in filters):
+        return False
+    if len(first) < 2 or first[0] not in _READ_ONLY_VERBS:
+        return False
+    if first[0] == "kubectl" and first[1:3] == ["auth", "can-i"]:
+        return True
+    return first[1] in _READ_ONLY_VERBS[first[0]]
+
+
+def split_diagnostics(lines: list[str]) -> tuple[list[str], list[str]]:
+    """Split remediation lines into (actions, read-only diagnostics), order kept.
+
+    A ``#`` comment goes with the command that follows it; trailing comments
+    with no command after them stay with the actions.
+    """
+    actions: list[str] = []
+    checks: list[str] = []
+    pending: list[str] = []
+    for line in lines:
+        if line.strip().startswith("#"):
+            pending.append(line)
+            continue
+        (checks if is_read_only(line) else actions).extend([*pending, line])
+        pending = []
+    actions.extend(pending)
+    return actions, checks
+
+
 def _generate_rollback(remediation: list[str]) -> list[str]:
     """Generate best-effort inverse commands for each remediation command."""
     rollback: list[str] = []
@@ -137,6 +184,7 @@ class RCAReport:
     root_cause: str = ""
     causal_chain: list[str] = field(default_factory=list)
     remediation: list[str] = field(default_factory=list)
+    diagnostics: list[str] = field(default_factory=list)   # read-only checks, never gated
     confidence: str = ""
     rollback: list[str] = field(default_factory=list)
 
@@ -172,6 +220,7 @@ class RCAReport:
             "root_cause": self.root_cause,
             "causal_chain": self.causal_chain,
             "remediation": self.remediation,
+            "diagnostics": self.diagnostics,
             "rollback": self.rollback,
             "confidence": self.confidence,
             "context_stats": {
@@ -338,7 +387,7 @@ def _parse_analysis(report: RCAReport) -> None:
     report.causal_chain = _extract_bullets(chain_block)
 
     remed_block = _extract_section(text, "5. Remediation", "6. Confidence")
-    report.remediation = _extract_bullets(remed_block)
+    report.remediation, report.diagnostics = split_diagnostics(_extract_bullets(remed_block))
 
 
 def _extract_section(text: str, start_marker: str, end_marker: str | None) -> str:
@@ -414,25 +463,30 @@ def _apply_rule_fallback(report: RCAReport, graph: OntologyGraph) -> RCAReport:
             report.affected.append(h.affected)
             existing_affected.add(h.affected)
 
-    # ── Remediation: one header + commands per hypothesis ────────────────────
-    existing_cmds: set[str] = set(report.remediation)
-    extra: list[str] = []
+    # ── Remediation / diagnostics: one header + commands per hypothesis ──────
+    # The header goes with its commands: into remediation if the hypothesis has
+    # an action, into diagnostics if it has a read-only check (or both).
+    extra = {"remediation": [], "diagnostics": []}
+    seen = {key: set(getattr(report, key)) for key in extra}
 
     for h in hypotheses:
         header = f"[rule:{h.rule_id} w={h.weight:.2f}] {h.symptom} ({h.affected})"
-        if header not in existing_cmds:
-            extra.append(header)
-            existing_cmds.add(header)
-        for cmd in h.commands:
-            if cmd not in existing_cmds:
-                extra.append(cmd)
-                existing_cmds.add(cmd)
+        actions, checks = split_diagnostics(list(h.commands))
+        for key, cmds in (("remediation", actions), ("diagnostics", checks)):
+            if not cmds:
+                continue
+            for line in (header, *cmds):
+                if line not in seen[key]:
+                    extra[key].append(line)
+                    seen[key].add(line)
 
-    if extra:
-        report.remediation = report.remediation + extra
+    for key, lines in extra.items():
+        if lines:
+            setattr(report, key, getattr(report, key) + lines)
+    if extra["remediation"] or extra["diagnostics"]:
         log.info(
-            "rule fallback: added %d item(s) from %d hypothesis(es)",
-            len(extra), len(hypotheses),
+            "rule fallback: added %d action(s) and %d diagnostic(s) from %d hypothesis(es)",
+            len(extra["remediation"]), len(extra["diagnostics"]), len(hypotheses),
         )
 
     report.confidence = (

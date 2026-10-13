@@ -24,7 +24,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
         "kube_version": "unknown",
-        "timestamp": "2026-10-09T03:05:44.642497+00:00",
+        "timestamp": "2026-10-12T05:47:03.845624+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)"
@@ -34,7 +34,8 @@
           "No corroborating signal found.",
           "Hypothesis not confirmed."
         ],
-        "remediation": [
+        "remediation": [],
+        "diagnostics": [
           "kubectl get events -n production"
         ],
         "rollback": [],
@@ -91,27 +92,25 @@
         },
         "blast_radius": {
           "risk": "LOW",
-          "summary": "1 resource(s) — ns: production",
-          "resources": [
-            "(none confirmed)"
-          ],
-          "namespaces": [
-            "production"
-          ],
+          "summary": "No remediation commands.",
+          "resources": [],
+          "namespaces": [],
           "cluster_scoped": false,
-          "command_count": 1,
-          "rollback_available": false,
+          "command_count": 0,
+          "rollback_available": true,
           "method": "command-heuristic"
         },
         "decision": {
-          "verdict": "NO_GO",
+          "verdict": "HUMAN_REVIEW",
           "reasons": [
-            "rollback_available=False — no safe recovery path"
+            "score 0.71 < 0.85 AUTO threshold",
+            "namespace unknown — treated as production, HUMAN_REVIEW minimum",
+            "no remediation command to apply — never AUTO"
           ],
           "score": 0.71,
           "risk": "LOW",
-          "rollback_available": false,
-          "namespace": "production",
+          "rollback_available": true,
+          "namespace": "",
           "mc_win_rate": 1.0
         },
         "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n"
@@ -140,7 +139,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-09T03:05:44.636629+00:00"
+      "ts": "2026-10-12T05:47:03.839159+00:00"
     },
     {
       "router": "confidence",
@@ -159,7 +158,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-09T03:05:44.643502+00:00"
+      "ts": "2026-10-12T05:47:03.846732+00:00"
     },
     {
       "router": "confidence",
@@ -177,7 +176,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-09T03:05:44.650063+00:00"
+      "ts": "2026-10-12T05:47:03.853638+00:00"
     },
     {
       "router": "policy",
@@ -192,7 +191,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-09T03:05:44.654147+00:00"
+      "ts": "2026-10-12T05:47:03.857543+00:00"
     },
     {
       "router": "human",
@@ -204,7 +203,7 @@
         "remediation_count": 1,
         "dry_run_failures": 0
       },
-      "ts": "2026-10-09T03:05:44.656628+00:00"
+      "ts": "2026-10-12T05:47:03.859735+00:00"
     }
   ],
   "ingestion_stats": {
@@ -247,7 +246,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\nDependency latency to payments-gateway burns the checkout-api SLO error budget\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
     "kube_version": "unknown",
-    "timestamp": "2026-10-09T03:05:44.649186+00:00",
+    "timestamp": "2026-10-12T05:47:03.852288+00:00",
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
     "affected": [
       "Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing"
@@ -261,6 +260,7 @@
     "remediation": [
       "kubectl rollout restart deployment/checkout-api -n production"
     ],
+    "diagnostics": [],
     "rollback": [
       "kubectl rollout undo deployment/checkout-api -n production"
     ],
@@ -418,7 +418,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
           "kube_version": "unknown",
-          "timestamp": "2026-10-09T03:05:44.642497+00:00",
+          "timestamp": "2026-10-12T05:47:03.845624+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)"
@@ -428,7 +428,8 @@
             "No corroborating signal found.",
             "Hypothesis not confirmed."
           ],
-          "remediation": [
+          "remediation": [],
+          "diagnostics": [
             "kubectl get events -n production"
           ],
           "rollback": [],
@@ -485,27 +486,25 @@
           },
           "blast_radius": {
             "risk": "LOW",
-            "summary": "1 resource(s) — ns: production",
-            "resources": [
-              "(none confirmed)"
-            ],
-            "namespaces": [
-              "production"
-            ],
+            "summary": "No remediation commands.",
+            "resources": [],
+            "namespaces": [],
             "cluster_scoped": false,
-            "command_count": 1,
-            "rollback_available": false,
+            "command_count": 0,
+            "rollback_available": true,
             "method": "command-heuristic"
           },
           "decision": {
-            "verdict": "NO_GO",
+            "verdict": "HUMAN_REVIEW",
             "reasons": [
-              "rollback_available=False — no safe recovery path"
+              "score 0.71 < 0.85 AUTO threshold",
+              "namespace unknown — treated as production, HUMAN_REVIEW minimum",
+              "no remediation command to apply — never AUTO"
             ],
             "score": 0.71,
             "risk": "LOW",
-            "rollback_available": false,
-            "namespace": "production",
+            "rollback_available": true,
+            "namespace": "",
             "mc_win_rate": 1.0
           },
           "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n"
@@ -556,7 +555,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-09T03:05:44.636629+00:00"
+        "ts": "2026-10-12T05:47:03.839159+00:00"
       },
       {
         "router": "confidence",
@@ -575,7 +574,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-09T03:05:44.643502+00:00"
+        "ts": "2026-10-12T05:47:03.846732+00:00"
       },
       {
         "router": "confidence",
@@ -593,7 +592,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-09T03:05:44.650063+00:00"
+        "ts": "2026-10-12T05:47:03.853638+00:00"
       },
       {
         "router": "policy",
@@ -608,7 +607,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-09T03:05:44.654147+00:00"
+        "ts": "2026-10-12T05:47:03.857543+00:00"
       },
       {
         "router": "human",
@@ -620,7 +619,7 @@
           "remediation_count": 1,
           "dry_run_failures": 0
         },
-        "ts": "2026-10-09T03:05:44.656628+00:00"
+        "ts": "2026-10-12T05:47:03.859735+00:00"
       }
     ],
     "hypothesis_sources": []

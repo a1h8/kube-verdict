@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from ontology.entities import K8sEvent, Pod, ResourceKind
 from ontology.graph import OntologyGraph
-from rca.analyzer import RCAReport, _apply_rule_fallback
+from rca.analyzer import RCAReport, _apply_rule_fallback, is_read_only
 from rca.context_builder import ContextWindow
 
 
@@ -106,10 +106,11 @@ class TestFallbackPopulatesEmptyFields:
         assert "rule-assisted" in r.confidence
         assert "oom_kill" in r.confidence
 
-    def test_remediation_commands_appended(self):
+    def test_rule_commands_appended_read_only_ones_as_diagnostics(self):
+        # oom_kill only proposes checks (describe / top): diagnostics, never remediation
         r = _apply_rule_fallback(_report(), _oom_graph())
-        assert len(r.remediation) > 0
-        assert any("kubectl" in c for c in r.remediation)
+        assert any("kubectl" in c for c in r.diagnostics)
+        assert not any(is_read_only(c) for c in r.remediation)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -162,9 +163,9 @@ class TestFallbackPreservesExistingFields:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestFallbackMultipleHypotheses:
-    def test_hypothesis_headers_in_remediation(self):
+    def test_hypothesis_headers_present(self):
         r = _apply_rule_fallback(_report(), _oom_graph())
-        headers = [c for c in r.remediation if c.startswith("[rule:")]
+        headers = [c for c in r.remediation + r.diagnostics if c.startswith("[rule:")]
         assert len(headers) >= 1
 
     def test_top_hypothesis_drives_summary(self):
@@ -260,11 +261,11 @@ class TestRemediationStructure:
     def test_headers_precede_their_commands(self):
         r = _apply_rule_fallback(_report(), _oom_graph())
         header_idx = next(
-            (i for i, c in enumerate(r.remediation) if c.startswith("[rule:")), None
+            (i for i, c in enumerate(r.diagnostics) if c.startswith("[rule:")), None
         )
         assert header_idx is not None
         # at least one kubectl command after the first header
-        after = r.remediation[header_idx + 1:]
+        after = r.diagnostics[header_idx + 1:]
         assert any("kubectl" in c for c in after)
 
     def test_no_duplicate_commands(self):
@@ -273,7 +274,7 @@ class TestRemediationStructure:
 
     def test_highest_weight_header_first(self):
         r = _apply_rule_fallback(_report(), _oom_graph())
-        headers = [c for c in r.remediation if c.startswith("[rule:")]
+        headers = [c for c in r.diagnostics if c.startswith("[rule:")]
         assert len(headers) >= 1
         # extract weights
         import re
@@ -340,11 +341,11 @@ def _demo_graph() -> OntologyGraph:
 class TestDemoScenarios:
     def test_crashloop_db_scenario(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        assert any("crashloop_db" in c for c in r.remediation + [r.confidence])
+        assert any("crashloop_db" in c for c in r.remediation + r.diagnostics + [r.confidence])
 
     def test_oom_scenario(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        assert any("oom_kill" in c for c in r.remediation + [r.confidence])
+        assert any("oom_kill" in c for c in r.remediation + r.diagnostics + [r.confidence])
 
     def test_missing_config_scenario(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
@@ -356,7 +357,7 @@ class TestDemoScenarios:
 
     def test_pending_unschedulable_scenario(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        assert any("pending_unschedulable" in c for c in r.remediation)
+        assert any("pending_unschedulable" in c for c in r.diagnostics)
 
     def test_all_five_pods_in_affected(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
@@ -379,8 +380,16 @@ class TestDemoScenarios:
 
     def test_remediation_commands_are_executable(self):
         r = _apply_rule_fallback(_report(), _demo_graph())
-        kubectl_cmds = [c for c in r.remediation if c.startswith("kubectl")]
+        kubectl_cmds = [c for c in r.remediation + r.diagnostics if c.startswith("kubectl")]
         assert len(kubectl_cmds) >= 5  # at least one per scenario
+
+    def test_actions_and_checks_are_split(self):
+        r = _apply_rule_fallback(_report(), _demo_graph())
+        assert "kubectl get services -n demo" in r.diagnostics
+        assert "kubectl create secret generic <name> --from-literal=KEY=VALUE -n demo" in r.remediation
+        assert not any(is_read_only(c) for c in r.remediation)
+        assert all(is_read_only(c) for c in r.diagnostics
+                   if not c.startswith(("[rule:", "#")))
 
 
 # ─────────────────────────────────────────────────────────────────────────────

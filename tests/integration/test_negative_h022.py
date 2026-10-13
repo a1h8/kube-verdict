@@ -42,9 +42,12 @@ def test_answer_is_low_and_names_no_cause(run):
     assert result["veracity"] == "PASS", result["reason"]
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "found 2026-10-12: a read-only remediation (kubectl get events) yields "
-    "rollback_available=False in remediation/blast_radius.py, so the gate says NO_GO; "
-    "changing it is an open decision (docs/test-cases.md § h022)"))
 def test_verdict_is_human_review(run):
+    """Read-only checks go to diagnostics, so there is no action left to block."""
+    report = run.state["report_dict"]
+    assert report["remediation"] == []
+    assert report["diagnostics"]
     assert run.state["verdict"] == "HUMAN_REVIEW", run.state.get("verdict_reasons")
+    result = grade(report["root_cause"], run.expect, confidence=run.state["confidence"],
+                   verdict=run.state["verdict"])
+    assert result["veracity"] == "PASS", result["reason"]
