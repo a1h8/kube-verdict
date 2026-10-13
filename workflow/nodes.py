@@ -1147,6 +1147,7 @@ def human_review_node(state: RCAState, config: RunnableConfig) -> dict:
         "summary":            report_dict.get("summary", ""),
         "root_cause":         root_cause,
         "remediation":        remediation,
+        "diagnostics":        report_dict.get("diagnostics") or [],   # read-only, not approved
         "confidence":         confidence,
         "kube_version":       state.get("kube_version", ""),
         "current_hypothesis": state.get("current_hypothesis") or "",

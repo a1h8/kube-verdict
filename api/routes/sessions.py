@@ -106,6 +106,7 @@ def _build_incident_report(report: dict) -> IncidentReport | None:
         evidence    = evidence,
         remediation = report.get("remediation", []),
         rollback    = report.get("rollback", []),
+        diagnostics = report.get("diagnostics", []),
     )
 
 

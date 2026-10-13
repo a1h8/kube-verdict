@@ -197,3 +197,11 @@ def test_answer_without_section_7_parses_as_before():
     r = _report("- kubectl get events -n prod")
     assert r.confidence == "LOW"
     assert [d.command for d in r.diagnostics] == ["kubectl get events -n prod"]
+
+
+def test_api_incident_report_exposes_diagnostics():
+    from api.routes.sessions import _build_incident_report
+    report = _report("- kubectl get events -n prod\n- helm upgrade api ./chart -n prod").to_dict()
+    incident = _build_incident_report(report)
+    assert incident.remediation == ["helm upgrade api ./chart -n prod"]
+    assert [d["command"] for d in incident.diagnostics] == ["kubectl get events -n prod"]

@@ -51,3 +51,12 @@ def test_verdict_is_human_review(run):
     result = grade(report["root_cause"], run.expect, confidence=run.state["confidence"],
                    verdict=run.state["verdict"])
     assert result["veracity"] == "PASS", result["reason"]
+
+
+def test_gate_payload_carries_diagnostics_apart_from_remediation(run):
+    """docs/diagnostics.md § Step 3: the operator sees the checks, but approves actions only."""
+    payload = run.review_payload
+    assert payload["remediation"] == []
+    assert [d["command"] for d in payload["diagnostics"]] == [
+        d["command"] for d in run.state["report_dict"]["diagnostics"]]
+    assert payload["diagnostics"]

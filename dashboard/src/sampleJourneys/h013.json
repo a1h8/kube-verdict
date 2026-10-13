@@ -24,7 +24,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
         "kube_version": "unknown",
-        "timestamp": "2026-10-13T04:25:27.680110+00:00",
+        "timestamp": "2026-10-13T04:56:32.411756+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)"
@@ -147,7 +147,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-13T04:25:27.673509+00:00"
+      "ts": "2026-10-13T04:56:32.401192+00:00"
     },
     {
       "router": "confidence",
@@ -166,7 +166,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-13T04:25:27.681407+00:00"
+      "ts": "2026-10-13T04:56:32.413872+00:00"
     },
     {
       "router": "confidence",
@@ -184,7 +184,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-13T04:25:27.697255+00:00"
+      "ts": "2026-10-13T04:56:32.425894+00:00"
     },
     {
       "router": "policy",
@@ -199,7 +199,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-13T04:25:27.705178+00:00"
+      "ts": "2026-10-13T04:56:32.433759+00:00"
     },
     {
       "router": "human",
@@ -211,7 +211,7 @@
         "remediation_count": 1,
         "dry_run_failures": 0
       },
-      "ts": "2026-10-13T04:25:27.707236+00:00"
+      "ts": "2026-10-13T04:56:32.437865+00:00"
     }
   ],
   "ingestion_stats": {
@@ -254,7 +254,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\nDependency latency to payments-gateway burns the checkout-api SLO error budget\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
     "kube_version": "unknown",
-    "timestamp": "2026-10-13T04:25:27.694374+00:00",
+    "timestamp": "2026-10-13T04:56:32.423608+00:00",
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
     "affected": [
       "Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing"
@@ -405,7 +405,8 @@
     ],
     "rollback": [
       "kubectl rollout undo deployment/checkout-api -n production"
-    ]
+    ],
+    "diagnostics": []
   },
   "review_payload": {
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
@@ -413,6 +414,7 @@
     "remediation": [
       "kubectl rollout restart deployment/checkout-api -n production"
     ],
+    "diagnostics": [],
     "confidence": "HIGH",
     "kube_version": "unknown",
     "current_hypothesis": "Dependency latency to payments-gateway burns the checkout-api SLO error budget",
@@ -426,7 +428,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
           "kube_version": "unknown",
-          "timestamp": "2026-10-13T04:25:27.680110+00:00",
+          "timestamp": "2026-10-13T04:56:32.411756+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)"
@@ -571,7 +573,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-13T04:25:27.673509+00:00"
+        "ts": "2026-10-13T04:56:32.401192+00:00"
       },
       {
         "router": "confidence",
@@ -590,7 +592,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-13T04:25:27.681407+00:00"
+        "ts": "2026-10-13T04:56:32.413872+00:00"
       },
       {
         "router": "confidence",
@@ -608,7 +610,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-13T04:25:27.697255+00:00"
+        "ts": "2026-10-13T04:56:32.425894+00:00"
       },
       {
         "router": "policy",
@@ -623,7 +625,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-13T04:25:27.705178+00:00"
+        "ts": "2026-10-13T04:56:32.433759+00:00"
       },
       {
         "router": "human",
@@ -635,7 +637,7 @@
           "remediation_count": 1,
           "dry_run_failures": 0
         },
-        "ts": "2026-10-13T04:25:27.707236+00:00"
+        "ts": "2026-10-13T04:56:32.437865+00:00"
       }
     ],
     "hypothesis_sources": []

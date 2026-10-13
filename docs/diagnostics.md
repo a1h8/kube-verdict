@@ -18,7 +18,7 @@ to run one nor how to read its output. And the system could run them itself.
 | 0 | `is_read_only()` splits read-only lines out of `remediation` into `diagnostics`; gate fails closed on an unknown namespace or no command | done |
 | 1 | Structured diagnostics: each check carries its hypothesis, purpose, and what confirms / refutes it | implemented (2026-10-13) |
 | 2 | The LLM proposes checks in their own prompt section, in the step-1 shape, instead of being told not to | implemented (2026-10-13), kept only if the replay shows no drop |
-| 3 | Show diagnostics at the human gate and in the dashboard, grouped by hypothesis | to spec |
+| 3 | Show diagnostics at the human gate and in the dashboard, grouped by hypothesis | implemented (2026-10-13) |
 | 4 | Run read-only checks automatically and feed their output back as evidence | to spec, with a security spec |
 
 Step 4 is last on purpose: "read-only" is not "safe". `kubectl get secret -o yaml`
@@ -177,4 +177,45 @@ so the two runs are never mixed.
 - `to_dict()` exposes LLM checks with their fields.
 - The scripted answers (no section 7) keep producing the same reports: the existing
   workflow tests are the regression check.
+
+## Step 3 — show diagnostics where the decision is made
+
+> Implemented 2026-10-13. The empty-remediation message reads "No action to apply"
+> alone when there are no checks either.
+
+### Where
+
+- **Human-gate payload** (`human_review_node`, `workflow/nodes.py`): adds
+  `diagnostics`, the report's list of dicts. Additive; `remediation` is unchanged.
+- **API** (`api/models.py` `IncidentReport`, `api/routes/sessions.py`): adds
+  `diagnostics: list[dict]` to the incident report. `report` already carries the full
+  report dict, so `state.report.diagnostics` is available without a new endpoint.
+- **Dashboard** (`dashboard/src/DecisionJourney.jsx`): a `Diagnostics` component,
+  shown under *Root cause* and inside *Human review*.
+
+### What it shows
+
+- Grouped by hypothesis: a rule's `hypothesis` (rule id) and `affected`, or
+  "Proposed by the model" for `source: "llm"`. Groups follow the report order (rule
+  weight first).
+- Per check: the command (copyable), then *verifies*, *confirms if* and *refutes if*,
+  each line shown only when not empty.
+- The title says what they are not: **"Read-only checks — not part of the approval"**.
+  Approve / Reject act on `remediation` only. That was already true; now it is
+  visible.
+- When `remediation` is empty, *Human review* says "No action to apply — run the checks
+  below" instead of an empty list. The buttons stay: approving records the operator's
+  decision, as today.
+
+### Not changed
+
+No execution from the dashboard (step 4). No new endpoint. The vitrine
+(`docs/vitrine.md`) reuses the component when it is built.
+
+### Tests
+
+- `dashboard/src/DecisionJourney.test.jsx`: grouping by hypothesis, the llm group,
+  empty fields hidden, the "not part of the approval" title, the empty-remediation
+  message, nothing rendered when there are no diagnostics.
+- `tests/unit`: the gate payload carries `diagnostics`, the API incident report too.
 

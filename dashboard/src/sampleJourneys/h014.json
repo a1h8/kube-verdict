@@ -25,7 +25,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\nHelm drift — cluster state diverged from chart declaration affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
         "kube_version": "unknown",
-        "timestamp": "2026-10-13T04:25:30.342928+00:00",
+        "timestamp": "2026-10-13T04:56:36.945666+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)",
@@ -237,7 +237,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-13T04:25:30.337385+00:00"
+      "ts": "2026-10-13T04:56:36.934435+00:00"
     },
     {
       "router": "confidence",
@@ -256,7 +256,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-13T04:25:30.345220+00:00"
+      "ts": "2026-10-13T04:56:36.948574+00:00"
     },
     {
       "router": "confidence",
@@ -274,7 +274,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-13T04:25:30.352102+00:00"
+      "ts": "2026-10-13T04:56:36.956691+00:00"
     },
     {
       "router": "policy",
@@ -289,7 +289,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-13T04:25:30.359084+00:00"
+      "ts": "2026-10-13T04:56:36.966399+00:00"
     },
     {
       "router": "human",
@@ -301,7 +301,7 @@
         "remediation_count": 1,
         "dry_run_failures": 0
       },
-      "ts": "2026-10-13T04:25:30.363041+00:00"
+      "ts": "2026-10-13T04:56:36.969510+00:00"
     }
   ],
   "ingestion_stats": {
@@ -344,7 +344,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-13T04:25:30.350515+00:00",
+    "timestamp": "2026-10-13T04:56:36.954969+00:00",
     "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
     "affected": [
       "Deployment/production/billing-gateway — 0/2 Ready"
@@ -500,7 +500,8 @@
     ],
     "rollback": [
       "helm rollback billing-gateway -n production"
-    ]
+    ],
+    "diagnostics": []
   },
   "review_payload": {
     "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
@@ -508,6 +509,7 @@
     "remediation": [
       "helm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01"
     ],
+    "diagnostics": [],
     "confidence": "HIGH",
     "kube_version": "unknown",
     "current_hypothesis": "Deployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway",
@@ -521,7 +523,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\nHelm drift — cluster state diverged from chart declaration affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
           "kube_version": "unknown",
-          "timestamp": "2026-10-13T04:25:30.342928+00:00",
+          "timestamp": "2026-10-13T04:56:36.945666+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)",
@@ -735,7 +737,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-13T04:25:30.337385+00:00"
+        "ts": "2026-10-13T04:56:36.934435+00:00"
       },
       {
         "router": "confidence",
@@ -754,7 +756,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-13T04:25:30.345220+00:00"
+        "ts": "2026-10-13T04:56:36.948574+00:00"
       },
       {
         "router": "confidence",
@@ -772,7 +774,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-13T04:25:30.352102+00:00"
+        "ts": "2026-10-13T04:56:36.956691+00:00"
       },
       {
         "router": "policy",
@@ -787,7 +789,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-13T04:25:30.359084+00:00"
+        "ts": "2026-10-13T04:56:36.966399+00:00"
       },
       {
         "router": "human",
@@ -799,7 +801,7 @@
           "remediation_count": 1,
           "dry_run_failures": 0
         },
-        "ts": "2026-10-13T04:25:30.363041+00:00"
+        "ts": "2026-10-13T04:56:36.969510+00:00"
       }
     ],
     "hypothesis_sources": [

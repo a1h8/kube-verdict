@@ -55,6 +55,7 @@ class IncidentReport(BaseModel):
     evidence:    list[str]
     remediation: list[str]
     rollback:    list[str]
+    diagnostics: list[dict] = []   # read-only checks, never part of the approval
 
 
 # ── State response ────────────────────────────────────────────────────────────

@@ -315,10 +315,70 @@ function BeamTree({ state }) {
   );
 }
 
+// Read-only checks (docs/diagnostics.md § Step 3): grouped by the hypothesis they
+// test, each with what it verifies and which output confirms or rules it out.
+// They are never part of the approval — Approve / Reject act on remediation only.
+function groupDiagnostics(diagnostics) {
+  const groups = [];
+  for (const d of diagnostics) {
+    const key = d.source === "llm" ? "llm" : `${d.hypothesis}|${d.affected}`;
+    let g = groups.find((x) => x.key === key);
+    if (!g) {
+      g = {
+        key,
+        title: d.source === "llm" ? "Proposed by the model" : d.hypothesis || "Rule check",
+        affected: d.source === "llm" ? "" : d.affected,
+        items: [],
+      };
+      groups.push(g);
+    }
+    g.items.push(d);
+  }
+  return groups;
+}
+
+function Diagnostics({ diagnostics }) {
+  const list = (diagnostics || []).filter((d) => d && d.command);
+  if (!list.length) return null;
+  const field = (label, value, fg) =>
+    value ? (
+      <p style={{ color: C.sub, fontSize: 12.5, margin: "2px 0 0 4px" }}>
+        <span style={{ color: fg }}>{label}</span> {value}
+      </p>
+    ) : null;
+  return (
+    <div style={{ marginTop: 12 }}>
+      <h4 style={{ color: C.text, fontSize: 14, marginBottom: 6 }}>
+        Read-only checks — not part of the approval
+      </h4>
+      {groupDiagnostics(list).map((g) => (
+        <div key={g.key} style={{ marginBottom: 10 }}>
+          <p style={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+            {g.title}
+            {g.affected && <span style={{ color: C.dim, fontWeight: 400 }}> · {g.affected}</span>}
+          </p>
+          {g.items.map((d, i) => (
+            <div key={i} style={{ marginBottom: 8 }}>
+              <pre style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6,
+                padding: "6px 10px", color: "#cbd5e1", fontSize: 12, overflowX: "auto", margin: 0 }}>
+                {d.command}
+              </pre>
+              {field("verifies:", d.purpose, C.dim)}
+              {field("confirms if:", d.confirms_if, "#34d399")}
+              {field("refutes if:", d.refutes_if, "#f87171")}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RootCause({ state }) {
   const rc = state.report?.root_cause;
   const rem = state.report?.remediation || state.suggestions || [];
-  if (!rc && !rem.length) return null;
+  const diagnostics = state.report?.diagnostics || [];
+  if (!rc && !rem.length && !diagnostics.length) return null;
   return (
     <div style={box}>
       <h3 style={{ color: C.text, marginBottom: 8 }}>Root cause</h3>
@@ -329,6 +389,7 @@ function RootCause({ state }) {
           {cmd}
         </pre>
       ))}
+      <Diagnostics diagnostics={diagnostics} />
     </div>
   );
 }
@@ -361,6 +422,14 @@ function ReviewGate({ sessionId, state, busy, onDecision }) {
           {cmd}
         </pre>
       ))}
+      {!(payload.remediation || []).length && (
+        <p style={{ color: C.sub, fontSize: 13, marginBottom: 6 }}>
+          {(payload.diagnostics || []).length
+            ? "No action to apply — run the checks below."
+            : "No action to apply."}
+        </p>
+      )}
+      <Diagnostics diagnostics={payload.diagnostics} />
       {isSample ? (
         <p style={{ color: C.dim, fontSize: 13, marginTop: 10 }}>
           Sample session: review actions are disabled because this journey is a recorded snapshot.

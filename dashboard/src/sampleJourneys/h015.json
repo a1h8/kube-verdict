@@ -25,7 +25,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\nHelm drift — cluster state diverged from chart declaration affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
         "kube_version": "unknown",
-        "timestamp": "2026-10-13T04:25:32.759400+00:00",
+        "timestamp": "2026-10-13T04:56:39.513178+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)",
@@ -237,7 +237,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-13T04:25:32.754723+00:00"
+      "ts": "2026-10-13T04:56:39.507661+00:00"
     },
     {
       "router": "confidence",
@@ -256,7 +256,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-13T04:25:32.761514+00:00"
+      "ts": "2026-10-13T04:56:39.516423+00:00"
     },
     {
       "router": "confidence",
@@ -274,7 +274,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-13T04:25:32.769307+00:00"
+      "ts": "2026-10-13T04:56:39.523785+00:00"
     },
     {
       "router": "policy",
@@ -289,7 +289,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-13T04:25:32.775937+00:00"
+      "ts": "2026-10-13T04:56:39.531010+00:00"
     },
     {
       "router": "human",
@@ -301,7 +301,7 @@
         "remediation_count": 1,
         "dry_run_failures": 0
       },
-      "ts": "2026-10-13T04:25:32.779129+00:00"
+      "ts": "2026-10-13T04:56:39.534554+00:00"
     }
   ],
   "ingestion_stats": {
@@ -344,7 +344,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\nHelm chart drift from declared: Deployment/inventory-api → HelmRelease/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-13T04:25:32.767727+00:00",
+    "timestamp": "2026-10-13T04:56:39.521810+00:00",
     "summary": "inventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.",
     "affected": [
       "Pod/production/inventory-api-7f9c8d6b5-x2qwe — Running, not Ready"
@@ -509,7 +509,8 @@
     ],
     "rollback": [
       "helm rollback inventory-api -n production"
-    ]
+    ],
+    "diagnostics": []
   },
   "review_payload": {
     "summary": "inventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.",
@@ -517,6 +518,7 @@
     "remediation": [
       "helm upgrade inventory-api ./chart -n production --set readinessProbe.timeoutSeconds=6"
     ],
+    "diagnostics": [],
     "confidence": "HIGH",
     "kube_version": "unknown",
     "current_hypothesis": "Helm chart drift from declared: Deployment/inventory-api → HelmRelease/inventory-api",
@@ -530,7 +532,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\nHelm drift — cluster state diverged from chart declaration affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
           "kube_version": "unknown",
-          "timestamp": "2026-10-13T04:25:32.759400+00:00",
+          "timestamp": "2026-10-13T04:56:39.513178+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)",
@@ -744,7 +746,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-13T04:25:32.754723+00:00"
+        "ts": "2026-10-13T04:56:39.507661+00:00"
       },
       {
         "router": "confidence",
@@ -763,7 +765,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-13T04:25:32.761514+00:00"
+        "ts": "2026-10-13T04:56:39.516423+00:00"
       },
       {
         "router": "confidence",
@@ -781,7 +783,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-13T04:25:32.769307+00:00"
+        "ts": "2026-10-13T04:56:39.523785+00:00"
       },
       {
         "router": "policy",
@@ -796,7 +798,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-13T04:25:32.775937+00:00"
+        "ts": "2026-10-13T04:56:39.531010+00:00"
       },
       {
         "router": "human",
@@ -808,7 +810,7 @@
           "remediation_count": 1,
           "dry_run_failures": 0
         },
-        "ts": "2026-10-13T04:25:32.779129+00:00"
+        "ts": "2026-10-13T04:56:39.534554+00:00"
       }
     ],
     "hypothesis_sources": [

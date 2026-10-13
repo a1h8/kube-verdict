@@ -247,4 +247,60 @@ describe("DecisionJourney", () => {
     expect(await screen.findByText("NO-GO")).toBeInTheDocument();
     expect(screen.getByText(/no safe recovery path/)).toBeInTheDocument();
   });
+
+  // ── read-only checks (docs/diagnostics.md § Step 3) ─────────────────────────
+  const DIAGNOSTICS = [
+    { command: "kubectl describe pod api-0 -n production", source: "rule", hypothesis: "oom_kill",
+      affected: "Pod/production/api-0", purpose: "Shows why the container last terminated.",
+      confirms_if: "Last State OOMKilled, exit 137.", refutes_if: "" },
+    { command: "kubectl top pod api-0 -n production", source: "rule", hypothesis: "oom_kill",
+      affected: "Pod/production/api-0", purpose: "", confirms_if: "Memory near the limit.",
+      refutes_if: "Memory far below the limit." },
+    { command: "kubectl get events -n production", source: "llm", hypothesis: "", affected: "",
+      purpose: "", confirms_if: "", refutes_if: "" },
+  ];
+
+  it("renders read-only checks grouped by hypothesis, apart from the approval", async () => {
+    loadSample.mockResolvedValue({
+      session_id: "smp",
+      state: { ...SAMPLE, report: { ...SAMPLE.report, diagnostics: DIAGNOSTICS } },
+    });
+    render(<DecisionJourney />);
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+
+    expect(await screen.findByText(/Read-only checks — not part of the approval/)).toBeInTheDocument();
+    expect(screen.getByText("oom_kill")).toBeInTheDocument();
+    expect(screen.getByText(/Proposed by the model/)).toBeInTheDocument();
+    expect(screen.getByText("kubectl top pod api-0 -n production")).toBeInTheDocument();
+    expect(screen.getByText("Last State OOMKilled, exit 137.")).toBeInTheDocument();
+    expect(screen.getByText("Memory far below the limit.")).toBeInTheDocument();
+    // empty fields are not rendered: one "verifies:" for the one check that has a purpose
+    expect(screen.getAllByText("verifies:")).toHaveLength(1);
+  });
+
+  it("says there is no action to apply when the gate has only checks", async () => {
+    loadSample.mockResolvedValue({
+      session_id: "smp",
+      state: {
+        ...SAMPLE,
+        report: { root_cause: "None found", remediation: [] },
+        review_payload: { summary: "s", root_cause: "None found", remediation: [], diagnostics: DIAGNOSTICS },
+      },
+    });
+    render(<DecisionJourney />);
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+
+    expect(await screen.findByText(/No action to apply — run the checks below/)).toBeInTheDocument();
+    expect(screen.getByText(/Read-only checks — not part of the approval/)).toBeInTheDocument();
+  });
+
+  it("renders no checks section when there are no diagnostics", async () => {
+    loadSample.mockResolvedValue({ session_id: "smp", state: SAMPLE });
+    render(<DecisionJourney />);
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+
+    expect(await screen.findByText("HUMAN REVIEW")).toBeInTheDocument();
+    expect(screen.queryByText(/Read-only checks/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No action to apply/)).not.toBeInTheDocument();
+  });
 });
