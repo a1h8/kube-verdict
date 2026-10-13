@@ -755,3 +755,65 @@ change. Its base weight (0.88) plus its boosts (+0.03 to +0.06 per drift field,
 The fixtures' small `values.yaml` / `release.json` differences are enough to fire it.
 Not changed here: it is the baseline the LLM is compared to. The `llm` solver needs a
 reachable Ollama, and its first report is the next step.
+
+## Live parity — the fixtures must go through the production collector
+
+> Spec (2026-10-13), not implemented. Why: [target/veracity.md](target/veracity.md) §
+> *Evidence only the test loader produces*.
+
+**Problem.** `tests/integration/cases/case_loader.py` builds the case graph with its own
+code, not with `ingestion/k8s_collector.py`. The two have drifted, so the offline tests
+prove the loader, not production. Read from the code on 2026-10-13:
+
+1. *Missing-dependency detection exists only in the loader* (`_detect_missing_deps`:
+   `missing.secret|configmap|pvc|imagepullsecret|serviceaccount|rbac.*`, `netpol.*`).
+   The live collector produces none of these annotations.
+2. *Pod → ConfigMap / Secret / PVC / ServiceAccount edges are never built live.*
+   `_collect_pods` runs before the ConfigMaps, PVCs and ServiceAccounts are collected,
+   and `_lazy_edge` only links to entities already in the graph.
+3. *Container statuses have another shape live.* The collector stores
+   `{"name", "ready", "restart_count", "state": str(cs.state)}`; the loader keeps the
+   API shape (`state.waiting.reason`, `lastState.terminated.reason`). The rules read the
+   API shape, so `oom_kill` (and anything reading a container's state) cannot fire live.
+
+**Fix, in three phases.**
+
+*Phase 1 — a parity test that shows it.* A fake `CoreV1Api` / `AppsV1Api` serves a case's
+`kube/` YAML as real client objects (`ApiClient().deserialize` of the same documents).
+The real `K8sCollector.collect()` builds a graph from it. The test compares that graph
+with the loader's graph for every native case: entity kinds and names, pod annotations
+(`missing.*`, `netpol.*`), container-status reasons, and pod → dependency edges. The
+three divergences above are expected failures (`xfail(strict=True)`, one per
+divergence), so each fix flips one.
+
+*Phase 2 — fix production.*
+- Collect pods **after** the objects they reference, or build the pod edges in a second
+  pass once everything is collected.
+- Store container statuses in the API shape
+  (`ApiClient.sanitize_for_serialization`), the shape the rules read.
+- Move the detector to `ingestion/readiness.py` as a pure function over API-shaped pod
+  dicts, present-object names and events. It runs at the end of `collect()`. Rules:
+  - a dependency the account can list (ConfigMap, PVC, ServiceAccount, RoleBinding,
+    NetworkPolicy) is *missing* when absent from the listing;
+  - **a Secret is never listed** (decision B, `docs/diagnostics.md` § Step 4): it is
+    missing only when Kubernetes says so — an event or container message
+    `secret "<name>" not found` or `couldn't find key <key> in Secret <ns>/<name>`;
+  - when a listing failed (403, timeout), its kind is *unknown*, never *missing*: no
+    annotation, so an RBAC gap cannot invent missing dependencies.
+
+*Phase 3 — one path.* The loader calls `readiness.detect_missing()` instead of its own
+copy, and builds its Kubernetes entities through the same fake-API → `K8sCollector`
+path as the parity test. Its own builders stay only for what has no live equivalent in
+the fixtures (Helm release, policy reports). The parity xfails are removed.
+
+**Expected effects, to observe and record.**
+- h001 / h004 / h024: a Secret is flagged missing only where the fixture's events name
+  it. h004's `api-gateway-tls-secret` (envFrom, no event) would no longer be flagged.
+  That is a real loss of an early signal, and it is accepted by decision B.
+- Rule hypotheses that read container state (`oom_kill`) become reachable live;
+  `rules` replay numbers may move and are re-run.
+- The vitrine fixtures and the golden guard are re-checked.
+
+**Tests.** The parity test itself; `readiness.detect_missing()` unit tests (each
+reference type, Secret by event only, unknown on a failed listing); the collector's
+edge and status shape on a fake API; the existing case tests as the regression check.
