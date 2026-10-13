@@ -20,11 +20,23 @@ Fields read from ``expect``:
 """
 from __future__ import annotations
 
+import re
+
 OUTCOMES = ("cause", "no_incident", "insufficient_evidence")
 
 
 def _matches(text: str, keywords: list[str]) -> list[str]:
     return [kw for kw in keywords if kw.lower() in text]
+
+
+def normalize_label(confidence: str) -> str:
+    """``"MEDIUM."``, ``"low — sparse context"``, ``"LOW (rule-assisted…)"`` → the bare label.
+
+    A live model decorates the label; comparing it raw would fail a correct LOW and
+    hide a wrong HIGH from the overconfidence count.
+    """
+    m = re.match(r"\s*([A-Za-z]+)", confidence or "")
+    return m.group(1).upper() if m else ""
 
 
 def _group_passes(matched: list[str], keywords: list[str]) -> bool:
@@ -59,7 +71,7 @@ def grade(root_cause: str, expect: dict, confidence: str = "", verdict: str = ""
         passed = not missing and not forbidden
     else:
         matched_groups = []
-        label = (confidence or "").upper()
+        label = normalize_label(confidence)
         if label != "LOW":
             reason = f"{outcome}: confidence {label or 'missing'}, LOW expected"
         elif forbidden:

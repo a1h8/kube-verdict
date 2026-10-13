@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from tools.b13_capture import GRADING_KEYS, SCENARIOS
-from tools.veracity import grade
+from tools.veracity import grade, normalize_label
 
 ROOT = Path(__file__).resolve().parents[2]
 CASES = ROOT / "tests/integration/cases"
@@ -160,3 +160,17 @@ def test_write_veracity_records_confidence_next_to_the_grade(tmp_path, monkeypat
     assert record["pre_llm_confidence_score"] == 0.54
     assert record["verdict"] == "HUMAN_REVIEW"
     assert record["fallbacks"] == ["loki"]
+
+
+@pytest.mark.parametrize("raw,label", [
+    ("LOW", "LOW"), ("MEDIUM.", "MEDIUM"), ("high — the logs agree", "HIGH"),
+    ("LOW (rule-assisted — top: oom_kill w=0.88, 3 hypothesis(es))", "LOW"),
+    ("", ""), ("  ", ""),
+])
+def test_normalize_label(raw, label):
+    assert normalize_label(raw) == label
+
+
+def test_decorated_low_label_passes_a_negative_case():
+    expect = {"expected_outcome": "no_incident"}
+    assert grade("No incident", expect, confidence="LOW.")["veracity"] == "PASS"

@@ -31,7 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tools.veracity import grade  # noqa: E402
+from tools.veracity import grade, normalize_label  # noqa: E402
 
 CASES_ROOT = ROOT / "tests/integration/cases"
 REPLAY_DIR = ROOT / "tests/veracity/replay"
@@ -125,7 +125,8 @@ def solve_llm(case_name: str, client, run: int) -> dict:
     record.update({
         "wall_s": round(time.perf_counter() - t0, 2),
         "answerable": answerable(expect, result.llm.analyze_prompts),
-        "confidence": state.get("confidence") or "",
+        "confidence": normalize_label(state.get("confidence") or ""),
+        "confidence_raw": state.get("confidence") or "",
         "pre_llm_confidence_score": (report.get("pre_llm_confidence") or {}).get("score"),
         "verdict": state.get("verdict"),
         "fallbacks": sorted(k for k, v in stats.items() if isinstance(v, dict) and v.get("fallback")),
