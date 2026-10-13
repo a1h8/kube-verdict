@@ -10,7 +10,7 @@ from ontology.discovery import APIServerDiscovery, _TYPED_KINDS
 from ontology.dynamic_entity import GenericEntity
 from ontology.entities import (
     Namespace, Node, Pod, Deployment, StatefulSet, DaemonSet, ReplicaSet,
-    Service, Ingress, ConfigMap, Secret, PersistentVolume,
+    Service, Ingress, ConfigMap, PersistentVolume,
     PersistentVolumeClaim, ServiceAccount, K8sEvent,
 )
 from ontology.graph import OntologyGraph
@@ -130,7 +130,7 @@ class K8sCollector:
             self._collect_services(graph, ns)
             self._collect_ingresses(graph, ns)
             self._collect_configmaps(graph, ns)
-            self._collect_secrets(graph, ns)
+            # no Secrets: their values are never read (docs/diagnostics.md § Step 4)
             self._collect_pvcs(graph, ns)
             self._collect_serviceaccounts(graph, ns)
             self._collect_events(graph, ns)
@@ -459,21 +459,6 @@ class K8sCollector:
                 labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
                 created_at=_ts(item.metadata.creation_timestamp),
                 data_keys=list((item.data or {}).keys()), raw=item.to_dict(),
-            ))
-
-    def _collect_secrets(self, graph: OntologyGraph, namespace: str) -> None:
-        try:
-            items = self._core.list_namespaced_secret(namespace).items
-        except ApiException as exc:
-            log.warning("Cannot list secrets in %s: %s", namespace, exc)
-            return
-        for item in items:
-            graph.add_entity(Secret(
-                uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
-                created_at=_ts(item.metadata.creation_timestamp),
-                secret_type=item.type or "Opaque",
-                data_keys=list((item.data or {}).keys()), raw={},
             ))
 
     def _collect_pvs(self, graph: OntologyGraph) -> None:

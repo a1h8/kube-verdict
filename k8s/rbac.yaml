@@ -30,7 +30,7 @@ rules:
       - services
       - endpoints
       - configmaps
-      - secrets
+      # no secrets: kube-verdict reads no Secret (docs/diagnostics.md § Step 4)
       - persistentvolumes
       - persistentvolumeclaims
       - serviceaccounts

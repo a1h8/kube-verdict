@@ -236,16 +236,17 @@ not only presentation.
 1. **RBAC is the guarantee, not command parsing.** Checks run with kube-verdict's own
    service account. The gate is what that account is allowed to do, not
    `is_read_only()`, which only selects candidates.
-   - *Found 2026-10-13, open decision:* `k8s/rbac.yaml` grants `get / list / watch` on
-     `secrets` (values readable), while the Helm chart's `rbac.yaml` does not grant
-     `secrets` at all. The two deployments disagree. It is not a free removal: the
-     missing-dependency detector (h001, h004) needs to know whether a referenced Secret
-     exists, and RBAC cannot grant "names only" — `list` on `secrets` returns the
-     data. Either the detector moves to a metadata-only read (still `list`, data not
-     fetched by the code, but readable by the account), or it infers existence from
-     events (`secret "x" not found`) and `secrets` is dropped from both RBAC files.
-     What a Helm deployment does today without the grant (a 403 on listing Secrets)
-     is to be checked as part of that decision.
+   - *Decided 2026-10-13 (option B):* kube-verdict reads no Secret at all. `k8s/rbac.yaml`
+     granted `get / list / watch` on `secrets` (values readable) while the Helm chart
+     granted nothing; `secrets` is removed from `k8s/rbac.yaml` and the collector no
+     longer lists Secrets. Whether a referenced Secret or key is missing comes from
+     what Kubernetes already reports (`secret "x" not found`, `couldn't find key K in
+     Secret …` in events and container status). Rejected, option A: a metadata-only
+     list, which keeps the account able to read values and loses the key names anyway.
+     Found while deciding (see `docs/target/veracity.md` § *Evidence only the test
+     loader produces*): the missing-dependency detector exists only in the test fixture
+     loader, and the collector's pod → Secret edges were never created (pods are
+     collected before Secrets), so the collected Secrets were only context text.
    - At startup, a `SelfSubjectRulesReview` per watched namespace. If any verb other
      than `get / list / watch` is allowed anywhere, auto-execution is disabled and
      recorded as `fallback: true` with the reason. Readable `secrets` is recorded as a

@@ -13,6 +13,25 @@
 Grading v2 (`tools/veracity.py`) exists and is unit-tested, but it has graded only two
 real answers so far.
 
+## Evidence only the test loader produces (found 2026-10-13)
+
+`missing.secret.*`, `missing.configmap.*`, `missing.pvc.*`, `missing.serviceaccount.*`
+and `netpol.*` annotations are produced **only** by `_detect_missing_deps()` in
+`tests/integration/cases/case_loader.py`. `rca/context_builder.py` turns them into fix
+hints and context, but no production code creates them: on a live cluster they never
+exist. So h001–h006 pass offline on evidence the live pipeline cannot produce, and
+the `rules` baseline (4/18) is optimistic for those cases. `docs/roadmap.md` lists
+"Deployment readiness detection — `_detect_missing_deps()`" as done.
+
+Also to verify: in `ingestion/k8s_collector.py`, pods are collected before ConfigMaps
+and Secrets, and `_lazy_edge` only links to entities already in the graph, so the
+pod → ConfigMap / Secret edges may never be built live.
+
+What to do: move the detector into production code (`ingestion/`), driven by pod specs
+plus what Kubernetes reports (events, container status), and have the fixture loader
+call that same code, so the offline tests prove what runs live. Until then, a failure
+on h001–h006 live is expected, not a regression.
+
 ## The loop
 
 ```
