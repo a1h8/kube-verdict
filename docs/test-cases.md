@@ -251,7 +251,10 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    prompt, every confidence decision naming the failed collector, and a final label
    never HIGH where the connected run reaches HIGH. Verdicts: h013 → `NO_GO` (the
    LOW answer's remediation has no rollback), h014 / h015 stay `HUMAN_REVIEW` at LOW
-   confidence.
+   confidence. *Changed 2026-10-12* (diagnostics split, § h022): h013 cut is now
+   `HUMAN_REVIEW` — its only "remediation" was `kubectl get events`, now a diagnostic,
+   so no action is left and nothing is blocked. h014 / h015 cut: unchanged
+   (`HUMAN_REVIEW`; 5 rule-fallback actions, 10 diagnostics).
 4. **Combined multi-signal case h016** — `tests/integration/cases/h016_multi_signal/` +
    `tests/integration/test_multi_signal_h016.py`. One incident where Prometheus alerts,
    Loki logs and OTel traces are all present at once, plus one decoy per signal (another
@@ -581,6 +584,39 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
   `NO_ACTION` verdict and a pre-LLM "no incident" short-circuit (options (d) and (e)
   of the 2026-10-12 discussion, not scheduled).
 
+  *Found while implementing (2026-10-12): an unknown namespace fails open.* The
+  report's decision projection (`IncidentReport.from_rca`, shown by the API and the
+  vitrine) takes its namespace from the remediation commands only. Once
+  `kubectl get events -n production` moved to diagnostics, the remediation was empty,
+  the namespace `""`, and `_is_prod("")` is false: the "production is always
+  `HUMAN_REVIEW` minimum" rule no longer applied, so a score ≥ 0.85 with an empty
+  remediation could show `AUTO` for a production incident. (`""` is not `default`
+  either: a command without `-n` runs in the kubectl context's namespace, so `""`
+  means *unknown*.) The workflow's own verdict was not affected: it falls back to the
+  session namespaces. Decided (2026-10-12), in `decision/policy_gate.py`:
+  - **no namespace → `HUMAN_REVIEW` minimum**: an empty namespace is a `not_auto`
+    reason ("namespace unknown — treated as production");
+  - **no remediation command → never `AUTO`**: `evaluate()` takes an optional
+    `command_count`; `0` is a `not_auto` reason ("no remediation command to apply").
+    `None` (caller does not know) is not checked, so existing callers keep their
+    behaviour. `DecisionEngine.decide`, `Decision.evaluate`, the workflow node
+    (`blast_radius.command_count`) and `IncidentReport.from_rca` pass it.
+  - `IncidentReport.from_rca` looks for the namespace in the remediation, then in the
+    affected resources (`kind/namespace/name`), then in the investigation's seed
+    entities. This is for a correct display only: safety no longer depends on it.
+  Both rules only remove `AUTO`; neither can turn a verdict into `NO_GO`.
+  **Implemented (2026-10-12).** `rca/analyzer.py` (`is_read_only`,
+  `split_diagnostics`, the parser and the rule fallback), `decision/policy_gate.py`
+  (the two rules), `IncidentReport.from_rca` (namespace lookup). Tests:
+  `tests/unit/test_diagnostics_split.py`, `tests/unit/test_analyzer_fallback.py` (8
+  tests updated: rule checks are now diagnostics), `tests/unit/test_decision_contract.py`.
+  Observed: h022 → `HUMAN_REVIEW`, the `xfail` removed; h013 cut → `HUMAN_REVIEW`
+  (§3); golden guard unchanged; the vitrine fixtures regenerated
+  (`tools/freeze_journey_fixtures.py`): their archived LOW paths go from `NO_GO` to
+  `HUMAN_REVIEW`, with the new `diagnostics` field. h013 has no seed nor affected
+  resource on those paths, so its displayed namespace stays `""` and the
+  "namespace unknown" rule applies.
+
 ### h023 — negative: not enough evidence
 
 - *Scenario.* `ledger` pods are Running but not Ready. No event names a cause. The
@@ -638,3 +674,67 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
 2. h024 and h022 (no loader prerequisite), then h023 (P5).
 3. h017 (P1), h019 (P1, P3), h025 (P4), then the multi-namespace cases h018, h020,
    h021 (P2).
+
+## Veracity replay harness
+
+> Spec (2026-10-13), not implemented. Why: [target/veracity.md](target/veracity.md) —
+> the model has never been measured on the corpus; every offline run uses
+> `ScriptedLLM`. This harness is the first step of the target plan.
+
+**What it is.** `tools/veracity_replay.py` runs native cases through the same offline
+workflow as the CI tests (`workflow_harness.run_case`: real collectors on fixtures, real
+LangGraph workflow, side effects pinned), but with a **real model** in place of
+`ScriptedLLM`. No cluster is touched, so it is not a live session. It grades every run
+with `grade()`.
+
+**CLI.**
+`python tools/veracity_replay.py --solver llm[:<model>] | rules [--cases h001,h014] [--runs 3] [--resume]`
+- `llm` uses `OllamaClient` (`OLLAMA_MODEL` unless `:<model>` is given). If Ollama is
+  unreachable or the model is not pulled, it exits with a clear message and writes
+  nothing.
+- `rules` uses no LLM. The answer graded is the top `RemediationEngine` hypothesis
+  (`symptom` + `explanation` + `affected`) on the case graph after the collector nodes,
+  and its label is `LOW`. Deterministic, so `--runs` is ignored.
+- `--resume` skips the runs whose record already exists. A full CPU run takes hours.
+
+**Prerequisites.**
+1. *A query per case.* `run_case` takes its query from a `CaseScript`, and only
+   h013–h016, h022 and h024 have one. Every native `expect.json` gets a `query`: what
+   an operator would type, naming the **symptom** and never the cause (h016 already has
+   one). `run_case` reads `expect.json["query"]` when no script is given.
+2. *`run_case(..., llm=...)`.* When an `llm` is passed it replaces `ScriptedLLM`, and
+   the case is found by key prefix (`h014` → `h014_cert_expiry`) without a script. A
+   thin recorder wraps the LLM to keep every analyze prompt (`ScriptedLLM` already
+   does), so *answerable* can be computed. The default stays `ScriptedLLM`, so CI is
+   unchanged.
+
+**Record**, one file per case and run:
+`tests/veracity/replay/<solver>/<case>/run_<n>.json` with
+`case`, `tier`, `solver`, `model`, `run`, `started_at`, `wall_s`, the `grade()` result
+(`veracity`, `reason`, `matched_groups`, `forbidden_matched`), `answerable` (the
+grading keywords pass `grade()` on the concatenated analyze prompts; `null` for
+negative cases), `confidence`, `pre_llm_confidence_score`, `verdict`, `fallbacks`,
+`signals_mode` (see [target/patchtst.md](target/patchtst.md): synthetic signals may
+add circular evidence) and `root_cause`.
+
+**Tier** from the case number: A h001–h012, B h013–h016, C h017–h029, M h030+ (the
+misdirection family of [target/scenarios.md](target/scenarios.md)). An `expect.json`
+`tier` field overrides it.
+
+**Report.** `tests/veracity/replay/REPORT.md`, rewritten after each run, one table per
+solver: rows = tiers then cases; columns = pass rate (passes / runs), answerable rate,
+model errors (answerable and FAIL), overconfidence (FAIL at HIGH), false alarms
+(negative case naming a cause), mean wall time. A short header names the model, the
+date and the commit.
+
+**Isolation.** `tests/veracity/replay/` never feeds `data/examples/`, and example lookup
+stays disabled during the replay (same rule as the live corpus,
+`docs/veracity-benchmark.md`).
+
+**Tests** (CI, no Ollama): the `rules` solver on h003 and h022 end to end, writing to a
+tmp dir; `answerable` on a prompt with / without the ground truth; tier mapping; report
+rendering from fixed records; the query prerequisite (every native case has a
+`query` that does not contain any of its `root_cause_contains` keywords).
+
+**Out of scope.** Changing the prompt or the model; live capture (`tools/b13_capture.py`
+keeps doing that); the vitrine using replay journeys (`target/vitrine-live.md` item 2).
