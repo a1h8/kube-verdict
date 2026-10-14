@@ -1,5 +1,8 @@
 # Vitrine and live — one real session, shown and graded
 
+> **Live target moved to K3s (2026-10-14):** see [../live-k3s.md](../live-k3s.md) for the
+> cluster inventory and the L1–L5 levels. The local cluster named below no longer exists.
+
 ## Where it is
 
 - **Vitrine** (`docs/vitrine.md`, spec 2026-10-04): route `#/vitrine`, 4 steps (alert →

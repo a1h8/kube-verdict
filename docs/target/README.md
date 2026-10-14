@@ -11,6 +11,7 @@
 | [scenarios.md](scenarios.md) | One scenario bank, > 30 cases, and the "looks like X, is Y" family |
 | [patchtst.md](patchtst.md) | What PatchTST really contributes today, and what to do |
 | [vitrine-live.md](vitrine-live.md) | The vitrine demo, and getting one real live session into it |
+| [../live-k3s.md](../live-k3s.md) | **The live target: everything on K3s (`k3d-dev`), inventory and levels L1–L5** |
 | [knowledge-sources.md](knowledge-sources.md) | Public vs enterprise knowledge, and what the sLLM corpus may contain |
 
 ## The three pillars — do not drift from them (2026-10-14)

@@ -1,3 +1,7 @@
+> **Historical (2026-10-14).** The `rancher-desktop` / `kubeverdict-obs` cluster described
+> here no longer exists. Live work now targets K3s on `k3d-dev`: see
+> [live-k3s.md](live-k3s.md).
+
 # Local observability stack — Tempo + Loki real-backend validation
 
 Spec for the step that closes the gap found while checking the 3 dashboards
