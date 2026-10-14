@@ -197,6 +197,22 @@ def _header(solver: str) -> str:
 
 # ── CLI ─────────────────────────────────────────────────────────────────────────
 
+def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
+    """One llm run in its own process, killed after REPLAY_RUN_TIMEOUT seconds.
+
+    A request can hang past the HTTP read timeout (a half-dead port-forward kept one
+    open for 21 h on 2026-10-13); only a separate process can be stopped for sure.
+    """
+    timeout = int(os.environ.get("REPLAY_RUN_TIMEOUT", "1800"))
+    cmd = [sys.executable, str(Path(__file__).resolve()), "--solver", solver,
+           "--cases", _key(case_name), "--child-run", str(run), "--out", str(out_dir)]
+    try:
+        subprocess.run(cmd, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        print(f"{case_name} run {run}: ERROR — no answer within {timeout}s, process killed "
+              "(not recorded; --resume retries it)", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Grade a real model or the rules on the native cases")
     ap.add_argument("--solver", required=True, help="rules | llm | llm:<model>")
@@ -204,6 +220,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--runs", type=int, default=3, help="runs per case for llm (rules: always 1)")
     ap.add_argument("--resume", action="store_true", help="skip runs already recorded")
     ap.add_argument("--out", default=str(REPLAY_DIR), help=argparse.SUPPRESS)
+    # internal: run exactly one (case, run) in this process — the parent's watchdog child
+    ap.add_argument("--child-run", type=int, default=0, help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
 
     out_dir = Path(args.out)
@@ -233,10 +251,14 @@ def main(argv: list[str] | None = None) -> int:
     os.environ["EXAMPLE_LOOKUP_DISABLED"] = "1"
     try:
         runs = 1 if solver == "rules" else args.runs
+        run_range = [args.child_run] if args.child_run else range(1, runs + 1)
         for case_name in cases:
-            for run in range(1, runs + 1):
+            for run in run_range:
                 path = record_path(out_dir, solver, case_name, run)
                 if args.resume and path.exists():
+                    continue
+                if solver == "llm" and not args.child_run:
+                    _run_in_child(args.solver, case_name, run, out_dir)
                     continue
                 try:
                     record = (solve_rules(case_name) if solver == "rules"

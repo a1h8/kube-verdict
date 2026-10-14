@@ -110,3 +110,23 @@ def test_replay_does_not_leak_example_lookup_disabled(tmp_path, monkeypatch):
     vr.main(["--solver", "rules", "--cases", "h004", "--out", str(tmp_path)])
     import os
     assert "EXAMPLE_LOOKUP_DISABLED" not in os.environ
+
+
+def test_hung_llm_run_is_killed_and_reported(tmp_path, monkeypatch, capsys):
+    import subprocess
+
+    calls = []
+
+    def fake_run(cmd, timeout, check):
+        calls.append((cmd, timeout))
+        raise subprocess.TimeoutExpired(cmd, timeout)
+
+    monkeypatch.setattr(vr.subprocess, "run", fake_run)
+    monkeypatch.setenv("REPLAY_RUN_TIMEOUT", "7")
+    vr._run_in_child("llm", "h004_missing_configmap", 2, tmp_path)
+    (cmd, timeout), = calls
+    assert timeout == 7
+    assert cmd[cmd.index("--child-run") + 1] == "2"
+    assert cmd[cmd.index("--cases") + 1] == "h004"
+    assert "process killed" in capsys.readouterr().err
+    assert not list(tmp_path.iterdir())
