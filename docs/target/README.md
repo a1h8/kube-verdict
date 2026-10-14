@@ -11,6 +11,7 @@
 | [scenarios.md](scenarios.md) | One scenario bank, > 30 cases, and the "looks like X, is Y" family |
 | [patchtst.md](patchtst.md) | What PatchTST really contributes today, and what to do |
 | [vitrine-live.md](vitrine-live.md) | The vitrine demo, and getting one real live session into it |
+| [knowledge-sources.md](knowledge-sources.md) | Public vs enterprise knowledge, and what the sLLM corpus may contain |
 
 ## The target, in one paragraph
 
