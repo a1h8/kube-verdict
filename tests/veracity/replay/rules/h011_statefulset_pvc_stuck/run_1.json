@@ -22,9 +22,9 @@
   "run": 1,
   "signals_mode": null,
   "solver": "rules",
-  "started_at": "2026-10-14T03:38:04.542284+00:00",
+  "started_at": "2026-10-14T04:56:49.291723+00:00",
   "tier": "A",
   "veracity": "FAIL",
   "verdict": null,
-  "wall_s": 0.02
+  "wall_s": 0.01
 }
