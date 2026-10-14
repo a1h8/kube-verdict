@@ -1,7 +1,7 @@
 # Knowledge sources — public vs enterprise
 
-> Findings 2026-10-14, read from the code. Nothing implemented. To discuss at the next
-> checkpoint, with the store and graph questions of [veracity.md](veracity.md).
+> Findings 2026-10-14, read from the code. Step 1 below is specced (go given
+> 2026-10-14, "pour améliorer le diagnostic"); the sLLM export guard comes later.
 
 ## What exists
 
@@ -59,3 +59,47 @@ confirm it when pushing a chart.
 - An export guard for the sLLM corpus: nothing `enterprise` without an explicit flag,
   and a test that enforces it.
 - Official Kubernetes docs ingested by the API path, tagged `official`.
+
+## Spec — step 1: provenance for the diagnosis
+
+> 2026-10-14. Scope: what the diagnosis reads. The sLLM corpus export guard is step 2,
+> once a corpus export exists.
+
+**Model.** `knowledge/provenance.py`:
+- `Origin = "public" | "enterprise"`.
+- `classify_url(url) -> Origin`: `public` when the host (or `oci://` registry path) is in
+  `PUBLIC_CHART_SOURCES` (config, comma-separated, with a default list of well-known
+  public chart repos: Artifact Hub, Bitnami, prometheus-community, grafana, jetstack,
+  kubernetes-sigs…). **Anything else is `enterprise`**: an unknown source is treated as
+  confidential (fail closed), never as public.
+
+**Where it is recorded.**
+- `EnterpriseChart` gets `origin` (default `enterprise`) and `source_url`.
+  `ChartStore.push(..., origin=None, source_url="")`: when `origin` is not given, it is
+  derived from `source_url` with `classify_url`; with neither, `enterprise`. Existing
+  `.kv-meta.json` files without the field load as `enterprise`.
+- `HelmRepository` gets `origin`, classified from its URL by `helm_collector`, and its
+  `to_text()` says it (`origin=public`), so the context tells "upstream chart defaults"
+  from "enterprise registry".
+- `EnterpriseDoc` and `ResolvedIncident` are enterprise by construction (pushed by the
+  operator, or approved in this cluster): no field needed.
+
+**Indexing — the weights finally apply.**
+- Chart anchors: `doc_source = "enterprise"` or `"public"` from the chart's origin.
+- Enterprise docs: `doc_source = "enterprise"`. Resolved incidents: `"example"`.
+- New weight `public` = **0.8** (`SOURCE_WEIGHT_PUBLIC`): an upstream default is weaker
+  evidence of what *this* company intends than its own pinned expected state
+  (`enterprise` 1.5). The existing weights are unchanged.
+
+**Not changed.** The graph's own entities stay `cluster`; anchors stay `anchor`. No
+export, no UI.
+
+**Effect on veracity.** Retrieval only. The `stub` replay cannot show it, so it is
+measured with `--store faiss` (next replay configuration).
+
+**Tests.** `classify_url` (public hosts, OCI, unknown → enterprise, configurable list);
+`push` derives and persists `origin`, old meta files load as `enterprise`; each indexer
+sets its `doc_source`; ranking: at equal similarity an `enterprise` chunk outranks a
+`public` one, in `search` and in `hybrid_search`; `HelmRepository` origin from the
+collector.
+
