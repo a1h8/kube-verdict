@@ -1,0 +1,31 @@
+{
+  "answerable": true,
+  "case": "h024_multi_cause",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [],
+    [
+      "memory"
+    ]
+  ],
+  "matched_keywords": [
+    "memory"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.65,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0, 1] below threshold",
+  "root_cause": "The root cause is Helm drift, where the deployed resources in the production namespace have diverged from the chart declarations, specifically in terms of memory resources.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:32:44.490567+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 110.24
+}

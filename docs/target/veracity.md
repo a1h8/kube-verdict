@@ -13,6 +13,43 @@
 Grading v2 (`tools/veracity.py`) exists and is unit-tested, but it has graded only two
 real answers so far.
 
+## First LLM baseline (2026-10-14) — mistral, prompt v1, no retrieval
+
+Records: `tests/veracity/replay-baselines/llm-mistral-prompt_v1-store_stub/` (54 runs).
+
+| Tier | Pass | rules alone |
+|---|---|---|
+| A — stated cause (h001–h012) | 20/36 | 3/12 |
+| B — cause in one signal (h013–h016) | 3/12 | 0/4 |
+| C — reasoning (h022, h024) | 0/6 | 1/2 |
+| **All** | **23/54 (43 %)** | 4/18 |
+
+What it says, after reading the failing answers:
+
+1. **The confidence label carries no information.** 53/54 runs answer MEDIUM, right or
+   wrong (one run gave no label). h022 (nothing broken) fails 3/3 only because the model
+   never says LOW. Overconfidence reads 0 only because HIGH never appears.
+2. **The verdict is unstable**: 9 of 18 cases get both `NO_GO` and `HUMAN_REVIEW` across
+   their 3 runs (26 `NO_GO`, 28 `HUMAN_REVIEW` overall). Same input, different decision.
+3. **Keyword grading under-counts tier A.** h004 ("the necessary ConfigMap and Secret
+   have not been created") and h005 ("the service account does not have the necessary
+   permissions") are right but FAIL: no `missing` / `forbidden` / `rbac` token. The
+   grader needs synonym groups (e.g. `missing|absent|not created|not found`); records
+   keep the answer text, so they can be re-graded without re-running.
+4. **The dominant wrong answer is the `helm_drift` decoy.** h014, h015, h016 answer
+   "Helm drift / replicaCount", h024 "Helm drift … memory". That is the rules' top
+   hypothesis on 9/18 cases, and the workflow injects it into the analyze prompt
+   (`HYPOTHESIS TO INVESTIGATE: …`). The fixtures' small `values.yaml` / `release.json`
+   differences create a spurious drift and the model follows it. Two levers: fixtures
+   without unintended drift, and a rule weight that does not let a generic drift
+   outrank a specific signal.
+5. **`answerable` is 100 % and therefore uninformative**: the injected hypothesis text
+   alone can put ground-truth keywords in the prompt. It must be computed on the
+   evidence sections only, not on the whole prompt.
+
+Next measurements (decided 2026-10-14): `--store faiss` (production retrieval), then
+prompt v2 (section 7), on the same cases, each frozen under its own configuration name.
+
 ## How a case reaches the model (clarified 2026-10-14)
 
 A case is **not** a document in a vector base. Its fixtures become a graph

@@ -1,0 +1,26 @@
+{
+  "answerable": true,
+  "case": "h016_multi_signal",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.59,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The Helm chart deployed for the orders-api has a different configuration than the current cluster state, leading to the pods not being ready. Specifically, the imagePullPolicy is set to 'IfNotPresent', which skips image pulls if the image is already cached. However, since the images are not cached, the pods are unable to start.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:21:37.838755+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 109.59
+}

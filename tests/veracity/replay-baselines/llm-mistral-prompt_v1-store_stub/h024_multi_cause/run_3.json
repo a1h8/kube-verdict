@@ -1,0 +1,33 @@
+{
+  "answerable": true,
+  "case": "h024_multi_cause",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [],
+    [
+      "memory",
+      "limit"
+    ]
+  ],
+  "matched_keywords": [
+    "memory",
+    "limit"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.65,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause is Helm drift, where the cluster state has diverged from the chart declaration for the Deployment/production/api. Specifically, there are differences between the declared and observed memory limits and requests in the values.yaml and the deployed release.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:35:07.346770+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 61.35
+}

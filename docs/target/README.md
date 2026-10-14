@@ -27,7 +27,7 @@ something, says how often this works.
 
 | Gate | Today |
 |---|---|
-| Veracity of a real model on the corpus | **Not measured.** 0/2 live captures (2026-09-26). Rules alone: 4/18 offline (2026-10-13) |
+| Veracity of a real model on the corpus | **23/54 (43 %)** offline, mistral, no retrieval (2026-10-14): A 20/36, B 3/12, C 0/6. Rules alone 4/18. Live: 0/2 (2026-09-26) |
 | Native scenarios | 18 (h001–h016, h022, h024) — 47 directories exist across 3 incompatible banks |
 | Scenarios where the cause is not where the symptom is | 6 (h013–h016 one-signal, h022, h024) — all graded only against a scripted LLM |
 | "Looks like X, is Y" cases with several side effects | 0 |

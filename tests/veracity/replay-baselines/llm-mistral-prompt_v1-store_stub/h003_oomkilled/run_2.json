@@ -1,0 +1,32 @@
+{
+  "answerable": true,
+  "case": "h003_oomkilled",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "memory",
+      "drift"
+    ]
+  ],
+  "matched_keywords": [
+    "memory",
+    "drift"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.56,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The Helm drift between the declared and deployed memory resources for the Deployment/production/api is causing the pods to run out of memory, leading to crashes.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:05:32.554876+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 61.97
+}

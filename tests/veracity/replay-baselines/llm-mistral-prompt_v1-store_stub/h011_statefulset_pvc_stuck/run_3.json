@@ -1,0 +1,30 @@
+{
+  "answerable": true,
+  "case": "h011_statefulset_pvc_stuck",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "volume"
+    ]
+  ],
+  "matched_keywords": [
+    "volume"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause is a combination of volume node affinity conflict and a node being cordoned and drained, making it unavailable for scheduling the `kafka-2` Pod.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T03:52:17.305897+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 169.29
+}

@@ -1,0 +1,34 @@
+{
+  "answerable": true,
+  "case": "h007_hpa_no_metrics",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "HPA",
+      "metrics",
+      "cpu"
+    ]
+  ],
+  "matched_keywords": [
+    "HPA",
+    "metrics",
+    "cpu"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is the inability to retrieve CPU metrics from the api-service pod, which prevents the HPA from scaling up under load. This issue is indicated by the Warning events related to FailedGetResourceMetric and FailedComputeMetricsReplicas.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:30:03.832908+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 232.39
+}

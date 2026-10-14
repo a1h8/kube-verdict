@@ -1,0 +1,36 @@
+{
+  "answerable": true,
+  "case": "h009_liveness_probe_loop",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "liveness",
+      "probe",
+      "timeout",
+      "drift"
+    ]
+  ],
+  "matched_keywords": [
+    "liveness",
+    "probe",
+    "timeout",
+    "drift"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.59,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is Helm drift, where the deployed HelmRelease's livenessProbe.timeoutSeconds differs from the declared value in the values.yaml file. This discrepancy may be causing the search-service pod to go down every few minutes due to the shorter timeout.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:47:50.326801+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 159.34
+}

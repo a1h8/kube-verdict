@@ -1,0 +1,32 @@
+{
+  "answerable": true,
+  "case": "h010_resource_quota_exceeded",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "resource",
+      "pending"
+    ]
+  ],
+  "matched_keywords": [
+    "resource",
+    "pending"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.62,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The worker-service pod is requesting more CPU resources than what is available in the staging namespace, causing it to be Pending and eventually failing to start.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T03:36:57.658582+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 293.51
+}

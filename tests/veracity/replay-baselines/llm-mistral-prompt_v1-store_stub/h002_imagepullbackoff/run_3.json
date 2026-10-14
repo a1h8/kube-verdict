@@ -1,0 +1,32 @@
+{
+  "answerable": true,
+  "case": "h002_imagepullbackoff",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "image",
+      "pull"
+    ]
+  ],
+  "matched_keywords": [
+    "image",
+    "pull"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.53,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is a discrepancy between the declared image version in the Helm chart (v2.0.5) and the deployed image version (v2.1.0-private). This discrepancy is causing the pod to fail to start due to the unauthorized image pull.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:00:58.874630+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 75.12
+}

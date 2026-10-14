@@ -1,0 +1,34 @@
+{
+  "answerable": true,
+  "case": "h006_networkpolicy_blocked",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "egress",
+      "blocked",
+      "timeout"
+    ]
+  ],
+  "matched_keywords": [
+    "egress",
+    "blocked",
+    "timeout"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause appears to be a DNS resolution failure, as indicated by the event \"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout (DNS resolution failed \u2014 UDP/53 egress blocked)\". This suggests that the order-service is unable to resolve the DNS name of its dependency, likely due to a network issue.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:26:11.436430+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 181.48
+}
