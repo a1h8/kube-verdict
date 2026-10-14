@@ -1,0 +1,65 @@
+# Equivalent wordings for ground-truth keywords, used by tools/veracity.py grade().
+# docs/evidence-score.md § Prerequisites 1. Data, not code: review it like ground truth.
+# Conservative on purpose: only phrasings that say the same thing. Matching is a
+# case-insensitive substring test. A keyword in expect.json may also list its own
+# alternatives inline: "missing|absent". Override the file with VERACITY_SYNONYMS.
+missing:
+  - absent
+  - absence
+  - not created
+  - not been created
+  - never created
+  - not found
+  - does not exist
+  - doesn't exist
+  - nonexistent
+  - non-existent
+not found:
+  - missing
+  - absent
+  - absence
+  - does not exist
+  - doesn't exist
+  - not created
+  - not been created
+forbidden:
+  - not allowed
+  - permission denied
+  - lacks permission
+  - necessary permissions
+  - not authorized
+  - unauthorized
+  - denied
+rbac:
+  - role binding
+  - rolebinding
+  - clusterrole
+  - permissions
+cannot list:
+  - unable to list
+  - not allowed to list
+  - permission to list
+  - permissions to list
+serviceaccount:
+  - service account
+configmap:
+  - config map
+expired:
+  - expiry
+  - expiration
+timeout:
+  - timed out
+  - time out
+  - deadline exceeded
+pending:
+  - unschedulable
+  - not scheduled
+  - cannot be scheduled
+exceeded:
+  - exceeds
+  - over the quota
+  - above the quota
+blocked:
+  - denied
+  - dropped
+  - not allowed

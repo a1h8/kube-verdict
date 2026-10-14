@@ -197,6 +197,44 @@ def _header(solver: str) -> str:
 
 # ── CLI ─────────────────────────────────────────────────────────────────────────
 
+def regrade(records_dir: Path) -> str:
+    """Re-grade recorded runs with today's expect.json and synonyms; records untouched.
+
+    The recorded answer, label and verdict are graded again, so a grading change
+    (docs/evidence-score.md § Prerequisites) is measured without re-running a model.
+    """
+    rows = []
+    for path in sorted(records_dir.glob("*/run_*.json")):
+        record = json.loads(path.read_text())
+        expect = json.loads((CASES_ROOT / record["case"] / "expect.json").read_text())
+        grading = grading_expect(expect)
+        if record.get("solver") == "rules":
+            grading.pop("expected_verdict", None)
+        new = grade(record.get("root_cause", ""), grading,
+                    confidence=record.get("confidence", ""), verdict=record.get("verdict") or "")
+        rows.append((record["tier"], record["case"], record["veracity"], new["veracity"]))
+    lines = ["# Re-graded runs", "",
+             f"Records: `{records_dir}`. Graded again with the current `expect.json` files and "
+             "`tests/veracity/synonyms.yaml`; the records themselves are unchanged.", "",
+             "| Tier / case | Pass before | Pass now |", "|---|---|---|"]
+    for tier in TIERS:
+        tier_rows = [r for r in rows if r[0] == tier]
+        if not tier_rows:
+            continue
+        before = sum(r[2] == "PASS" for r in tier_rows)
+        now = sum(r[3] == "PASS" for r in tier_rows)
+        lines.append(f"| **Tier {tier}** | {before}/{len(tier_rows)} | {now}/{len(tier_rows)} |")
+        for case in sorted({r[1] for r in tier_rows}):
+            case_rows = [r for r in tier_rows if r[1] == case]
+            b = sum(r[2] == "PASS" for r in case_rows)
+            n = sum(r[3] == "PASS" for r in case_rows)
+            lines.append(f"| {case} | {b}/{len(case_rows)} | {n}/{len(case_rows)} |")
+    total_b = sum(r[2] == "PASS" for r in rows)
+    total_n = sum(r[3] == "PASS" for r in rows)
+    lines += ["", f"**All: {total_b}/{len(rows)} → {total_n}/{len(rows)}**", ""]
+    return "\n".join(lines)
+
+
 def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
     """One llm run in its own process, killed after REPLAY_RUN_TIMEOUT seconds.
 
@@ -215,7 +253,9 @@ def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Grade a real model or the rules on the native cases")
-    ap.add_argument("--solver", required=True, help="rules | llm | llm:<model>")
+    ap.add_argument("--solver", help="rules | llm | llm:<model>")
+    ap.add_argument("--regrade", metavar="DIR",
+                    help="re-grade the records under DIR (writes DIR/REGRADED.md), run nothing")
     ap.add_argument("--cases", default="", help="comma-separated keys, e.g. h001,h014 (default: all)")
     ap.add_argument("--runs", type=int, default=3, help="runs per case for llm (rules: always 1)")
     ap.add_argument("--resume", action="store_true", help="skip runs already recorded")
@@ -223,6 +263,14 @@ def main(argv: list[str] | None = None) -> int:
     # internal: run exactly one (case, run) in this process — the parent's watchdog child
     ap.add_argument("--child-run", type=int, default=0, help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
+    if args.regrade:
+        records_dir = Path(args.regrade)
+        report = regrade(records_dir)
+        (records_dir / "REGRADED.md").write_text(report)
+        print(report)
+        return 0
+    if not args.solver:
+        ap.error("--solver is required (or --regrade DIR)")
 
     out_dir = Path(args.out)
     solver, _, model = args.solver.partition(":")

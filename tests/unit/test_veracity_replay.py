@@ -130,3 +130,17 @@ def test_hung_llm_run_is_killed_and_reported(tmp_path, monkeypatch, capsys):
     assert cmd[cmd.index("--cases") + 1] == "h004"
     assert "process killed" in capsys.readouterr().err
     assert not list(tmp_path.iterdir())
+
+
+def test_regrade_rereads_records_without_touching_them(tmp_path):
+    case_dir = tmp_path / "h004_missing_configmap"
+    case_dir.mkdir()
+    record = {"case": "h004_missing_configmap", "tier": "A", "solver": "llm", "run": 1,
+              "veracity": "FAIL", "confidence": "MEDIUM", "verdict": "HUMAN_REVIEW",
+              "root_cause": "The ConfigMap api-gateway-config has not been created."}
+    path = case_dir / "run_1.json"
+    path.write_text(json.dumps(record))
+    assert vr.main(["--regrade", str(tmp_path)]) == 0
+    report = (tmp_path / "REGRADED.md").read_text()
+    assert "| h004_missing_configmap | 0/1 | 1/1 |" in report
+    assert json.loads(path.read_text())["veracity"] == "FAIL"

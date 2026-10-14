@@ -47,6 +47,19 @@ What it says, after reading the failing answers:
    alone can put ground-truth keywords in the prompt. It must be computed on the
    evidence sections only, not on the whole prompt.
 
+**Re-graded with synonyms (2026-10-14, prerequisite 1 of `docs/evidence-score.md`).**
+Synonyms live in `tests/veracity/synonyms.yaml` (data, not code; `VERACITY_SYNONYMS`
+overrides it), and `tools/veracity_replay.py --regrade DIR` grades recorded runs again
+without re-running a model (`REGRADED.md` next to the records).
+- All: 23/54 → **30/54 (56 %)**. Tier A 20/36 → **27/36**: h004 0/3 → 3/3 ("the
+  absence of the ConfigMap"), h005 0/3 → 3/3 ("lacks the necessary permissions"),
+  h011 0/3 → 1/3.
+- Tier B 3/12 and tier C 0/6 do not move: those failures are real (the `helm_drift`
+  decoy, no LOW on h022), not grading.
+- Borderline: h011 run 1 passes through `pending ← unschedulable`, but its cause ("volume
+  node affinity conflict") is only close to the scenario's (a PVC still bound to the old
+  pod). Counted, flagged.
+
 Next measurements (decided 2026-10-14): `--store faiss` (production retrieval), then
 prompt v2 (section 7), on the same cases, each frozen under its own configuration name.
 

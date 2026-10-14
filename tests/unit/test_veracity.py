@@ -174,3 +174,51 @@ def test_normalize_label(raw, label):
 def test_decorated_low_label_passes_a_negative_case():
     expect = {"expected_outcome": "no_incident"}
     assert grade("No incident", expect, confidence="LOW.")["veracity"] == "PASS"
+
+
+class TestSynonyms:
+    """docs/evidence-score.md § Prerequisites 1: right answers in other words."""
+
+    def test_h004_answer_from_the_baseline_now_passes(self):
+        expect = {"root_cause_contains": ["configmap", "api-gateway-config", "not found", "missing"]}
+        answer = ("The root cause is that the necessary ConfigMap and Secret have not been "
+                  "created or are not properly linked to the Pod.")
+        assert grade(answer, expect)["veracity"] == "PASS"
+
+    def test_h005_answer_from_the_baseline_now_passes(self):
+        expect = {"root_cause_contains": ["forbidden", "serviceaccount", "audit-exporter-sa",
+                                          "rbac", "cannot list"]}
+        answer = ("The service account `audit-exporter-sa` in the `monitoring` namespace does "
+                  "not have the necessary permissions to list and watch pods.")
+        assert grade(answer, expect)["veracity"] == "PASS"
+
+    def test_matched_keywords_are_reported_as_authored(self):
+        r = grade("the secret was never created", {"root_cause_contains": ["secret", "missing"]})
+        assert r["matched_keywords"] == ["secret", "missing"]
+
+    def test_inline_alternatives(self):
+        expect = {"root_cause_contains": ["pool|max_connections"]}
+        assert grade("max_connections reached", expect)["veracity"] == "PASS"
+
+    def test_synonyms_apply_to_the_decoy_too(self):
+        expect = {"root_cause_contains": ["x509"], "root_cause_must_not_contain": ["missing"]}
+        assert grade("x509 cert, the secret is absent", expect)["veracity"] == "FAIL"
+
+    def test_a_wrong_answer_stays_wrong(self):
+        expect = {"root_cause_contains": ["certificate", "expired", "x509", "tls"]}
+        assert grade("Helm drift on replicaCount", expect)["veracity"] == "FAIL"
+
+
+def test_synonyms_come_from_the_data_file_not_the_code(tmp_path, monkeypatch):
+    from tools import veracity
+    custom = tmp_path / "syn.yaml"
+    custom.write_text("missing:\n  - vanished\n")
+    monkeypatch.setenv("VERACITY_SYNONYMS", str(custom))
+    veracity.synonyms.cache_clear()
+    try:
+        expect = {"root_cause_contains": ["missing"]}
+        assert grade("the secret vanished", expect)["veracity"] == "PASS"
+        assert grade("the secret is absent", expect)["veracity"] == "FAIL"   # not in this file
+    finally:
+        monkeypatch.delenv("VERACITY_SYNONYMS")
+        veracity.synonyms.cache_clear()

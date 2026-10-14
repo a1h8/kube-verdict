@@ -20,13 +20,43 @@ Fields read from ``expect``:
 """
 from __future__ import annotations
 
+import os
 import re
+from functools import lru_cache
+from pathlib import Path
+
+import yaml
 
 OUTCOMES = ("cause", "no_incident", "insufficient_evidence")
 
 
+_SYNONYMS_FILE = Path(__file__).resolve().parent.parent / "tests/veracity/synonyms.yaml"
+
+
+@lru_cache(maxsize=None)
+def synonyms(path: str | None = None) -> dict[str, tuple[str, ...]]:
+    """Equivalent wordings per keyword, from a data file (not hard-coded).
+
+    ``tests/veracity/synonyms.yaml`` by default, or ``VERACITY_SYNONYMS``.
+    docs/evidence-score.md § Prerequisites 1.
+    """
+    file = Path(path or os.environ.get("VERACITY_SYNONYMS") or _SYNONYMS_FILE)
+    if not file.exists():
+        return {}
+    data = yaml.safe_load(file.read_text()) or {}
+    return {str(k).lower(): tuple(str(v).lower() for v in (vals or [])) for k, vals in data.items()}
+
+
+def _alternatives(keyword: str) -> tuple[str, ...]:
+    own = tuple(k.strip().lower() for k in keyword.split("|") if k.strip())
+    table = synonyms()
+    extra = tuple(alt for k in own for alt in table.get(k, ()))
+    return own + extra
+
+
 def _matches(text: str, keywords: list[str]) -> list[str]:
-    return [kw for kw in keywords if kw.lower() in text]
+    """The keywords (as authored) for which the text contains any accepted wording."""
+    return [kw for kw in keywords if any(alt in text for alt in _alternatives(kw))]
 
 
 def normalize_label(confidence: str) -> str:
