@@ -90,8 +90,8 @@ offline from each case's fixtures and the recorded root cause.
 
 1. Grading with synonym groups (`missing|absent|not created|not found`…), so PASS / FAIL
    is trustworthy enough to calibrate against.
-2. Fixtures without unintended Helm drift (`values.yaml` vs `release.json` differences
-   that are not part of the scenario), audited case by case.
+2. ~~Fixtures without unintended Helm drift~~ — **the audit (2026-10-14) found the cause
+   in production code, not in the fixtures**; see *Prerequisite 2, corrected* below.
 3. `answerable` computed on the evidence sections only, not on the injected hypothesis.
 
 ## Tests
@@ -109,3 +109,48 @@ offline from each case's fixtures and the recorded root cause.
 
 The sLLM, retrieval changes (`--store faiss`), prompt v2. They are measured after this,
 on a gate whose decision means something.
+
+## Prerequisite 2, corrected — a symptom is not a drift
+
+> Spec (2026-10-14), not implemented.
+
+**Audit.** Drift annotations per native case (`build_graph`), against each scenario's
+intent: h014 and h015 have no `values.yaml` / `release.json` difference at all, yet carry
+`drift.status.readyReplicas`; h001 carries `drift.status.restartCount` and
+`drift.container.payment-service.state`; h016 `drift.status.readyReplicas`. The real
+configuration drifts (`drift.helm.image_tag`, `drift.helm.resources_limits_memory`,
+`drift.helm.livenessProbe_timeoutSeconds`, `drift.spec.replicas`) are there too, but
+mixed with them.
+
+**Cause.** `HelmDriftDetector` (`ingestion/helm_drift.py`) emits `DriftItem`s for runtime
+status: `status.readyReplicas` (Deployment, StatefulSet), `status.numberReady`
+(DaemonSet), `status.phase` (PVC), `container.<name>.state` (CrashLoopBackOff /
+OOMKilled) and `status.restartCount`, with `critical` severity when nothing is ready.
+So every unhealthy workload becomes a "Helm drift": the `helm_drift` rule fires on any
+`drift.*` annotation (top hypothesis on 9/18 cases), each item adds +0.07 to the pre-LLM
+score, and the context presents it as drift, so the model answers "Helm drift". A
+symptom is evidence that something is wrong, not a difference between declared and
+observed configuration.
+
+**Fix.**
+- `DriftItem` / `drift.*` / `DRIFTS_FROM` only for **declared vs observed configuration**:
+  `spec.replicas` vs `replicaCount`, values-driven fields, storage requests, subchart
+  conditions.
+- Runtime status becomes **health** evidence: same detection, annotated `health.<field>`
+  (e.g. `health.status.readyReplicas`, `health.container.api.state`), never `drift.*`, no
+  `DRIFTS_FROM` edge. The evidence score reads it as a symptom of the entity.
+- Consumers follow the namespaces: the `helm_drift` rule and the context's drift
+  section read `drift.*` only; `compute_confidence`'s `helm_drift_items` counts `drift.*`
+  only.
+- The pod image-tag comparison in `_check_pod` is a no-op (`pass`) today; it is recorded
+  as a gap, not fixed here.
+
+**Expected effects, to observe and record.** `helm_drift` stops being the top rule on
+cases with no configuration drift (h014, h015, h001…); h002, h003, h009, h024 keep their
+real drifts. The rules replay, the golden guard and the vitrine fixtures are re-checked;
+tests asserting status-based drift move to `health.*`.
+
+**Tests.** Detector: config drift → `drift.*` + edge; status-only → `health.*`, no
+`drift.*`, no edge. Rule: no `helm_drift` hypothesis from `health.*` alone. Context /
+confidence: health items are not drift items. Per case: no `drift.*` on h014 / h015.
+
