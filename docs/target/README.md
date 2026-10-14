@@ -13,6 +13,21 @@
 | [vitrine-live.md](vitrine-live.md) | The vitrine demo, and getting one real live session into it |
 | [knowledge-sources.md](knowledge-sources.md) | Public vs enterprise knowledge, and what the sLLM corpus may contain |
 
+## The three pillars — do not drift from them (2026-10-14)
+
+Every change is judged against what it does for these three, and nothing else:
+
+1. **The incident vector base** — resolved incidents, runbooks and expected state,
+   retrieved as evidence (`knowledge/`, `vectorstore/`).
+2. **Helm** — declared state, charts at their pinned version, drift between declared,
+   rendered and live (`ingestion/helm_*`, `knowledge/chart_*`).
+3. **The Kubernetes graph** — entities and relationships built from the API
+   (`ingestion/k8s_collector.py`, `ontology/`).
+
+The evidence score (`docs/evidence-score.md`) is built on them: its evidence comes from
+the graph and from Helm, and resolved incidents from the vector base add to it. Work
+that serves none of the three waits.
+
 ## The target, in one paragraph
 
 On a real cluster (local first, then GCP and Scaleway), an incident fires whose cause is
