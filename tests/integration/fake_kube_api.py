@@ -36,7 +36,22 @@ def _complete(doc: dict) -> dict:
     meta = doc.setdefault("metadata", {})
     meta.setdefault("uid", f"fixture-{doc.get('kind', 'obj')}-{meta.get('name', '')}".lower())
     for ref in meta.get("ownerReferences") or []:
+        ref.setdefault("apiVersion", "apps/v1")
         ref.setdefault("uid", f"fixture-{ref.get('kind', '')}-{ref.get('name', '')}".lower())
+    # kubernetes >= 37 validates its models (pydantic) and ignores
+    # client_side_validation: a container status needs image / imageID / ready /
+    # restartCount, which hand-written fixtures often omit.
+    images = {c.get("name"): c.get("image", "") for c in
+              ((doc.get("spec") or {}).get("containers") or [])
+              + ((doc.get("spec") or {}).get("initContainers") or [])}
+    status = doc.get("status") or {}
+    for key in ("containerStatuses", "initContainerStatuses"):
+        for cs in status.get(key) or []:
+            cs.setdefault("name", "")
+            cs.setdefault("image", images.get(cs["name"], "") or "fixture")
+            cs.setdefault("imageID", "")
+            cs.setdefault("ready", False)
+            cs.setdefault("restartCount", 0)
     return doc
 
 
