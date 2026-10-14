@@ -27,10 +27,11 @@ Also to verify: in `ingestion/k8s_collector.py`, pods are collected before Confi
 and Secrets, and `_lazy_edge` only links to entities already in the graph, so the
 pod → ConfigMap / Secret edges may never be built live.
 
-What to do: move the detector into production code (`ingestion/`), driven by pod specs
-plus what Kubernetes reports (events, container status), and have the fixture loader
-call that same code, so the offline tests prove what runs live. Until then, a failure
-on h001–h006 live is expected, not a regression.
+Done 2026-10-14 (`docs/test-cases.md` § *Live parity*): the detector is in
+`ingestion/readiness.py` and both the live collector and the fixture loader call it.
+The pod-dependency edges and container-state shape are fixed too. Still offline-only:
+`missing.rbac.*` and `netpol.*` (RoleBindings and NetworkPolicies are not collected as
+typed objects live).
 
 ## The loop
 

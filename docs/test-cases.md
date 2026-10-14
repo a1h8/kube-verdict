@@ -817,3 +817,22 @@ the fixtures (Helm release, policy reports). The parity xfails are removed.
 **Tests.** The parity test itself; `readiness.detect_missing()` unit tests (each
 reference type, Secret by event only, unknown on a failed listing); the collector's
 edge and status shape on a fake API; the existing case tests as the regression check.
+
+**Implemented (2026-10-13/14), phases 1 and 2, and phase 3 for the detector.**
+`tests/integration/fake_kube_api.py` + `tests/integration/test_live_parity.py`;
+`ingestion/readiness.py`; in `ingestion/k8s_collector.py`, API-shaped container
+statuses, `_link_pod_dependencies` (second pass) and `_annotate_missing_dependencies`.
+The fixture loader's `_detect_missing_deps` now delegates to `readiness.detect_missing`.
+- Divergence 1: fixed for Secret, ConfigMap, PVC, ServiceAccount and image pull
+  secrets. **Still open (strict xfail)**: `missing.rbac.*` and `netpol.*`, because
+  RoleBindings and NetworkPolicies are not collected as typed objects live.
+- Divergence 2: fixed. Divergence 3: fixed, and `oom_kill` now fires on h003's live
+  graph.
+- *Changed while implementing:* the fake API completes missing `uid`s and turns off
+  client-side validation, since hand-written fixtures omit fields a real API fills.
+  The first version of the parity test passed vacuously (the fake namespace had no
+  status, so `collect()` crashed before the checks); each xfail was then re-run
+  without its mark to confirm it fails on its own divergence.
+- Observed: full suite 2498 passed, 1 xfailed; `rules` replay unchanged (4/18).
+- Not done yet (phase 3, rest): building the loader's Kubernetes entities through the
+  fake-API → `K8sCollector` path.

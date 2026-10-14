@@ -11,7 +11,7 @@ from ontology.dynamic_entity import GenericEntity
 from ontology.entities import (
     Namespace, Node, Pod, Deployment, StatefulSet, DaemonSet, ReplicaSet,
     Service, Ingress, ConfigMap, PersistentVolume,
-    PersistentVolumeClaim, ServiceAccount, K8sEvent,
+    PersistentVolumeClaim, ServiceAccount, K8sEvent, ResourceKind,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
@@ -113,6 +113,8 @@ class K8sCollector:
     def collect(self, namespaces: list[str] | None = None) -> OntologyGraph:
         ns_filter = namespaces or cfg.KUBE_NAMESPACES or None
         graph = OntologyGraph(server_version=self.kube_version)
+        self._api_pods: dict[str, list[dict]] = {}       # API-shaped pods, for readiness
+        self._listing_failed: set[tuple[str, str]] = set()
 
         # 1. Typed core resources (rich field extraction + relationship wiring)
         log.info("Collecting core typed resources…")
@@ -134,6 +136,9 @@ class K8sCollector:
             self._collect_pvcs(graph, ns)
             self._collect_serviceaccounts(graph, ns)
             self._collect_events(graph, ns)
+            # after everything a pod can reference is in the graph
+            self._link_pod_dependencies(graph, ns)
+            self._annotate_missing_dependencies(graph, ns)
 
         self._collect_pvs(graph)
 
@@ -224,6 +229,8 @@ class K8sCollector:
 
         ns_entity = self._find_by_name(graph, namespace, None, "Namespace")
         for item in items:
+            self._api_pods.setdefault(namespace, []).append(
+                self._api_client.sanitize_for_serialization(item))
             owner_kind, owner_name = "", ""
             for ref in (item.metadata.owner_references or []):
                 owner_kind, owner_name = ref.kind, ref.name
@@ -231,9 +238,10 @@ class K8sCollector:
             restart_count = sum(
                 (cs.restart_count or 0) for cs in (item.status.container_statuses or [])
             )
+            # API shape (state.waiting.reason, lastState.terminated.reason…): the shape
+            # the rules and Pod.needs_telemetry read (docs/test-cases.md § Live parity)
             container_statuses = [
-                {"name": cs.name, "ready": cs.ready,
-                 "restart_count": cs.restart_count, "state": str(cs.state)}
+                self._api_client.sanitize_for_serialization(cs)
                 for cs in (item.status.container_statuses or [])
             ]
             e = Pod(
@@ -258,21 +266,59 @@ class K8sCollector:
                 node = self._find_by_name(graph, item.spec.node_name, None, "Node")
                 if node:
                     graph.add_edge(Edge(e.uid, node.uid, RelationshipType.RUNS_ON))
-            for vol in (item.spec.volumes or []):
-                if vol.config_map:
-                    self._lazy_edge(graph, e.uid, namespace, vol.config_map.name,
+
+    def _link_pod_dependencies(self, graph: OntologyGraph, namespace: str) -> None:
+        """Pod → ConfigMap / PVC / ServiceAccount edges, once those are collected.
+
+        Built in _collect_pods before, when none of them was in the graph yet, so no
+        edge was ever created live (docs/test-cases.md § Live parity, divergence 2).
+        Secrets are never collected (docs/diagnostics.md § Step 4).
+        """
+        for pod in list(graph.entities(ResourceKind.POD)):
+            if pod.namespace != namespace:
+                continue
+            spec = (pod.raw or {}).get("spec") or {}
+            for vol in spec.get("volumes") or []:
+                if (vol.get("config_map") or {}).get("name"):
+                    self._lazy_edge(graph, pod.uid, namespace, vol["config_map"]["name"],
                                     "ConfigMap", RelationshipType.MOUNTS_CONFIGMAP)
-                if vol.secret:
-                    self._lazy_edge(graph, e.uid, namespace, vol.secret.secret_name,
-                                    "Secret", RelationshipType.MOUNTS_SECRET)
-                if vol.persistent_volume_claim:
-                    self._lazy_edge(graph, e.uid, namespace,
-                                    vol.persistent_volume_claim.claim_name,
+                if (vol.get("persistent_volume_claim") or {}).get("claim_name"):
+                    self._lazy_edge(graph, pod.uid, namespace,
+                                    vol["persistent_volume_claim"]["claim_name"],
                                     "PersistentVolumeClaim", RelationshipType.USES_PVC)
-            if item.spec.service_account_name:
-                self._lazy_edge(graph, e.uid, namespace,
-                                item.spec.service_account_name,
+            if spec.get("service_account_name"):
+                self._lazy_edge(graph, pod.uid, namespace, spec["service_account_name"],
                                 "ServiceAccount", RelationshipType.USES_SERVICE_ACCOUNT)
+
+    def _annotate_missing_dependencies(self, graph: OntologyGraph, namespace: str) -> None:
+        """``missing.*`` annotations on pods, from the production detector.
+
+        It used to exist only in the test fixture loader (docs/test-cases.md §
+        Live parity, divergence 1). A kind whose listing failed is unknown, never
+        missing. RoleBindings and NetworkPolicies are not collected as typed objects,
+        so their checks are skipped here (``None``).
+        """
+        from ingestion.readiness import Present, detect_missing
+
+        def names(kind: str, entity_kind: str) -> set[str] | None:
+            if (namespace, kind) in self._listing_failed:
+                return None
+            return {e.name for e in graph.entities() if e.kind.value == entity_kind
+                    and e.namespace == namespace}
+
+        present = Present(
+            configmaps=names("configmaps", "ConfigMap"),
+            pvcs=names("pvcs", "PersistentVolumeClaim"),
+            serviceaccounts=names("serviceaccounts", "ServiceAccount"),
+            messages=[e.message for e in graph.entities(ResourceKind.EVENT)
+                      if e.namespace == namespace],
+        )
+        pods = {(e.namespace, e.name): e for e in graph.entities(ResourceKind.POD)}
+        for api_pod in self._api_pods.get(namespace, []):
+            meta = api_pod.get("metadata") or {}
+            entity = pods.get((meta.get("namespace"), meta.get("name")))
+            if entity is not None:
+                entity.annotations.update(detect_missing(api_pod, present))
 
     def _collect_deployments(self, graph: OntologyGraph, namespace: str) -> None:
         try:
@@ -452,6 +498,7 @@ class K8sCollector:
             items = self._core.list_namespaced_config_map(namespace).items
         except ApiException as exc:
             log.warning("Cannot list configmaps in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "configmaps"))
             return
         for item in items:
             graph.add_entity(ConfigMap(
@@ -479,6 +526,7 @@ class K8sCollector:
             items = self._core.list_namespaced_persistent_volume_claim(namespace).items
         except ApiException as exc:
             log.warning("Cannot list pvcs in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "pvcs"))
             return
         for item in items:
             req_storage = ""
@@ -504,6 +552,7 @@ class K8sCollector:
             items = self._core.list_namespaced_service_account(namespace).items
         except ApiException as exc:
             log.warning("Cannot list serviceaccounts in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "serviceaccounts"))
             return
         for item in items:
             graph.add_entity(ServiceAccount(

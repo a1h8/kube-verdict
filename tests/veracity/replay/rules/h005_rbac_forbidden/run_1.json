@@ -11,15 +11,16 @@
   "matched_keywords": [],
   "model": "",
   "pre_llm_confidence_score": null,
+  "prompt": "v2",
   "reason": "keyword group(s) [0] below threshold",
   "root_cause": "",
   "rule_id": null,
   "run": 1,
   "signals_mode": null,
   "solver": "rules",
-  "started_at": "2026-10-13T04:43:22.264495+00:00",
+  "started_at": "2026-10-14T03:38:04.396098+00:00",
   "tier": "A",
   "veracity": "FAIL",
   "verdict": null,
-  "wall_s": 0.01
+  "wall_s": 0.02
 }

@@ -63,24 +63,37 @@ def test_both_paths_see_the_same_pods_and_deployments(graphs):
         assert _names(live, ResourceKind.DEPLOYMENT) <= _names(loader, ResourceKind.DEPLOYMENT), name
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "divergence 1: missing-dependency detection exists only in the test loader "
-    "(case_loader._detect_missing_deps); docs/test-cases.md § Live parity"))
-def test_missing_dependency_annotations_are_produced_live(graphs):
+_RBAC_NETPOL = ("missing.rbac.", "netpol.")
+
+
+def _compare_annotations(graphs, keep) -> None:
     expected_somewhere = False
     for name, (_, loader, live) in graphs.items():
         live_pods = _pods(live)
         for pod_name, pod in _pods(loader).items():
-            wanted = _dependency_annotations(pod)
+            wanted = {k for k in _dependency_annotations(pod) if keep(k)}
             expected_somewhere |= bool(wanted)
-            assert wanted <= _dependency_annotations(live_pods[pod_name]), (name, pod_name)
+            got = {k for k in _dependency_annotations(live_pods[pod_name]) if keep(k)}
+            assert wanted == got, (name, pod_name, wanted ^ got)
     assert expected_somewhere
 
 
+def test_missing_dependency_annotations_are_produced_live(graphs):
+    """Was divergence 1 (detector only in the loader): both paths now call
+    ingestion.readiness.detect_missing — Secret, ConfigMap, PVC, ServiceAccount."""
+    _compare_annotations(graphs, lambda k: not k.startswith(_RBAC_NETPOL))
+
+
 @pytest.mark.xfail(strict=True, reason=(
-    "divergence 2: pods are collected before ConfigMaps / PVCs / ServiceAccounts, so "
-    "_lazy_edge finds nothing to link; docs/test-cases.md § Live parity"))
+    "divergence 1b: RoleBindings and NetworkPolicies are not collected as typed "
+    "objects live, so missing.rbac.* / netpol.* exist only offline; "
+    "docs/test-cases.md § Live parity"))
+def test_rbac_and_netpol_annotations_are_produced_live(graphs):
+    _compare_annotations(graphs, lambda k: k.startswith(_RBAC_NETPOL))
+
+
 def test_pod_dependency_edges_are_built_live(graphs):
+    """Was divergence 2 (pods collected before what they reference): fixed 2026-10-13."""
     references = 0
     for name, (case, _, live) in graphs.items():
         present = {
@@ -107,11 +120,8 @@ def test_pod_dependency_edges_are_built_live(graphs):
     assert references
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "divergence 3: the live collector stores container state as str(cs.state), "
-    "without lastState, so rules reading it (oom_kill) cannot fire live; "
-    "docs/test-cases.md § Live parity"))
 def test_container_state_reasons_survive_live(graphs):
+    """Was divergence 3 (str(cs.state), no lastState): fixed 2026-10-13."""
     expected_somewhere = False
     for name, (_, loader, live) in graphs.items():
         live_pods = _pods(live)
@@ -120,3 +130,10 @@ def test_container_state_reasons_survive_live(graphs):
             expected_somewhere |= bool(wanted)
             assert wanted == _reasons(live_pods[pod_name]), (name, pod_name)
     assert expected_somewhere
+
+
+def test_oom_kill_rule_fires_on_the_live_graph(graphs):
+    """The consequence of divergence 3: the rule could not fire on a live graph."""
+    from rca.remediation_engine import RemediationEngine
+    _, _, live = graphs["h003_oomkilled"]
+    assert "oom_kill" in {h.rule_id for h in RemediationEngine().score(live)}

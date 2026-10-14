@@ -15,15 +15,16 @@
   ],
   "model": "",
   "pre_llm_confidence_score": null,
+  "prompt": "v2",
   "reason": "keyword group(s) [0] below threshold",
   "root_cause": "Pod Pending \u2014 no node satisfies scheduling constraints. No node matches the pod's nodeSelector, affinity rules, or resource requests. Check node labels and available capacity. (Pod/data/kafka-2)",
   "rule_id": "pending_unschedulable",
   "run": 1,
   "signals_mode": null,
   "solver": "rules",
-  "started_at": "2026-10-13T04:43:22.370576+00:00",
+  "started_at": "2026-10-14T03:38:04.542284+00:00",
   "tier": "A",
   "veracity": "FAIL",
   "verdict": null,
-  "wall_s": 0.01
+  "wall_s": 0.02
 }
