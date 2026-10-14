@@ -23,7 +23,23 @@ graph *of this investigation* is indexed in FAISS, and `hybrid_search` adds a "r
 section, anchor-based hypotheses and the re-ranking after a failed path.
 
 - CI tests and the replay so far use `StubStore`: no retrieval at all.
-- `test_native_helm_dialogue` (Ollama) and production use a real `FAISSStore`.
+- **Production has two store configurations that never combine** (corrected
+  2026-10-14, read from `api/app.py` and `workflow/nodes.py` `index_node`):
+  - *Through the API with a persisted index* (`index.faiss`, or rebuilt from the DB):
+    the store holds the knowledge base (runbooks, K8s docs, Helm charts, examples) and
+    is passed to every session. `index_node` sees a store and **skips indexing**: the
+    investigation's graph and its anchor violations are never indexed, so
+    `hybrid_search` finds neither the entities at fault nor the `anchor:` hypotheses
+    (RRF-on-anchors does not run through the API).
+  - *Without a persisted index* (CLI, `test_native_helm_dialogue`): `index_node`
+    builds a FAISS on the graph and its anchors only, with no knowledge base.
+- **The graph is rebuilt for every investigation**: a snapshot taken by the collector,
+  with no watch / informer and no persistence. Fresh by construction, but there is no
+  history ("what changed 20 minutes ago", needed by h019, h020, M2, M7 and P3), and
+  nothing for a resolved example to attach to. A persistent, watch-updated, timestamped
+  graph is an architecture question for the next checkpoint.
+- The 54 local `data/examples/` entries (gitignored, not in CI) all have the query
+  `pods oom`: repeated approvals, and the store does not deduplicate.
 - No corpus of all the cases exists, on purpose. If the cases were retrievable, the
   model would find the answer as a "similar incident" and veracity would be inflated.
   The only retrieval corpus is `data/examples/` (human-approved resolutions).
