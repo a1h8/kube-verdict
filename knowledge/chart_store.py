@@ -39,6 +39,10 @@ class EnterpriseChart:
     render_type: RenderType = "helm"
     source: str = "upload"          # upload | git | repo
     tags: list[str] = field(default_factory=list)
+    # public (upstream) | enterprise — docs/target/knowledge-sources.md § Step 1.
+    # Default enterprise: an unclassified source is treated as confidential.
+    origin: str = "enterprise"
+    source_url: str = ""
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
@@ -78,6 +82,8 @@ class ChartStore:
         render_type: RenderType = "helm",
         source: str = "upload",
         tags: list[str] | None = None,
+        origin: str | None = None,
+        source_url: str = "",
     ) -> EnterpriseChart:
         """
         Copy an expected-state source directory into the store under
@@ -88,6 +94,11 @@ class ChartStore:
             raise ValueError("name and version are both required (version is evidence)")
         if render_type not in _REQUIRED_MARKER:
             raise ValueError(f"unknown render_type {render_type!r}")
+        if origin is None:
+            from knowledge.provenance import classify_url
+            origin = classify_url(source_url)
+        if origin not in ("public", "enterprise"):
+            raise ValueError(f"origin must be public or enterprise, not {origin!r}")
 
         src = Path(chart_src)
         if not src.is_dir():
@@ -111,7 +122,7 @@ class ChartStore:
 
         meta = EnterpriseChart(
             name=name, version=version, render_type=render_type,
-            source=source, tags=tags or [],
+            source=source, tags=tags or [], origin=origin, source_url=source_url,
         )
         (dest / _META_FILE).write_text(json.dumps(asdict(meta), indent=2))
         return meta

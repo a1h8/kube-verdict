@@ -180,6 +180,9 @@ SOURCE_WEIGHTS: dict[str, float] = {
     "anchor":     _float("SOURCE_WEIGHT_ANCHOR",     1.6),  # manifest drift = strong signal
     "enterprise": _float("SOURCE_WEIGHT_ENTERPRISE", 1.5),
     "runbook":    _float("SOURCE_WEIGHT_RUNBOOK",    1.8),
+    # upstream chart defaults: weaker evidence of what *this* company intends than
+    # its own pinned expected state (docs/target/knowledge-sources.md § Step 1)
+    "public":     _float("SOURCE_WEIGHT_PUBLIC",     0.8),
 }
 
 # ── Runtime ────────────────────────────────────────────────────────────────────

@@ -103,3 +103,25 @@ sets its `doc_source`; ranking: at equal similarity an `enterprise` chunk outran
 `public` one, in `search` and in `hybrid_search`; `HelmRepository` origin from the
 collector.
 
+**Implemented (2026-10-14).** `knowledge/provenance.py` (`classify_url`,
+`PUBLIC_CHART_SOURCES`); `EnterpriseChart.origin` / `source_url` and
+`ChartStore.push(origin=…, source_url=…)`; chart anchors indexed with
+`doc_source = origin` and `origin=` in their text; enterprise docs indexed as
+`enterprise`, resolved incidents as `example`; `HelmRepository.origin` from the helm
+collector, shown in its context text; `SOURCE_WEIGHT_PUBLIC` 0.8.
+Tests: `tests/unit/test_provenance.py` (classification, push, old meta files, each
+indexer's `doc_source`, enterprise outranking public at equal similarity in `search`
+and `hybrid_search`).
+- *Changed while implementing:* a configured public source may be written with its
+  scheme (`oci://registry.acme/public`); entries are normalized (no scheme, no trailing
+  slash). `ghcr.io` is not in the default list: it hosts public and private charts
+  alike, so it stays enterprise unless configured.
+- *Effect on existing data:* documents and examples indexed **before** this change keep
+  `doc_source = cluster` in `vector_store_docs` until they are re-indexed. Since the
+  weights were never applied before, every ranking that mixes enterprise docs or
+  examples with cluster entities changes: enterprise docs ×1.5, examples ×1.2.
+- *Found while implementing:* `ChartStore.push()` has no production caller (no API
+  route, no CLI, no MCP tool): the enterprise expected state is fed only by files
+  placed under `data/charts/` by hand. A push entry point is needed before this can be
+  used outside tests.
+

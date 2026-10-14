@@ -27,9 +27,11 @@ class _FakeStore:
 
     def __init__(self) -> None:
         self.entities: list = []
+        self.doc_sources: list = []
 
-    def add_entity(self, e) -> None:
+    def add_entity(self, e, doc_source: str = "cluster") -> None:
         self.entities.append(e)
+        self.doc_sources.append(doc_source)
 
 
 def _write(path: Path, content: str) -> None:
