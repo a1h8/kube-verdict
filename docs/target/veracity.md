@@ -13,6 +13,27 @@
 Grading v2 (`tools/veracity.py`) exists and is unit-tested, but it has graded only two
 real answers so far.
 
+## How a case reaches the model (clarified 2026-10-14)
+
+A case is **not** a document in a vector base. Its fixtures become a graph
+(`case_loader` / the collector), and `ContextBuilder` injects the graph's evidence
+**directly** into the prompt as sections: unhealthy entities, drift, events, alerts,
+logs, traces, Helm. The vector store only adds to it. When a real store is present, the
+graph *of this investigation* is indexed in FAISS, and `hybrid_search` adds a "related"
+section, anchor-based hypotheses and the re-ranking after a failed path.
+
+- CI tests and the replay so far use `StubStore`: no retrieval at all.
+- `test_native_helm_dialogue` (Ollama) and production use a real `FAISSStore`.
+- No corpus of all the cases exists, on purpose. If the cases were retrievable, the
+  model would find the answer as a "similar incident" and veracity would be inflated.
+  The only retrieval corpus is `data/examples/` (human-approved resolutions).
+- For the sLLM, the cases and their generated variants are the **training data**, split
+  by family into train / held-out. That split is what will need metadata filtering
+  (pgvector, Qdrant or Weaviate), not retrieval speed.
+
+Consequence: the first `llm` baseline (2026-10-13/14) is the **no-retrieval** point
+(`store: stub`). The production configuration is measured next with `--store faiss`.
+
 ## Evidence only the test loader produces (found 2026-10-13)
 
 `missing.secret.*`, `missing.configmap.*`, `missing.pvc.*`, `missing.serviceaccount.*`
