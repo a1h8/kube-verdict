@@ -6,7 +6,8 @@
   "root_cause_contains": ["image", "tag", "v9.9.9", "ImagePullBackOff", "pull"],
   "fix_commands_contain": ["helm upgrade", "image.tag"],
   "confidence": "LOW",
-  "confidence_score_min": 0.25,
+  "confidence_score_min": 0.18,
   "fallback_expected": false,
-  "notes": "values.yaml declares image.tag=v9.9.9 which does not exist in the registry. Helm drift: deployed tag differs. Fix: helm upgrade --set image.tag=v2.1.0."
+  "drift_expected": false,
+  "notes": "values.yaml declares image.tag=v9.9.9 which does not exist in the registry. Not a drift: the bad tag is the declared value itself, and the cluster matches it; only the symptom (readyReplicas 0) differs. Fix: helm upgrade --set image.tag=v2.1.0."
 }

@@ -112,7 +112,7 @@ on a gate whose decision means something.
 
 ## Prerequisite 2, corrected — a symptom is not a drift
 
-> Spec (2026-10-14), not implemented.
+> Spec (2026-10-14), implemented in `ingestion/helm_drift.py` (`is_health_field`).
 
 **Audit.** Drift annotations per native case (`build_graph`), against each scenario's
 intent: h014 and h015 have no `values.yaml` / `release.json` difference at all, yet carry
@@ -153,4 +153,26 @@ tests asserting status-based drift move to `health.*`.
 **Tests.** Detector: config drift → `drift.*` + edge; status-only → `health.*`, no
 `drift.*`, no edge. Rule: no `helm_drift` hypothesis from `health.*` alone. Context /
 confidence: health items are not drift items. Per case: no `drift.*` on h014 / h015.
+
+**Follow-up (2026-10-15): the legacy Helm bank.** `tests/helm_cases/test_helm_case_bank.py`
+asserted a `drift.*` annotation on every case of `cases/helm_cases/`. Two of them had
+only symptoms: `h003_missing_env_secret` (its own notes: "No Helm drift") and
+`h004_wrong_image_tag` (the bad tag *is* the declared value, and the cluster matches
+it). Their `expect.json` now say `"drift_expected": false`. `test_drift_detected` then
+asserts the **absence** of `drift.*` (a negative control: with `is_health_field` forced
+to `False`, both cases fail), and `test_drift_appears_in_context` skips them.
+
+Their thresholds come from a rule, not from what the cases now score: **new minimum =
+old minimum − the drift term the symptoms used to contribute** (`min(n × 0.07, 0.20)`,
+`rca/confidence.py`), and the expected
+label is the band of that minimum. A breakdown of both cases at `f102422^` and at
+`f102422` showed that the drift term is the only component that changed. The rule was
+**not** pre-registered: the new score (0.27) was known when it was written, and a first
+attempt had set h003's minimum just under it (0.25). The rule does not use the new
+score, which only checks it.
+
+| Case | Symptom items | Removed term | Min (old → new) | Label (old → new) | Score (before → after) |
+|---|---|---|---|---|---|
+| h003_missing_env_secret | 3 | 0.20 | 0.44 → 0.24 | MEDIUM → LOW | 0.47 → 0.27 |
+| h004_wrong_image_tag | 1 | 0.07 | 0.25 → 0.18 | LOW → LOW | 0.34 → 0.27 |
 
