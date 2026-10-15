@@ -1,7 +1,7 @@
 """
 Provenance — is a chart or document public (upstream) or enterprise?
 
-Spec: docs/target/knowledge-sources.md § Step 1. The diagnosis weighs an
+Spec: docs/knowledge-sources.md § Step 1. The diagnosis weighs an
 enterprise's own pinned expected state above upstream chart defaults, and
 (later) the sLLM corpus export must never take enterprise content by default.
 Classification fails closed: a source not known to be public is enterprise.

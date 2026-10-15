@@ -121,6 +121,28 @@ own detailed spec section in `docs/test-cases.md` (§ *Scenario catalog v2 — t
 
 Retrofit: h014 and h015 get `root_cause_must_not_contain` from their failed live answers.
 
+## Tier M — the misdirection family
+
+What the live failures had in common: the cause produced **several side effects**, and
+the loudest one pointed to a plausible wrong cause. A tier-M case has one cause, two to
+four side effects across different signals, and at least one side effect that is a
+convincing wrong answer. Ground truth: `root_cause_contains` for the cause,
+`root_cause_must_not_contain` for each "looks like".
+
+| Case | Looks like | Is | Side effects (signal) |
+|---|---|---|---|
+| M1 | memory limit too low | expired upstream certificate | TLS retries buffer requests → client OOMKilled (events); 5xx (Prometheus); `x509` only in upstream logs (Loki) |
+| M2 | database capacity | feature-flag ConfigMap change disabled the cache | DB CPU alert and slow queries (Prometheus); API latency SLO burn; ConfigMap drift 15 min earlier (Helm) |
+| M3 | resource starvation | NetworkPolicy change blocks egress to the DB | CrashLoop on readiness (events); HPA at max (HPA status); node CPU high from restarts (Prometheus) |
+| M4 | application bug | CoreDNS throttled (ndots:5 + query storm) | intermittent timeouts in 3 services (traces); 5xx with random paths (logs); CoreDNS CPU throttling (Prometheus) |
+| M5 | RBAC / auth issue | node clock skew breaks token validation | 401s on one node's pods only (logs); `token is not valid yet` (logs); NTP alert on the node (Prometheus) |
+| M6 | consumer bug | Kafka PVC full | consumer lag alert; producer timeouts (traces); `No space left on device` on the broker (logs); PVC at 100 % |
+| M7 | the image rollout | an unrelated node drain at the same minute | rollout and drain events interleaved; only pods on the drained node fail; new image healthy elsewhere |
+| M8 | probe misconfiguration | HPA scaling on the wrong metric thrashes | readiness failures on new pods; HPA events every 30 s; latency per pod uncorrelated with load |
+
+These need the loader prerequisites P1–P5 (`docs/test-cases.md` → tier C § Prerequisites)
+and, for M2 / M7, timing (P3: ReplicaSet revision and change time).
+
 ## Replay harness (proposed)
 
 `tools/veracity_replay.py --solver rules|llm:<model> [--cases h0NN,...]`:

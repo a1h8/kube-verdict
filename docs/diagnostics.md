@@ -243,7 +243,7 @@ not only presentation.
      what Kubernetes already reports (`secret "x" not found`, `couldn't find key K in
      Secret …` in events and container status). Rejected, option A: a metadata-only
      list, which keeps the account able to read values and loses the key names anyway.
-     Found while deciding (see `docs/target/veracity.md` § *Evidence only the test
+     Found while deciding (see `docs/veracity-replay.md` § *Evidence only the test
      loader produces*): the missing-dependency detector exists only in the test fixture
      loader, and the collector's pod → Secret edges were never created (pods are
      collected before Secrets), so the collected Secrets were only context text.

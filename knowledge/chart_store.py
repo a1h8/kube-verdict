@@ -39,7 +39,7 @@ class EnterpriseChart:
     render_type: RenderType = "helm"
     source: str = "upload"          # upload | git | repo
     tags: list[str] = field(default_factory=list)
-    # public (upstream) | enterprise — docs/target/knowledge-sources.md § Step 1.
+    # public (upstream) | enterprise — docs/knowledge-sources.md § Step 1.
     # Default enterprise: an unclassified source is treated as confidential.
     origin: str = "enterprise"
     source_url: str = ""

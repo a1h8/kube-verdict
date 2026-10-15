@@ -1,6 +1,10 @@
-# Veracity — what we measure, and the loop that is missing
+# Veracity replay — what we measure offline, and how
 
-## What we measure today
+> Offline counterpart of [veracity-benchmark.md](veracity-benchmark.md) (live captures).
+> Harness: `tools/veracity_replay.py`; spec of the harness: [test-cases.md](test-cases.md)
+> § *Veracity replay harness*.
+
+## What we measured (2026-10-12)
 
 | Claim | What actually proves it |
 |---|---|
@@ -12,6 +16,11 @@
 
 Grading v2 (`tools/veracity.py`) exists and is unit-tested, but it has graded only two
 real answers so far.
+
+**[amended 2026-10-15]** The table above is the state of 2026-10-12, kept as written.
+Since then, "the model names the right cause" is measured with a real model offline:
+mistral, 30/54 runs over the 18 native cases (§ *First LLM baseline*), and grading v2
+has graded those 54 runs. Live is still 0/2 (2026-09-26), not re-measured.
 
 ## First LLM baseline (2026-10-14) — mistral, prompt v1, no retrieval
 
@@ -152,7 +161,7 @@ native cases ──► run_case(real model) ──► grade() ──► tests/ve
 
 | Metric | Definition |
 |---|---|
-| Pass rate per tier | A (stated cause), B (one signal), C (reasoning), M (misdirection, `scenarios.md`) |
+| Pass rate per tier | A (stated cause), B (one signal), C (reasoning), M (misdirection, `docs/scenarios-v2.md` § Tier M) |
 | Answerable rate | share of cases whose ground truth is in the prompt |
 | Model error rate | answerable but FAIL |
 | Overconfidence | FAIL with a HIGH label |
@@ -167,15 +176,3 @@ native cases ──► run_case(real model) ──► grade() ──► tests/ve
 - Model: the configured `OLLAMA_MODEL` first, as the baseline. The same table later
   compares the sovereign-sized models and the phase-2 SLM.
 - `tests/veracity/replay/` never feeds `data/examples/` (same rule as the live corpus).
-
-## Gate
-
-- [x] `tools/veracity_replay.py` with `--solver rules|llm:<model>`, `--cases`, `--runs` (2026-10-13)
-- [ ] First full report on the 18 native cases, committed — `rules`: 4/18 (2026-10-13); `llm`: needs Ollama
-- [ ] Each failure classified as model error or pipeline error
-- [ ] Report re-run after every scenario batch (`scenarios.md`)
-
-## Next step
-
-Spec the harness in this file's terms in `docs/test-cases.md`, then build it on
-`workflow_harness.run_case` (it already takes the LLM through the config).

@@ -14,7 +14,7 @@ live symptoms" (`README.md`). The policy gate has never followed it:
 - **#57 (2026-06-02)** aligned the docstring to the code ("Score source: the LLM
   diagnosis confidence label") instead of the code to the design.
 
-The first LLM baseline (`docs/target/veracity.md` § *First LLM baseline*) shows the
+The first LLM baseline (`docs/veracity-replay.md` § *First LLM baseline*) shows the
 consequence: the label is MEDIUM on 53/54 runs, right or wrong, so the gate decides on
 an empty signal, and the verdict changes between runs on 9/18 cases.
 

@@ -1,4 +1,4 @@
-"""Provenance for the diagnosis — docs/target/knowledge-sources.md § Step 1."""
+"""Provenance for the diagnosis — docs/knowledge-sources.md § Step 1."""
 from __future__ import annotations
 
 import json

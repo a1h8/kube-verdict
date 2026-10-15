@@ -677,9 +677,9 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
 
 ## Veracity replay harness
 
-> Spec (2026-10-13), not implemented. Why: [target/veracity.md](target/veracity.md) —
+> Spec (2026-10-13), not implemented. Why: [veracity-replay.md](veracity-replay.md) —
 > the model has never been measured on the corpus; every offline run uses
-> `ScriptedLLM`. This harness is the first step of the target plan.
+> `ScriptedLLM`. This harness is the first measurement step.
 
 **What it is.** `tools/veracity_replay.py` runs native cases through the same offline
 workflow as the CI tests (`workflow_harness.run_case`: real collectors on fixtures, real
@@ -714,11 +714,11 @@ with `grade()`.
 (`veracity`, `reason`, `matched_groups`, `forbidden_matched`), `answerable` (the
 grading keywords pass `grade()` on the concatenated analyze prompts; `null` for
 negative cases), `confidence`, `pre_llm_confidence_score`, `verdict`, `fallbacks`,
-`signals_mode` (see [target/patchtst.md](target/patchtst.md): synthetic signals may
+`signals_mode` (see [patchtst-readiness.md](patchtst-readiness.md): synthetic signals may
 add circular evidence) and `root_cause`.
 
 **Tier** from the case number: A h001–h012, B h013–h016, C h017–h029, M h030+ (the
-misdirection family of [target/scenarios.md](target/scenarios.md)). An `expect.json`
+misdirection family of [scenarios-v2.md](scenarios-v2.md) § Tier M). An `expect.json`
 `tier` field overrides it.
 
 **Report.** `tests/veracity/replay/REPORT.md`, rewritten after each run, one table per
@@ -758,7 +758,7 @@ reachable Ollama, and its first report is the next step.
 
 ## Live parity — the fixtures must go through the production collector
 
-> Spec (2026-10-13), not implemented. Why: [target/veracity.md](target/veracity.md) §
+> Spec (2026-10-13), not implemented. Why: [veracity-replay.md](veracity-replay.md) §
 > *Evidence only the test loader produces*.
 
 **Problem.** `tests/integration/cases/case_loader.py` builds the case graph with its own

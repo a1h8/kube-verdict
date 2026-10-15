@@ -1,7 +1,7 @@
 # Knowledge sources — public vs enterprise
 
-> Findings 2026-10-14, read from the code. Step 1 below is specced (go given
-> 2026-10-14, "pour améliorer le diagnostic"); the sLLM export guard comes later.
+> Findings 2026-10-14, read from the code. Step 1 below is specced and implemented;
+> the sLLM export guard comes later.
 
 ## What exists
 

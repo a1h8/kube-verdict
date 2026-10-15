@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Veracity replay — grade a real model (or the rules alone) on the native cases.
 
-Spec: docs/test-cases.md → *Veracity replay harness*; why: docs/target/veracity.md.
+Spec: docs/test-cases.md → *Veracity replay harness*; why: docs/veracity-replay.md.
 
 Runs each case through the same offline workflow as the CI tests
 (``workflow_harness.run_case``: real collectors on fixtures, real LangGraph
