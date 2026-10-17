@@ -13,9 +13,9 @@ a covered row is implemented, not validated.
 |---|---|
 | Causes in the catalog | 40 |
 | Signals extracted | 27 |
-| Rule implemented | 15 |
-| A case passes | 8 |
-| **Covered** | **8 / 40** |
+| Rule implemented | 16 |
+| A case passes | 9 |
+| **Covered** | **9 / 40** |
 | Runbooks cited by a row | 39 / 60 |
 
 | Cause | Family | Signals | Rule | Cases | Live |
@@ -37,7 +37,7 @@ a covered row is implemented, not validated.
 | a PVC is pending or bound to a volume another node holds | storage | ✅ | ✅ scheduling | — — | yes |
 | the namespace ResourceQuota refuses new pods | quota | ✅ | — — | — — | partial |
 | a rollout stops progressing (progress deadline exceeded) | rollout | ✅ | — — | — — | yes |
-| the HPA cannot read its metrics | hpa | ✅ | — — | — h007 | partial |
+| the HPA cannot read its metrics | hpa | ✅ | ✅ hpa.metrics | ✅ h007 | partial |
 | the load needs more replicas than the HPA maximum | hpa | — | — — | — — | no |
 | a Job reaches its backoff limit or deadline | job | — | — — | — — | no |
 | a node is NotReady or unreachable (kubelet down, PLEG, network) | node | — | — — | — — | partial |

@@ -120,3 +120,23 @@ def test_an_unbound_serviceaccount_without_denial_is_no_fault():
     p.annotations["missing.rbac.exporter"] = "ServiceAccount 'exporter' exists but has no (Cluster)RoleBinding"
     o = _outcome(p)
     assert o.outcome == "no_incident" and not o.diagnoses
+
+
+def _hpa_event(message, reason, event_type="Warning"):
+    return K8sEvent(uid=f"ev-{reason}", name="ev", namespace="prod", reason=reason, message=message,
+                    event_type=event_type, involved_kind="HorizontalPodAutoscaler", involved_name="api")
+
+
+def test_an_hpa_without_metrics_points_to_the_metrics_api():
+    o = _outcome(_hpa_event("failed to get cpu utilization: unable to get metrics for resource cpu: "
+                            "no metrics returned from resource metrics API", "FailedGetResourceMetric"),
+                 _hpa_event("invalid metrics (1 invalid out of 1)", "FailedComputeMetricsReplicas"))
+    d = o.diagnoses[0]
+    assert (d.rule, d.family) == ("hpa.metrics", "hpa")
+    assert d.cause_location == "outside:APIService/v1beta1.metrics.k8s.io" and "HPA api" in d.cause
+
+
+def test_a_normal_hpa_rescale_is_no_cause():
+    o = _outcome(_hpa_event("New size: 4; reason: cpu resource utilization above target", "SuccessfulRescale",
+                            event_type="Normal"))
+    assert o.outcome == "no_incident"

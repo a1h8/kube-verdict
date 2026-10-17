@@ -1,22 +1,39 @@
 {
   "answerable": null,
   "case": "h007_hpa_no_metrics",
-  "confidence": "LOW",
-  "diagnoses": [],
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "hpa",
+      "location": "outside:APIService/v1beta1.metrics.k8s.io",
+      "rule": "hpa.metrics",
+      "score": 0.65,
+      "signals": [
+        "1a53112976e36bd2",
+        "7c30e7823993568c"
+      ]
+    }
+  ],
   "expected_outcome": "cause",
   "extractor_version": "signals/1",
   "fallbacks": [],
   "forbidden_matched": [],
   "matched_groups": [
-    []
+    [
+      "metrics",
+      "hpa|autoscal"
+    ]
   ],
-  "matched_keywords": [],
+  "matched_keywords": [
+    "metrics",
+    "hpa|autoscal"
+  ],
   "model": "",
-  "outcome": "insufficient_evidence",
+  "outcome": "cause",
   "pre_llm_confidence_score": null,
   "prompt": "v2",
-  "reason": "cause concept(s) not named: metrics, hpa|autoscal",
-  "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+  "reason": "cause named, no decoy",
+  "root_cause": "The HPA api-service cannot read resource metrics (the metrics API returns none, usually metrics-server), so it cannot autoscale its target.",
   "rules_version": "rules/1",
   "run": 1,
   "signal_kinds": [
@@ -24,10 +41,10 @@
   ],
   "signals_mode": null,
   "solver": "structured",
-  "started_at": "2026-10-17T13:37:52.200521+00:00",
+  "started_at": "2026-10-17T13:46:41.523404+00:00",
   "tier": "A",
   "unclassified": {},
-  "veracity": "FAIL",
+  "veracity": "PASS",
   "verdict": null,
-  "wall_s": 1.79
+  "wall_s": 1.43
 }

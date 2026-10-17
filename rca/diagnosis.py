@@ -208,6 +208,24 @@ def _rbac(ss: SignalSet) -> list[Diagnosis]:
     return out
 
 
+def _hpa_metrics(ss: SignalSet) -> list[Diagnosis]:
+    """The HPA reports it cannot read resource metrics: the cause is the metrics API."""
+    by_hpa: dict[str, list[Signal]] = {}
+    for s in ss.of("hpa.metrics_unavailable"):
+        by_hpa.setdefault(ss.subject(s), []).append(s)
+    out = []
+    for hpa, signals in sorted(by_hpa.items()):
+        ns = _ns(hpa)
+        out.append(_diag("hpa.metrics", "hpa",
+                         f"The HPA {_name(hpa)} cannot read resource metrics (the metrics API returns none, "
+                         f"usually metrics-server), so it cannot autoscale its target.",
+                         "outside:APIService/v1beta1.metrics.k8s.io", signals[:1], signals[1:],
+                         checks=["kubectl get apiservice v1beta1.metrics.k8s.io",
+                                 f"kubectl top pods -n {ns}",
+                                 f"kubectl describe hpa {_name(hpa)} -n {ns}"]))
+    return out
+
+
 def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
     """A configuration drift alone is generic; it is reported when a workload of the same
     release is failing and no more specific rule already used that drift."""
@@ -234,10 +252,10 @@ def _crash(ss: SignalSet, explained_pods: set[str]) -> list[Diagnosis]:
 # every rule id ``diagnose`` can produce — docs/diagnosis-coverage.md checks rows against it
 RULE_IDS: frozenset[str] = frozenset({"dependency.missing", "oom.memory_drift", "oom.limit", "image.pull",
                                        "scheduling", "config.drift", "container.crash",
-                                       "init.failed", "rbac"})
+                                       "init.failed", "rbac", "hpa.metrics"})
 
 RULES: list[Callable[[SignalSet], list[Diagnosis]]] = [_dependency_missing, _oom, _image_pull, _scheduling,
-                                                       _init_failed, _rbac]
+                                                       _init_failed, _rbac, _hpa_metrics]
 
 
 def _starting_in_rollout(ss: SignalSet) -> set[str]:

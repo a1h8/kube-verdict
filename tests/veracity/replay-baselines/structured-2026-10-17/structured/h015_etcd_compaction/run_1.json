@@ -26,12 +26,12 @@
   ],
   "signals_mode": null,
   "solver": "structured",
-  "started_at": "2026-10-17T13:38:11.562288+00:00",
+  "started_at": "2026-10-17T13:46:54.281372+00:00",
   "tier": "B",
   "unclassified": {
     "k8s_event": 1
   },
   "veracity": "FAIL",
   "verdict": null,
-  "wall_s": 4.7
+  "wall_s": 1.8
 }
