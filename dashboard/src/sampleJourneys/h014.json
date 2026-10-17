@@ -25,7 +25,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
         "kube_version": "unknown",
-        "timestamp": "2026-10-14T05:01:52.598348+00:00",
+        "timestamp": "2026-10-17T09:30:12.026829+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)",
@@ -87,12 +87,12 @@
         "rollback": [],
         "confidence": "LOW (rule-assisted — top: degraded_deployment w=0.82, 1 hypothesis(es))",
         "context_stats": {
-          "seeds": 4,
+          "seeds": 6,
           "drift": 0,
           "events": 3,
           "helm": 1,
           "related": 0,
-          "total": 36,
+          "total": 38,
           "anchors": [
             "Deployment/production/billing-gateway: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
             "Deployment/production/billing-gateway: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -131,14 +131,14 @@
         "anchor_fixes": [],
         "policy_violations": [],
         "pre_llm_confidence": {
-          "score": 0.47,
+          "score": 0.5,
           "label": "MEDIUM",
           "reasons": [
             "BFS depth 4/5 → 0.20",
             "Jaccard diversity 0% → 0.00",
             "TF-IDF features 0/20 → 0.00",
             "Anchors matched 20 → 0.15",
-            "Critical signals 4 → 0.12",
+            "Critical signals 6 → 0.15",
             "Helm drift items 0 → 0.00"
           ]
         },
@@ -155,9 +155,9 @@
         "decision": {
           "verdict": "NO_GO",
           "reasons": [
-            "score 0.47 < 0.6 minimum"
+            "score 0.50 < 0.6 minimum"
           ],
-          "score": 0.47,
+          "score": 0.5,
           "risk": "LOW",
           "rollback_available": true,
           "namespace": "production",
@@ -199,7 +199,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-14T05:01:52.588540+00:00"
+      "ts": "2026-10-17T09:30:12.023140+00:00"
     },
     {
       "router": "confidence",
@@ -218,7 +218,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-14T05:01:52.601879+00:00"
+      "ts": "2026-10-17T09:30:12.027971+00:00"
     },
     {
       "router": "confidence",
@@ -236,7 +236,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-14T05:01:52.626218+00:00"
+      "ts": "2026-10-17T09:30:12.032283+00:00"
     },
     {
       "router": "policy",
@@ -251,7 +251,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-14T05:01:52.636656+00:00"
+      "ts": "2026-10-17T09:30:12.036026+00:00"
     },
     {
       "router": "human",
@@ -263,7 +263,7 @@
         "remediation_count": 1,
         "dry_run_failures": 0
       },
-      "ts": "2026-10-14T05:01:52.641763+00:00"
+      "ts": "2026-10-17T09:30:12.038950+00:00"
     }
   ],
   "ingestion_stats": {
@@ -306,7 +306,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\nExpired mTLS certificate to payments-backend fails the readiness probe\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-14T05:01:52.620069+00:00",
+    "timestamp": "2026-10-17T09:30:12.030850+00:00",
     "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
     "affected": [
       "Deployment/production/billing-gateway — 0/2 Ready"
@@ -326,12 +326,12 @@
     ],
     "confidence": "HIGH — the x509 expiry log line names the cause directly.",
     "context_stats": {
-      "seeds": 4,
+      "seeds": 6,
       "drift": 0,
       "events": 3,
       "helm": 1,
       "related": 0,
-      "total": 36,
+      "total": 38,
       "anchors": [
         "Deployment/production/billing-gateway: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
         "Deployment/production/billing-gateway: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -370,14 +370,14 @@
     "anchor_fixes": [],
     "policy_violations": [],
     "pre_llm_confidence": {
-      "score": 0.42,
+      "score": 0.45,
       "label": "MEDIUM",
       "reasons": [
         "BFS depth 3/5 → 0.15",
         "Jaccard diversity 0% → 0.00",
         "TF-IDF features 0/20 → 0.00",
         "Anchors matched 20 → 0.15",
-        "Critical signals 4 → 0.12",
+        "Critical signals 6 → 0.15",
         "Helm drift items 0 → 0.00"
       ]
     },
@@ -398,9 +398,9 @@
     "decision": {
       "verdict": "NO_GO",
       "reasons": [
-        "score 0.42 < 0.6 minimum"
+        "score 0.45 < 0.6 minimum"
       ],
-      "score": 0.42,
+      "score": 0.45,
       "risk": "LOW",
       "rollback_available": true,
       "namespace": "production",
@@ -485,7 +485,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
           "kube_version": "unknown",
-          "timestamp": "2026-10-14T05:01:52.598348+00:00",
+          "timestamp": "2026-10-17T09:30:12.026829+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)",
@@ -547,12 +547,12 @@
           "rollback": [],
           "confidence": "LOW (rule-assisted — top: degraded_deployment w=0.82, 1 hypothesis(es))",
           "context_stats": {
-            "seeds": 4,
+            "seeds": 6,
             "drift": 0,
             "events": 3,
             "helm": 1,
             "related": 0,
-            "total": 36,
+            "total": 38,
             "anchors": [
               "Deployment/production/billing-gateway: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
               "Deployment/production/billing-gateway: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -591,14 +591,14 @@
           "anchor_fixes": [],
           "policy_violations": [],
           "pre_llm_confidence": {
-            "score": 0.47,
+            "score": 0.5,
             "label": "MEDIUM",
             "reasons": [
               "BFS depth 4/5 → 0.20",
               "Jaccard diversity 0% → 0.00",
               "TF-IDF features 0/20 → 0.00",
               "Anchors matched 20 → 0.15",
-              "Critical signals 4 → 0.12",
+              "Critical signals 6 → 0.15",
               "Helm drift items 0 → 0.00"
             ]
           },
@@ -615,9 +615,9 @@
           "decision": {
             "verdict": "NO_GO",
             "reasons": [
-              "score 0.47 < 0.6 minimum"
+              "score 0.50 < 0.6 minimum"
             ],
-            "score": 0.47,
+            "score": 0.5,
             "risk": "LOW",
             "rollback_available": true,
             "namespace": "production",
@@ -671,7 +671,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-14T05:01:52.588540+00:00"
+        "ts": "2026-10-17T09:30:12.023140+00:00"
       },
       {
         "router": "confidence",
@@ -690,7 +690,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-14T05:01:52.601879+00:00"
+        "ts": "2026-10-17T09:30:12.027971+00:00"
       },
       {
         "router": "confidence",
@@ -708,7 +708,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-14T05:01:52.626218+00:00"
+        "ts": "2026-10-17T09:30:12.032283+00:00"
       },
       {
         "router": "policy",
@@ -723,7 +723,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-14T05:01:52.636656+00:00"
+        "ts": "2026-10-17T09:30:12.036026+00:00"
       },
       {
         "router": "human",
@@ -735,7 +735,7 @@
           "remediation_count": 1,
           "dry_run_failures": 0
         },
-        "ts": "2026-10-14T05:01:52.641763+00:00"
+        "ts": "2026-10-17T09:30:12.038950+00:00"
       }
     ],
     "hypothesis_sources": [

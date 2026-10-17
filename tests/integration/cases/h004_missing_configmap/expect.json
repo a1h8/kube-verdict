@@ -5,9 +5,11 @@
   "release": "api-gateway",
   "affected_resources": ["Pod/production/api-gateway-5c7d9b8f4-x2k9p"],
   "root_cause_contains": ["configmap", "api-gateway-config", "not found", "missing"],
+  "root_cause_concepts": ["configmap|api-gateway-config", "missing|not found"],
   "fix_commands_contain": ["kubectl create configmap", "kubectl create secret"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.45,
   "fallback_expected": false,
-  "notes": "Pod cannot start: references 3 missing resources (1 ConfigMap + 2 Secrets). No Helm drift — the chart values are correct but the prerequisite resources were never created. Fix: kubectl create configmap api-gateway-config and kubectl create secret for each missing secret."
+  "notes": "Pod cannot start: references 3 missing resources (1 ConfigMap + 2 Secrets). No Helm drift — the chart values are correct but the prerequisite resources were never created. Fix: kubectl create configmap api-gateway-config and kubectl create secret for each missing secret.",
+  "reasoning_path": {"seeds_include": ["Pod/production/api-gateway-*"], "seeds_exclude": [], "cause": {"absent": "ConfigMap/production/api-gateway-config"}, "evidence": [{"section": "events", "marker": "api-gateway-config"}], "rule": {"id": "missing_config", "affected": "Pod/production/api-gateway-*"}, "decoy_rules": ["pending_unschedulable"]}
 }

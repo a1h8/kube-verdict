@@ -73,6 +73,18 @@ def _group_passes(matched: list[str], keywords: list[str]) -> bool:
     return len(matched) >= max(1, len(keywords) // 2)
 
 
+def cause_concepts(expect: dict) -> list[list[str]]:
+    """The cause concepts of a case, one list per cause (empty when the case has none).
+
+    ``root_cause_concepts_all`` (several causes) or ``root_cause_concepts`` (one).
+    """
+    if expect.get("root_cause_concepts_all"):
+        return [list(c) for c in expect["root_cause_concepts_all"]]
+    if expect.get("root_cause_concepts"):
+        return [list(expect["root_cause_concepts"])]
+    return []
+
+
 def grade(root_cause: str, expect: dict, confidence: str = "", verdict: str = "") -> dict:
     """Grade one answer against one case's expectations.
 
@@ -87,12 +99,23 @@ def grade(root_cause: str, expect: dict, confidence: str = "", verdict: str = ""
     forbidden = _matches(text, expect.get("root_cause_must_not_contain", []))
 
     if outcome == "cause":
-        groups = expect.get("root_cause_contains_all") or [expect.get("root_cause_contains", [])]
-        if not any(groups):
-            raise ValueError("expected_outcome 'cause' needs root_cause_contains or root_cause_contains_all")
-        matched_groups = [_matches(text, g) for g in groups]
-        missing = [i for i, (m, g) in enumerate(zip(matched_groups, groups)) if not _group_passes(m, g)]
-        if missing:
+        concepts = cause_concepts(expect)
+        if concepts:
+            # docs/case-audit-001.md § Correction 1: every concept of every cause is required
+            groups = concepts
+            matched_groups = [_matches(text, g) for g in groups]
+            missing = [i for i, (m, g) in enumerate(zip(matched_groups, groups)) if len(m) < len(g)]
+        else:
+            groups = expect.get("root_cause_contains_all") or [expect.get("root_cause_contains", [])]
+            if not any(groups):
+                raise ValueError("expected_outcome 'cause' needs root_cause_concepts, "
+                                 "root_cause_contains or root_cause_contains_all")
+            matched_groups = [_matches(text, g) for g in groups]
+            missing = [i for i, (m, g) in enumerate(zip(matched_groups, groups)) if not _group_passes(m, g)]
+        if missing and concepts:
+            reason = "cause concept(s) not named: " + "; ".join(
+                ", ".join(c for c in groups[i] if c not in matched_groups[i]) for i in missing)
+        elif missing:
             reason = f"keyword group(s) {missing} below threshold"
         elif forbidden:
             reason = f"names the decoy: {forbidden}"

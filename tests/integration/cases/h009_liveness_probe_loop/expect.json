@@ -5,9 +5,11 @@
   "release": "search-service",
   "affected_resources": ["Pod/production/search-service-5c9b7d6f4-rk8st"],
   "root_cause_contains": ["liveness", "probe", "timeout", "threshold", "restart", "drift"],
+  "root_cause_concepts": ["liveness", "drift|timeoutseconds|declared|too short|too aggressive"],
   "fix_commands_contain": ["helm upgrade", "livenessProbe"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.38,
   "fallback_expected": false,
-  "notes": "Liveness probe timeout is 1s but search indexing takes up to 5s. values.yaml declares timeoutSeconds=5 but helm upgrade was run with --set livenessProbe.timeoutSeconds=1. Pod restarts continuously despite being healthy. Fix: restore timeoutSeconds=5."
+  "notes": "Liveness probe timeout is 1s but search indexing takes up to 5s. values.yaml declares timeoutSeconds=5 but helm upgrade was run with --set livenessProbe.timeoutSeconds=1. Pod restarts continuously despite being healthy. Fix: restore timeoutSeconds=5.",
+  "reasoning_path": {"seeds_include": ["Pod/production/search-service-*"], "seeds_exclude": [], "cause": {"object": "HelmRelease/production/search-service"}, "evidence": [{"section": "drift", "marker": "livenessProbe.timeoutSeconds"}], "rule": {"id": "helm_drift", "affected": "*search-service*"}, "decoy_rules": ["crashloop_db"]}
 }

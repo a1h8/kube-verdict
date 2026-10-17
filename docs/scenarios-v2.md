@@ -118,6 +118,7 @@ own detailed spec section in `docs/test-cases.md` (§ *Scenario catalog v2 — t
 | h023 | negative | pods not Ready, no event names a cause, Prometheus / Loki / OTel unreachable | unknown | — | — (`expected_outcome: insufficient_evidence`) | any specific cause from tiers A/B |
 | h024 | multi | `worker` CrashLoop + `api` OOMKilled | missing Secret on worker **and** memory limit drift on api | — | events + helm drift | — (`root_cause_contains_all`) |
 | h025 | change | node upgrade stuck, drain never finishes | PodDisruptionBudget `minAvailable` = replicas | node NotReady events | PDB object + eviction events | notready, kubelet |
+| h026 | negative | one new pod Running but not Ready | nothing: a rolling update in progress, the new pod is still starting | the not-ready pod and its probe warning | Deployment `Progressing=True`, reason `ReplicaSetUpdated`; old pods Ready, availableReplicas = replicas | crash, oom, regression, misconfigur, bug |
 
 Retrofit: h014 and h015 get `root_cause_must_not_contain` from their failed live answers.
 

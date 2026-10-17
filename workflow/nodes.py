@@ -1541,6 +1541,9 @@ def example_lookup_node(state: RCAState, config: RunnableConfig) -> dict:
     # example cache is a feature in production).
     if os.getenv("EXAMPLE_LOOKUP_DISABLED", "").lower() in ("1", "true", "yes"):
         return {}
+    # opt-in: a similar past incident is evidence, not a reason to skip the analysis
+    if not cfg.EXAMPLE_SHORTCUT_ENABLED:
+        return {}
 
     _, store = _get_infra(config)
     if store is None:
@@ -1616,7 +1619,7 @@ def save_example_node(state: RCAState, config: RunnableConfig) -> dict:
         anchor_violations=anchor_violations,
     )
 
-    ExampleStore().save(incident)
+    ExampleStore(config.get("configurable", {}).get("example_dir")).save(incident)
     log.info("save_example: incident %s saved", incident.id)
 
     if store is not None:

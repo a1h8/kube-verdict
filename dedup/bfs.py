@@ -25,6 +25,14 @@ _INCIDENT_RELS = {
 }
 
 
+def _in_rollout(pod, rolling: set[tuple[str | None, str]]) -> bool:
+    """The pod's ReplicaSet belongs to a Deployment that is rolling out."""
+    if pod.owner_ref_kind != "ReplicaSet" or not pod.owner_ref_name:
+        return False
+    deployment = pod.owner_ref_name.rsplit("-", 1)[0]
+    return (pod.namespace, deployment) in rolling
+
+
 def find_unhealthy(graph: OntologyGraph) -> list[K8sEntity]:
     """
     Returns entities that are in a degraded or failed state.
@@ -32,8 +40,21 @@ def find_unhealthy(graph: OntologyGraph) -> list[K8sEntity]:
     """
     seeds: list[K8sEntity] = []
 
+    # A pod is a seed when it is not Running or a container is not ready. A past restart
+    # alone is not: a pod that restarted and is Running and ready again is healthy
+    # (docs/reasoning-path-tests.md P1, P2). A pod that flaps but is ready at snapshot time
+    # is missed — seeing it needs the graph's history.
+    # A not-ready pod is skipped only when it is starting cleanly (running, never restarted)
+    # inside a rollout Kubernetes reports as progressing while the Deployment stays
+    # available (docs/test-cases.md § h026). Progressing stays True for up to
+    # progressDeadlineSeconds even when the new pods crash, so a crashing or restarted pod
+    # is always a seed.
+    rolling = {(d.namespace, d.name) for d in graph.entities(ResourceKind.DEPLOYMENT)
+               if d.is_rolling_out and d.is_available}
     for entity in graph.entities(ResourceKind.POD):
-        if entity.is_unhealthy or entity.restart_count > 0:
+        if entity.is_unhealthy:
+            seeds.append(entity)
+        elif entity.is_not_ready and not (entity.is_starting and _in_rollout(entity, rolling)):
             seeds.append(entity)
 
     for entity in graph.entities(ResourceKind.DEPLOYMENT):

@@ -4,6 +4,7 @@ Unit tests for the LangGraph RCA workflow.
 Graph and store are injected via config["configurable"] — never in state —
 so LangGraph's MemorySaver checkpointer never tries to msgpack-serialise them.
 """
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -957,11 +958,23 @@ class TestExampleLookup:
             result = example_lookup_node({"query": "crashloop"}, {"configurable": {"store": store}})
         assert not result.get("example_match")
 
-    def test_high_score_matches(self, store):
+    _STRONG_HIT = {"uid": "example:abc123", "text": "RESOLVED INCIDENT: oom\nRoot cause: memory limit too low\nHypothesis: H1\nEntities: Pod\nAnchor violations: resources.limits.memory\nFix: kubectl delete pod crasher\nConfidence: HIGH", "score": 0.90}
+
+    def test_shortcut_is_off_by_default(self, store):
+        """A strong match no longer skips the analysis unless EXAMPLE_SHORTCUT_ENABLED is set."""
         from unittest.mock import patch
         from workflow.nodes import example_lookup_node
-        fake_hit = {"uid": "example:abc123", "text": "RESOLVED INCIDENT: oom\nRoot cause: memory limit too low\nHypothesis: H1\nEntities: Pod\nAnchor violations: resources.limits.memory\nFix: kubectl delete pod crasher\nConfidence: HIGH", "score": 0.90}
-        with patch.object(store, "search", return_value=[fake_hit]):
+        with patch.object(store, "search", return_value=[self._STRONG_HIT]):
+            result = example_lookup_node({"query": "oom kill"}, {"configurable": {"store": store}})
+        assert result == {}
+
+    def test_high_score_matches(self, store):
+        from unittest.mock import patch
+
+        import config as cfg
+        from workflow.nodes import example_lookup_node
+        with patch.object(store, "search", return_value=[self._STRONG_HIT]), \
+                patch.object(cfg, "EXAMPLE_SHORTCUT_ENABLED", True):
             result = example_lookup_node({"query": "oom kill"}, {"configurable": {"store": store}})
         assert result.get("example_match") is True
         assert result.get("matched_example_id") == "example:abc123"
@@ -989,8 +1002,20 @@ class TestExampleLookup:
                 "affected_resources": [{"kind": "Pod", "name": "crasher"}],
             },
         }
-        save_example_node(state, {"configurable": {"graph": synthetic_graph, "store": store, "__example_dir": tmp_path}})
-        # ExampleStore uses default dir — just verify the node doesn't crash
-        # and returns stats
-        result = save_example_node(state, {"configurable": {"graph": synthetic_graph, "store": store}})
+        result = save_example_node(
+            state, {"configurable": {"graph": synthetic_graph, "store": store, "example_dir": tmp_path}})
         assert "ingestion_stats" in result or result == {} or "save_example" in (result.get("ingestion_stats") or {})
+        saved = list(tmp_path.glob("*.json"))
+        assert len(saved) == 1
+        assert json.loads(saved[0].read_text())["root_cause"] == "memory limit too low"
+
+
+def test_tests_never_write_to_the_real_example_store():
+    """Negative control: the suite's default example store is a temp dir, not data/examples/."""
+    from pathlib import Path
+
+    from knowledge.example_store import ExampleStore, default_example_dir
+
+    real = (Path(__file__).resolve().parents[2] / "data" / "examples").resolve()
+    assert default_example_dir().resolve() != real
+    assert ExampleStore()._dir.resolve() != real

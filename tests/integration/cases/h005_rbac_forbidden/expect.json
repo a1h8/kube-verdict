@@ -5,6 +5,7 @@
   "release": "audit-exporter",
   "affected_resources": ["Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q"],
   "root_cause_contains": ["forbidden", "serviceaccount", "audit-exporter-sa", "rbac", "cannot list"],
+  "root_cause_concepts": ["serviceaccount|service account|audit-exporter-sa", "rbac|binding|permission"],
   "fix_commands_contain": ["kubectl create clusterrolebinding", "serviceaccount"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.40,
