@@ -69,6 +69,7 @@ def verdict_summary(state: dict[str, Any]) -> dict[str, Any]:
         "causal_chain":       report.get("causal_chain", []),
         "affected":           report.get("affected", []),
         "remediation":        report.get("remediation", []),
+        "diagnostics":        report.get("diagnostics", []),
         "rollback":           report.get("rollback", []),
         "confidence":         report.get("confidence", ""),
         "pre_llm_confidence": report.get("pre_llm_confidence"),

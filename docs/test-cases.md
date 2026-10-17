@@ -251,7 +251,10 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    prompt, every confidence decision naming the failed collector, and a final label
    never HIGH where the connected run reaches HIGH. Verdicts: h013 → `NO_GO` (the
    LOW answer's remediation has no rollback), h014 / h015 stay `HUMAN_REVIEW` at LOW
-   confidence.
+   confidence. *Changed 2026-10-12* (diagnostics split, § h022): h013 cut is now
+   `HUMAN_REVIEW` — its only "remediation" was `kubectl get events`, now a diagnostic,
+   so no action is left and nothing is blocked. h014 / h015 cut: unchanged
+   (`HUMAN_REVIEW`; 5 rule-fallback actions, 10 diagnostics).
 4. **Combined multi-signal case h016** — `tests/integration/cases/h016_multi_signal/` +
    `tests/integration/test_multi_signal_h016.py`. One incident where Prometheus alerts,
    Loki logs and OTel traces are all present at once, plus one decoy per signal (another
@@ -393,9 +396,15 @@ for the solver, not for a filter. The offline test (mock LLM) asserts that the c
 carrier **and** the decoy are both in the analyze prompt. Veracity (right cause, decoy
 not named) is graded by the replay harness only, per solver.
 
-**`rules` baseline.** Each offline test records the top pre-LLM hypothesis
-(`hypothesis_sources`) next to the expected cause. It does not assert that it is
-correct. The value is the baseline that the LLM is compared against.
+**`rules` baseline.** Measured by the replay harness (`--solver rules`), not by the
+offline tests: a test cannot durably "record" a value without asserting it.
+
+**Generic Ollama test.** `tests/integration/use_cases/test_native_helm_dialogue.py`
+runs every case against a real model when Ollama is up, which makes it a first
+veracity replay. Its keyword test switches to `grade()` so that tier-C fields
+(`contains_all`, `must_not_contain`, `expected_outcome`) are honoured. It still grades
+the full answer text, as before (root cause + analysis + remediation). Known limit
+of keyword grading: an answer saying "not a memory issue" names the decoy and FAILs.
 
 ### Prerequisites found while writing this spec
 
@@ -495,9 +504,118 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
 - *expect.json.* `root_cause_contains`: []. `must_not_contain`: crash, oom, image,
   probe.
 - *Decided (2026-10-12):* PASS needs a LOW label **and** verdict `HUMAN_REVIEW`
-  (neither `GO` nor `NO_GO`: nothing to approve, nothing to block). `grade()` does
-  not read the verdict yet; this is added with h022's implementation.
-- *Needs.* P6.
+  (neither `AUTO` nor `NO_GO`: nothing to approve, nothing to block). Generic form:
+  an optional `expected_verdict` in `expect.json`, checked by `grade(...,
+  verdict=...)` when set. h022 declares `"expected_verdict": "HUMAN_REVIEW"`.
+- *Fixtures.* `kube/`: 3 `ledger` pods Running and Ready (one with `restartCount: 1`,
+  last terminated 3 h ago), the Deployment 3/3, one `BackOff` warning event from 3 h
+  ago. `helm/`: values equal to the release (no drift). No `prometheus/`, `loki/`
+  or `otel/` file: the collectors run and find nothing.
+- *Test shape* (`tests/integration/test_negative_h022.py`, harness `run_case`). The
+  scripted LLM always answers LOW with "no incident" (it has no evidence to answer
+  otherwise). Asserts:
+  - Prometheus, Loki, OTel `fallback: false` with a zero count: nothing found is
+    not an outage;
+  - the decoy `BackOff` event reaches the analyze prompt;
+  - final label LOW, and `grade()` PASSes on the final root cause, label and verdict;
+  - verdict `HUMAN_REVIEW`.
+- *Risk known before running it.* The policy gate (`decision/policy_gate.py`) gives
+  `NO_GO` when the beam search exhausts every path (`max_switches_reached`) or when no
+  rollback is derived, and an all-LOW run with a read-only remediation may hit both.
+  If it does, the test is not weakened: the observed verdict is recorded here, and
+  changing the gate for a no-incident outcome is a separate decision.
+- *Needs.* P6 (+ `expected_verdict`).
+- **Implemented (2026-10-12)**, `tests/integration/test_negative_h022.py`. Observed:
+  the three collectors `fallback: false` with 0 alerts / logs / traces, the
+  `BackOff` decoy in every analyze prompt, final label LOW, and `grade()` PASS on
+  the root cause. **The verdict is `NO_GO`, not `HUMAN_REVIEW`**, for one reason
+  only: `rollback_available=False — no safe recovery path` (`max_switches_reached`
+  is not hit). Cause: `remediation/blast_radius.py` returns
+  `rollback_available=True` for an *empty* remediation, but counts a read-only
+  command (`kubectl get events …`) as a remediation with no rollback.
+  `test_verdict_is_human_review` is `xfail(strict=True)`, so it fails the day the
+  verdict changes and the mark must be removed.
+  *Decided (2026-10-12): diagnostics are not remediation.* Two narrower options were
+  rejected (treat a read-only remediation as empty in the gate; accept `NO_GO` for "no
+  incident"): both treat the symptom. The defect is upstream. The analyze prompt
+  already says "Do NOT list diagnostic commands such as kubectl describe, kubectl
+  logs, or kubectl get" under *Remediation* (`rca/analyzer.py`), but nothing enforces
+  it, and the rule fallback (`_apply_rule_fallback`, for every LOW answer) itself
+  appends `RemediationEngine` commands that are mostly `kubectl describe / get / logs /
+  top`. Each of them counts as an action with no rollback, so **any LOW run can end
+  `NO_GO` for that reason alone**, not only h022.
+
+  *Prerequisite: split diagnostics from remediation in the report.* Spec:
+  - `RCAReport` gets a `diagnostics: list[str]` field, next to `remediation`, and
+    `to_dict()` / `verdict_summary()` expose it. Additive: no existing key changes.
+  - One classifier, `is_read_only(cmd)`, in `rca/analyzer.py`. A line is read-only
+    when every segment of it is: the first segment is `kubectl get | describe | logs
+    | top | explain | events | api-resources | version | auth can-i | diff` or `helm
+    status | get | history | list | ls | show | template | diff | lint`, later pipe
+    segments are text filters (`grep`, `head`, `tail`, `jq`, `yq`, `awk`, `sort`,
+    `wc`), and there is no `;`, `&&`, `||` or `>`. Anything else — mutating commands,
+    unknown commands, prose — stays in `remediation`. Unknown is treated as an action,
+    so the gate never gets more permissive by mistake.
+  - Applied in `_parse_analysis` (after extracting section 5) and in
+    `_apply_rule_fallback`. There, each hypothesis's `[rule:…]` header line goes with
+    its commands: into `remediation` if the hypothesis has at least one action, into
+    `diagnostics` too if it has at least one check.
+  - `rollback`, blast radius, dry-run and the gate keep reading `remediation` only,
+    so they never see a diagnostic. The prompt is not changed: the rule it states is
+    now enforced, not altered.
+  - With no action left, `remediation` is empty. Existing code then gives
+    `rollback_available: true`, risk LOW, and with the LOW label's gate score
+    (0.62 ≥ 0.60) a `HUMAN_REVIEW` verdict in production. The human-gate payload
+    already flags `no_solution` for an empty remediation.
+
+  *Expected effects, to check when implementing:*
+  - h022 → `HUMAN_REVIEW`; the `xfail` mark is removed.
+  - Runs that end on a LOW answer whose only "remediation" is diagnostic change
+    verdict, e.g. h013 with Prometheus cut (`NO_GO` today, recorded in §3) →
+    `HUMAN_REVIEW`. `test_collector_fallback_paths.py` accepts both; §3's text is
+    updated with what is observed.
+  - The golden guard (`tests/golden/`) feeds remediation straight to the decision
+    engine, so it does not move; it is re-run to prove it.
+  - Unit tests: `is_read_only` (each verb, pipes, chains, redirects, prose, unknown),
+    the parser split, the rule-fallback header placement, and `to_dict` exposing
+    `diagnostics`.
+
+  *Out of scope:* showing `diagnostics` in the dashboard (separate UI item); a
+  `NO_ACTION` verdict and a pre-LLM "no incident" short-circuit (options (d) and (e)
+  of the 2026-10-12 discussion, not scheduled).
+
+  *Found while implementing (2026-10-12): an unknown namespace fails open.* The
+  report's decision projection (`IncidentReport.from_rca`, shown by the API and the
+  vitrine) takes its namespace from the remediation commands only. Once
+  `kubectl get events -n production` moved to diagnostics, the remediation was empty,
+  the namespace `""`, and `_is_prod("")` is false: the "production is always
+  `HUMAN_REVIEW` minimum" rule no longer applied, so a score ≥ 0.85 with an empty
+  remediation could show `AUTO` for a production incident. (`""` is not `default`
+  either: a command without `-n` runs in the kubectl context's namespace, so `""`
+  means *unknown*.) The workflow's own verdict was not affected: it falls back to the
+  session namespaces. Decided (2026-10-12), in `decision/policy_gate.py`:
+  - **no namespace → `HUMAN_REVIEW` minimum**: an empty namespace is a `not_auto`
+    reason ("namespace unknown — treated as production");
+  - **no remediation command → never `AUTO`**: `evaluate()` takes an optional
+    `command_count`; `0` is a `not_auto` reason ("no remediation command to apply").
+    `None` (caller does not know) is not checked, so existing callers keep their
+    behaviour. `DecisionEngine.decide`, `Decision.evaluate`, the workflow node
+    (`blast_radius.command_count`) and `IncidentReport.from_rca` pass it.
+  - `IncidentReport.from_rca` looks for the namespace in the remediation, then in the
+    affected resources (`kind/namespace/name`), then in the investigation's seed
+    entities. This is for a correct display only: safety no longer depends on it.
+  Both rules only remove `AUTO`; neither can turn a verdict into `NO_GO`.
+  **Implemented (2026-10-12).** `rca/analyzer.py` (`is_read_only`,
+  `split_diagnostics`, the parser and the rule fallback), `decision/policy_gate.py`
+  (the two rules), `IncidentReport.from_rca` (namespace lookup). Tests:
+  `tests/unit/test_diagnostics_split.py`, `tests/unit/test_analyzer_fallback.py` (8
+  tests updated: rule checks are now diagnostics), `tests/unit/test_decision_contract.py`.
+  Observed: h022 → `HUMAN_REVIEW`, the `xfail` removed; h013 cut → `HUMAN_REVIEW`
+  (§3); golden guard unchanged; the vitrine fixtures regenerated
+  (`tools/freeze_journey_fixtures.py`): their archived LOW paths go from `NO_GO` to
+  `HUMAN_REVIEW`, with the new `diagnostics` field. h013 has no seed nor affected
+  resource on those paths, so its displayed namespace stays `""` and the
+  "namespace unknown" rule applies.
 
 ### h023 — negative: not enough evidence
 
@@ -518,7 +636,23 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
 - *Expected.* Both causes named. A single answer that is right on one of them FAILs.
 - *expect.json.* `root_cause_contains_all`:
   `[["secret", "queue-credentials", "missing"], ["oom", "memory", "limit", "256mi"]]`.
-- *Needs.* P6. Fixtures use only existing kinds (h003 + h004 patterns).
+- *Fixtures.* Existing kinds only (h003 + h004 patterns). A case has one Helm
+  release, so `release` is `api` (the drift lives there); the worker's cause is
+  found by the missing-dependency detector, not by Helm.
+- *Test shape* (`tests/integration/test_multi_cause_h024.py`, harness `run_case`).
+  Scripted hypotheses: one per cause, plus a decoy ("worker image tag is wrong").
+  The scripted LLM answers HIGH only when the prompt carries the evidence of
+  **both** causes (`queue-credentials` and `256Mi`), LOW otherwise. Asserts:
+  - both markers in every analyze prompt: neither cause crowds the other out;
+  - *answerable*: for each keyword group of `root_cause_contains_all`, enough
+    keywords (the grading threshold) appear in the analyze prompt, so the ground
+    truth can be read from the context the model gets;
+  - final label HIGH, and `grade()` PASSes on the final root cause.
+- *Needs.* P6.
+- **Implemented (2026-10-12)**, `tests/integration/test_multi_cause_h024.py`.
+  Observed: `queue-credentials` and `256Mi` in every analyze prompt, each keyword
+  group of `root_cause_contains_all` readable from every prompt, final label HIGH,
+  `grade()` PASS on the scripted two-cause answer.
 
 ### h025 — change: PodDisruptionBudget blocks a node drain
 
@@ -540,3 +674,165 @@ in the first case's PR that needs it, as for h016's `in_namespace()`.
 2. h024 and h022 (no loader prerequisite), then h023 (P5).
 3. h017 (P1), h019 (P1, P3), h025 (P4), then the multi-namespace cases h018, h020,
    h021 (P2).
+
+## Veracity replay harness
+
+> Spec (2026-10-13), not implemented. Why: [veracity-replay.md](veracity-replay.md) —
+> the model has never been measured on the corpus; every offline run uses
+> `ScriptedLLM`. This harness is the first measurement step.
+
+**What it is.** `tools/veracity_replay.py` runs native cases through the same offline
+workflow as the CI tests (`workflow_harness.run_case`: real collectors on fixtures, real
+LangGraph workflow, side effects pinned), but with a **real model** in place of
+`ScriptedLLM`. No cluster is touched, so it is not a live session. It grades every run
+with `grade()`.
+
+**CLI.**
+`python tools/veracity_replay.py --solver llm[:<model>] | rules [--cases h001,h014] [--runs 3] [--resume]`
+- `llm` uses `OllamaClient` (`OLLAMA_MODEL` unless `:<model>` is given). If Ollama is
+  unreachable or the model is not pulled, it exits with a clear message and writes
+  nothing.
+- `rules` uses no LLM. The answer graded is the top `RemediationEngine` hypothesis
+  (`symptom` + `explanation` + `affected`) on the case graph after the collector nodes,
+  and its label is `LOW`. Deterministic, so `--runs` is ignored.
+- `--resume` skips the runs whose record already exists. A full CPU run takes hours.
+
+**Prerequisites.**
+1. *A query per case.* `run_case` takes its query from a `CaseScript`, and only
+   h013–h016, h022 and h024 have one. Every native `expect.json` gets a `query`: what
+   an operator would type, naming the **symptom** and never the cause (h016 already has
+   one). `run_case` reads `expect.json["query"]` when no script is given.
+2. *`run_case(..., llm=...)`.* When an `llm` is passed it replaces `ScriptedLLM`, and
+   the case is found by key prefix (`h014` → `h014_cert_expiry`) without a script. A
+   thin recorder wraps the LLM to keep every analyze prompt (`ScriptedLLM` already
+   does), so *answerable* can be computed. The default stays `ScriptedLLM`, so CI is
+   unchanged.
+
+**Record**, one file per case and run:
+`tests/veracity/replay/<solver>/<case>/run_<n>.json` with
+`case`, `tier`, `solver`, `model`, `run`, `started_at`, `wall_s`, the `grade()` result
+(`veracity`, `reason`, `matched_groups`, `forbidden_matched`), `answerable` (the
+grading keywords pass `grade()` on the concatenated analyze prompts; `null` for
+negative cases), `confidence`, `pre_llm_confidence_score`, `verdict`, `fallbacks`,
+`signals_mode` (see [patchtst-readiness.md](patchtst-readiness.md): synthetic signals may
+add circular evidence) and `root_cause`.
+
+**Tier** from the case number: A h001–h012, B h013–h016, C h017–h029, M h030+ (the
+misdirection family of [scenarios-v2.md](scenarios-v2.md) § Tier M). An `expect.json`
+`tier` field overrides it.
+
+**Report.** `tests/veracity/replay/REPORT.md`, rewritten after each run, one table per
+solver: rows = tiers then cases; columns = pass rate (passes / runs), answerable rate,
+model errors (answerable and FAIL), overconfidence (FAIL at HIGH), false alarms
+(negative case naming a cause), mean wall time. A short header names the model, the
+date and the commit.
+
+**Isolation.** `tests/veracity/replay/` never feeds `data/examples/`, and example lookup
+stays disabled during the replay (same rule as the live corpus,
+`docs/veracity-benchmark.md`).
+
+**Tests** (CI, no Ollama): the `rules` solver on h003 and h022 end to end, writing to a
+tmp dir; `answerable` on a prompt with / without the ground truth; tier mapping; report
+rendering from fixed records; the query prerequisite (every native case has a
+`query` that does not contain any of its `root_cause_contains` keywords).
+
+**Out of scope.** Changing the prompt or the model; live capture (`tools/b13_capture.py`
+keeps doing that); the vitrine using replay journeys (`target/vitrine-live.md` item 2).
+
+**Implemented (2026-10-13).** `tools/veracity_replay.py`, `run_case(..., llm=...)` with
+`RecordingLLM` in `tests/integration/workflow_harness.py`, a `query` in every native
+`expect.json`, `tests/unit/test_veracity_replay.py`.
+*Changed while implementing:* the `rules` solver does not check `expected_verdict`
+(no policy gate runs without the workflow). Two queries first leaked a keyword by
+substring (`slow` contains `slo`, `restarts` contains `restart`). The test on queries
+caught it, and both were reworded.
+
+**First result: `rules` solver, 2026-10-13, 4/18.** Tier A 3/12 (h001, h004, h010),
+tier B 0/4, tier C 1/2 (h022). Finding: the generic `helm_drift` rule is the top
+hypothesis on 9 of 18 cases, including h014 and h015, whose cause is not a Helm
+change. Its base weight (0.88) plus its boosts (+0.03 to +0.06 per drift field,
++0.04 when the entity is unhealthy) outrank the specific rules (`oom_kill` on h003).
+The fixtures' small `values.yaml` / `release.json` differences are enough to fire it.
+Not changed here: it is the baseline the LLM is compared to. The `llm` solver needs a
+reachable Ollama, and its first report is the next step.
+
+## Live parity — the fixtures must go through the production collector
+
+> Spec (2026-10-13), not implemented. Why: [veracity-replay.md](veracity-replay.md) §
+> *Evidence only the test loader produces*.
+
+**Problem.** `tests/integration/cases/case_loader.py` builds the case graph with its own
+code, not with `ingestion/k8s_collector.py`. The two have drifted, so the offline tests
+prove the loader, not production. Read from the code on 2026-10-13:
+
+1. *Missing-dependency detection exists only in the loader* (`_detect_missing_deps`:
+   `missing.secret|configmap|pvc|imagepullsecret|serviceaccount|rbac.*`, `netpol.*`).
+   The live collector produces none of these annotations.
+2. *Pod → ConfigMap / Secret / PVC / ServiceAccount edges are never built live.*
+   `_collect_pods` runs before the ConfigMaps, PVCs and ServiceAccounts are collected,
+   and `_lazy_edge` only links to entities already in the graph.
+3. *Container statuses have another shape live.* The collector stores
+   `{"name", "ready", "restart_count", "state": str(cs.state)}`; the loader keeps the
+   API shape (`state.waiting.reason`, `lastState.terminated.reason`). The rules read the
+   API shape, so `oom_kill` (and anything reading a container's state) cannot fire live.
+
+**Fix, in three phases.**
+
+*Phase 1 — a parity test that shows it.* A fake `CoreV1Api` / `AppsV1Api` serves a case's
+`kube/` YAML as real client objects (`ApiClient().deserialize` of the same documents).
+The real `K8sCollector.collect()` builds a graph from it. The test compares that graph
+with the loader's graph for every native case: entity kinds and names, pod annotations
+(`missing.*`, `netpol.*`), container-status reasons, and pod → dependency edges. The
+three divergences above are expected failures (`xfail(strict=True)`, one per
+divergence), so each fix flips one.
+
+*Phase 2 — fix production.*
+- Collect pods **after** the objects they reference, or build the pod edges in a second
+  pass once everything is collected.
+- Store container statuses in the API shape
+  (`ApiClient.sanitize_for_serialization`), the shape the rules read.
+- Move the detector to `ingestion/readiness.py` as a pure function over API-shaped pod
+  dicts, present-object names and events. It runs at the end of `collect()`. Rules:
+  - a dependency the account can list (ConfigMap, PVC, ServiceAccount, RoleBinding,
+    NetworkPolicy) is *missing* when absent from the listing;
+  - **a Secret is never listed** (decision B, `docs/diagnostics.md` § Step 4): it is
+    missing only when Kubernetes says so — an event or container message
+    `secret "<name>" not found` or `couldn't find key <key> in Secret <ns>/<name>`;
+  - when a listing failed (403, timeout), its kind is *unknown*, never *missing*: no
+    annotation, so an RBAC gap cannot invent missing dependencies.
+
+*Phase 3 — one path.* The loader calls `readiness.detect_missing()` instead of its own
+copy, and builds its Kubernetes entities through the same fake-API → `K8sCollector`
+path as the parity test. Its own builders stay only for what has no live equivalent in
+the fixtures (Helm release, policy reports). The parity xfails are removed.
+
+**Expected effects, to observe and record.**
+- h001 / h004 / h024: a Secret is flagged missing only where the fixture's events name
+  it. h004's `api-gateway-tls-secret` (envFrom, no event) would no longer be flagged.
+  That is a real loss of an early signal, and it is accepted by decision B.
+- Rule hypotheses that read container state (`oom_kill`) become reachable live;
+  `rules` replay numbers may move and are re-run.
+- The vitrine fixtures and the golden guard are re-checked.
+
+**Tests.** The parity test itself; `readiness.detect_missing()` unit tests (each
+reference type, Secret by event only, unknown on a failed listing); the collector's
+edge and status shape on a fake API; the existing case tests as the regression check.
+
+**Implemented (2026-10-13/14), phases 1 and 2, and phase 3 for the detector.**
+`tests/integration/fake_kube_api.py` + `tests/integration/test_live_parity.py`;
+`ingestion/readiness.py`; in `ingestion/k8s_collector.py`, API-shaped container
+statuses, `_link_pod_dependencies` (second pass) and `_annotate_missing_dependencies`.
+The fixture loader's `_detect_missing_deps` now delegates to `readiness.detect_missing`.
+- Divergence 1: fixed for Secret, ConfigMap, PVC, ServiceAccount and image pull
+  secrets. **Still open (strict xfail)**: `missing.rbac.*` and `netpol.*`, because
+  RoleBindings and NetworkPolicies are not collected as typed objects live.
+- Divergence 2: fixed. Divergence 3: fixed, and `oom_kill` now fires on h003's live
+  graph.
+- *Changed while implementing:* the fake API completes missing `uid`s and turns off
+  client-side validation, since hand-written fixtures omit fields a real API fills.
+  The first version of the parity test passed vacuously (the fake namespace had no
+  status, so `collect()` crashed before the checks); each xfail was then re-run
+  without its mark to confirm it fails on its own divergence.
+- Observed: full suite 2498 passed, 1 xfailed; `rules` replay unchanged (4/18).
+- Not done yet (phase 3, rest): building the loader's Kubernetes entities through the
+  fake-API → `K8sCollector` path.

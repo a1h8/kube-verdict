@@ -1,0 +1,26 @@
+{
+  "answerable": true,
+  "case": "h014_cert_expiry",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.49,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause is a Helm drift, where the deployed resources on the cluster have diverged from the declared resources in the Helm chart. Specifically, the replicaCount in the Helm release has been changed from the default value (1) to 2, causing the Deployment to have more replicas than intended.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:11:04.932386+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 160.26
+}

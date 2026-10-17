@@ -1,0 +1,30 @@
+{
+  "answerable": true,
+  "case": "h004_missing_configmap",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "configmap"
+    ]
+  ],
+  "matched_keywords": [
+    "configmap"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause is that the necessary ConfigMap and Secret have not been created or are not properly linked to the Pod. This could be due to a manual error during deployment or a configuration drift.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:07:51.033101+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 66.8
+}

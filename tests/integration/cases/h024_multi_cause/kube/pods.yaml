@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: PodList
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-6b8d4f7c9-q7r2t
+    namespace: production
+    uid: 7a1c3e5f-8e21-11ef-a1b2-0242ac110024
+    creationTimestamp: "2026-10-08T08:00:00Z"
+    labels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/instance: api
+      pod-template-hash: 6b8d4f7c9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-6b8d4f7c9
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    serviceAccountName: api
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:v4.1.0
+      resources:
+        limits:
+          memory: 256Mi
+          cpu: "1"
+        requests:
+          memory: 128Mi
+          cpu: 250m
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    containerStatuses:
+    - name: api
+      ready: false
+      restartCount: 6
+      image: ghcr.io/acme/api:v4.1.0
+      state:
+        waiting:
+          reason: CrashLoopBackOff
+          message: back-off 5m0s restarting failed container=api pod=api-6b8d4f7c9-q7r2t_production
+      lastState:
+        terminated:
+          reason: OOMKilled
+          exitCode: 137
+          startedAt: "2026-10-08T09:40:00Z"
+          finishedAt: "2026-10-08T09:41:20Z"
+    conditions:
+    - type: Ready
+      status: "False"
+      reason: ContainersNotReady
+      message: "containers with unready status: [api]"
+    - type: PodScheduled
+      status: "True"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: worker-58c9d7b6f-h4m8n
+    namespace: production
+    uid: 7a1c3e60-8e21-11ef-a1b2-0242ac110024
+    creationTimestamp: "2026-10-08T09:00:00Z"
+    labels:
+      app.kubernetes.io/name: worker
+      app.kubernetes.io/instance: worker
+      pod-template-hash: 58c9d7b6f
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: worker-58c9d7b6f
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    serviceAccountName: worker
+    containers:
+    - name: worker
+      image: ghcr.io/acme/worker:v2.3.0
+      env:
+      - name: QUEUE_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: queue-credentials     # ← this Secret does NOT exist
+            key: password
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 100m
+  status:
+    phase: Pending
+    containerStatuses:
+    - name: worker
+      ready: false
+      restartCount: 0
+      state:
+        waiting:
+          reason: CreateContainerConfigError
+          message: secret "queue-credentials" not found
+    conditions:
+    - type: Ready
+      status: "False"
+      reason: ContainersNotReady
+      message: "containers with unready status: [worker]"
+    - type: PodScheduled
+      status: "True"

@@ -387,7 +387,7 @@ class TestStep7RemediationEngine:
 
     def test_all_hypotheses_have_commands(self, hypotheses):
         for h in hypotheses:
-            assert h.commands, f"Hypothesis {h.rule_id} has no commands"
+            assert h.commands or h.checks, f"Hypothesis {h.rule_id} has no commands or checks"
 
 
 # ---------------------------------------------------------------------------

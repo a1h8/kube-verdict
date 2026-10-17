@@ -8,7 +8,8 @@ Architecture
 ────────────
   Each Rule defines:
     • match(entity, graph)  → bool        — fires when True
-    • commands(entity, graph) → list[str] — kubectl / helm commands
+    • checks(entity, graph) → list[Check] — read-only diagnostics (docs/diagnostics.md)
+    • commands(entity, graph) → list[str] — actions that change the cluster
     • base_weight             float        — prior confidence [0, 1]
     • evidence_boosts         dict         — annotation/event keys → extra weight
 
@@ -43,6 +44,7 @@ from ontology.entities import (
     StatefulSet,
 )
 from ontology.graph import OntologyGraph
+from rca.diagnostics import Check
 
 log = logging.getLogger(__name__)
 
@@ -57,9 +59,10 @@ class RemediationHypothesis:
     symptom:     str                    # human-readable trigger description
     affected:    str                    # kind/namespace/name
     weight:      float                  # 0.0 – 1.0, higher = more confident
-    commands:    list[str]              # ready-to-run kubectl / helm commands
+    commands:    list[str]              # actions only: they change the cluster
     explanation: str = ""
     evidence:    list[str] = field(default_factory=list)
+    checks:      list[Check] = field(default_factory=list)   # read-only diagnostics
 
     def __str__(self) -> str:
         lines = [
@@ -67,6 +70,8 @@ class RemediationHypothesis:
         ]
         if self.explanation:
             lines.append(f"  {self.explanation}")
+        for check in self.checks:
+            lines.append(f"  ? {check.command}  — {check.purpose}")
         for cmd in self.commands:
             lines.append(f"  $ {cmd}")
         return "\n".join(lines)
@@ -84,6 +89,9 @@ class _Rule:
 
     def match(self, entity: K8sEntity, graph: OntologyGraph) -> bool:
         return False
+
+    def checks(self, entity: K8sEntity, graph: OntologyGraph) -> list[Check]:
+        return []
 
     def commands(self, entity: K8sEntity, graph: OntologyGraph) -> list[str]:
         return []
@@ -115,12 +123,8 @@ class _OOMKillRule(_Rule):
 
     def commands(self, entity: K8sEntity, graph: OntologyGraph) -> list[str]:
         ns   = entity.namespace or "default"
-        name = entity.name
         owner = _owner_name(entity, graph)
-        cmds = [
-            f"kubectl describe pod {name} -n {ns}",
-            f"kubectl top pod {name} -n {ns}",
-        ]
+        cmds: list[str] = []
         if owner:
             cmds.append(
                 f"kubectl patch deployment {owner} -n {ns} --type=json "
@@ -129,6 +133,19 @@ class _OOMKillRule(_Rule):
                 f"\"value\":\"512Mi\"}}]'"
             )
         return cmds
+
+    def checks(self, entity: K8sEntity, graph: OntologyGraph) -> list[Check]:
+        ns, name = entity.namespace or "default", entity.name
+        return [
+            Check(f"kubectl describe pod {name} -n {ns}",
+                  "Shows why the container last terminated and its memory limit.",
+                  "Last State is Terminated with reason OOMKilled and exit code 137.",
+                  "The last termination reason is not OOMKilled."),
+            Check(f"kubectl top pod {name} -n {ns}",
+                  "Shows the pod's current memory use.",
+                  "Memory use climbs close to the container's limits.memory before each restart.",
+                  "Memory use stays far below the limit."),
+        ]
 
     def evidence_boosts(self, entity: K8sEntity, graph: OntologyGraph) -> list[tuple[str, float]]:
         boosts = []
@@ -179,19 +196,34 @@ class _CrashLoopDBRule(_Rule):
             for cs in entity.container_statuses
         )
 
-    def commands(self, entity: K8sEntity, graph: OntologyGraph) -> list[str]:
+    def checks(self, entity: K8sEntity, graph: OntologyGraph) -> list[Check]:
         ns = entity.namespace or "default"
-        cmds = [
-            f"kubectl logs {entity.name} -n {ns} --previous",
-            f"kubectl get endpoints -n {ns}",
-            f"kubectl get services -n {ns}",
+        checks = [
+            Check(f"kubectl logs {entity.name} -n {ns} --previous",
+                  "Shows the last lines the crashed container wrote.",
+                  "connection refused, timeout or no route to host towards a dependency.",
+                  "The crash reason is unrelated to a dependency (config, panic, OOM)."),
+            Check(f"kubectl get endpoints -n {ns}",
+                  "Lists which services have ready backends.",
+                  "The dependency's service has no endpoints.",
+                  "The dependency's service has ready endpoints."),
+            Check(f"kubectl get services -n {ns}",
+                  "Lists the services the pod can reach in its namespace.",
+                  "The service named in the error is missing or renamed."),
         ]
         db_host = entity.annotations.get("env.DB_HOST") or ""
         if db_host:
             svc = db_host.split(".")[0]
-            cmds.append(f"kubectl describe service {svc} -n {ns}")
-            cmds.append(f"kubectl get pods -n {ns} -l app={svc}")
-        return cmds
+            checks += [
+                Check(f"kubectl describe service {svc} -n {ns}",
+                      f"Shows the selector and endpoints of {svc}.",
+                      f"{svc} has no endpoints, or its selector matches no pod."),
+                Check(f"kubectl get pods -n {ns} -l app={svc}",
+                      f"Shows whether the {svc} pods are running.",
+                      f"The {svc} pods are not Ready or do not exist.",
+                      f"The {svc} pods are Running and Ready."),
+            ]
+        return checks
 
     def evidence_boosts(self, entity: K8sEntity, graph: OntologyGraph) -> list[tuple[str, float]]:
         boosts: list[tuple[str, float]] = []
@@ -235,11 +267,9 @@ class _ImagePullRule(_Rule):
     def commands(self, entity: K8sEntity, graph: OntologyGraph) -> list[str]:
         ns    = entity.namespace or "default"
         owner = _owner_name(entity, graph)
-        cmds  = [f"kubectl describe pod {entity.name} -n {ns}"]
+        cmds: list[str] = []
         if owner:
             cmds += [
-                f"kubectl get deployment {owner} -n {ns} "
-                f"-o jsonpath='{{.spec.template.spec.containers[0].image}}'",
                 "# Fix: update image to a valid tag",
                 f"kubectl set image deployment/{owner} "
                 f"<container>=<registry>/<image>:<valid-tag> -n {ns}",
@@ -250,6 +280,25 @@ class _ImagePullRule(_Rule):
             f"--docker-password=<password> -n {ns}"
         )
         return cmds
+
+    def checks(self, entity: K8sEntity, graph: OntologyGraph) -> list[Check]:
+        ns    = entity.namespace or "default"
+        owner = _owner_name(entity, graph)
+        checks = [
+            Check(f"kubectl describe pod {entity.name} -n {ns}",
+                  "Shows the pull events and the exact image reference.",
+                  "Failed to pull with manifest unknown / not found (bad tag) or "
+                  "unauthorized / 401 (missing credentials).",
+                  "The image was pulled and the failure is later (container start)."),
+        ]
+        if owner:
+            checks.append(Check(
+                f"kubectl get deployment {owner} -n {ns} "
+                f"-o jsonpath='{{.spec.template.spec.containers[0].image}}'",
+                "Shows the image the Deployment asks for.",
+                "The tag differs from the one declared in the chart, or does not exist "
+                "in the registry."))
+        return checks
 
     def evidence_boosts(self, entity: K8sEntity, graph: OntologyGraph) -> list[tuple[str, float]]:
         boosts = []
@@ -285,15 +334,29 @@ class _MissingConfigRule(_Rule):
     def commands(self, entity: K8sEntity, graph: OntologyGraph) -> list[str]:
         ns = entity.namespace or "default"
         cmds = [
-            f"kubectl describe pod {entity.name} -n {ns}",
-            f"kubectl get configmaps -n {ns}",
-            f"kubectl get secrets -n {ns}",
             "# Create missing ConfigMap (edit values as needed):",
             f"kubectl create configmap <name> --from-literal=KEY=VALUE -n {ns}",
             "# Create missing Secret:",
             f"kubectl create secret generic <name> --from-literal=KEY=VALUE -n {ns}",
         ]
         return cmds
+
+    def checks(self, entity: K8sEntity, graph: OntologyGraph) -> list[Check]:
+        ns = entity.namespace or "default"
+        return [
+            Check(f"kubectl describe pod {entity.name} -n {ns}",
+                  "Shows which ConfigMap or Secret the container is waiting for.",
+                  'CreateContainerConfigError naming a configmap or secret "not found", '
+                  "or a missing key in it."),
+            Check(f"kubectl get configmaps -n {ns}",
+                  "Lists the ConfigMaps that exist in the namespace.",
+                  "The ConfigMap the pod references is not in the list.",
+                  "It is in the list: look for a missing key instead."),
+            Check(f"kubectl get secrets -n {ns}",
+                  "Lists the Secrets that exist in the namespace (names only).",
+                  "The Secret the pod references is not in the list.",
+                  "It is in the list: look for a missing key instead."),
+        ]
 
     def evidence_boosts(self, entity: K8sEntity, graph: OntologyGraph) -> list[tuple[str, float]]:
         # Multiple pods in same deployment all failing → higher confidence
@@ -336,11 +399,7 @@ class _PendingSchedulingRule(_Rule):
     def commands(self, entity: K8sEntity, graph: OntologyGraph) -> list[str]:
         ns    = entity.namespace or "default"
         owner = _owner_name(entity, graph)
-        cmds  = [
-            f"kubectl describe pod {entity.name} -n {ns}",
-            "kubectl get nodes --show-labels",
-            "kubectl describe nodes | grep -A5 Taints",
-        ]
+        cmds: list[str] = []
         if owner:
             cmds += [
                 "# Remove unsatisfiable nodeSelector:",
@@ -349,6 +408,22 @@ class _PendingSchedulingRule(_Rule):
                 f"\"path\":\"/spec/template/spec/nodeSelector\"}}]'",
             ]
         return cmds
+
+    def checks(self, entity: K8sEntity, graph: OntologyGraph) -> list[Check]:
+        ns = entity.namespace or "default"
+        return [
+            Check(f"kubectl describe pod {entity.name} -n {ns}",
+                  "Shows the scheduler's FailedScheduling message.",
+                  "0/N nodes are available, with the reason (node selector, affinity, "
+                  "taint, insufficient cpu / memory)."),
+            Check("kubectl get nodes --show-labels",
+                  "Lists node labels against the pod's nodeSelector / affinity.",
+                  "No node carries the label the pod requires.",
+                  "A node carries it: look at taints or capacity instead."),
+            Check("kubectl describe nodes | grep -A5 Taints",
+                  "Lists node taints.",
+                  "Every candidate node has a taint the pod does not tolerate."),
+        ]
 
     def evidence_boosts(self, entity: K8sEntity, graph: OntologyGraph) -> list[tuple[str, float]]:
         boosts = []
@@ -380,13 +455,25 @@ class _HelmDriftRule(_Rule):
         release_name = entity.labels.get("app.kubernetes.io/instance") or entity.name
         chart_name   = entity.labels.get("helm.sh/chart", "").split("-")[0] or release_name
         return [
-            "# Drift details:",
-            f"kubectl get {entity.kind.value.lower()} {entity.name} -n {ns} "
-            f"-o jsonpath='{{.spec}}'",
             "# Restore declared state:",
             f"helm upgrade {release_name} demo/charts/{chart_name} -n {ns}",
-            "# Or diff first:",
-            f"helm diff upgrade {release_name} demo/charts/{chart_name} -n {ns}",
+        ]
+
+    def checks(self, entity: K8sEntity, graph: OntologyGraph) -> list[Check]:
+        ns    = entity.namespace or "default"
+        release_name = entity.labels.get("app.kubernetes.io/instance") or entity.name
+        chart_name   = entity.labels.get("helm.sh/chart", "").split("-")[0] or release_name
+        drifted = ", ".join(k.removeprefix("drift.") for k in entity.annotations
+                            if k.startswith("drift.")) or "the drifted fields"
+        return [
+            Check(f"kubectl get {entity.kind.value.lower()} {entity.name} -n {ns} "
+                  f"-o jsonpath='{{.spec}}'",
+                  "Shows the live spec of the drifted resource.",
+                  f"The live value of {drifted} differs from the chart's values."),
+            Check(f"helm diff upgrade {release_name} demo/charts/{chart_name} -n {ns}",
+                  "Shows what helm upgrade would change back.",
+                  f"The diff restores {drifted}.",
+                  "The diff is empty: the drift is not from this release."),
         ]
 
     def evidence_boosts(self, entity: K8sEntity, graph: OntologyGraph) -> list[tuple[str, float]]:
@@ -427,13 +514,26 @@ class _DegradedDeploymentRule(_Rule):
         return False
 
     def commands(self, entity: K8sEntity, graph: OntologyGraph) -> list[str]:
+        return []   # generic symptom: only checks, the cause is in its pods' own rules
+
+    def checks(self, entity: K8sEntity, graph: OntologyGraph) -> list[Check]:
         ns   = entity.namespace or "default"
         kind = entity.kind.value.lower()
         return [
-            f"kubectl describe {kind} {entity.name} -n {ns}",
-            f"kubectl rollout status {kind}/{entity.name} -n {ns}",
-            f"kubectl get pods -n {ns} -l app={entity.name}",
-            f"kubectl logs -l app={entity.name} -n {ns} --tail=50 --prefix",
+            Check(f"kubectl describe {kind} {entity.name} -n {ns}",
+                  "Shows desired vs ready replicas and the controller's conditions.",
+                  "Available=False or Progressing=False with a reason."),
+            Check(f"kubectl rollout status {kind}/{entity.name} -n {ns}",
+                  "Shows whether a rollout is stuck.",
+                  "The rollout waits on new replicas that never become ready.",
+                  "The rollout completed: the pods failed afterwards."),
+            Check(f"kubectl get pods -n {ns} -l app={entity.name}",
+                  "Lists the pods behind it and their states.",
+                  "The not-ready pods share one state (CrashLoopBackOff, Pending, "
+                  "ImagePullBackOff): follow that pod's own hypothesis."),
+            Check(f"kubectl logs -l app={entity.name} -n {ns} --tail=50 --prefix",
+                  "Shows the recent logs of every pod behind it.",
+                  "The same error line on every not-ready pod."),
         ]
 
     def evidence_boosts(self, entity: K8sEntity, graph: OntologyGraph) -> list[tuple[str, float]]:
@@ -499,6 +599,11 @@ class RemediationEngine:
                 except Exception as exc:
                     log.debug("rule %s.commands failed: %s", rule.id, exc)
                     cmds = []
+                try:
+                    checks = rule.checks(entity, graph)
+                except Exception as exc:
+                    log.debug("rule %s.checks failed: %s", rule.id, exc)
+                    checks = []
 
                 hyp = RemediationHypothesis(
                     rule_id=rule.id,
@@ -508,6 +613,7 @@ class RemediationEngine:
                     commands=cmds,
                     explanation=rule.explanation,
                     evidence=evidence,
+                    checks=checks,
                 )
 
                 key = (rule.id, entity.uid)

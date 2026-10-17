@@ -1,0 +1,38 @@
+{
+  "answerable": true,
+  "case": "h013_slo_error_budget_burn",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "latency",
+      "slo",
+      "budget",
+      "burn",
+      "network"
+    ]
+  ],
+  "matched_keywords": [
+    "latency",
+    "slo",
+    "budget",
+    "burn",
+    "network"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.66,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The increased restart count of the checkout-api pod suggests that the pod is experiencing issues, which could be due to network latency or congestion between the checkout-api and its dependencies. This is further supported by the critical alert for SLOErrorBudgetBurnFast and LatencySLOBreach.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:08:13.397219+00:00",
+  "tier": "B",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 123.82
+}

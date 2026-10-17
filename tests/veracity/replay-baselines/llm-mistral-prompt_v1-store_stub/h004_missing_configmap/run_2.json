@@ -1,0 +1,30 @@
+{
+  "answerable": true,
+  "case": "h004_missing_configmap",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "configmap"
+    ]
+  ],
+  "matched_keywords": [
+    "configmap"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause is the absence of the ConfigMap and Secret in the production namespace. These resources are referenced in the api-gateway pod's configuration and are necessary for its successful startup. The absence of these resources is likely due to either a deployment error or a configuration drift.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:09:10.728858+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 79.69
+}

@@ -1,0 +1,30 @@
+{
+  "answerable": true,
+  "case": "h006_networkpolicy_blocked",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "timeout"
+    ]
+  ],
+  "matched_keywords": [
+    "timeout"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause appears to be a network connectivity issue between the order-service and its dependencies, as indicated by the failed readiness probes and DNS resolution timeouts.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:23:09.878283+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 166.85
+}

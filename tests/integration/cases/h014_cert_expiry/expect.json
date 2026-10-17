@@ -1,5 +1,6 @@
 {
   "scenario": "Expired mTLS certificate — cert-manager issuer cannot renew, readiness fails on every replica",
+  "query": "why is billing-gateway not ready",
   "namespace": "production",
   "release": "billing-gateway",
   "affected_resources": ["Deployment/production/billing-gateway"],

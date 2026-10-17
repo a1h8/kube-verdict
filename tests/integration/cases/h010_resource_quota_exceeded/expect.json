@@ -1,5 +1,6 @@
 {
   "scenario": "ResourceQuota exceeded — pod stuck Pending because namespace quota is full",
+  "query": "worker-service pod never starts in staging",
   "namespace": "staging",
   "release": "worker-service",
   "affected_resources": ["Pod/staging/worker-service-7d8f9c6b5-xp2qr"],

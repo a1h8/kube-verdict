@@ -1,5 +1,6 @@
 {
   "scenario": "Init container failing — DB migration script exits 1",
+  "query": "backend pod never becomes ready in staging",
   "namespace": "staging",
   "release": "backend",
   "affected_resources": ["Pod/staging/backend-6b9f7c8d5-mn4pq"],

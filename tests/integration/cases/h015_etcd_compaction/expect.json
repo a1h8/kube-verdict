@@ -1,5 +1,6 @@
 {
   "scenario": "etcd compaction latency — backend Range calls stop recovering, readiness probe times out",
+  "query": "why is inventory-api not ready",
   "namespace": "production",
   "release": "inventory-api",
   "affected_resources": ["Pod/production/inventory-api-7f9c8d6b5-x2qwe"],

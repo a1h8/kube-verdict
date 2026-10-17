@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from tools.b13_capture import GRADING_KEYS, SCENARIOS
-from tools.veracity import grade
+from tools.veracity import grade, normalize_label
 
 ROOT = Path(__file__).resolve().parents[2]
 CASES = ROOT / "tests/integration/cases"
@@ -98,6 +98,27 @@ class TestNegative:
         assert r["forbidden_matched"] == ["crash", "oom"]
 
 
+class TestExpectedVerdict:
+    EXPECT = {"expected_outcome": "no_incident", "expected_verdict": "HUMAN_REVIEW"}
+
+    def test_matching_verdict_passes(self):
+        assert grade("No incident", self.EXPECT, confidence="LOW",
+                     verdict="HUMAN_REVIEW")["veracity"] == "PASS"
+
+    @pytest.mark.parametrize("verdict", ["NO_GO", "AUTO", ""])
+    def test_other_verdict_fails(self, verdict):
+        r = grade("No incident", self.EXPECT, confidence="LOW", verdict=verdict)
+        assert r["veracity"] == "FAIL"
+        assert "HUMAN_REVIEW expected" in r["reason"]
+
+    def test_wrong_label_reason_wins(self):
+        r = grade("No incident", self.EXPECT, confidence="HIGH", verdict="NO_GO")
+        assert "LOW expected" in r["reason"]
+
+    def test_unset_verdict_is_not_checked(self):
+        assert grade("x509 certificate expired", CERT, verdict="NO_GO")["veracity"] == "PASS"
+
+
 class TestLiveCorpus:
     @pytest.mark.parametrize("scenario_id", [k for k, v in SCENARIOS.items()
                                              if any(g in v for g in GRADING_KEYS)])
@@ -139,3 +160,65 @@ def test_write_veracity_records_confidence_next_to_the_grade(tmp_path, monkeypat
     assert record["pre_llm_confidence_score"] == 0.54
     assert record["verdict"] == "HUMAN_REVIEW"
     assert record["fallbacks"] == ["loki"]
+
+
+@pytest.mark.parametrize("raw,label", [
+    ("LOW", "LOW"), ("MEDIUM.", "MEDIUM"), ("high — the logs agree", "HIGH"),
+    ("LOW (rule-assisted — top: oom_kill w=0.88, 3 hypothesis(es))", "LOW"),
+    ("", ""), ("  ", ""),
+])
+def test_normalize_label(raw, label):
+    assert normalize_label(raw) == label
+
+
+def test_decorated_low_label_passes_a_negative_case():
+    expect = {"expected_outcome": "no_incident"}
+    assert grade("No incident", expect, confidence="LOW.")["veracity"] == "PASS"
+
+
+class TestSynonyms:
+    """docs/evidence-score.md § Prerequisites 1: right answers in other words."""
+
+    def test_h004_answer_from_the_baseline_now_passes(self):
+        expect = {"root_cause_contains": ["configmap", "api-gateway-config", "not found", "missing"]}
+        answer = ("The root cause is that the necessary ConfigMap and Secret have not been "
+                  "created or are not properly linked to the Pod.")
+        assert grade(answer, expect)["veracity"] == "PASS"
+
+    def test_h005_answer_from_the_baseline_now_passes(self):
+        expect = {"root_cause_contains": ["forbidden", "serviceaccount", "audit-exporter-sa",
+                                          "rbac", "cannot list"]}
+        answer = ("The service account `audit-exporter-sa` in the `monitoring` namespace does "
+                  "not have the necessary permissions to list and watch pods.")
+        assert grade(answer, expect)["veracity"] == "PASS"
+
+    def test_matched_keywords_are_reported_as_authored(self):
+        r = grade("the secret was never created", {"root_cause_contains": ["secret", "missing"]})
+        assert r["matched_keywords"] == ["secret", "missing"]
+
+    def test_inline_alternatives(self):
+        expect = {"root_cause_contains": ["pool|max_connections"]}
+        assert grade("max_connections reached", expect)["veracity"] == "PASS"
+
+    def test_synonyms_apply_to_the_decoy_too(self):
+        expect = {"root_cause_contains": ["x509"], "root_cause_must_not_contain": ["missing"]}
+        assert grade("x509 cert, the secret is absent", expect)["veracity"] == "FAIL"
+
+    def test_a_wrong_answer_stays_wrong(self):
+        expect = {"root_cause_contains": ["certificate", "expired", "x509", "tls"]}
+        assert grade("Helm drift on replicaCount", expect)["veracity"] == "FAIL"
+
+
+def test_synonyms_come_from_the_data_file_not_the_code(tmp_path, monkeypatch):
+    from tools import veracity
+    custom = tmp_path / "syn.yaml"
+    custom.write_text("missing:\n  - vanished\n")
+    monkeypatch.setenv("VERACITY_SYNONYMS", str(custom))
+    veracity.synonyms.cache_clear()
+    try:
+        expect = {"root_cause_contains": ["missing"]}
+        assert grade("the secret vanished", expect)["veracity"] == "PASS"
+        assert grade("the secret is absent", expect)["veracity"] == "FAIL"   # not in this file
+    finally:
+        monkeypatch.delenv("VERACITY_SYNONYMS")
+        veracity.synonyms.cache_clear()

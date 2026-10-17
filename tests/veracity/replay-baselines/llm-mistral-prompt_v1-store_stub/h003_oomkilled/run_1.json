@@ -1,0 +1,34 @@
+{
+  "answerable": true,
+  "case": "h003_oomkilled",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "memory",
+      "limit",
+      "drift"
+    ]
+  ],
+  "matched_keywords": [
+    "memory",
+    "limit",
+    "drift"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.56,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The Helm deployment in the production namespace has drifted from the declared chart values, specifically in the resources.limits.memory and resources.requests.memory fields. This drift has resulted in insufficient memory for the pods, causing them to crash.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:04:30.582834+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 211.7
+}

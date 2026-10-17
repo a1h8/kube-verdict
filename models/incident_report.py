@@ -72,7 +72,7 @@ class IncidentReport:
         pre_score = getattr(pre, "score", None) if pre else None
         score = float(pre_score) if pre_score is not None else _LABEL_SCORE.get((label or "").upper(), 0.20)
 
-        ns = namespace or (br.namespaces[0] if br.namespaces else "")
+        ns = namespace or (br.namespaces[0] if br.namespaces else "") or _namespace_of(report)
         decision = Decision.evaluate(
             score=score,
             risk=br.risk,
@@ -80,6 +80,7 @@ class IncidentReport:
             namespace=ns,
             mc_win_rate=mc_win_rate,
             max_switches_reached=max_switches_reached,
+            command_count=len(remediation),
         )
 
         return cls(
@@ -121,3 +122,18 @@ class IncidentReport:
             "namespace": self.namespace,
             "query": self.query,
         }
+
+
+def _namespace_of(report: "RCAReport") -> str:
+    """Namespace for display when the remediation names none: first from the
+    affected resources (``kind/namespace/name``), then from the seed entities.
+    Safety does not depend on it — the gate treats "" as production."""
+    for res in getattr(report, "affected", None) or []:
+        parts = str(res).split("/")
+        if len(parts) == 3 and parts[1]:
+            return parts[1]
+    ctx = getattr(report, "context", None)
+    for entity in getattr(ctx, "seed_entities", None) or []:
+        if getattr(entity, "namespace", None):
+            return entity.namespace
+    return ""

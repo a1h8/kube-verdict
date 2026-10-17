@@ -1,5 +1,6 @@
 {
   "scenario": "RBAC Forbidden — ServiceAccount has no ClusterRoleBinding",
+  "query": "audit-exporter keeps crashing in the monitoring namespace",
   "namespace": "monitoring",
   "release": "audit-exporter",
   "affected_resources": ["Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q"],

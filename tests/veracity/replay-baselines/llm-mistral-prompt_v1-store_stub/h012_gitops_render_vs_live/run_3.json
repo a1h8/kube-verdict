@@ -1,0 +1,26 @@
+{
+  "answerable": true,
+  "case": "h012_gitops_render_vs_live",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.46,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause is a change in the container's image pull policy from `IfNotPresent` to `Always`, which is causing the image to be re-pulled every start, potentially leading to errors. This change can be observed in the following resource:\n\n- Pod/production/api-6d8f9b7c4-xvk2p: container.*.imagePullPolicy: declared='Always'",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T03:58:02.795880+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 102.11
+}

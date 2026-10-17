@@ -1,5 +1,6 @@
 {
   "scenario": "SLO error-budget burn — p99/p95 latency breach on a service that is perfectly healthy per Kubernetes",
+  "query": "why do checkout-api requests take so long",
   "namespace": "production",
   "release": "checkout-api",
   "affected_resources": ["Deployment/production/checkout-api"],

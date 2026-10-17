@@ -12,6 +12,8 @@ log = logging.getLogger(__name__)
 # Core resource kinds that have typed entities in entities.py
 # The collector still handles these via CoreV1Api / AppsV1Api for
 # richer field extraction; discovery skips them to avoid duplicates.
+# "Secret" must stay here even though the collector no longer lists Secrets:
+# it is what keeps discovery from reading them (docs/diagnostics.md § Step 4).
 _TYPED_KINDS = {
     "Namespace", "Node", "Pod", "Deployment", "StatefulSet", "DaemonSet",
     "ReplicaSet", "Service", "Ingress", "ConfigMap", "Secret",

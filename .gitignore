@@ -72,3 +72,6 @@ docs/demo-short.mp4
 *.tfstate
 *.tfstate.*
 *.tfvars
+
+# Private roadmap / strategy notes (French), never published
+docs/target/

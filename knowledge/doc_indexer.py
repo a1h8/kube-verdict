@@ -102,7 +102,7 @@ class DocIndexer:
                 tags      = doc.tags,
                 content   = chunk,
             )
-            self._store.add_entity(entity)
+            self._store.add_entity(entity, doc_source="enterprise")
         log.info("doc_indexer: '%s' → %d chunks indexed", doc.title, len(chunks))
         return len(chunks)
 

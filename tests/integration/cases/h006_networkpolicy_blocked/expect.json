@@ -1,5 +1,6 @@
 {
   "scenario": "NetworkPolicy blocks all egress — pod running but unreachable DB/Redis",
+  "query": "order-service requests fail in production",
   "namespace": "production",
   "release": "order-service",
   "affected_resources": ["Pod/production/order-service-6f9b8c7d5-q4r2s"],

@@ -1,0 +1,38 @@
+{
+  "answerable": true,
+  "case": "h003_oomkilled",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "memory",
+      "limit",
+      "drift",
+      "512Mi",
+      "128Mi"
+    ]
+  ],
+  "matched_keywords": [
+    "memory",
+    "limit",
+    "drift",
+    "512Mi",
+    "128Mi"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.56,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The Helm drift between the declared and deployed resources has resulted in insufficient memory for the pods in the Deployment/production/api. Specifically, the resources.limits.memory and resources.requests.memory in the Helmfile have a drift, causing the pods to run with only 128Mi and 64Mi of memory, respectively, while the declared values are 512Mi and 256Mi, respectively.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:06:44.231817+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 71.67
+}

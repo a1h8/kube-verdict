@@ -1,5 +1,6 @@
 {
   "scenario": "OOMKilled — memory limit drift (values.yaml 512Mi vs deployed 128Mi)",
+  "query": "api pods keep crashing in production",
   "namespace": "production",
   "release": "api",
   "affected_resources": ["Deployment/production/api", "Pod/production/api-5f7c9d8b6-mn4x8"],

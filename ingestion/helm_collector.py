@@ -143,8 +143,10 @@ class HelmCollector:
                 continue
             uid = f"helmrepo-{name}"
             if not graph.get(uid):
+                from knowledge.provenance import classify_url
                 repo_type = "oci" if url.startswith("oci://") else "http"
-                graph.add_entity(HelmRepository(uid=uid, name=name, url=url, repo_type=repo_type))
+                graph.add_entity(HelmRepository(uid=uid, name=name, url=url, repo_type=repo_type,
+                                                origin=classify_url(url)))
             uid_map[name] = uid
         return uid_map
 

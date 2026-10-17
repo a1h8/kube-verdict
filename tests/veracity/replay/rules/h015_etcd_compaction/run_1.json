@@ -1,0 +1,26 @@
+{
+  "answerable": null,
+  "case": "h015_etcd_compaction",
+  "confidence": "LOW",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "Deployment degraded \u2014 fewer replicas ready than desired. The deployment has fewer ready replicas than desired. Check pod logs and events for the root cause. (Deployment/production/inventory-api)",
+  "rule_id": "degraded_deployment",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-10-14T04:56:49.364160+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.01
+}

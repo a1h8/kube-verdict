@@ -431,13 +431,14 @@ class HelmRepository(K8sEntity):
     """
     url: str = ""
     repo_type: str = "http"   # "http" | "oci" | "git"
+    origin: str = "enterprise"  # public (upstream) | enterprise — knowledge/provenance.py
 
     def __post_init__(self):
         self.kind = ResourceKind.HELM_REPOSITORY
         self.namespace = None
 
     def to_text(self) -> str:
-        parts = [f"kind=HelmRepository name={self.name}"]
+        parts = [f"kind=HelmRepository name={self.name} origin={self.origin}"]
         if self.url:
             parts.append(f"url={self.url}")
         if self.repo_type != "http":

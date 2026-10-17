@@ -1,0 +1,30 @@
+{
+  "answerable": true,
+  "case": "h005_rbac_forbidden",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "audit-exporter-sa"
+    ]
+  ],
+  "matched_keywords": [
+    "audit-exporter-sa"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause is that the service account `audit-exporter-sa` in the `monitoring` namespace does not have the necessary permissions to list and watch pods and events in the `production` namespace.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:17:19.501268+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 145.32
+}

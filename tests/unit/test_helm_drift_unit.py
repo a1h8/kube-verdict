@@ -276,19 +276,31 @@ class TestDetectAll:
         count = HelmDriftDetector().detect_all(g)
         assert count > 0
 
-    def test_detect_all_annotates_entity(self):
+    def test_config_drift_is_annotated_as_drift(self):
+        release = HelmRelease(uid="helm-prod-api", name="api", namespace="prod",
+                              values={"replicaCount": 5})
+        dep = Deployment(uid="dep-api", name="api", namespace="prod",
+                         replicas=3, ready_replicas=3)
+        g = _graph_with_release(release, dep)
+        assert HelmDriftDetector().detect_all(g) == 1
+        assert "drift.spec.replicas" in dep.annotations
+
+    def test_runtime_status_is_health_not_drift(self):
+        """A symptom is not a drift (docs/evidence-score.md § Prerequisite 2, corrected)."""
         release = HelmRelease(uid="helm-prod-api", name="api", namespace="prod",
                               values={})
         dep = Deployment(uid="dep-api", name="api", namespace="prod",
                          replicas=3, ready_replicas=0)
         g = _graph_with_release(release, dep)
-        HelmDriftDetector().detect_all(g)
+        assert HelmDriftDetector().detect_all(g) == 0
+        assert "health.status.readyReplicas" in dep.annotations
+        assert not any(k.startswith("drift.") for k in dep.annotations)
+        assert not [e for e in g._adj.get("dep-api", [])
+                    if e.rel_type == RelationshipType.DRIFTS_FROM]
 
-        assert any(k.startswith("drift.") for k in dep.annotations)
-
-    def test_detect_all_adds_drifts_from_edge(self):
+    def test_config_drift_adds_drifts_from_edge(self):
         release = HelmRelease(uid="helm-prod-api", name="api", namespace="prod",
-                              values={})
+                              values={"replicaCount": 5})
         dep = Deployment(uid="dep-api", name="api", namespace="prod",
                          replicas=3, ready_replicas=0)
         g = _graph_with_release(release, dep)
@@ -299,10 +311,12 @@ class TestDetectAll:
             if e.rel_type == RelationshipType.DRIFTS_FROM
         ]
         assert len(drift_edges) == 1
+        # the unhealthy status is still recorded, as health
+        assert "health.status.readyReplicas" in dep.annotations
 
     def test_drifts_from_edge_not_duplicated(self):
         release = HelmRelease(uid="helm-prod-api", name="api", namespace="prod",
-                              values={})
+                              values={"replicaCount": 5})
         dep = Deployment(uid="dep-api", name="api", namespace="prod",
                          replicas=3, ready_replicas=0)
         g = _graph_with_release(release, dep)
@@ -324,15 +338,27 @@ class TestDetectAll:
         g = _graph_with_release(release, dep)
         count = HelmDriftDetector().detect_all(g)
         assert count == 0
+        assert not any(k.startswith(("drift.", "health.")) for k in dep.annotations)
 
-    def test_pvc_drift_detected(self):
+    def test_pending_pvc_is_health_not_drift(self):
         release = HelmRelease(uid="helm-api", name="api", namespace="prod",
                               values={"persistence": {"enabled": True}})
         pvc = PersistentVolumeClaim(uid="pvc-1", name="data", namespace="prod",
                                     status_phase="Pending", requested_storage="10Gi")
         g = _graph_with_release(release, pvc)
-        count = HelmDriftDetector().detect_all(g)
-        assert count > 0
+        HelmDriftDetector().detect_all(g)
+        assert "health.status.phase" in pvc.annotations
+        assert "drift.status.phase" not in pvc.annotations
+
+    def test_helm_drift_rule_ignores_health_only(self):
+        from rca.remediation_engine import RemediationEngine
+        release = HelmRelease(uid="helm-prod-api", name="api", namespace="prod",
+                              values={})
+        dep = Deployment(uid="dep-api", name="api", namespace="prod",
+                         replicas=3, ready_replicas=0)
+        g = _graph_with_release(release, dep)
+        HelmDriftDetector().detect_all(g)
+        assert "helm_drift" not in {h.rule_id for h in RemediationEngine().score(g)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

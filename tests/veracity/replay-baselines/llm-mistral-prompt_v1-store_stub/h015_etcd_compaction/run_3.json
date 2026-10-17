@@ -1,0 +1,26 @@
+{
+  "answerable": true,
+  "case": "h015_etcd_compaction",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.49,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The Helm chart for the inventory-api deployment has been modified outside of Helm, causing a discrepancy between the declared configuration and the actual deployment. This is evident from the differences in the declared and actual configurations provided.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:19:39.140619+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 60.86
+}

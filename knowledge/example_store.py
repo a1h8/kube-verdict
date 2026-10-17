@@ -140,7 +140,7 @@ class ExampleIndexer:
         self._store = store
 
     def index_example(self, incident: ResolvedIncident) -> None:
-        self._store.add_entity(_ExampleChunk(incident))
+        self._store.add_entity(_ExampleChunk(incident), doc_source="example")
 
     def index_all(self, example_store: ExampleStore) -> int:
         """Re-index all stored incidents. Returns count."""

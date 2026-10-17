@@ -1,0 +1,36 @@
+{
+  "answerable": true,
+  "case": "h008_init_container_fail",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "container",
+      "migration",
+      "database",
+      "failed"
+    ]
+  ],
+  "matched_keywords": [
+    "container",
+    "migration",
+    "database",
+    "failed"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.39,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is a failed database migration for the db-migrate container in the backend pod. The migration failed because the 'user_tokens' relation does not exist in the database.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:39:43.661797+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 165.0
+}

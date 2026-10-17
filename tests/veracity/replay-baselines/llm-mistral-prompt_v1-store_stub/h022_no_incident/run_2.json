@@ -1,0 +1,26 @@
+{
+  "answerable": null,
+  "case": "h022_no_incident",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "forbidden_matched": [
+    "image"
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v1",
+  "reason": "no_incident: confidence MEDIUM, LOW expected",
+  "root_cause": "The root cause is likely the image pull policy being set to 'IfNotPresent' in the HelmRelease configuration for the 'ledger' deployment. This policy skips the pull if the image is cached, which might cause the containers to run an outdated image.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:29:09.415392+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 97.22
+}

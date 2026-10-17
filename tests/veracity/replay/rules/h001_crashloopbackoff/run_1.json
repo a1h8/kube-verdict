@@ -1,0 +1,34 @@
+{
+  "answerable": null,
+  "case": "h001_crashloopbackoff",
+  "confidence": "LOW",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "secret",
+      "not found",
+      "missing"
+    ]
+  ],
+  "matched_keywords": [
+    "secret",
+    "not found",
+    "missing"
+  ],
+  "model": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "CreateContainerConfigError \u2014 ConfigMap or Secret not found. A required ConfigMap or Secret does not exist in the namespace. Create the missing resources before redeploying. (Pod/production/payment-service-6d8f9b7c4-xk9p2)",
+  "rule_id": "missing_config",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-10-14T04:56:49.090645+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.03
+}
