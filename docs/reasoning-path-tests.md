@@ -18,12 +18,12 @@
 | 6 | Conclusion | `report_dict.root_cause` + grading | Does the answer name the cause concepts, and cite the evidence rather than the symptom? |
 | 7 | Fix applicable | proposed commands vs `ResourceQuota` (hard − used) and `LimitRange` bounds | Would the fix be admitted for every pod it creates, including the rollout surge? |
 
-## Per-case declaration — `expect.json["path"]`
+## Per-case declaration — `expect.json["reasoning_path"]`
 
 Written from the scenario, before running the tests, like the cause concepts.
 
 ```json
-"path": {
+"reasoning_path": {
   "seeds": ["Pod/production/api-5f7c9d8b6-mn4x8"],
   "cause_location": "Deployment/production/api",
   "evidence": [{"section": "drift", "marker": "resources_limits_memory"}],
@@ -63,7 +63,7 @@ failure when an earlier step already lost the cause.
 
 ## First reading (2026-10-17, from `RemediationEngine.score` on the 18 cases)
 
-Before writing any `path`, the current top-3 rules already show step-4 failures:
+Before writing any `reasoning_path`, the current top-3 rules already show step-4 failures:
 
 | Case | Top rule today | Problem |
 |---|---|---|
@@ -73,8 +73,28 @@ Before writing any `path`, the current top-3 rules already show step-4 failures:
 | h005, h006, h007 | none | no rule exists for RBAC, NetworkPolicy, HPA metrics |
 | h013, h022 | none | expected (telemetry-only; no incident) |
 
+## Findings (2026-10-17, first run on the 9 kept cases)
+
+Three failures of the first run were errors in the declarations, not in the code, and were
+corrected before anything else: the drift marker is written `resources.limits.memory` in the
+prompt (not the annotation key), and the drift is reported on `HelmRelease/production/api`,
+the right release under another kind. After that, 5 cases pass steps 1–4 (h001, h003, h004,
+h009, h024); the failures below are strict xfails in `tests/unit/test_reasoning_path.py`.
+
+| Id | Case / step | Finding |
+|---|---|---|
+| P1 | h016 seeds | Running-but-NotReady pods are not seeds (`dedup/bfs.py`: phase or restarts only) |
+| P2 | h022 seeds | any past restart makes a pod a seed, however old: the healthy cluster has an "unhealthy" pod |
+| P3 | h007 seeds | the fixture has no Deployment, HPA or metrics-server |
+| P4 | h007, h008, h016 rule | no rule for HPA metrics, init-container failure, connection exhaustion |
+| P5 | h016 rule | `helm_drift` on the decoy catalog-api ranks first |
+| P6 | h008 rule | `pending_unschedulable` fires for an init container that exits non-zero |
+
+"Evidence PASS" means the marker is in the prompt **sent**; the model read only ~17 % of it
+until the context window is fixed (`docs/case-audit-001.md` F8).
+
 ## Order
 
-1. Write `path` for the 9 kept cases, then the others as their corrections land.
+1. Write `reasoning_path` for the 9 kept cases, then the others as their corrections land.
 2. Steps 1–4 tests + `PATH.md`; fix what they find, one finding per commit.
 3. Step 5 (prompt injection) and step 6 in the replay.

@@ -10,5 +10,6 @@
   "confidence": "MEDIUM",
   "confidence_score_min": 0.45,
   "fallback_expected": false,
-  "notes": "Secret missing causes CrashLoopBackOff. restartCount=47 is primary signal."
+  "notes": "Secret missing causes CrashLoopBackOff. restartCount=47 is primary signal.",
+  "reasoning_path": {"seeds_include": ["Pod/production/payment-service-*"], "seeds_exclude": [], "cause": {"absent": "Secret/production/payment-db-secret"}, "evidence": [{"section": "events", "marker": "payment-db-secret"}], "rule": {"id": "missing_config", "affected": "Pod/production/payment-service-*"}, "decoy_rules": ["crashloop_db"]}
 }
