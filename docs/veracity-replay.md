@@ -69,6 +69,16 @@ without re-running a model (`REGRADED.md` next to the records).
   node affinity conflict") is only close to the scenario's (a PVC still bound to the old
   pod). Counted, flagged.
 
+**[amended 2026-10-17] Re-graded with cause concepts** (`docs/case-audit-001.md`
+§ Correction 1 and amendments A1–A3): every concept of the cause must be named, and a
+concept may not be satisfied by the symptom. Same 54 records, nothing re-run:
+**28/54** (tier A 25/36, B 3/12, C 0/6); rules alone 3/18. The total moves little but not
+on the same cases: h006 and h010 lose the runs that restated the symptom or rode on a
+leaked message; h004 and h005 gain correct answers the keyword threshold rejected.
+Records: `REGRADED.md` (this grading) and `REGRADED-2026-10-14-synonyms.md` (the previous
+one), next to the records. These numbers are on cases of which eight are still to be
+corrected or retired; they are not compared with later runs as if the cases were the same.
+
 Next measurements (decided 2026-10-14): `--store faiss` (production retrieval), then
 prompt v2 (section 7), on the same cases, each frozen under its own configuration name.
 

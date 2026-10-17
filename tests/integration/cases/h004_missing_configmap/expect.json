@@ -5,6 +5,7 @@
   "release": "api-gateway",
   "affected_resources": ["Pod/production/api-gateway-5c7d9b8f4-x2k9p"],
   "root_cause_contains": ["configmap", "api-gateway-config", "not found", "missing"],
+  "root_cause_concepts": ["configmap|api-gateway-config", "missing|not found"],
   "fix_commands_contain": ["kubectl create configmap", "kubectl create secret"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.45,

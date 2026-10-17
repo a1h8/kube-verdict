@@ -5,6 +5,7 @@
   "release": "checkout-api",
   "affected_resources": ["Deployment/production/checkout-api"],
   "root_cause_contains": ["latency", "slo", "budget", "burn", "p99", "network"],
+  "root_cause_concepts": ["payments-gateway|payments gateway|dependenc|downstream", "network"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.3,
   "fallback_expected": true,

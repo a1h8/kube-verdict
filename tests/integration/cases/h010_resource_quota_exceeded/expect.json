@@ -5,6 +5,7 @@
   "release": "worker-service",
   "affected_resources": ["Pod/staging/worker-service-7d8f9c6b5-xp2qr"],
   "root_cause_contains": ["quota", "resource", "limit", "pending", "exceeded"],
+  "root_cause_concepts": ["quota"],
   "fix_commands_contain": ["kubectl", "quota"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.35,

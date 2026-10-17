@@ -5,6 +5,7 @@
   "release": "api",
   "affected_resources": ["Deployment/production/api", "Pod/production/api-5f7c9d8b6-mn4x8"],
   "root_cause_contains": ["OOMKilled", "memory", "limit", "drift", "512Mi", "128Mi"],
+  "root_cause_concepts": ["memory", "drift|512mi|declared"],
   "fix_commands_contain": ["helm upgrade", "resources.limits.memory"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.50,

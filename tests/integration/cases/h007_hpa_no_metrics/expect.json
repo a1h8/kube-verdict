@@ -5,6 +5,7 @@
   "release": "api-service",
   "affected_resources": ["Deployment/production/api-service"],
   "root_cause_contains": ["HPA", "metrics", "unavailable", "cpu", "autoscaling"],
+  "root_cause_concepts": ["metrics", "hpa|autoscal"],
   "fix_commands_contain": ["kubectl", "metrics-server", "HorizontalPodAutoscaler"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.38,

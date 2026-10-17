@@ -5,6 +5,7 @@
   "release": "backend",
   "affected_resources": ["Pod/staging/backend-6b9f7c8d5-mn4pq"],
   "root_cause_contains": ["init", "container", "migration", "database", "exit", "failed"],
+  "root_cause_concepts": ["migration", "init|db-migrate"],
   "fix_commands_contain": ["kubectl", "logs", "init"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.38,

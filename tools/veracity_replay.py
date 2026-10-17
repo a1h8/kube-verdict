@@ -35,7 +35,8 @@ from tools.veracity import grade, normalize_label  # noqa: E402
 
 CASES_ROOT = ROOT / "tests/integration/cases"
 REPLAY_DIR = ROOT / "tests/veracity/replay"
-GRADING_KEYS = ("root_cause_contains", "root_cause_contains_all",
+GRADING_KEYS = ("root_cause_concepts", "root_cause_concepts_all",
+                "root_cause_contains", "root_cause_contains_all",
                 "root_cause_must_not_contain", "expected_outcome", "expected_verdict")
 TIERS = ("A", "B", "C", "M")
 
@@ -61,7 +62,8 @@ def answerable(expect: dict, prompts: list[str]) -> bool | None:
     """
     if expect.get("expected_outcome", "cause") != "cause" or not prompts:
         return None
-    truth = {k: expect[k] for k in ("root_cause_contains", "root_cause_contains_all") if k in expect}
+    truth = {k: expect[k] for k in ("root_cause_concepts", "root_cause_concepts_all",
+                                    "root_cause_contains", "root_cause_contains_all") if k in expect}
     return grade("\n".join(prompts), truth)["veracity"] == "PASS"
 
 
