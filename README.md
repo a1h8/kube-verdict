@@ -29,16 +29,16 @@ How often KubeVerdict names the right cause, on what, and how it was measured. E
 
 | Measurement | Result | How |
 |---|---|---|
-| Offline, real model — mistral 7B via Ollama, no retrieval | **30/54 runs (56 %)** — tier A (stated cause) 27/36, B (cause in one signal) 3/12, C (reasoning) 0/6 | 18 native cases × 3 runs through the real collectors and workflow; keyword + synonym grading ([veracity-replay.md](docs/veracity-replay.md)) |
-| Offline, rules alone (no LLM) | **4/18** | same cases, top deterministic hypothesis ([REPORT.md](tests/veracity/replay/REPORT.md)) |
-| Live, real cluster | **0/2** (expired certificate, etcd compaction) | 2026-09-26, [veracity-benchmark.md](docs/veracity-benchmark.md) |
+| Offline, real model — mistral 7B via Ollama, no retrieval | **28/54 runs (52 %)** — tier A (stated cause) 25/36, B (cause in one signal) 3/12, C (reasoning) 0/6 | 18 native cases × 3 runs through the real collectors and workflow; graded on cause concepts: every part of the cause must be named, the symptom alone fails ([veracity-replay.md](docs/veracity-replay.md)) |
+| Offline, rules alone (no LLM) | **3/18** | same cases, top deterministic hypothesis ([REPORT.md](tests/veracity/replay/REPORT.md)) |
+| Live, real cluster | **not measured yet** | the two live captures of 2026-09-26 (0/2) do not count: the scenarios were staged — the pod failed on a closed probe port while the "cause" was only printed text ([case-audit-001.md](docs/case-audit-001.md) F3) |
 
 What these numbers say, and do not say:
 
-- **The model does the diagnosis.** Rules alone find 4/18, so the LLM is not only "explaining" a verdict built without it.
+- **The model does the diagnosis.** Rules alone find 3/18, so the LLM is not only "explaining" a verdict built without it.
 - **It does not say "I don't know" yet.** On a healthy cluster (h022) the model invents a cause 3/3 times; its confidence label is MEDIUM on 53/54 runs, right or wrong. The rules alone do abstain.
 - **The offline baseline predates a fix.** It was recorded before runtime status stopped being counted as Helm drift (2026-10-14), which was the most common wrong answer. It is to be re-measured.
-- **18 cases are not a general accuracy.** They are prepared scenarios with a known cause; incidents we did not write are not measured yet.
+- **18 cases are not a general accuracy.** They are prepared scenarios with a known cause; incidents we did not write are not measured yet. An audit of the 18 found 8 to correct or retire ([case-audit-001.md](docs/case-audit-001.md)); the numbers will be re-measured on the corrected cases.
 
 ## Why it matters
 
@@ -62,7 +62,7 @@ A bad value that is *declared* is not a drift either: the cluster matches the re
 | Helm configuration drift (declared vs live) | **tested offline** on the native cases that carry one (h002, h003, h009, h016, h024); runtime status kept apart as a symptom |
 | Kubernetes events / runtime state | **tested offline**, collected live |
 | Rendered Helm/GitOps manifests (expected state) | **opt-in** (`GITOPS_REPO_URL`); one fixture case (h012); no GitOps controller tested live yet |
-| Prometheus alerts, Loki logs, OTel traces | **tested offline** through the real collectors (h013–h015); reached live once each (2026-09-26, [evidence](docs/evidence/prometheus-live.md)), but both live diagnoses were wrong |
+| Prometheus alerts, Loki logs, OTel traces | **tested offline** through the real collectors (h013–h015); reached live once each (2026-09-26, [evidence](docs/evidence/prometheus-live.md)); those live scenarios were staged, so the runs prove the collectors, not the diagnosis |
 | Resolved-incident memory (past human-approved fixes) | **wired** — `knowledge/example_store.py`, indexed into FAISS; its effect on accuracy is not measured yet |
 | Policy reports (Kyverno / OPA `PolicyReport`) | **wired** — ingested as `PolicyViolation` evidence |
 | Enterprise docs / runbooks / SOPs | **pluggable** — `knowledge/doc_indexer.py`; no corpus ships by default |
@@ -240,7 +240,7 @@ Cases h001–h010 each have a `test_hybrid_pipeline_NNN.py` running the full pre
 - **h014 — expired mTLS certificate** (`test_loki_fixture_h014.py`): a cert-manager issuer cannot renew, the certificate expires and both replicas fail readiness (Deployment 0/2). Events show the symptom (readiness 503) and an issuer warning but never name the expired certificate; only the pods' logs do (`x509: certificate has expired`). The log streams are served to the **real** `LokiSource`, which selects the pods because they are `Running` but not ready, and a same-named pod in another namespace is not returned.
 - **h015 — etcd compaction latency** (`test_otel_fixture_h015.py`): a pod `Ready=False` on a readiness timeout whose cause appears only in OTel error traces (`DeadlineExceeded` on etcd `Range`). The traces are served to the **real** `OtelCollector` by a fixture backend, so the pod is picked by the same readiness-aware selection a live run uses (a `Running` pod that is not ready), and a trace for an unrelated service is dropped.
 
-Both are validated at the **evidence-path level** — fixture → graph → context window, deterministic in CI, no cluster, no Ollama. They do not assert the LLM's root-cause wording (that needs a model and runs through the generic `test_native_helm_dialogue`). On live telemetry: Prometheus, Loki and OTel were each reached live on 2026-09-26 (`docs/evidence/prometheus-live.md`); the two graded live diagnoses (h014, h015) were wrong — see [Status](#status--measured-not-claimed).
+Both are validated at the **evidence-path level** — fixture → graph → context window, deterministic in CI, no cluster, no Ollama. They do not assert the LLM's root-cause wording (that needs a model and runs through the generic `test_native_helm_dialogue`). On live telemetry: Prometheus, Loki and OTel were each reached live on 2026-09-26 (`docs/evidence/prometheus-live.md`); those live scenarios were staged, so their two graded answers say nothing about the diagnosis — see [Status](#status--measured-not-claimed).
 
 ---
 
