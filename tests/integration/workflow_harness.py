@@ -375,6 +375,7 @@ class RecordingLLM:
         self._inner = inner
         self.model = getattr(inner, "model", "unknown")
         self.analyze_prompts: list[str] = []
+        self.calls: list[dict] = []  # inner.last_call per analyze call (num_ctx, tokens read)
 
     def is_available(self) -> bool:
         return self._inner.is_available()
@@ -383,9 +384,13 @@ class RecordingLLM:
         return self._inner.model_is_pulled()
 
     def generate(self, prompt: str, system: str | None = None, **kwargs: Any) -> str:
-        if not prompt.startswith(_HYPOTHESIZE_PROMPT_PREFIX):
+        analyze = not prompt.startswith(_HYPOTHESIZE_PROMPT_PREFIX)
+        if analyze:
             self.analyze_prompts.append(prompt)
-        return self._inner.generate(prompt, system=system, **kwargs)
+        answer = self._inner.generate(prompt, system=system, **kwargs)
+        if analyze and getattr(self._inner, "last_call", None):
+            self.calls.append(dict(self._inner.last_call))
+        return answer
 
 
 class StubStore:

@@ -168,3 +168,20 @@ change: the rule (every concept required) is unchanged.
 Not amended: h006 (the answers name a network/DNS problem, never the NetworkPolicy — the
 symptom) and h010 (the answers follow the fixture's node-CPU message; the fixture is fixed
 in correction 2).
+
+## Correction F8 — the context window fits the prompt (2026-10-17)
+
+- `OllamaClient.context_for()` sizes `num_ctx` per call: estimated prompt tokens
+  (characters ÷ 2.7) + `num_predict` + 256, rounded up to a multiple of 1024, never below
+  `OLLAMA_NUM_CTX`. The ratio comes from two real case prompts read by mistral on
+  2026-10-17: 3.09 (h001, 7 233 characters → 2 343 tokens) and 3.07 (h016, 14 011 → 4 569);
+  2.7 over-estimates by about 12 %.
+- Above `OLLAMA_NUM_CTX_MAX` (default 8192, bounded by the Ollama pod's memory) the prompt is
+  refused (`PromptTooLongError`), never sent to be truncated.
+- Every call records `num_ctx`, the estimate, `prompt_eval_count` (tokens read) and timings
+  (`last_call`); the replay stores them per run (`llm_calls`).
+- Tests (`tests/unit/test_ollama_context.py`): the window covers both measured prompts with the
+  whole answer; the old 2048 did not fit even h001 (2 343 + 512); oversize is refused; every
+  native case's analyze prompt fits under the default ceiling.
+- Cost, measured: ~22 prompt tokens/s on the CPU-only pod — 103 s to read h001, 212 s for
+  h016, before the answer.

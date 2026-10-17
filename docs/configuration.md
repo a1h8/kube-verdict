@@ -30,7 +30,8 @@ cp .env.example .env
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama API base URL. Set to `http://ollama:11434` in K8s. |
 | `OLLAMA_MODEL` | `mistral` | Model to use. Any Ollama-compatible model works (e.g. `llama3`, `mixtral`). |
 | `OLLAMA_TIMEOUT` | `120` | HTTP timeout in seconds for LLM calls. Increase for large contexts. |
-| `OLLAMA_NUM_CTX` | `2048` | Context window size passed to Ollama. |
+| `OLLAMA_NUM_CTX` | `2048` | Floor of the context window. Each call grows it to fit the prompt and the answer (≈ characters ÷ 2.7 + `OLLAMA_NUM_PREDICT` + 256), so Ollama never truncates the prompt. |
+| `OLLAMA_NUM_CTX_MAX` | `8192` | Ceiling of the context window. A prompt that would need more is refused (`PromptTooLongError`) instead of being cut silently. Raise it only if the Ollama pod has the memory for the larger KV cache. |
 | `OLLAMA_NUM_PREDICT` | `512` | Max tokens generated per call. |
 
 ### sLLM profile — latency-sensitive / strict air-gap edge
