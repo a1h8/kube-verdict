@@ -184,7 +184,7 @@ capped at 0.4. A diagnosis is reported when its score ≥ 0.5; labels: LOW < 0.5
 < 0.75 ≤ HIGH.
 
 **Abstention.** No diagnosis reported → `no_incident` when no fault signal exists
-(a `drift.config` is a cause candidate, not a symptom: alone it is no incident; context kinds — `event.past`, `restart.past`, `rollout.progressing`, a `pod.not_ready`
+(a `drift.config` or an `rbac.unbound` is a configuration observation, not a symptom: alone it is no incident; context kinds — `event.past`, `restart.past`, `rollout.progressing`, a `pod.not_ready`
 that is starting in a progressing rollout and a probe failure on such a pod — are not faults), else `insufficient_evidence`.
 
 **Development set, not validation.** These rules are written knowing the 19 native

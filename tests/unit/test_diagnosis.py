@@ -101,3 +101,22 @@ def test_a_failing_init_container_is_the_cause():
 def test_an_init_container_that_completed_is_not_a_cause():
     o = _outcome(_init_pod({"terminated": {"exitCode": 0, "reason": "Completed"}}))
     assert all(d.rule != "init.failed" for d in o.diagnoses)
+
+
+_DENIED = 'pods is forbidden: User "system:serviceaccount:prod:exporter" cannot list resource "pods" in API group ""'
+
+
+def test_an_rbac_denial_names_the_serviceaccount():
+    p = _pod(ready=True)
+    p.annotations["missing.rbac.exporter"] = "ServiceAccount 'exporter' exists but has no (Cluster)RoleBinding"
+    o = _outcome(p, _event(_DENIED, "FailedList"))
+    d = o.diagnoses[0]
+    assert (d.rule, d.family, d.cause_location) == ("rbac", "rbac", "ServiceAccount/prod/exporter")
+    assert "RoleBinding" in d.cause and d.score > 0.5             # strengthened by rbac.unbound
+
+
+def test_an_unbound_serviceaccount_without_denial_is_no_fault():
+    p = _pod(ready=True)
+    p.annotations["missing.rbac.exporter"] = "ServiceAccount 'exporter' exists but has no (Cluster)RoleBinding"
+    o = _outcome(p)
+    assert o.outcome == "no_incident" and not o.diagnoses

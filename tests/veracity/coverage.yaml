@@ -429,7 +429,7 @@ rows:
   signals:
   - rbac.denied
   - rbac.unbound
-  rule: null
+  rule: rbac
   cases:
   - h005
   live: partial

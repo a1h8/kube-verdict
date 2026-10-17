@@ -183,6 +183,31 @@ def _init_failed(ss: SignalSet) -> list[Diagnosis]:
     return out
 
 
+def _rbac(ss: SignalSet) -> list[Diagnosis]:
+    """A denial names the ServiceAccount; an unbound ServiceAccount alone is not a fault."""
+    out, seen = [], set()
+    for s in ss.of("rbac.denied"):
+        user = s.attr("user")                              # system:serviceaccount:<ns>:<sa>
+        parts = user.split(":")
+        if len(parts) != 4 or parts[1] != "serviceaccount":
+            continue
+        ns, sa = parts[2], parts[3]
+        if (ns, sa) in seen:
+            continue
+        seen.add((ns, sa))
+        unbound = [u for u in ss.of("rbac.unbound") if u.attr("serviceaccount") == sa]
+        verb, resource = s.attr("verb"), s.attr("resource")
+        what = f" to {verb} {resource}" if verb and resource else ""
+        out.append(_diag("rbac", "rbac",
+                         f"The ServiceAccount {sa} has no (Cluster)RoleBinding granting the permission{what}: "
+                         f"its API calls are forbidden.",
+                         f"ServiceAccount/{ns}/{sa}", [s], unbound,
+                         checks=[f"kubectl auth can-i {verb or 'list'} {resource or 'pods'} "
+                                 f"--as=system:serviceaccount:{ns}:{sa}",
+                                 f"kubectl get rolebindings,clusterrolebindings -A -o wide | grep {sa}"]))
+    return out
+
+
 def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
     """A configuration drift alone is generic; it is reported when a workload of the same
     release is failing and no more specific rule already used that drift."""
@@ -209,10 +234,10 @@ def _crash(ss: SignalSet, explained_pods: set[str]) -> list[Diagnosis]:
 # every rule id ``diagnose`` can produce — docs/diagnosis-coverage.md checks rows against it
 RULE_IDS: frozenset[str] = frozenset({"dependency.missing", "oom.memory_drift", "oom.limit", "image.pull",
                                        "scheduling", "config.drift", "container.crash",
-                                       "init.failed"})
+                                       "init.failed", "rbac"})
 
 RULES: list[Callable[[SignalSet], list[Diagnosis]]] = [_dependency_missing, _oom, _image_pull, _scheduling,
-                                                       _init_failed]
+                                                       _init_failed, _rbac]
 
 
 def _starting_in_rollout(ss: SignalSet) -> set[str]:
@@ -224,8 +249,9 @@ def _starting_in_rollout(ss: SignalSet) -> set[str]:
 
 
 def _is_fault(ss: SignalSet, s: Signal, starting: set[str]) -> bool:
-    # a drift is a cause candidate, not a symptom: with nothing failing there is no incident
-    if s.kind in CONTEXT_KINDS or s.kind == "drift.config":
+    # a drift or an unbound ServiceAccount is a configuration observation, not a symptom:
+    # with nothing failing there is no incident
+    if s.kind in CONTEXT_KINDS or s.kind in ("drift.config", "rbac.unbound"):
         return False
     if s.kind in ("pod.not_ready", "probe.readiness_failed") and ss.subject(s) in starting:
         return False

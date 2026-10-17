@@ -39,10 +39,10 @@
   ],
   "signals_mode": null,
   "solver": "structured",
-  "started_at": "2026-10-17T13:28:05.758126+00:00",
+  "started_at": "2026-10-17T13:38:02.862310+00:00",
   "tier": "A",
   "unclassified": {},
   "veracity": "FAIL",
   "verdict": null,
-  "wall_s": 0.69
+  "wall_s": 2.71
 }

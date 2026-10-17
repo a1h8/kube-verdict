@@ -13,9 +13,9 @@ a covered row is implemented, not validated.
 |---|---|
 | Causes in the catalog | 40 |
 | Signals extracted | 27 |
-| Rule implemented | 14 |
-| A case passes | 7 |
-| **Covered** | **7 / 40** |
+| Rule implemented | 15 |
+| A case passes | 8 |
+| **Covered** | **8 / 40** |
 | Runbooks cited by a row | 39 / 60 |
 
 | Cause | Family | Signals | Rule | Cases | Live |
@@ -52,7 +52,7 @@ a covered row is implemented, not validated.
 | etcd is slow (compaction, disk) and requests time out | etcd | ✅ | — — | — h015 | partial |
 | a NetworkPolicy blocks the app's traffic | network-policy | ✅ | — — | — — | no |
 | cluster DNS fails (CoreDNS down or throttled) | dns | ✅ | — — | — — | partial |
-| the ServiceAccount lacks the permissions the app needs | rbac | ✅ | — — | — h005 | partial |
+| the ServiceAccount lacks the permissions the app needs | rbac | ✅ | ✅ rbac | ✅ h005 | partial |
 | a scale-out exhausts the database's connections | dependency | ✅ | — — | — h016 | partial |
 | a dependency slows down and burns the SLO error budget | slo | ✅ | — — | — h013 | partial |
 | the live object differs from what the release declares | helm-drift | ✅ | ✅ config.drift | — — | yes |
