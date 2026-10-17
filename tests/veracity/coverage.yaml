@@ -353,7 +353,7 @@ rows:
   signals:
   - tls.cert_expired
   - cert.issuer_failed
-  rule: null
+  rule: cert.expired
   cases:
   - h014
   live: partial

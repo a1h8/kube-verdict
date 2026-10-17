@@ -140,3 +140,37 @@ def test_a_normal_hpa_rescale_is_no_cause():
     o = _outcome(_hpa_event("New size: 4; reason: cpu resource utilization above target", "SuccessfulRescale",
                             event_type="Normal"))
     assert o.outcome == "no_incident"
+
+
+def _log(pod, line, uid):
+    from ontology.entities import LokiLog
+    from ontology.relationships import Edge, RelationshipType
+    log = LokiLog(uid=uid, name=uid, namespace="prod", level="error", pod_name=pod.name, log_line=line)
+    return log, Edge(pod.uid, log.uid, RelationshipType.HAS_LOG)
+
+
+def _outcome_with_edges(entities, edges):
+    g = OntologyGraph()
+    for e in entities:
+        g.add_entity(e)
+    for e in edges:
+        g.add_edge(e)
+    return diagnose(extract_signals(g))
+
+
+def test_an_expired_certificate_and_its_failing_issuer():
+    pod = _pod(ready=False)
+    log, edge = _log(pod, 'err="x509: certificate has expired or is not yet valid"', "log-1")
+    issuer = K8sEvent(uid="ev-acme", name="ev", namespace="prod", reason="ErrRegisterACMEAccount",
+                      message="Failed to register ACME account: i/o timeout", event_type="Warning",
+                      involved_kind="Issuer", involved_name="letsencrypt-prod")
+    d = _outcome_with_edges([pod, log, issuer], [edge]).diagnoses[0]
+    assert (d.rule, d.family, d.cause_location) == ("cert.expired", "certificate", "Issuer/prod/letsencrypt-prod")
+    assert "expired" in d.cause and "letsencrypt-prod" in d.cause and d.score > 0.5
+
+
+def test_an_untrusted_certificate_is_not_an_expired_one():
+    pod = _pod(ready=False)
+    log, edge = _log(pod, 'err="x509: certificate signed by unknown authority"', "log-2")
+    o = _outcome_with_edges([pod, log], [edge])
+    assert all(d.rule != "cert.expired" for d in o.diagnoses)

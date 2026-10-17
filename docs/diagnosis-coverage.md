@@ -13,9 +13,9 @@ a covered row is implemented, not validated.
 |---|---|
 | Causes in the catalog | 40 |
 | Signals extracted | 27 |
-| Rule implemented | 16 |
-| A case passes | 9 |
-| **Covered** | **9 / 40** |
+| Rule implemented | 17 |
+| A case passes | 10 |
+| **Covered** | **10 / 40** |
 | Runbooks cited by a row | 39 / 60 |
 
 | Cause | Family | Signals | Rule | Cases | Live |
@@ -46,7 +46,7 @@ a covered row is implemented, not validated.
 | the kubelet reached its pod limit | node | — | — — | — — | partial |
 | a persistent volume is full or failing | storage | — | — — | — — | partial |
 | CPU limits throttle the container | resources | — | — — | — — | partial |
-| an application TLS certificate expired (issuer could not renew) | certificate | ✅ | — — | — h014 | partial |
+| an application TLS certificate expired (issuer could not renew) | certificate | ✅ | ✅ cert.expired | ✅ h014 | partial |
 | a kubelet client or server certificate expires or fails to renew | certificate | — | — — | — — | partial |
 | an API server, scheduler, controller manager or kube-proxy is down | control-plane | — | — — | — — | partial |
 | etcd is slow (compaction, disk) and requests time out | etcd | ✅ | — — | — h015 | partial |

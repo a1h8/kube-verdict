@@ -226,6 +226,31 @@ def _hpa_metrics(ss: SignalSet) -> list[Diagnosis]:
     return out
 
 
+def _cert_expired(ss: SignalSet) -> list[Diagnosis]:
+    """An expired certificate in the app's TLS; a failing issuer in the namespace explains why
+    it was not renewed. The issuer is linked by namespace only — a weak link, so it
+    strengthens the diagnosis but is not required (docs/structured-diagnosis.md)."""
+    by_ns: dict[str, list[Signal]] = {}
+    for s in ss.of("tls.cert_expired"):
+        by_ns.setdefault(_ns(ss.subject(s)), []).append(s)
+    out = []
+    for ns, expired in sorted(by_ns.items()):
+        issuers = [i for i in ss.of("cert.issuer_failed") if _ns(ss.subject(i)) == ns]
+        pods = sorted({_name(ss.subject(x)) for x in expired})
+        if issuers:
+            issuer = ss.subject(issuers[0])
+            cause = (f"The TLS certificate used by {', '.join(pods)} has expired (x509), and the issuer "
+                     f"{_name(issuer)} fails ({issuers[0].attr('reason') or 'error'}), so it was not renewed.")
+            location = issuer
+        else:
+            cause = f"The TLS certificate used by {', '.join(pods)} has expired (x509)."
+            location = ss.subject(expired[0])
+        out.append(_diag("cert.expired", "certificate", cause, location, expired[:1], issuers,
+                         checks=[f"kubectl get certificates,issuers -n {ns}",
+                                 f"kubectl describe certificate -n {ns}"]))
+    return out
+
+
 def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
     """A configuration drift alone is generic; it is reported when a workload of the same
     release is failing and no more specific rule already used that drift."""
@@ -252,10 +277,10 @@ def _crash(ss: SignalSet, explained_pods: set[str]) -> list[Diagnosis]:
 # every rule id ``diagnose`` can produce — docs/diagnosis-coverage.md checks rows against it
 RULE_IDS: frozenset[str] = frozenset({"dependency.missing", "oom.memory_drift", "oom.limit", "image.pull",
                                        "scheduling", "config.drift", "container.crash",
-                                       "init.failed", "rbac", "hpa.metrics"})
+                                       "init.failed", "rbac", "hpa.metrics", "cert.expired"})
 
 RULES: list[Callable[[SignalSet], list[Diagnosis]]] = [_dependency_missing, _oom, _image_pull, _scheduling,
-                                                       _init_failed, _rbac, _hpa_metrics]
+                                                       _init_failed, _rbac, _hpa_metrics, _cert_expired]
 
 
 def _starting_in_rollout(ss: SignalSet) -> set[str]:

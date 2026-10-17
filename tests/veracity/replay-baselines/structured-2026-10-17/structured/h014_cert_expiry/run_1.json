@@ -1,22 +1,39 @@
 {
   "answerable": null,
   "case": "h014_cert_expiry",
-  "confidence": "LOW",
-  "diagnoses": [],
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "certificate",
+      "location": "Issuer/production/letsencrypt-prod",
+      "rule": "cert.expired",
+      "score": 0.65,
+      "signals": [
+        "510d11bdeb7f58cb",
+        "1ee26f091afa474d"
+      ]
+    }
+  ],
   "expected_outcome": "cause",
   "extractor_version": "signals/1",
   "fallbacks": [],
   "forbidden_matched": [],
   "matched_groups": [
-    []
+    [
+      "certificate|x509|tls",
+      "expired|expir|renew"
+    ]
   ],
-  "matched_keywords": [],
+  "matched_keywords": [
+    "certificate|x509|tls",
+    "expired|expir|renew"
+  ],
   "model": "",
-  "outcome": "insufficient_evidence",
+  "outcome": "cause",
   "pre_llm_confidence_score": null,
   "prompt": "v2",
-  "reason": "cause concept(s) not named: certificate|x509|tls, expired|expir|renew",
-  "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+  "reason": "cause named, no decoy",
+  "root_cause": "The TLS certificate used by billing-gateway-5b7d9c8f6-4hxkd, billing-gateway-5b7d9c8f6-v9m2t has expired (x509), and the issuer letsencrypt-prod fails (ErrRegisterACMEAccount), so it was not renewed.",
   "rules_version": "rules/1",
   "run": 1,
   "signal_kinds": [
@@ -28,10 +45,10 @@
   ],
   "signals_mode": null,
   "solver": "structured",
-  "started_at": "2026-10-17T13:46:52.473233+00:00",
+  "started_at": "2026-10-17T13:55:42.643650+00:00",
   "tier": "B",
   "unclassified": {},
-  "veracity": "FAIL",
+  "veracity": "PASS",
   "verdict": null,
-  "wall_s": 2.48
+  "wall_s": 2.59
 }
