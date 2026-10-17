@@ -25,7 +25,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
         "kube_version": "unknown",
-        "timestamp": "2026-10-14T05:01:57.143028+00:00",
+        "timestamp": "2026-10-17T12:20:09.890232+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)",
@@ -92,7 +92,7 @@
           "events": 2,
           "helm": 1,
           "related": 0,
-          "total": 26,
+          "total": 25,
           "anchors": [
             "Deployment/production/inventory-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
             "Deployment/production/inventory-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -126,9 +126,7 @@
           "kind=OtelTrace traceId=3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f service=inventory-api status=ERROR duration=4988ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'"
         ],
         "alerts": [],
-        "anchor_fixes": [
-          "Pod/production/inventory-api-7f9c8d6b5-x2qwe  ServiceAccount 'inventory-api' missing  →  kubectl create serviceaccount inventory-api -n production"
-        ],
+        "anchor_fixes": [],
         "policy_violations": [],
         "pre_llm_confidence": {
           "score": 0.47,
@@ -199,7 +197,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-14T05:01:57.134504+00:00"
+      "ts": "2026-10-17T12:20:09.885877+00:00"
     },
     {
       "router": "confidence",
@@ -218,7 +216,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-14T05:01:57.145795+00:00"
+      "ts": "2026-10-17T12:20:09.892310+00:00"
     },
     {
       "router": "confidence",
@@ -236,7 +234,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-14T05:01:57.154983+00:00"
+      "ts": "2026-10-17T12:20:09.899342+00:00"
     },
     {
       "router": "policy",
@@ -251,7 +249,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-14T05:01:57.163839+00:00"
+      "ts": "2026-10-17T12:20:09.906401+00:00"
     },
     {
       "router": "human",
@@ -263,7 +261,7 @@
         "remediation_count": 1,
         "dry_run_failures": 0
       },
-      "ts": "2026-10-14T05:01:57.168683+00:00"
+      "ts": "2026-10-17T12:20:09.910252+00:00"
     }
   ],
   "ingestion_stats": {
@@ -306,7 +304,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\netcd compaction latency makes Range calls exceed the readiness timeout\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-14T05:01:57.152653+00:00",
+    "timestamp": "2026-10-17T12:20:09.897359+00:00",
     "summary": "inventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.",
     "affected": [
       "Pod/production/inventory-api-7f9c8d6b5-x2qwe — Running, not Ready"
@@ -331,7 +329,7 @@
       "events": 2,
       "helm": 1,
       "related": 0,
-      "total": 26,
+      "total": 25,
       "anchors": [
         "Deployment/production/inventory-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
         "Deployment/production/inventory-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -365,9 +363,7 @@
       "kind=OtelTrace traceId=3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f service=inventory-api status=ERROR duration=4988ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'"
     ],
     "alerts": [],
-    "anchor_fixes": [
-      "Pod/production/inventory-api-7f9c8d6b5-x2qwe  ServiceAccount 'inventory-api' missing  →  kubectl create serviceaccount inventory-api -n production"
-    ],
+    "anchor_fixes": [],
     "policy_violations": [],
     "pre_llm_confidence": {
       "score": 0.42,
@@ -419,9 +415,7 @@
     "kind=OtelTrace traceId=3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f service=inventory-api status=ERROR duration=4988ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'"
   ],
   "alerts": [],
-  "anchor_fixes": [
-    "Pod/production/inventory-api-7f9c8d6b5-x2qwe  ServiceAccount 'inventory-api' missing  →  kubectl create serviceaccount inventory-api -n production"
-  ],
+  "anchor_fixes": [],
   "policy_violations": [],
   "causal_chain": [
     "etcd compaction starts.",
@@ -494,7 +488,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
           "kube_version": "unknown",
-          "timestamp": "2026-10-14T05:01:57.143028+00:00",
+          "timestamp": "2026-10-17T12:20:09.890232+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)",
@@ -561,7 +555,7 @@
             "events": 2,
             "helm": 1,
             "related": 0,
-            "total": 26,
+            "total": 25,
             "anchors": [
               "Deployment/production/inventory-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
               "Deployment/production/inventory-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -595,9 +589,7 @@
             "kind=OtelTrace traceId=3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f service=inventory-api status=ERROR duration=4988ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'"
           ],
           "alerts": [],
-          "anchor_fixes": [
-            "Pod/production/inventory-api-7f9c8d6b5-x2qwe  ServiceAccount 'inventory-api' missing  →  kubectl create serviceaccount inventory-api -n production"
-          ],
+          "anchor_fixes": [],
           "policy_violations": [],
           "pre_llm_confidence": {
             "score": 0.47,
@@ -680,7 +672,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-14T05:01:57.134504+00:00"
+        "ts": "2026-10-17T12:20:09.885877+00:00"
       },
       {
         "router": "confidence",
@@ -699,7 +691,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-14T05:01:57.145795+00:00"
+        "ts": "2026-10-17T12:20:09.892310+00:00"
       },
       {
         "router": "confidence",
@@ -717,7 +709,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-14T05:01:57.154983+00:00"
+        "ts": "2026-10-17T12:20:09.899342+00:00"
       },
       {
         "router": "policy",
@@ -732,7 +724,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-14T05:01:57.163839+00:00"
+        "ts": "2026-10-17T12:20:09.906401+00:00"
       },
       {
         "router": "human",
@@ -744,7 +736,7 @@
           "remediation_count": 1,
           "dry_run_failures": 0
         },
-        "ts": "2026-10-14T05:01:57.168683+00:00"
+        "ts": "2026-10-17T12:20:09.910252+00:00"
       }
     ],
     "hypothesis_sources": [
