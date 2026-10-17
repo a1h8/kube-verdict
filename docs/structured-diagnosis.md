@@ -61,9 +61,32 @@ missing.
 | `etcd.slow` | span error `etcdserver` / `DeadlineExceeded` on `etcdserverpb.*` | h015 |
 | `slo.burn` | alert `SLOErrorBudgetBurn*`, `LatencySLOBreach` (attrs: dependency from labels) | h013 |
 | `restart.past` | restartCount > 0 with the container ready now (context only, never alone a cause) | h022 |
+| `event.past` | a container-lifecycle warning (crash, OOM, probe, pull) about a pod Running and ready now (context only); other warnings stay current | h022 |
+| `rbac.unbound` | `missing.rbac.<sa>`: the ServiceAccount exists but no (Cluster)RoleBinding names it | h005 |
+| `cert.issuer_failed` | cert-manager event `ErrRegisterACMEAccount`, `ErrInitIssuer` | h014 |
+| `dependency.unreachable` | log `<target> unreachable` (attrs: target) | h014, h016 |
+| `db.pool_timeout` | log `pool timeout … db=<name>` | h016 |
+| `db.connect_failed` | error span `db.connect` | h016 |
+| `container.exited` | event `container X in pod Y exited with code N` | h008 |
+| `app.error_rate` | alert `*HighErrorRate`, `5xx` | h016 |
 
 Not a signal: the synthetic PatchTST series (`docs/patchtst-readiness.md`) — a real series
 from Prometheus may become one later, measured on its own case.
+
+**First extraction (2026-10-17), on the 19 native cases.** Three findings:
+- **S1 — a missing ServiceAccount on every case.** `ingestion/readiness.py` flagged
+  `missing.serviceaccount.<sa>` whenever the ServiceAccount was not in the graph; fixtures do
+  not ship it, so every case — the healthy h022 and h026 included — told the model a
+  ServiceAccount was missing. A pod that exists proves its ServiceAccount existed (the
+  admission plugin rejects it otherwise; the ReplicaSet reports `FailedCreate`). Fixed: never
+  inferred from a pod.
+- **S2 — a past event read as present.** h022's 3-hour-old BackOff produced
+  `container.crashloop` though the container is running and ready. Fixed: a container-lifecycle
+  warning about a pod that is healthy now becomes `event.past`. A first version applied it to
+  every warning and turned h005's RBAC denials into history; a denial on a running app is a
+  current failure, so only lifecycle warnings are superseded by the pod's state.
+- **S3 — missing vocabulary**, shown by the unclassified counts: cert-manager issuer events,
+  "<target> unreachable" readiness logs, pool timeouts, `db.connect` error spans. Added above.
 
 ## 2. Diagnoses
 
