@@ -115,12 +115,15 @@ def detect_missing(pod: dict, present: Present) -> dict[str, str]:
             out[f"missing.imagepullsecret.{name}"] = (
                 f"imagePullSecret '{name}' — Kubernetes reports it missing; image pull will fail")
 
+    # A pod that exists proves its ServiceAccount existed: the ServiceAccount admission
+    # plugin rejects a pod whose ServiceAccount is missing (the ReplicaSet then reports
+    # FailedCreate and no pod exists). So an absent ServiceAccount is never inferred from
+    # a pod — it was flagged on every fixture that does not ship the object
+    # (docs/structured-diagnosis.md, finding S1).
     sa = spec.get("serviceAccountName", "")
     if sa and sa != "default" and present.serviceaccounts is not None:
-        if sa not in present.serviceaccounts:
-            out[f"missing.serviceaccount.{sa}"] = (
-                f"ServiceAccount '{sa}' not found in cluster (namespace {ns})")
-        elif present.bound_serviceaccounts is not None and sa not in present.bound_serviceaccounts:
+        if sa in present.serviceaccounts and present.bound_serviceaccounts is not None \
+                and sa not in present.bound_serviceaccounts:
             out[f"missing.rbac.{sa}"] = (
                 f"ServiceAccount '{sa}' exists but has no (Cluster)RoleBinding — "
                 f"API calls will be Forbidden")

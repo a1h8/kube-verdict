@@ -646,6 +646,7 @@ def _pod_from_kubectl(raw: dict) -> Pod:
         node_name=spec.get("nodeName", ""),
         restart_count=total_restarts,
         container_statuses=container_statuses,
+        init_container_statuses=status.get("initContainerStatuses", []),
         conditions=status.get("conditions", []),
         owner_ref_kind=owner_kind,
         owner_ref_name=owner_name,

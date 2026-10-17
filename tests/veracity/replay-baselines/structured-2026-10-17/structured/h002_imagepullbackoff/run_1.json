@@ -1,0 +1,51 @@
+{
+  "answerable": null,
+  "case": "h002_imagepullbackoff",
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "image-pull",
+      "location": "HelmRelease/production/ml-inference",
+      "rule": "image.pull",
+      "score": 0.65,
+      "signals": [
+        "bc328c119af7451b",
+        "5fb74390469862e0"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "image",
+      "tag|drift|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "image",
+    "tag|drift|declared"
+  ],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The image tag of ml-inference drifted: declared v2.0.5, deployed v2.1.0-private, and that image cannot be pulled.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "drift.config",
+    "image.pull_failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T13:55:17.517369+00:00",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 4.28
+}

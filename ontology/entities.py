@@ -116,6 +116,7 @@ class Pod(K8sEntity):
     node_name: str = ""
     restart_count: int = 0
     container_statuses: list[dict] = field(default_factory=list)
+    init_container_statuses: list[dict] = field(default_factory=list)   # same shape as container_statuses
     conditions: list[dict] = field(default_factory=list)
     owner_ref_kind: str = ""
     owner_ref_name: str = ""

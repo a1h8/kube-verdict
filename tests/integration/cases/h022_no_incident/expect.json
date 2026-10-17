@@ -12,5 +12,5 @@
   "confidence_score_min": 0.0,
   "fallback_expected": true,
   "notes": "Tier C, family negative (docs/scenarios-v2.md). Nothing is broken: the Deployment is 3/3, every pod is Running and Ready, values equal the release, no alert, log or trace. The only thing that looks like a problem is one BackOff warning event from 3 h ago (one restart, since resolved) — the decoy. The right answer is a LOW label with no specific cause named, and a HUMAN_REVIEW verdict (decided 2026-10-12): nothing to approve, nothing to block.",
-  "reasoning_path": {"seeds_include": [], "seeds_exclude": ["Pod/production/ledger-*", "Deployment/production/ledger"], "cause": null, "evidence": [], "rule": null, "decoy_rules": []}
+  "reasoning_path": {"seeds_include": [], "seeds_exclude": ["Pod/production/ledger-*", "Deployment/production/ledger"], "cause": null, "evidence": [], "rule": null, "decoy_rules": [], "signals_expected": [], "signals_forbidden": ["container.crashloop", "container.oom_killed", "pod.not_ready", "dependency.missing", "probe.readiness_failed"]}
 }
