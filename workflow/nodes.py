@@ -1541,6 +1541,9 @@ def example_lookup_node(state: RCAState, config: RunnableConfig) -> dict:
     # example cache is a feature in production).
     if os.getenv("EXAMPLE_LOOKUP_DISABLED", "").lower() in ("1", "true", "yes"):
         return {}
+    # opt-in: a similar past incident is evidence, not a reason to skip the analysis
+    if not cfg.EXAMPLE_SHORTCUT_ENABLED:
+        return {}
 
     _, store = _get_infra(config)
     if store is None:

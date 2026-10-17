@@ -103,6 +103,13 @@ Applied as a score multiplier in `FAISSStore.hybrid_search()`. Override any sour
 | `SOURCE_WEIGHT_ENTERPRISE` | `1.5` | Internal runbooks/SOPs | Organisation-specific knowledge |
 | `SOURCE_WEIGHT_RUNBOOK` | `1.8` | Operational procedures | Highest trust: explicit remediation steps |
 
+## Resolved-incident memory
+
+| Variable | Default | Description |
+|---|---|---|
+| `KUBEVERDICT_EXAMPLE_DIR` | `./data/examples` | Where approved resolutions are stored. The test suite points it at a temporary directory. |
+| `EXAMPLE_SHORTCUT_ENABLED` | `false` | When true, a stored incident similar enough to the query skips the analysis and returns its known fix. Off until the incident memory is measured (`docs/protocol-001-retrieval.md`). |
+
 ## Persistence
 
 | Variable | Default | Description |

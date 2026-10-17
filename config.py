@@ -150,6 +150,9 @@ OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "mistral")
 OLLAMA_TIMEOUT: int = _int("OLLAMA_TIMEOUT", 120)
 OLLAMA_NUM_CTX: int = _int("OLLAMA_NUM_CTX", 2048)
+# A stored incident similar enough to the query used to skip the analysis entirely. Off by
+# default until the incident memory is measured (docs/protocol-001-retrieval.md).
+EXAMPLE_SHORTCUT_ENABLED: bool = os.getenv("EXAMPLE_SHORTCUT_ENABLED", "false").lower() in ("1", "true", "yes")
 # Ceiling for the per-call context window: a prompt that would need more is refused,
 # never silently truncated by Ollama (docs/case-audit-001.md F8).
 OLLAMA_NUM_CTX_MAX: int = _int("OLLAMA_NUM_CTX_MAX", 8192)

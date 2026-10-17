@@ -958,11 +958,23 @@ class TestExampleLookup:
             result = example_lookup_node({"query": "crashloop"}, {"configurable": {"store": store}})
         assert not result.get("example_match")
 
-    def test_high_score_matches(self, store):
+    _STRONG_HIT = {"uid": "example:abc123", "text": "RESOLVED INCIDENT: oom\nRoot cause: memory limit too low\nHypothesis: H1\nEntities: Pod\nAnchor violations: resources.limits.memory\nFix: kubectl delete pod crasher\nConfidence: HIGH", "score": 0.90}
+
+    def test_shortcut_is_off_by_default(self, store):
+        """A strong match no longer skips the analysis unless EXAMPLE_SHORTCUT_ENABLED is set."""
         from unittest.mock import patch
         from workflow.nodes import example_lookup_node
-        fake_hit = {"uid": "example:abc123", "text": "RESOLVED INCIDENT: oom\nRoot cause: memory limit too low\nHypothesis: H1\nEntities: Pod\nAnchor violations: resources.limits.memory\nFix: kubectl delete pod crasher\nConfidence: HIGH", "score": 0.90}
-        with patch.object(store, "search", return_value=[fake_hit]):
+        with patch.object(store, "search", return_value=[self._STRONG_HIT]):
+            result = example_lookup_node({"query": "oom kill"}, {"configurable": {"store": store}})
+        assert result == {}
+
+    def test_high_score_matches(self, store):
+        from unittest.mock import patch
+
+        import config as cfg
+        from workflow.nodes import example_lookup_node
+        with patch.object(store, "search", return_value=[self._STRONG_HIT]), \
+                patch.object(cfg, "EXAMPLE_SHORTCUT_ENABLED", True):
             result = example_lookup_node({"query": "oom kill"}, {"configurable": {"store": store}})
         assert result.get("example_match") is True
         assert result.get("matched_example_id") == "example:abc123"
