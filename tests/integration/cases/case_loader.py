@@ -616,6 +616,8 @@ def _deployment_from_kubectl(raw: dict) -> Deployment:
         available_replicas=status.get("availableReplicas", 0),
         strategy=spec.get("strategy", {}).get("type", "RollingUpdate"),
         selector=spec.get("selector", {}).get("matchLabels", {}),
+        conditions=[{"type": c.get("type"), "status": c.get("status"), "reason": c.get("reason")}
+                    for c in status.get("conditions", [])],
         raw=raw,
     )
 

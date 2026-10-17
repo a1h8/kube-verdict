@@ -135,6 +135,16 @@ class Pod(K8sEntity):
         )
 
     @property
+    def is_starting(self) -> bool:
+        """Running, every container running, never restarted: a pod coming up, not failing."""
+        return self.phase == "Running" and bool(self.container_statuses) and all(
+            "running" in (cs.get("state") or {})
+            and not cs.get("restartCount")
+            and "terminated" not in (cs.get("lastState") or {})
+            for cs in self.container_statuses
+        )
+
+    @property
     def needs_telemetry(self) -> bool:
         """Worth pulling logs/traces for; is_unhealthy stays phase-only (seeds, rules, goldens)."""
         return self.is_unhealthy or self.is_not_ready
@@ -147,6 +157,9 @@ class Pod(K8sEntity):
         )
 
 
+_ROLLOUT_REASONS = frozenset({"ReplicaSetUpdated", "NewReplicaSetCreated", "FoundNewReplicaSet"})
+
+
 @dataclass
 class Deployment(K8sEntity):
     replicas: int = 0
@@ -154,6 +167,7 @@ class Deployment(K8sEntity):
     available_replicas: int = 0
     strategy: str = "RollingUpdate"
     selector: dict[str, str] = field(default_factory=dict)
+    conditions: list[dict] = field(default_factory=list)   # [{type, status, reason}]
 
     def __post_init__(self):
         self.kind = ResourceKind.DEPLOYMENT
@@ -161,6 +175,25 @@ class Deployment(K8sEntity):
     @property
     def is_degraded(self) -> bool:
         return self.ready_replicas < self.replicas
+
+    @property
+    def is_available(self) -> bool:
+        return any(c.get("type") == "Available" and str(c.get("status")) == "True"
+                   for c in self.conditions)
+
+    @property
+    def is_rolling_out(self) -> bool:
+        """A rollout Kubernetes reports as progressing (``Progressing=True``, a rollout reason).
+
+        Becomes False when the rollout stalls past ``progressDeadlineSeconds``
+        (``Progressing=False``, ``ProgressDeadlineExceeded``) or completes
+        (reason ``NewReplicaSetAvailable``). docs/test-cases.md § h026.
+        """
+        return any(
+            c.get("type") == "Progressing" and str(c.get("status")) == "True"
+            and c.get("reason") in _ROLLOUT_REASONS
+            for c in self.conditions
+        )
 
     def to_text(self) -> str:
         base = super().to_text()

@@ -1,0 +1,32 @@
+{
+  "scenario": "No incident — a rolling update in progress, the new pod is still starting",
+  "query": "is something wrong with invoice in production",
+  "namespace": "production",
+  "release": "invoice",
+  "affected_resources": [],
+  "expected_outcome": "no_incident",
+  "expected_verdict": "HUMAN_REVIEW",
+  "root_cause_contains": [],
+  "root_cause_must_not_contain": [
+    "crash",
+    "oom",
+    "regression",
+    "misconfigur",
+    "bug"
+  ],
+  "confidence": "LOW",
+  "confidence_score_min": 0.0,
+  "fallback_expected": true,
+  "notes": "Tier C, family negative (docs/scenarios-v2.md, spec docs/test-cases.md § h026). invoice is upgraded from v2.3.0 to v2.4.0 (declared and deployed alike, no drift); RollingUpdate maxSurge 1 / maxUnavailable 0. Three old pods are Running and Ready; the one new pod started 20 s ago and is not ready yet, with one readiness-probe warning — the decoy. The Deployment reports Available=True and Progressing=True (ReplicaSetUpdated): Kubernetes itself says the rollout is progressing. The right answer is a LOW label with no cause named and a HUMAN_REVIEW verdict.",
+  "reasoning_path": {
+    "seeds_include": [],
+    "seeds_exclude": [
+      "Pod/production/invoice-*",
+      "Deployment/production/invoice"
+    ],
+    "cause": null,
+    "evidence": [],
+    "rule": null,
+    "decoy_rules": []
+  }
+}

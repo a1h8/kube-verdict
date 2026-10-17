@@ -5,9 +5,11 @@
   "release": "api",
   "affected_resources": ["Pod/production/worker-58c9d7b6f-h4m8n", "Deployment/production/api"],
   "root_cause_contains_all": [["secret", "queue-credentials", "missing"], ["oom", "memory", "limit", "256mi"]],
+  "root_cause_concepts_all": [["secret|queue-credentials", "missing|not found"], ["memory|oom", "drift|1gi|declared"]],
   "fix_commands_contain": ["kubectl create secret", "resources.limits.memory"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.3,
   "fallback_expected": false,
-  "notes": "Tier C, family multi (docs/scenarios-v2.md). Two faults in production with no link between them. worker cannot start: its env references Secret queue-credentials, which was never created (CreateContainerConfigError). api is OOMKilled in a loop: values.yaml declares a 1Gi memory limit but a previous helm upgrade --set left 256Mi deployed. A case has one Helm release, so the release is api (the drift lives there); the worker's cause comes from the missing-dependency detector. An answer that names only one of the two causes FAILs (root_cause_contains_all)."
+  "notes": "Tier C, family multi (docs/scenarios-v2.md). Two faults in production with no link between them. worker cannot start: its env references Secret queue-credentials, which was never created (CreateContainerConfigError). api is OOMKilled in a loop: values.yaml declares a 1Gi memory limit but a previous helm upgrade --set left 256Mi deployed. A case has one Helm release, so the release is api (the drift lives there); the worker's cause comes from the missing-dependency detector. An answer that names only one of the two causes FAILs (root_cause_contains_all).",
+  "reasoning_path": {"seeds_include": ["Pod/production/worker-*", "Pod/production/api-*"], "seeds_exclude": [], "cause": {"absent": "Secret/production/queue-credentials", "object": "Deployment/production/api"}, "evidence": [{"section": "events", "marker": "queue-credentials"}, {"section": "drift", "marker": "resources.limits.memory"}], "rule": [{"id": "missing_config", "affected": "Pod/production/worker-*"}, {"id": "helm_drift", "affected": "*/production/api"}], "decoy_rules": []}
 }

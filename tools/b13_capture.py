@@ -128,6 +128,7 @@ SCENARIOS: dict[str, dict] = {
         # same list as tests/integration/cases/h014_cert_expiry/expect.json —
         # we authored the injected fault, so this is ground truth, not a guess.
         "root_cause_contains": ["certificate", "expired", "x509", "tls", "renew", "issuer"],
+        "root_cause_concepts": ["certificate|x509|tls", "expired|expir|renew"],
         # the decoy the first live capture fell for ("memory issue")
         "root_cause_must_not_contain": ["memory", "oom"],
     },
@@ -140,6 +141,7 @@ SCENARIOS: dict[str, dict] = {
         "otel_service": "inventory-api",
         # same list as tests/integration/cases/h015_etcd_compaction/expect.json
         "root_cause_contains": ["etcd", "compaction", "latency", "deadline", "timeout", "readiness"],
+        "root_cause_concepts": ["etcd", "compaction|compacted|latency|slow"],
         # the decoy the first live capture fell for ("incompatible container image")
         "root_cause_must_not_contain": ["image", "pull"],
     },
@@ -378,7 +380,8 @@ def write_golden(index: int, scenario_id: str, summary: dict) -> Path:
     return path
 
 
-GRADING_KEYS = ("root_cause_contains", "root_cause_contains_all",
+GRADING_KEYS = ("root_cause_concepts", "root_cause_concepts_all",
+                "root_cause_contains", "root_cause_contains_all",
                 "root_cause_must_not_contain", "expected_outcome", "expected_verdict")
 
 

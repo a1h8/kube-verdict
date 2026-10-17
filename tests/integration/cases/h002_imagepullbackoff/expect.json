@@ -5,6 +5,7 @@
   "release": "ml-inference",
   "affected_resources": ["Pod/production/ml-inference-7c9d8b6f5-pq3r7"],
   "root_cause_contains": ["image", "pull", "401", "ghcr", "drift"],
+  "root_cause_concepts": ["image", "tag|drift|declared"],
   "fix_commands_contain": ["helm upgrade", "image.tag"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.50,

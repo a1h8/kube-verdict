@@ -1,0 +1,195 @@
+apiVersion: v1
+kind: PodList
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: invoice-5d7c9b8f6-k2m4p
+    namespace: production
+    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110031
+    creationTimestamp: "2026-10-10T08:00:00Z"
+    labels:
+      app.kubernetes.io/name: invoice
+      app.kubernetes.io/instance: invoice
+      pod-template-hash: 5d7c9b8f6
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: invoice-5d7c9b8f6
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    serviceAccountName: invoice
+    containers:
+    - name: invoice
+      image: ghcr.io/acme/invoice:v2.3.0
+      ports:
+      - containerPort: 8080
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 5
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: "True"
+    - type: ContainersReady
+      status: "True"
+    - type: PodScheduled
+      status: "True"
+    containerStatuses:
+    - name: invoice
+      ready: true
+      started: true
+      restartCount: 0
+      image: ghcr.io/acme/invoice:v2.3.0
+      state:
+        running:
+          startedAt: "2026-10-10T08:00:20Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: invoice-5d7c9b8f6-r8t2w
+    namespace: production
+    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110032
+    creationTimestamp: "2026-10-10T08:00:00Z"
+    labels:
+      app.kubernetes.io/name: invoice
+      app.kubernetes.io/instance: invoice
+      pod-template-hash: 5d7c9b8f6
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: invoice-5d7c9b8f6
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    serviceAccountName: invoice
+    containers:
+    - name: invoice
+      image: ghcr.io/acme/invoice:v2.3.0
+      ports:
+      - containerPort: 8080
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 5
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: "True"
+    - type: ContainersReady
+      status: "True"
+    - type: PodScheduled
+      status: "True"
+    containerStatuses:
+    - name: invoice
+      ready: true
+      started: true
+      restartCount: 0
+      image: ghcr.io/acme/invoice:v2.3.0
+      state:
+        running:
+          startedAt: "2026-10-10T08:00:22Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: invoice-5d7c9b8f6-x7q9z
+    namespace: production
+    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110033
+    creationTimestamp: "2026-10-10T08:00:00Z"
+    labels:
+      app.kubernetes.io/name: invoice
+      app.kubernetes.io/instance: invoice
+      pod-template-hash: 5d7c9b8f6
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: invoice-5d7c9b8f6
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    serviceAccountName: invoice
+    containers:
+    - name: invoice
+      image: ghcr.io/acme/invoice:v2.3.0
+      ports:
+      - containerPort: 8080
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 5
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: "True"
+    - type: ContainersReady
+      status: "True"
+    - type: PodScheduled
+      status: "True"
+    containerStatuses:
+    - name: invoice
+      ready: true
+      started: true
+      restartCount: 0
+      image: ghcr.io/acme/invoice:v2.3.0
+      state:
+        running:
+          startedAt: "2026-10-10T08:00:21Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: invoice-6c8b7f9d4-h5n3v
+    namespace: production
+    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110034
+    creationTimestamp: "2026-10-17T10:00:00Z"
+    labels:
+      app.kubernetes.io/name: invoice
+      app.kubernetes.io/instance: invoice
+      pod-template-hash: 6c8b7f9d4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: invoice-6c8b7f9d4
+      controller: true
+  spec:
+    nodeName: worker-node-04
+    serviceAccountName: invoice
+    containers:
+    - name: invoice
+      image: ghcr.io/acme/invoice:v2.4.0
+      ports:
+      - containerPort: 8080
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 5
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: "False"
+    - type: ContainersReady
+      status: "False"
+    - type: PodScheduled
+      status: "True"
+    containerStatuses:
+    - name: invoice
+      ready: false
+      started: true
+      restartCount: 0
+      image: ghcr.io/acme/invoice:v2.4.0
+      state:
+        running:
+          startedAt: "2026-10-17T10:00:05Z"
