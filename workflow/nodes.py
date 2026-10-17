@@ -1616,7 +1616,7 @@ def save_example_node(state: RCAState, config: RunnableConfig) -> dict:
         anchor_violations=anchor_violations,
     )
 
-    ExampleStore().save(incident)
+    ExampleStore(config.get("configurable", {}).get("example_dir")).save(incident)
     log.info("save_example: incident %s saved", incident.id)
 
     if store is not None:

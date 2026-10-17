@@ -88,6 +88,16 @@ def skip_if_no_embedding_model() -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _isolated_example_store(tmp_path_factory):
+    """No test writes to the real resolved-incident store (data/examples/): every
+    ExampleStore built without a directory lands in a per-session temp dir."""
+    mp = pytest.MonkeyPatch()
+    mp.setenv("KUBEVERDICT_EXAMPLE_DIR", str(tmp_path_factory.mktemp("examples")))
+    yield
+    mp.undo()
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _embedding_model_or_skip():
     """When the real model can't be loaded (offline + cache miss), patch
     Embedder.__init__ to skip the test instead of erroring, so embedder-backed

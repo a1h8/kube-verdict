@@ -4,6 +4,7 @@ Unit tests for the LangGraph RCA workflow.
 Graph and store are injected via config["configurable"] — never in state —
 so LangGraph's MemorySaver checkpointer never tries to msgpack-serialise them.
 """
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -989,8 +990,20 @@ class TestExampleLookup:
                 "affected_resources": [{"kind": "Pod", "name": "crasher"}],
             },
         }
-        save_example_node(state, {"configurable": {"graph": synthetic_graph, "store": store, "__example_dir": tmp_path}})
-        # ExampleStore uses default dir — just verify the node doesn't crash
-        # and returns stats
-        result = save_example_node(state, {"configurable": {"graph": synthetic_graph, "store": store}})
+        result = save_example_node(
+            state, {"configurable": {"graph": synthetic_graph, "store": store, "example_dir": tmp_path}})
         assert "ingestion_stats" in result or result == {} or "save_example" in (result.get("ingestion_stats") or {})
+        saved = list(tmp_path.glob("*.json"))
+        assert len(saved) == 1
+        assert json.loads(saved[0].read_text())["root_cause"] == "memory limit too low"
+
+
+def test_tests_never_write_to_the_real_example_store():
+    """Negative control: the suite's default example store is a temp dir, not data/examples/."""
+    from pathlib import Path
+
+    from knowledge.example_store import ExampleStore, default_example_dir
+
+    real = (Path(__file__).resolve().parents[2] / "data" / "examples").resolve()
+    assert default_example_dir().resolve() != real
+    assert ExampleStore()._dir.resolve() != real
