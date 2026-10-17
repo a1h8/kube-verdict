@@ -44,12 +44,12 @@
   ],
   "signals_mode": null,
   "solver": "structured",
-  "started_at": "2026-10-17T13:04:58.747211+00:00",
+  "started_at": "2026-10-17T13:27:54.518233+00:00",
   "tier": "A",
   "unclassified": {
     "k8s_event": 1
   },
   "veracity": "PASS",
   "verdict": null,
-  "wall_s": 4.81
+  "wall_s": 2.48
 }

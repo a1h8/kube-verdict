@@ -13,9 +13,9 @@ a covered row is implemented, not validated.
 |---|---|
 | Causes in the catalog | 40 |
 | Signals extracted | 27 |
-| Rule implemented | 13 |
-| A case passes | 6 |
-| **Covered** | **6 / 40** |
+| Rule implemented | 14 |
+| A case passes | 7 |
+| **Covered** | **7 / 40** |
 | Runbooks cited by a row | 39 / 60 |
 
 | Cause | Family | Signals | Rule | Cases | Live |
@@ -28,7 +28,7 @@ a covered row is implemented, not validated.
 | a liveness or readiness probe is wrong (port, command) or too aggressive (timeout) | probe | ✅ | — — | — — | yes |
 | the deployed probe timeout differs from the declared one | probe | ✅ | ✅ config.drift | ✅ h009 | yes |
 | the app waits for a service that is down or unreachable (database, upstream) | dependency | ✅ | — — | — — | partial |
-| an init container exits non-zero or never completes | init-container | ✅ | — — | — h008 | yes |
+| an init container exits non-zero or never completes | init-container | ✅ | ✅ init.failed | ✅ h008 | yes |
 | the app crashes on start (misconfiguration, code error) | crashloop | ✅ | ✅ container.crash | — — | partial |
 | the app writes to a read-only filesystem | crashloop | — | — — | — — | partial |
 | wrong user, missing capability or securityContext denies the app | crashloop | — | — — | — — | partial |

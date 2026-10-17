@@ -81,3 +81,23 @@ def test_diagnosis_is_deterministic():
     first, second = _outcome(*entities), _outcome(*reversed(entities))
     assert [(d.rule, d.cause_location, d.score) for d in first.diagnoses] == \
            [(d.rule, d.cause_location, d.score) for d in second.diagnoses]
+
+
+def _init_pod(init_state, init_last=None):
+    p = _pod(state={"waiting": {"reason": "PodInitializing"}})
+    p.init_container_statuses = [{"name": "db-migrate", "ready": False, "restartCount": 3,
+                                  "state": init_state, "lastState": init_last or {}}]
+    return p
+
+
+def test_a_failing_init_container_is_the_cause():
+    o = _outcome(_init_pod({"waiting": {"reason": "CrashLoopBackOff"}}, {"terminated": {"exitCode": 1}}),
+                 _event("Error: container db-migrate in pod api-6c8b7f9d4-x1 exited with code 1: migration failed"))
+    d = o.diagnoses[0]
+    assert (d.rule, d.family, d.cause_location) == ("init.failed", "init-container", "Pod/prod/api-6c8b7f9d4-x1")
+    assert "db-migrate" in d.cause and d.score > 0.5          # strengthened by the exit event
+
+
+def test_an_init_container_that_completed_is_not_a_cause():
+    o = _outcome(_init_pod({"terminated": {"exitCode": 0, "reason": "Completed"}}))
+    assert all(d.rule != "init.failed" for d in o.diagnoses)

@@ -57,10 +57,10 @@
   ],
   "signals_mode": null,
   "solver": "structured",
-  "started_at": "2026-10-17T13:05:18.173648+00:00",
+  "started_at": "2026-10-17T13:27:58.584531+00:00",
   "tier": "A",
   "unclassified": {},
   "veracity": "PASS",
   "verdict": null,
-  "wall_s": 3.25
+  "wall_s": 0.57
 }

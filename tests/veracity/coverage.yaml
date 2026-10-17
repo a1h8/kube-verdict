@@ -125,8 +125,9 @@ rows:
   runbooks:
   - KubePodNotReady
   signals:
+  - init.failed
   - container.exited
-  rule: null
+  rule: init.failed
   cases:
   - h008
   live: 'yes'

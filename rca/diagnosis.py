@@ -167,6 +167,22 @@ def _scheduling(ss: SignalSet) -> list[Diagnosis]:
                   ss.subject(s), [s]) for s in ss.of("scheduling.failed")]
 
 
+def _init_failed(ss: SignalSet) -> list[Diagnosis]:
+    out = []
+    for s in ss.of("init.failed"):
+        pod, container = ss.subject(s), s.attr("container")
+        exited = [x for x in ss.of("container.exited")
+                  if ss.subject(x) == pod and x.attr("container") == container]
+        detail = next((x.attr("detail") for x in exited if x.attr("detail")), "")
+        reported = f": {detail}" if detail else ""
+        out.append(_diag("init.failed", "init-container",
+                         f"The init container {container} of {_name(pod)} fails (exit code {s.attr('exit_code')}"
+                         f"{reported}), so the main containers never start.",
+                         pod, [s], exited,
+                         checks=[f"kubectl logs {_name(pod)} -c {container} -n {_ns(pod)}"]))
+    return out
+
+
 def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
     """A configuration drift alone is generic; it is reported when a workload of the same
     release is failing and no more specific rule already used that drift."""
@@ -192,9 +208,11 @@ def _crash(ss: SignalSet, explained_pods: set[str]) -> list[Diagnosis]:
 
 # every rule id ``diagnose`` can produce — docs/diagnosis-coverage.md checks rows against it
 RULE_IDS: frozenset[str] = frozenset({"dependency.missing", "oom.memory_drift", "oom.limit", "image.pull",
-                                       "scheduling", "config.drift", "container.crash"})
+                                       "scheduling", "config.drift", "container.crash",
+                                       "init.failed"})
 
-RULES: list[Callable[[SignalSet], list[Diagnosis]]] = [_dependency_missing, _oom, _image_pull, _scheduling]
+RULES: list[Callable[[SignalSet], list[Diagnosis]]] = [_dependency_missing, _oom, _image_pull, _scheduling,
+                                                       _init_failed]
 
 
 def _starting_in_rollout(ss: SignalSet) -> set[str]:

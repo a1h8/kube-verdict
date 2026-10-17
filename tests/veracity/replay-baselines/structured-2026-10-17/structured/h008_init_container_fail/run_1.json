@@ -1,34 +1,52 @@
 {
   "answerable": null,
   "case": "h008_init_container_fail",
-  "confidence": "LOW",
-  "diagnoses": [],
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "init-container",
+      "location": "Pod/staging/backend-6b9f7c8d5-mn4pq",
+      "rule": "init.failed",
+      "score": 0.65,
+      "signals": [
+        "09f01f74dc6c8947",
+        "80e419e86ebc7126"
+      ]
+    }
+  ],
   "expected_outcome": "cause",
   "extractor_version": "signals/1",
   "fallbacks": [],
   "forbidden_matched": [],
   "matched_groups": [
-    []
+    [
+      "migration",
+      "init|db-migrate"
+    ]
   ],
-  "matched_keywords": [],
+  "matched_keywords": [
+    "migration",
+    "init|db-migrate"
+  ],
   "model": "",
-  "outcome": "insufficient_evidence",
+  "outcome": "cause",
   "pre_llm_confidence_score": null,
   "prompt": "v2",
-  "reason": "cause concept(s) not named: migration, init|db-migrate",
-  "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+  "reason": "cause named, no decoy",
+  "root_cause": "The init container db-migrate of backend-6b9f7c8d5-mn4pq fails (exit code 1: FATAL: database migration failed \u2014 relation 'user_tokens' does not exist), so the main containers never start.",
   "rules_version": "rules/1",
   "run": 1,
   "signal_kinds": [
     "container.crashloop",
-    "container.exited"
+    "container.exited",
+    "init.failed"
   ],
   "signals_mode": null,
   "solver": "structured",
-  "started_at": "2026-10-17T13:05:42.176857+00:00",
+  "started_at": "2026-10-17T13:28:02.086755+00:00",
   "tier": "A",
   "unclassified": {},
-  "veracity": "FAIL",
+  "veracity": "PASS",
   "verdict": null,
-  "wall_s": 6.88
+  "wall_s": 0.62
 }

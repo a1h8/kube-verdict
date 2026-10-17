@@ -129,7 +129,7 @@ _EVENT_PATTERNS: list[tuple[str, re.Pattern, tuple[str, ...]]] = [
     ("hpa.metrics_unavailable", re.compile(r"unable to get metrics|no metrics returned from resource metrics API|invalid metrics", re.I), ()),
     ("rbac.denied", re.compile(r'is forbidden: User "(?P<user>[^"]+)" cannot (?P<verb>\w+) resource "(?P<resource>[^"]+)"', re.I), ("user", "verb", "resource")),
     ("cert.issuer_failed", re.compile(r"Failed to register ACME account|ErrRegisterACMEAccount|ErrInitIssuer|issuer .* not ready", re.I), ()),
-    ("container.exited", re.compile(r"container (?P<container>\S+) in pod \S+ exited with code (?P<code>\d+)", re.I), ("container", "code")),
+    ("container.exited", re.compile(r"container (?P<container>\S+) in pod \S+ exited with code (?P<code>\d+)(?::\s*(?P<detail>.{1,160}))?", re.I), ("container", "code", "detail")),
     ("container.oom_killed", re.compile(r"out of memory|OOMKill", re.I), ()),
     ("container.crashloop", re.compile(r"Back-off restarting failed container (?P<container>\S+)", re.I), ("container",)),
     ("dns.failed", re.compile(r"lookup (?P<host>\S+?)(?::| ).*(?:no such host|i/o timeout)", re.I), ("host",)),
@@ -174,7 +174,7 @@ SIGNAL_KINDS: frozenset[str] = frozenset(
     | {k for k, _rx in _TRACE_PATTERNS + _ALERT_PATTERNS}
     | {"container.crashloop", "container.config_error", "image.pull_failed", "container.oom_killed",
        "restart.past", "pod.not_ready", "rollout.progressing", "rollout.stalled", "scheduling.failed",
-       "event.past", "drift.config", "rbac.unbound", "dependency.missing"})
+       "event.past", "drift.config", "rbac.unbound", "dependency.missing", "init.failed"})
 
 
 def _match(patterns, text: str):
@@ -211,6 +211,14 @@ def _from_pods(graph: OntologyGraph, b: _Builder) -> None:
                 b.add("restart.past", "k8s_status", pod.uid, me,
                       event_time=(last.get("terminated") or {}).get("finishedAt", ""),
                       observed={"container": name, "restarts": cs.get("restartCount")})
+        for cs in pod.init_container_statuses:
+            state, last = cs.get("state") or {}, cs.get("lastState") or {}
+            term = (state.get("terminated") or {}) or (last.get("terminated") or {})
+            code = term.get("exitCode")
+            if code not in (None, 0, "0"):
+                b.add("init.failed", "k8s_status", pod.uid, me, event_time=term.get("finishedAt", ""),
+                      observed={"container": cs.get("name", ""), "exit_code": code,
+                                "reason": (state.get("waiting") or {}).get("reason", term.get("reason", ""))})
         if pod.is_not_ready:
             b.add("pod.not_ready", "k8s_status", pod.uid, me, observed={"starting": str(pod.is_starting).lower()})
 
