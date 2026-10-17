@@ -39,10 +39,10 @@ def test_container_states_become_signals():
 
 
 def test_a_missing_dependency_is_read_from_the_event():
-    sig = extract_signals(_graph(_pod(ready=False), _event('Error: secret "db-creds" not found'))).of(
-        "dependency.missing")[0]
+    out = extract_signals(_graph(_pod(ready=False), _event('Error: secret "db-creds" not found')))
+    sig = out.of("dependency.missing")[0]
     assert sig.attr("kind") == "secret" and sig.attr("name") == "db-creds"
-    assert sig.entity == "Pod/prod/api-1"
+    assert out.subject(sig) == "Pod/prod/api-1"
 
 
 def test_lifecycle_warning_about_a_pod_healthy_now_is_history():           # S2
@@ -59,9 +59,9 @@ def test_log_lines_are_attached_to_their_pod():
     pod = _pod(ready=False)
     log = LokiLog(uid="log-1", name="log-1", namespace="prod", level="error", pod_name="api-1",
                   log_line='err="x509: certificate has expired or is not yet valid"')
-    sig = extract_signals(_graph(pod, log, edges=[Edge(pod.uid, log.uid, RelationshipType.HAS_LOG)])).of(
-        "tls.cert_expired")[0]
-    assert sig.entity == "Pod/prod/api-1" and sig.source == "loki"
+    out = extract_signals(_graph(pod, log, edges=[Edge(pod.uid, log.uid, RelationshipType.HAS_LOG)]))
+    sig = out.of("tls.cert_expired")[0]
+    assert out.subject(sig) == "Pod/prod/api-1" and sig.source == "loki" and sig.plan == "telemetry"
 
 
 def test_unknown_text_is_counted_not_guessed():
@@ -82,3 +82,20 @@ def test_extraction_is_deterministic():
     entities = (_pod(ready=False, state={"waiting": {"reason": "CrashLoopBackOff"}}),
                 _event('Error: configmap "cfg" not found'))
     assert extract_signals(_graph(*entities)).signals == extract_signals(_graph(*reversed(entities))).signals
+
+
+def test_the_envelope_separates_authored_from_observed():
+    """docs/structured-diagnosis.md § 1: authored ≠ observed ≠ derived."""
+    out = extract_signals(_graph(_pod(ready=False), _event('Error: configmap "cfg" not found')))
+    sig = out.of("dependency.missing")[0]
+    assert dict(sig.authored) == {"involved": "Pod/prod/api-1", "reason": "Failed"}   # kubelet wrote it
+    assert dict(sig.observed) == {"kind": "configmap", "name": "cfg"}                  # we read it
+    assert sig.payload_ref.startswith("ev-") and sig.extractor_version == "signals/1"
+
+
+def test_attribution_is_a_derived_edge_with_its_method():
+    out = extract_signals(_graph(_pod(ready=False), _event('Error: configmap "cfg" not found')))
+    sig = out.of("dependency.missing")[0]
+    (edge,) = [e for e in out.edges if e.signal_id == sig.signal_id]
+    assert (edge.entity, edge.method, edge.confidence) == ("Pod/prod/api-1", "event.involvedObject", 1.0)
+    assert edge.correlator_version == "attribution/1"
