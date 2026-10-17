@@ -79,6 +79,13 @@ Records: `REGRADED.md` (this grading) and `REGRADED-2026-10-14-synonyms.md` (the
 one), next to the records. These numbers are on cases of which eight are still to be
 corrected or retired; they are not compared with later runs as if the cases were the same.
 
+**[amended 2026-10-17] Invalidated: the model read ~17 % of each prompt.** The replay
+created `OllamaClient` without `num_ctx`, so the default 2048 applied; Ollama truncated the
+prompts (~6 200 tokens → ~1 027, kept from the end). The 54 runs above, and every grade of
+them, measure mistral on the tail of the prompt, not on the evidence. They stay as records.
+The next measurement sets `num_ctx` to fit the prompt and records the tokens actually read
+(`docs/case-audit-001.md` F8).
+
 Next measurements (decided 2026-10-14): `--store faiss` (production retrieval), then
 prompt v2 (section 7), on the same cases, each frozen under its own configuration name.
 

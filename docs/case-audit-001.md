@@ -52,6 +52,16 @@ Verdict: **keep**, **correct** (what, below) or **retire**.
   ReplicaSet creates afterwards, so the rollout would stall: one more incident.
   Raised 2026-10-17 by the maintainer.
 
+- **F8 — The model never received the whole prompt.** `OLLAMA_NUM_CTX` defaults to 2048
+  (`config.py`), and neither the replay nor production sets it. The Ollama logs show prompts
+  of ~6 200 tokens cut to ~1 027 (`msg="truncating input prompt" limit=1027 prompt=6212`,
+  2026-10-17). Ollama keeps the first 5 tokens and the end: the tail of the evidence block,
+  the injected hypothesis and the answer instructions. The evidence sections and the context
+  quality score are lost. The 2026-10-14 baseline and its re-gradings were measured under this cut
+  (2026-10-17 logs show it on prompts of the same size); the 2026-09-26 live captures ran
+  with the same default, their logs are gone; `answerable` was computed on the prompt
+  sent, not the prompt read. Found 2026-10-17.
+
 ## Per case
 
 | Case | 1 Realistic | 2 Live evidence | 3 Unintended | 4 Grading | 5 Live | Verdict |
@@ -80,6 +90,9 @@ offline + redo live 1 (h014) · correct 7 (h002, h005, h006, h010, h012, h013, h
 retire 1 (h011).
 
 ## What this changes
+
+- **F8 invalidates every LLM number recorded so far**: they are kept as records, not as
+  measurements of the diagnosis.
 
 - The 2026-10-14 baseline (30/54) was measured on cases of which 8 are to be corrected or
   retired, and with a grading that lets symptoms pass on at least two. It stays as

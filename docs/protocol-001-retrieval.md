@@ -38,6 +38,9 @@ symptom-vs-drift fix (`f102422`) and is not reused.
   and `tests/veracity/synonyms.yaml` at the commit that approves this protocol; their
   hashes are recorded in every run.
 - **Model:** mistral via Ollama, digest recorded; prompt version recorded.
+- **Context window:** `num_ctx` large enough for the longest prompt plus the answer, recorded
+  in every run with the prompt tokens Ollama actually read (`prompt_eval_count`). A run that
+  read fewer tokens than it was sent is **invalid**, not a FAIL (`docs/case-audit-001.md` F8).
 - **Case-level result:** a case passes a configuration when **at least 2 of its 3 runs**
   pass.
 - **Denominator:** a timeout, a crash or an empty answer is a FAIL. No run is dropped.
