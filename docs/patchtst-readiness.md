@@ -41,6 +41,33 @@ renames a resource label, kube-verdict silently loses the ability to scope
 the investigation to a namespace** — this is the one field-level contract
 worth a live check, not just a schema-shape check.
 
+## The two paths into kube-verdict
+
+1. **In-process** — `signal_analysis_node` (`workflow/nodes.py`) runs `SignalAnalyzer`
+   (`signals/analyzer.py`) on every investigation and writes `signal.*` annotations on
+   graph entities, which reach the context.
+2. **Pushed** — the standalone PatchTST / temporal-evidence-engine pipeline POSTs a
+   `SignalAlert` to `/api/v1/webhook/signal`. It was verified live once (2026-09-26,
+   § *What "ready" means* below): the push lands and its labels scope the session.
+
+### What path 1 does in every offline test (read from the code, 2026-10-12)
+
+- The harness enables Prometheus but stubs `PrometheusMetricSource._range_query` to
+  return nothing. `SignalAnalyzer` then **falls back to synthetic series per pod**
+  (`signals/analyzer.py`, `_synthetic_pod_segments`).
+- A synthetic series is generated **from the pod's own current state**: for example,
+  `restart_count` becomes a fabricated history with a spike. PatchTST then "detects" an
+  anomaly in a series built to contain one, and the `signal.*` annotation enters the
+  prompt as if it were independent evidence. It is the restart count, said twice.
+- Its seed is `hash(pod.uid) & 0xFFFF`. Python randomizes `str` hashes per process
+  (`PYTHONHASHSEED`), so **the synthetic series, and possibly the anomaly flags, can
+  differ between runs**. *To verify with a test before relying on it.*
+- Cost: it trains one small model per watched entity, 20–45 s per h016 run and about
+  4 min for the h016 module.
+
+So in tests PatchTST adds circular evidence, a possible source of non-determinism, and
+most of the runtime. No case has a PatchTST anomaly as its cause or its earliest signal.
+
 ## What "ready" means, concretely
 
 Verified live 2026-09-26 against the running `rancher-desktop` cluster (both

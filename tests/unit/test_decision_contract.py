@@ -81,3 +81,59 @@ def test_incident_report_schema():
     assert d["rollback_plan"]["available"] is True
     assert d["blast_radius"]["risk"] in ("LOW", "MEDIUM", "HIGH", "CRITICAL")
     assert d["decision"]["verdict"] in ("AUTO", "HUMAN_REVIEW", "NO_GO")
+
+
+# ── Fail closed: unknown namespace, nothing to apply (docs/test-cases.md § h022) ──
+def test_unknown_namespace_is_human_review_minimum():
+    d = Decision.evaluate(score=0.95, risk="LOW", rollback_available=True,
+                          namespace="", mc_win_rate=1.0)
+    assert d.verdict == "HUMAN_REVIEW"
+    assert any("namespace unknown" in r for r in d.reasons)
+
+
+def test_default_namespace_is_not_unknown():
+    d = Decision.evaluate(score=0.95, risk="LOW", rollback_available=True,
+                          namespace="default", mc_win_rate=1.0)
+    assert d.verdict == "AUTO"
+
+
+def test_no_remediation_command_is_never_auto():
+    d = Decision.evaluate(score=0.95, risk="LOW", rollback_available=True,
+                          namespace="staging", mc_win_rate=1.0, command_count=0)
+    assert d.verdict == "HUMAN_REVIEW"
+    assert any("no remediation command" in r for r in d.reasons)
+
+
+def test_unknown_command_count_is_not_checked():
+    d = Decision.evaluate(score=0.95, risk="LOW", rollback_available=True,
+                          namespace="staging", mc_win_rate=1.0, command_count=None)
+    assert d.verdict == "AUTO"
+
+
+def test_fail_closed_rules_never_produce_no_go():
+    d = Decision.evaluate(score=0.62, risk="LOW", rollback_available=True,
+                          namespace="", command_count=0)
+    assert d.verdict == "HUMAN_REVIEW"
+
+
+def _diagnostic_only_report(affected, seeds=()):
+    pre = SimpleNamespace(score=0.90, label="HIGH", reasons=[])
+    ctx = SimpleNamespace(pre_llm_confidence=pre, events=[], alerts=[], traces=[],
+                          policy_violations=[], anchor_fixes=[],
+                          seed_entities=list(seeds))
+    return SimpleNamespace(query="q", summary="s", root_cause="r", confidence="HIGH",
+                           affected=affected, remediation=[], rollback=[],
+                           causal_chain=[], context=ctx)
+
+
+def test_projection_with_no_command_is_not_auto_and_finds_the_namespace():
+    report = _diagnostic_only_report(["Deployment/production/billing-gateway"])
+    d = IncidentReport.from_rca(report).to_dict()["decision"]
+    assert d["verdict"] == "HUMAN_REVIEW"
+    assert d["namespace"] == "production"
+
+
+def test_projection_namespace_falls_back_to_seed_entities():
+    seed = SimpleNamespace(namespace="payments")
+    report = _diagnostic_only_report(["(none confirmed)"], seeds=[seed])
+    assert IncidentReport.from_rca(report).to_dict()["decision"]["namespace"] == "payments"

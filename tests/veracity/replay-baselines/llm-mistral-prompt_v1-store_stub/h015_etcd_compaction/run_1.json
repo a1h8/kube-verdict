@@ -1,0 +1,26 @@
+{
+  "answerable": true,
+  "case": "h015_etcd_compaction",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.49,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The Helm chart for the inventory-api deployment has a different replica count compared to the current deployment on the cluster. This discrepancy is causing the deployment to not reach the desired state.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:17:10.413101+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 129.95
+}

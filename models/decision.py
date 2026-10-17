@@ -33,6 +33,7 @@ class Decision:
         namespace: str = "",
         mc_win_rate: float = 1.0,
         max_switches_reached: bool = False,
+        command_count: int | None = None,
     ) -> "Decision":
         gate = _gate_evaluate(
             score=score,
@@ -41,6 +42,7 @@ class Decision:
             namespace=namespace,
             mc_win_rate=mc_win_rate,
             max_switches_reached=max_switches_reached,
+            command_count=command_count,
         )
         return cls(
             verdict=gate.verdict.value,

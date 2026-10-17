@@ -334,12 +334,12 @@ class TestStep7RemediationEngine:
 
     def test_pending_unschedulable_commands_contain_kubectl(self, hypotheses):
         h = next(h for h in hypotheses if h.rule_id == "pending_unschedulable")
-        cmds_text = " ".join(h.commands).lower()
+        cmds_text = " ".join(h.commands + [c.command for c in h.checks]).lower()
         assert "kubectl" in cmds_text
 
     def test_pending_unschedulable_commands_reference_namespace(self, hypotheses):
         h = next(h for h in hypotheses if h.rule_id == "pending_unschedulable")
-        cmds_text = " ".join(h.commands)
+        cmds_text = " ".join(h.commands + [c.command for c in h.checks])
         assert "production" in cmds_text, (
             f"Commands don't reference the 'production' namespace: {h.commands}"
         )
@@ -352,12 +352,12 @@ class TestStep7RemediationEngine:
 
     def test_all_hypotheses_have_commands(self, hypotheses):
         for h in hypotheses:
-            assert h.commands, f"Hypothesis {h.rule_id} has no commands"
+            assert h.commands or h.checks, f"Hypothesis {h.rule_id} has no commands or checks"
 
     def test_top_hypothesis_has_kubectl_describe(self, hypotheses):
         """The top hypothesis should suggest kubectl describe for diagnosis."""
         top = hypotheses[0]
-        cmds_text = " ".join(top.commands).lower()
+        cmds_text = " ".join(top.commands + [c.command for c in top.checks]).lower()
         assert "kubectl" in cmds_text, (
             f"Top hypothesis commands don't include kubectl: {top.commands}"
         )

@@ -1,0 +1,32 @@
+{
+  "answerable": null,
+  "case": "h012_gitops_render_vs_live",
+  "confidence": "LOW",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "OOMKilled",
+      "memory"
+    ]
+  ],
+  "matched_keywords": [
+    "OOMKilled",
+    "memory"
+  ],
+  "model": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "Container OOMKilled \u2014 memory limit too low. The container exceeded its memory limit and was killed by the OOM killer. Increase limits.memory or reduce the application's memory footprint. (Pod/production/api-6d8f9b7c4-xvk2p)",
+  "rule_id": "oom_kill",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-10-14T04:56:49.303679+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.01
+}

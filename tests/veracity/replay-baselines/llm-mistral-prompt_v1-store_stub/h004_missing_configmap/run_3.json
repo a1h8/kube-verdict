@@ -1,0 +1,30 @@
+{
+  "answerable": true,
+  "case": "h004_missing_configmap",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "configmap"
+    ]
+  ],
+  "matched_keywords": [
+    "configmap"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause is the absence of the ConfigMap and Secret in the production namespace. This could be due to a manual error during deployment or a script failure that did not create or apply these resources.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:10:25.870277+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 75.14
+}

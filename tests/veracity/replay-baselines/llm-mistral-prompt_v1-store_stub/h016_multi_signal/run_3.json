@@ -1,0 +1,26 @@
+{
+  "answerable": true,
+  "case": "h016_multi_signal",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.59,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The Helm release for orders-api in the production namespace has drifted from its original declaration, causing the deployment to have different configurations than intended. Specifically, the replica count in the Helm chart values is different from the actual number of pods running.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:24:24.478583+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 84.52
+}

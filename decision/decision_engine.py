@@ -38,6 +38,7 @@ class DecisionEngine:
         namespace: str = "",
         mc_win_rate: float = 1.0,
         max_switches_reached: bool = False,
+        command_count: int | None = None,
     ) -> DecisionResult:
         """Classify a remediation given the report and its safety context.
 
@@ -53,6 +54,7 @@ class DecisionEngine:
             namespace=namespace,
             mc_win_rate=mc_win_rate,
             max_switches_reached=max_switches_reached,
+            command_count=command_count,
         )
         return DecisionResult(
             verdict=gate.verdict,

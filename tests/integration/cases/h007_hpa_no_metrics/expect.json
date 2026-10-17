@@ -1,5 +1,6 @@
 {
   "scenario": "HPA cannot scale — metrics-server not returning pod metrics",
+  "query": "api-service does not scale up under load in production",
   "namespace": "production",
   "release": "api-service",
   "affected_resources": ["Deployment/production/api-service"],

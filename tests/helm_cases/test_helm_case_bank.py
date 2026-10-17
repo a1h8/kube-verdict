@@ -32,6 +32,12 @@ if not CASE_DIRS:
 _RANK = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
 
 
+def _skip_without_drift(case) -> None:
+    """A symptom is not a drift (docs/evidence-score.md § Prerequisite 2, corrected)."""
+    if not case["expect"].get("drift_expected", True):
+        pytest.skip(f"{case['case_name']}: no configuration drift by design")
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -75,16 +81,25 @@ class TestHelmGraphBuilds:
 
     @pytest.mark.parametrize("case_dir", CASE_DIRS, ids=CASE_IDS)
     def test_drift_detected(self, case_dir):
-        """At least one entity must carry a drift annotation."""
+        """A case has a drift annotation exactly when it declares one.
+
+        ``"drift_expected": false`` is a negative control: runtime status must stay
+        ``health.*`` and never come back as ``drift.*``.
+        """
         case  = load_helm_case(case_dir)
         graph = build_helm_graph(case)
         has_drift = any(
             any(k.startswith("drift.") for k in e.annotations)
             for e in graph.entities()
         )
-        assert has_drift, (
-            f"{case_dir.name}: no drift detected — check values.yaml vs observed/ files"
-        )
+        if case["expect"].get("drift_expected", True):
+            assert has_drift, (
+                f"{case_dir.name}: no drift detected — check values.yaml vs observed/ files"
+            )
+        else:
+            assert not has_drift, (
+                f"{case_dir.name}: drift.* found on a case with no configuration drift"
+            )
 
     @pytest.mark.parametrize("case_dir", CASE_DIRS, ids=CASE_IDS)
     def test_managed_by_helm_edges(self, case_dir):
@@ -124,6 +139,7 @@ class TestHelmContextWindow:
     def test_drift_appears_in_context(self, case_dir):
         """Drift items produced by HelmDriftDetector must reach the context window."""
         case  = load_helm_case(case_dir)
+        _skip_without_drift(case)
         graph = build_helm_graph(case)
         store = FAISSStore(embedder=Embedder())
         store.index_graph(graph)

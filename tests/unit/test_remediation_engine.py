@@ -83,9 +83,9 @@ class TestOOMKillRule:
         total_boost = sum(b for _, b in boosts)
         assert total_boost >= 0.05
 
-    def test_commands_include_describe(self):
+    def test_checks_include_describe(self):
         pod = _oom_pod()
-        cmds = _OOMKillRule().commands(pod, _graph(pod))
+        cmds = [c.command for c in _OOMKillRule().checks(pod, _graph(pod))]
         assert any("describe pod" in c for c in cmds)
 
 
@@ -113,9 +113,9 @@ class TestCrashLoopDBRule:
         boosts = _CrashLoopDBRule().evidence_boosts(pod, _graph(pod))
         assert any(b >= 0.05 for _, b in boosts)
 
-    def test_commands_include_logs(self):
+    def test_checks_include_logs(self):
         pod = _crashloop_pod()
-        cmds = _CrashLoopDBRule().commands(pod, _graph(pod))
+        cmds = [c.command for c in _CrashLoopDBRule().checks(pod, _graph(pod))]
         assert any("logs" in c for c in cmds)
 
 
@@ -311,11 +311,11 @@ class TestRemediationEngine:
         results = RemediationEngine(rules=[_OOMKillRule()]).score(g)
         assert all(h.rule_id == "oom_kill" for h in results)
 
-    def test_hypothesis_has_commands(self):
+    def test_hypothesis_has_checks(self):
         pod = _oom_pod()
         results = RemediationEngine().score(_graph(pod))
         oom = next(h for h in results if h.rule_id == "oom_kill")
-        assert len(oom.commands) > 0
+        assert len(oom.checks) > 0
 
     def test_affected_is_fqn(self):
         pod = _oom_pod(name="worker", ns="prod")
@@ -357,9 +357,9 @@ class TestOOMKillRuleExtended:
         total = sum(b for _, b in boosts)
         assert total >= 0.10  # drift(0.07) + signal(0.03) + event(0.02)
 
-    def test_commands_include_top_pod(self):
+    def test_checks_include_top_pod(self):
         pod = _oom_pod()
-        cmds = _OOMKillRule().commands(pod, _graph(pod))
+        cmds = [c.command for c in _OOMKillRule().checks(pod, _graph(pod))]
         assert any("top pod" in c for c in cmds)
 
     def test_commands_include_patch_when_owner(self):
@@ -421,9 +421,9 @@ class TestCrashLoopDBRuleExtended:
         vals = [b for _, b in boosts]
         assert any(b >= 0.05 for b in vals)
 
-    def test_commands_include_get_endpoints(self):
+    def test_checks_include_get_endpoints(self):
         pod = _crashloop_pod()
-        cmds = _CrashLoopDBRule().commands(pod, _graph(pod))
+        cmds = [c.command for c in _CrashLoopDBRule().checks(pod, _graph(pod))]
         assert any("endpoints" in c for c in cmds)
 
 
@@ -527,14 +527,14 @@ class TestPendingSchedulingRuleExtended:
         boost_vals = [b for _, b in boosts if b == 0.08]
         assert len(boost_vals) == 1
 
-    def test_commands_include_show_labels(self):
+    def test_checks_include_show_labels(self):
         pod = Pod(uid="p1", name="gpu-0", phase="Pending")
-        cmds = _PendingSchedulingRule().commands(pod, _graph(pod))
+        cmds = [c.command for c in _PendingSchedulingRule().checks(pod, _graph(pod))]
         assert any("show-labels" in c for c in cmds)
 
-    def test_commands_include_taints_check(self):
+    def test_checks_include_taints_check(self):
         pod = Pod(uid="p1", name="gpu-0", phase="Pending")
-        cmds = _PendingSchedulingRule().commands(pod, _graph(pod))
+        cmds = [c.command for c in _PendingSchedulingRule().checks(pod, _graph(pod))]
         assert any("Taints" in c or "taints" in c.lower() for c in cmds)
 
 
@@ -571,16 +571,16 @@ class TestHelmDriftRuleExtended:
         b3 = sum(b for _, b in _HelmDriftRule().evidence_boosts(pod_three, _graph(pod_three)))
         assert b3 > b1
 
-    def test_commands_include_helm_diff(self):
+    def test_checks_include_helm_diff(self):
         pod = Pod(uid="p1", name="analytics-worker")
         pod.annotations["drift.resources.limits.memory"] = "x"
-        cmds = _HelmDriftRule().commands(pod, _graph(pod))
+        cmds = [c.command for c in _HelmDriftRule().checks(pod, _graph(pod))]
         assert any("helm diff" in c for c in cmds)
 
-    def test_commands_include_kubectl_get(self):
+    def test_checks_include_kubectl_get(self):
         pod = Pod(uid="p1", name="api-worker")
         pod.annotations["drift.image"] = "x"
-        cmds = _HelmDriftRule().commands(pod, _graph(pod))
+        cmds = [c.command for c in _HelmDriftRule().checks(pod, _graph(pod))]
         assert any("kubectl get" in c for c in cmds)
 
 
@@ -611,9 +611,9 @@ class TestDegradedDeploymentRuleExtended:
         boosts = _DegradedDeploymentRule().evidence_boosts(dep, _graph(dep))
         assert not any(b >= 0.05 for _, b in boosts)
 
-    def test_commands_include_rollout_status(self):
+    def test_checks_include_rollout_status(self):
         dep = Deployment(uid="d1", name="api", replicas=2, ready_replicas=0)
-        cmds = _DegradedDeploymentRule().commands(dep, _graph(dep))
+        cmds = [c.command for c in _DegradedDeploymentRule().checks(dep, _graph(dep))]
         assert any("rollout status" in c for c in cmds)
 
     def test_hypothesis_evidence_field_set(self):
@@ -744,11 +744,11 @@ class TestRuleBaseDefaults:
 
 
 class TestCrashLoopDBCommandsWithAnnotation:
-    def test_commands_include_db_service_when_env_db_host_set(self):
+    def test_checks_include_db_service_when_env_db_host_set(self):
         pod = _crashloop_pod(restarts=8)
         pod.annotations["env.DB_HOST"] = "postgres.db-ns.svc.cluster.local"
         g = _graph(pod)
-        cmds = _CrashLoopDBRule().commands(pod, g)
+        cmds = [c.command for c in _CrashLoopDBRule().checks(pod, g)]
         assert any("postgres" in c for c in cmds)
         assert any("get pods" in c for c in cmds)
 

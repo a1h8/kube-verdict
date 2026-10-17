@@ -40,11 +40,13 @@ class _ChartAnchorChunk:
     def __init__(
         self, uid: str, name: str, chart: str, version: str,
         resource_kind: str, resource_name: str, fields: str,
+        origin: str = "enterprise",
     ) -> None:
         self.uid       = uid
         self.name      = name
         self.namespace = "enterprise-charts"
         self.kind      = "EnterpriseChart"   # plain string — to_text() handles it
+        self.origin    = origin
         self._chart    = chart
         self._version  = version
         self._rkind    = resource_kind
@@ -54,7 +56,7 @@ class _ChartAnchorChunk:
     def to_text(self) -> str:
         return (
             f"kind=EnterpriseChart chart={self._chart} version={self._version} "
-            f"resource={self._rkind}/{self._rname} {self._fields}"
+            f"origin={self.origin} resource={self._rkind}/{self._rname} {self._fields}"
         ).strip()
 
 
@@ -187,8 +189,10 @@ class ChartIndexer:
                 chart=chart.name, version=chart.version,
                 resource_kind=rkind, resource_name=rname,
                 fields=_summarize_fields(res),
+                origin=chart.origin,
             )
-            self._store.add_entity(entity)
+            # the configured per-source weight applies: enterprise > public defaults
+            self._store.add_entity(entity, doc_source=chart.origin)
             n += 1
         log.info("chart_indexer: %s → %d resource anchors", chart.id, n)
         return n

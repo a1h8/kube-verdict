@@ -11,6 +11,7 @@ import telemetry
 from llm.ollama_client import OllamaClient
 from ontology.graph import OntologyGraph
 from rca.context_builder import ContextBuilder, ContextWindow
+from rca.diagnostics import Diagnostic, is_read_only, split_diagnostics  # noqa: F401 — re-exported
 from vectorstore.store import FAISSStore
 
 log = logging.getLogger(__name__)
@@ -78,8 +79,8 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
 
     ### 5. Remediation
     Commands that directly FIX the root cause (kubectl apply, kubectl rollout restart,
-    helm upgrade…). Do NOT list diagnostic commands such as kubectl describe,
-    kubectl logs, or kubectl get — those are investigation, not remediation.
+    helm upgrade…). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)
+    go in section 7, not here.
 
     ### 6. Confidence
     Choose LOW | MEDIUM | HIGH using this rule:
@@ -88,11 +89,23 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
     - If one causal link is inferred rather than observed, answer MEDIUM.
     - If context is sparse or contradictory, answer LOW.
     Start your answer with exactly one word: HIGH, MEDIUM, or LOW.
+
+    ### 7. Checks
+    Up to 5 read-only commands that would confirm or rule out the root cause above,
+    one per line:
+    - <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>
+    Read-only only (kubectl get / describe / logs / top, helm status / get / diff).
+    Never print Secret values (no kubectl get secret -o yaml or -o json).
 """)
 
 # ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
+
+# Version of the analyze prompt above. Recorded by the veracity replay so runs made
+# with different prompts are never compared as one (docs/diagnostics.md § Step 2).
+PROMPT_VERSION = "v2"   # v2: section 7 "Checks" (docs/diagnostics.md § Step 2)
+
 
 def _generate_rollback(remediation: list[str]) -> list[str]:
     """Generate best-effort inverse commands for each remediation command."""
@@ -137,6 +150,7 @@ class RCAReport:
     root_cause: str = ""
     causal_chain: list[str] = field(default_factory=list)
     remediation: list[str] = field(default_factory=list)
+    diagnostics: list[Diagnostic] = field(default_factory=list)   # read-only checks, never gated
     confidence: str = ""
     rollback: list[str] = field(default_factory=list)
 
@@ -172,6 +186,7 @@ class RCAReport:
             "root_cause": self.root_cause,
             "causal_chain": self.causal_chain,
             "remediation": self.remediation,
+            "diagnostics": [d.to_dict() for d in self.diagnostics],
             "rollback": self.rollback,
             "confidence": self.confidence,
             "context_stats": {
@@ -329,7 +344,8 @@ def _parse_analysis(report: RCAReport) -> None:
 
     report.summary = _extract_section(text, "1. Summary", "2. Affected")
     report.root_cause = _extract_section(text, "3. Root cause", "4. Causal")
-    report.confidence = _extract_section(text, "6. Confidence", None)
+    has_checks = re.search(r"7\. Checks", text, re.IGNORECASE) is not None
+    report.confidence = _extract_section(text, "6. Confidence", "7. Checks" if has_checks else None)
 
     affected_block = _extract_section(text, "2. Affected resources", "3. Root")
     report.affected = _extract_bullets(affected_block)
@@ -338,7 +354,48 @@ def _parse_analysis(report: RCAReport) -> None:
     report.causal_chain = _extract_bullets(chain_block)
 
     remed_block = _extract_section(text, "5. Remediation", "6. Confidence")
-    report.remediation = _extract_bullets(remed_block)
+    report.remediation, checks = split_diagnostics(_extract_bullets(remed_block))
+    # Read-only lines the LLM put under Remediation: no hypothesis or expected
+    # output yet — step 2 of docs/diagnostics.md gives the LLM its own section.
+    recovered = [Diagnostic.from_llm_line(line) for line in checks]
+    proposed = _parse_checks(_extract_section(text, "7. Checks", None)) if has_checks else []
+    seen = {d.command for d in proposed}
+    report.diagnostics = proposed + [d for d in recovered if d.command not in seen]
+
+
+_MAX_LLM_CHECKS = 5
+_SECRET_READ = re.compile(
+    r"\bget\s+secrets?\b.*(-o|--output)[ =]?(yaml|json|jsonpath|go-template)", re.IGNORECASE)
+
+
+def _parse_checks(block: str) -> list[Diagnostic]:
+    """Section 7: ``- <command> | verifies: … | confirms if: … | refutes if: …``.
+
+    Only read-only commands are kept (an action can never enter through here),
+    never one that prints Secret data, at most five, deduplicated on the command.
+    """
+    out: list[Diagnostic] = []
+    for raw in block.splitlines():
+        line = raw.strip()
+        if not line.startswith(("-", "*", "•")):
+            continue
+        command, *fields = [part.strip() for part in line.lstrip("-*• ").split(" | ")]
+        command = command.strip("`")
+        if not is_read_only(command) or _SECRET_READ.search(command):
+            log.info("section 7: dropped non read-only or Secret-reading check: %s", command)
+            continue
+        if any(d.command == command for d in out):
+            continue
+        parsed = {"verifies": "", "confirms if": "", "refutes if": ""}
+        for field_text in fields:
+            key, _, value = field_text.partition(":")
+            if key.strip().lower() in parsed:
+                parsed[key.strip().lower()] = value.strip()
+        out.append(Diagnostic(command=command, source="llm", purpose=parsed["verifies"],
+                              confirms_if=parsed["confirms if"], refutes_if=parsed["refutes if"]))
+        if len(out) == _MAX_LLM_CHECKS:
+            break
+    return out
 
 
 def _extract_section(text: str, start_marker: str, end_marker: str | None) -> str:
@@ -414,25 +471,42 @@ def _apply_rule_fallback(report: RCAReport, graph: OntologyGraph) -> RCAReport:
             report.affected.append(h.affected)
             existing_affected.add(h.affected)
 
-    # ── Remediation: one header + commands per hypothesis ────────────────────
+    # ── Remediation: one header + actions per hypothesis ──────────────────────
+    # ── Diagnostics: the rule's structured checks (docs/diagnostics.md) ───────
     existing_cmds: set[str] = set(report.remediation)
     extra: list[str] = []
+    seen_checks = {(d.command, d.affected) for d in report.diagnostics}
+    diagnostics: list[Diagnostic] = []
+
+    def _add_diagnostic(d: Diagnostic) -> None:
+        if (d.command, d.affected) not in seen_checks:
+            seen_checks.add((d.command, d.affected))
+            diagnostics.append(d)
 
     for h in hypotheses:
-        header = f"[rule:{h.rule_id} w={h.weight:.2f}] {h.symptom} ({h.affected})"
-        if header not in existing_cmds:
-            extra.append(header)
-            existing_cmds.add(header)
-        for cmd in h.commands:
-            if cmd not in existing_cmds:
-                extra.append(cmd)
-                existing_cmds.add(cmd)
+        # safety net: a read-only line left in commands() is still not an action
+        actions, leftovers = split_diagnostics(list(h.commands))
+        if [a for a in actions if not a.strip().startswith("#")]:
+            header = f"[rule:{h.rule_id} w={h.weight:.2f}] {h.symptom} ({h.affected})"
+            for line in (header, *actions):
+                if line not in existing_cmds:
+                    extra.append(line)
+                    existing_cmds.add(line)
+        for check in h.checks:
+            _add_diagnostic(Diagnostic.from_check(check, hypothesis=h.rule_id, affected=h.affected))
+        for line in leftovers:
+            if not line.strip().startswith("#"):
+                _add_diagnostic(Diagnostic(command=line, source="rule",
+                                           hypothesis=h.rule_id, affected=h.affected))
 
     if extra:
         report.remediation = report.remediation + extra
+    if diagnostics:
+        report.diagnostics = report.diagnostics + diagnostics
+    if extra or diagnostics:
         log.info(
-            "rule fallback: added %d item(s) from %d hypothesis(es)",
-            len(extra), len(hypotheses),
+            "rule fallback: added %d action line(s) and %d diagnostic(s) from %d hypothesis(es)",
+            len(extra), len(diagnostics), len(hypotheses),
         )
 
     report.confidence = (

@@ -1,0 +1,30 @@
+{
+  "answerable": true,
+  "case": "h010_resource_quota_exceeded",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "resource"
+    ]
+  ],
+  "matched_keywords": [
+    "resource"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.62,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The worker-service pod is requesting more CPU resources than what is available in the staging namespace, causing it to be unable to schedule on any node.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T03:42:41.959031+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 331.61
+}

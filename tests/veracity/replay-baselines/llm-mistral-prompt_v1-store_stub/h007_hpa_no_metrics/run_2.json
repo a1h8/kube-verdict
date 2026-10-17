@@ -1,0 +1,32 @@
+{
+  "answerable": true,
+  "case": "h007_hpa_no_metrics",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "metrics",
+      "cpu"
+    ]
+  ],
+  "matched_keywords": [
+    "metrics",
+    "cpu"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is the lack of CPU metrics returned from the resource metrics API, preventing the HorizontalPodAutoscaler from scaling the api-service deployment based on CPU usage.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:33:50.956648+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 227.12
+}

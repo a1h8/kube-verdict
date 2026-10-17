@@ -1,0 +1,26 @@
+{
+  "answerable": true,
+  "case": "h014_cert_expiry",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.49,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The Helm chart for the billing-gateway deployment in the production namespace has drifted from the current cluster state, causing the deployment to be in an unready state. This drift is evident in the differences between the declared and actual values for various container settings and pod specifications.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:14:50.974127+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 105.51
+}

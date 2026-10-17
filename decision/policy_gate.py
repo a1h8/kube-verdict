@@ -60,6 +60,7 @@ def evaluate(
     namespace:            str   = "",
     mc_win_rate:          float = 1.0,
     max_switches_reached: bool  = False,
+    command_count:        int | None = None,
 ) -> GateResult:
     """
     Classify the proposed remediation and return a GateResult.
@@ -72,6 +73,8 @@ def evaluate(
     namespace           target Kubernetes namespace (prod detection)
     mc_win_rate         Monte Carlo win_rate from run_monte_carlo() (0–1)
     max_switches_reached True when beam search exhausted all hypothesis paths
+    command_count       number of remediation commands; 0 is never AUTO
+                        (nothing to apply). None = unknown, not checked.
     """
     # ── Hard NO_GO conditions (any one is sufficient) ─────────────────────────
     no_go_reasons: list[str] = []
@@ -92,8 +95,14 @@ def evaluate(
         not_auto.append(f"score {score:.2f} < {AUTO_SCORE_MIN} AUTO threshold")
     if risk != "LOW":
         not_auto.append(f"blast radius {risk} — need LOW for AUTO")
-    if _is_prod(namespace):
+    if not (namespace or "").strip():
+        # "" is not "default": a command without -n runs in the kubectl context's
+        # namespace, so it is unknown — treated as production (fail closed).
+        not_auto.append("namespace unknown — treated as production, HUMAN_REVIEW minimum")
+    elif _is_prod(namespace):
         not_auto.append(f"namespace '{namespace}' is production — always HUMAN_REVIEW minimum")
+    if command_count == 0:
+        not_auto.append("no remediation command to apply — never AUTO")
     if mc_win_rate < AUTO_WIN_RATE_MIN:
         not_auto.append(
             f"MC win_rate {mc_win_rate:.0%} < {AUTO_WIN_RATE_MIN:.0%} stability threshold"

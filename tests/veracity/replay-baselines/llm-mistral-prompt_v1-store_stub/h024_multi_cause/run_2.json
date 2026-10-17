@@ -1,0 +1,33 @@
+{
+  "answerable": true,
+  "case": "h024_multi_cause",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [],
+    [
+      "memory",
+      "limit"
+    ]
+  ],
+  "matched_keywords": [
+    "memory",
+    "limit"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.65,
+  "prompt": "v1",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "The root cause is Helm drift affecting the Deployment/production/api. The deployed resources have memory limits and requests that differ from the declared values in the values.yaml file.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:33:56.931206+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 63.33
+}

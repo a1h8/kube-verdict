@@ -1,5 +1,6 @@
 {
   "scenario": "GitOps render-vs-live drift — `helm template` expected state (replicas=3, memory=512Mi) vs observed cluster (replicas=1, memory=128Mi, OOMKilled)",
+  "query": "api pods keep crashing in production after the last deploy",
   "namespace": "production",
   "release": "api",
   "path": "render-vs-live",

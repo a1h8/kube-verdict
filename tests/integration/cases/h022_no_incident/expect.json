@@ -1,0 +1,15 @@
+{
+  "scenario": "No incident — every ledger pod Ready, one resolved restart 3 h ago",
+  "query": "is something wrong with ledger in production",
+  "namespace": "production",
+  "release": "ledger",
+  "affected_resources": [],
+  "expected_outcome": "no_incident",
+  "expected_verdict": "HUMAN_REVIEW",
+  "root_cause_contains": [],
+  "root_cause_must_not_contain": ["crash", "oom", "image", "probe"],
+  "confidence": "LOW",
+  "confidence_score_min": 0.0,
+  "fallback_expected": true,
+  "notes": "Tier C, family negative (docs/scenarios-v2.md). Nothing is broken: the Deployment is 3/3, every pod is Running and Ready, values equal the release, no alert, log or trace. The only thing that looks like a problem is one BackOff warning event from 3 h ago (one restart, since resolved) — the decoy. The right answer is a LOW label with no specific cause named, and a HUMAN_REVIEW verdict (decided 2026-10-12): nothing to approve, nothing to block."
+}

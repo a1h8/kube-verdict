@@ -1,0 +1,26 @@
+{
+  "answerable": null,
+  "case": "h022_no_incident",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "forbidden_matched": [
+    "image"
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v1",
+  "reason": "no_incident: confidence MEDIUM, LOW expected",
+  "root_cause": "The root cause is the image pull policy for the 'ledger' container being set to 'IfNotPresent'. This policy skips the pull if the image is cached. If a new version of the image is deployed, the container will not pull the updated image unless it is deleted and recreated.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:27:22.517459+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 168.88
+}

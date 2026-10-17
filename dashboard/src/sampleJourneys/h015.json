@@ -11,21 +11,21 @@
     "namespace 'production' is production — always HUMAN_REVIEW minimum",
     "MC win_rate 0% < 80% stability threshold"
   ],
-  "current_hypothesis": "Helm chart drift from declared: Deployment/inventory-api → HelmRelease/inventory-api",
+  "current_hypothesis": "etcd compaction latency makes Range calls exceed the readiness timeout",
   "candidate_paths": [
-    "Deployment degraded — fewer replicas ready than desired affecting Deployment/production/inventory-api"
+    "inventory-api readiness probe misconfigured"
   ],
   "reasoning_history": [
     {
       "step": 1,
-      "hypothesis": "Helm drift — cluster state diverged from chart declaration affecting Deployment/production/inventory-api",
+      "hypothesis": "Deployment degraded — fewer replicas ready than desired affecting Deployment/production/inventory-api",
       "confidence": "LOW",
       "summary": "The evidence for this hypothesis is inconclusive.",
       "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n",
       "report_dict": {
-        "query": "HYPOTHESIS TO INVESTIGATE:\nHelm drift — cluster state diverged from chart declaration affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
+        "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
         "kube_version": "unknown",
-        "timestamp": "2026-10-09T03:05:47.126599+00:00",
+        "timestamp": "2026-10-14T05:01:57.143028+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)",
@@ -36,30 +36,63 @@
           "No corroborating signal found.",
           "Hypothesis not confirmed."
         ],
-        "remediation": [
-          "kubectl get events -n production",
-          "[rule:helm_drift w=0.95] Helm drift — cluster state diverged from chart declaration (Deployment/production/inventory-api)",
-          "# Drift details:",
-          "kubectl get deployment inventory-api -n production -o jsonpath='{.spec}'",
-          "# Restore declared state:",
-          "helm upgrade inventory-api demo/charts/inventory-api -n production",
-          "# Or diff first:",
-          "helm diff upgrade inventory-api demo/charts/inventory-api -n production",
-          "[rule:degraded_deployment w=0.77] Deployment degraded — fewer replicas ready than desired (Deployment/production/inventory-api)",
-          "kubectl describe deployment inventory-api -n production",
-          "kubectl rollout status deployment/inventory-api -n production",
-          "kubectl get pods -n production -l app=inventory-api",
-          "kubectl logs -l app=inventory-api -n production --tail=50 --prefix"
+        "remediation": [],
+        "diagnostics": [
+          {
+            "command": "kubectl get events -n production",
+            "source": "llm",
+            "hypothesis": "",
+            "affected": "",
+            "purpose": "",
+            "confirms_if": "",
+            "refutes_if": ""
+          },
+          {
+            "command": "kubectl describe deployment inventory-api -n production",
+            "source": "rule",
+            "hypothesis": "degraded_deployment",
+            "affected": "Deployment/production/inventory-api",
+            "purpose": "Shows desired vs ready replicas and the controller's conditions.",
+            "confirms_if": "Available=False or Progressing=False with a reason.",
+            "refutes_if": ""
+          },
+          {
+            "command": "kubectl rollout status deployment/inventory-api -n production",
+            "source": "rule",
+            "hypothesis": "degraded_deployment",
+            "affected": "Deployment/production/inventory-api",
+            "purpose": "Shows whether a rollout is stuck.",
+            "confirms_if": "The rollout waits on new replicas that never become ready.",
+            "refutes_if": "The rollout completed: the pods failed afterwards."
+          },
+          {
+            "command": "kubectl get pods -n production -l app=inventory-api",
+            "source": "rule",
+            "hypothesis": "degraded_deployment",
+            "affected": "Deployment/production/inventory-api",
+            "purpose": "Lists the pods behind it and their states.",
+            "confirms_if": "The not-ready pods share one state (CrashLoopBackOff, Pending, ImagePullBackOff): follow that pod's own hypothesis.",
+            "refutes_if": ""
+          },
+          {
+            "command": "kubectl logs -l app=inventory-api -n production --tail=50 --prefix",
+            "source": "rule",
+            "hypothesis": "degraded_deployment",
+            "affected": "Deployment/production/inventory-api",
+            "purpose": "Shows the recent logs of every pod behind it.",
+            "confirms_if": "The same error line on every not-ready pod.",
+            "refutes_if": ""
+          }
         ],
         "rollback": [],
-        "confidence": "LOW (rule-assisted — top: helm_drift w=0.95, 2 hypothesis(es))",
+        "confidence": "LOW (rule-assisted — top: degraded_deployment w=0.77, 1 hypothesis(es))",
         "context_stats": {
           "seeds": 4,
-          "drift": 1,
+          "drift": 0,
           "events": 2,
           "helm": 1,
           "related": 0,
-          "total": 27,
+          "total": 26,
           "anchors": [
             "Deployment/production/inventory-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
             "Deployment/production/inventory-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -98,7 +131,7 @@
         ],
         "policy_violations": [],
         "pre_llm_confidence": {
-          "score": 0.54,
+          "score": 0.47,
           "label": "MEDIUM",
           "reasons": [
             "BFS depth 4/5 → 0.20",
@@ -106,33 +139,27 @@
             "TF-IDF features 0/20 → 0.00",
             "Anchors matched 14 → 0.15",
             "Critical signals 4 → 0.12",
-            "Helm drift items 1 → 0.07"
+            "Helm drift items 0 → 0.00"
           ]
         },
         "blast_radius": {
           "risk": "LOW",
-          "summary": "2 resource(s) — ns: production",
-          "resources": [
-            "(none confirmed)",
-            "Deployment/production/inventory-api"
-          ],
-          "namespaces": [
-            "production"
-          ],
+          "summary": "No remediation commands.",
+          "resources": [],
+          "namespaces": [],
           "cluster_scoped": false,
-          "command_count": 13,
-          "rollback_available": false,
+          "command_count": 0,
+          "rollback_available": true,
           "method": "command-heuristic"
         },
         "decision": {
           "verdict": "NO_GO",
           "reasons": [
-            "score 0.54 < 0.6 minimum",
-            "rollback_available=False — no safe recovery path"
+            "score 0.47 < 0.6 minimum"
           ],
-          "score": 0.54,
+          "score": 0.47,
           "risk": "LOW",
-          "rollback_available": false,
+          "rollback_available": true,
           "namespace": "production",
           "mc_win_rate": 1.0
         },
@@ -142,16 +169,6 @@
     }
   ],
   "hypothesis_sources": [
-    {
-      "rule_id": "helm_drift",
-      "symptom": "Helm drift — cluster state diverged from chart declaration",
-      "affected": "Deployment/production/inventory-api",
-      "weight": 0.95,
-      "evidence": [
-        "1 drift field(s)",
-        "entity is unhealthy + drift"
-      ]
-    },
     {
       "rule_id": "degraded_deployment",
       "symptom": "Deployment degraded — fewer replicas ready than desired",
@@ -182,7 +199,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-09T03:05:47.123927+00:00"
+      "ts": "2026-10-14T05:01:57.134504+00:00"
     },
     {
       "router": "confidence",
@@ -201,7 +218,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-09T03:05:47.129277+00:00"
+      "ts": "2026-10-14T05:01:57.145795+00:00"
     },
     {
       "router": "confidence",
@@ -219,7 +236,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-09T03:05:47.133528+00:00"
+      "ts": "2026-10-14T05:01:57.154983+00:00"
     },
     {
       "router": "policy",
@@ -234,7 +251,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-09T03:05:47.138282+00:00"
+      "ts": "2026-10-14T05:01:57.163839+00:00"
     },
     {
       "router": "human",
@@ -246,7 +263,7 @@
         "remediation_count": 1,
         "dry_run_failures": 0
       },
-      "ts": "2026-10-09T03:05:47.141442+00:00"
+      "ts": "2026-10-14T05:01:57.168683+00:00"
     }
   ],
   "ingestion_stats": {
@@ -287,9 +304,9 @@
   },
   "drift_evidence": [],
   "report": {
-    "query": "HYPOTHESIS TO INVESTIGATE:\nHelm chart drift from declared: Deployment/inventory-api → HelmRelease/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
+    "query": "HYPOTHESIS TO INVESTIGATE:\netcd compaction latency makes Range calls exceed the readiness timeout\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-09T03:05:47.131856+00:00",
+    "timestamp": "2026-10-14T05:01:57.152653+00:00",
     "summary": "inventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.",
     "affected": [
       "Pod/production/inventory-api-7f9c8d6b5-x2qwe — Running, not Ready"
@@ -303,17 +320,18 @@
     "remediation": [
       "helm upgrade inventory-api ./chart -n production --set readinessProbe.timeoutSeconds=6"
     ],
+    "diagnostics": [],
     "rollback": [
       "helm rollback inventory-api -n production"
     ],
     "confidence": "HIGH — the error traces show the etcd Range latency directly.",
     "context_stats": {
       "seeds": 4,
-      "drift": 1,
+      "drift": 0,
       "events": 2,
       "helm": 1,
       "related": 0,
-      "total": 27,
+      "total": 26,
       "anchors": [
         "Deployment/production/inventory-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
         "Deployment/production/inventory-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -352,7 +370,7 @@
     ],
     "policy_violations": [],
     "pre_llm_confidence": {
-      "score": 0.49,
+      "score": 0.42,
       "label": "MEDIUM",
       "reasons": [
         "BFS depth 3/5 → 0.15",
@@ -360,7 +378,7 @@
         "TF-IDF features 0/20 → 0.00",
         "Anchors matched 14 → 0.15",
         "Critical signals 4 → 0.12",
-        "Helm drift items 1 → 0.07"
+        "Helm drift items 0 → 0.00"
       ]
     },
     "blast_radius": {
@@ -380,9 +398,9 @@
     "decision": {
       "verdict": "NO_GO",
       "reasons": [
-        "score 0.49 < 0.6 minimum"
+        "score 0.42 < 0.6 minimum"
       ],
-      "score": 0.49,
+      "score": 0.42,
       "risk": "LOW",
       "rollback_available": true,
       "namespace": "production",
@@ -453,7 +471,8 @@
     ],
     "rollback": [
       "helm rollback inventory-api -n production"
-    ]
+    ],
+    "diagnostics": []
   },
   "review_payload": {
     "summary": "inventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.",
@@ -461,20 +480,21 @@
     "remediation": [
       "helm upgrade inventory-api ./chart -n production --set readinessProbe.timeoutSeconds=6"
     ],
+    "diagnostics": [],
     "confidence": "HIGH",
     "kube_version": "unknown",
-    "current_hypothesis": "Helm chart drift from declared: Deployment/inventory-api → HelmRelease/inventory-api",
+    "current_hypothesis": "etcd compaction latency makes Range calls exceed the readiness timeout",
     "reasoning_history": [
       {
         "step": 1,
-        "hypothesis": "Helm drift — cluster state diverged from chart declaration affecting Deployment/production/inventory-api",
+        "hypothesis": "Deployment degraded — fewer replicas ready than desired affecting Deployment/production/inventory-api",
         "confidence": "LOW",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "raw_analysis": "### 1. Summary\nThe evidence for this hypothesis is inconclusive.\n\n### 2. Affected resources\n- (none confirmed)\n\n### 3. Root cause\nNot established — the context does not support this hypothesis.\n\n### 4. Causal chain\n1. No corroborating signal found.\n2. Hypothesis not confirmed.\n\n### 5. Remediation\nkubectl get events -n production\n\n### 6. Confidence\nLOW — the context does not support this hypothesis.\n",
         "report_dict": {
-          "query": "HYPOTHESIS TO INVESTIGATE:\nHelm drift — cluster state diverged from chart declaration affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
+          "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
           "kube_version": "unknown",
-          "timestamp": "2026-10-09T03:05:47.126599+00:00",
+          "timestamp": "2026-10-14T05:01:57.143028+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)",
@@ -485,30 +505,63 @@
             "No corroborating signal found.",
             "Hypothesis not confirmed."
           ],
-          "remediation": [
-            "kubectl get events -n production",
-            "[rule:helm_drift w=0.95] Helm drift — cluster state diverged from chart declaration (Deployment/production/inventory-api)",
-            "# Drift details:",
-            "kubectl get deployment inventory-api -n production -o jsonpath='{.spec}'",
-            "# Restore declared state:",
-            "helm upgrade inventory-api demo/charts/inventory-api -n production",
-            "# Or diff first:",
-            "helm diff upgrade inventory-api demo/charts/inventory-api -n production",
-            "[rule:degraded_deployment w=0.77] Deployment degraded — fewer replicas ready than desired (Deployment/production/inventory-api)",
-            "kubectl describe deployment inventory-api -n production",
-            "kubectl rollout status deployment/inventory-api -n production",
-            "kubectl get pods -n production -l app=inventory-api",
-            "kubectl logs -l app=inventory-api -n production --tail=50 --prefix"
+          "remediation": [],
+          "diagnostics": [
+            {
+              "command": "kubectl get events -n production",
+              "source": "llm",
+              "hypothesis": "",
+              "affected": "",
+              "purpose": "",
+              "confirms_if": "",
+              "refutes_if": ""
+            },
+            {
+              "command": "kubectl describe deployment inventory-api -n production",
+              "source": "rule",
+              "hypothesis": "degraded_deployment",
+              "affected": "Deployment/production/inventory-api",
+              "purpose": "Shows desired vs ready replicas and the controller's conditions.",
+              "confirms_if": "Available=False or Progressing=False with a reason.",
+              "refutes_if": ""
+            },
+            {
+              "command": "kubectl rollout status deployment/inventory-api -n production",
+              "source": "rule",
+              "hypothesis": "degraded_deployment",
+              "affected": "Deployment/production/inventory-api",
+              "purpose": "Shows whether a rollout is stuck.",
+              "confirms_if": "The rollout waits on new replicas that never become ready.",
+              "refutes_if": "The rollout completed: the pods failed afterwards."
+            },
+            {
+              "command": "kubectl get pods -n production -l app=inventory-api",
+              "source": "rule",
+              "hypothesis": "degraded_deployment",
+              "affected": "Deployment/production/inventory-api",
+              "purpose": "Lists the pods behind it and their states.",
+              "confirms_if": "The not-ready pods share one state (CrashLoopBackOff, Pending, ImagePullBackOff): follow that pod's own hypothesis.",
+              "refutes_if": ""
+            },
+            {
+              "command": "kubectl logs -l app=inventory-api -n production --tail=50 --prefix",
+              "source": "rule",
+              "hypothesis": "degraded_deployment",
+              "affected": "Deployment/production/inventory-api",
+              "purpose": "Shows the recent logs of every pod behind it.",
+              "confirms_if": "The same error line on every not-ready pod.",
+              "refutes_if": ""
+            }
           ],
           "rollback": [],
-          "confidence": "LOW (rule-assisted — top: helm_drift w=0.95, 2 hypothesis(es))",
+          "confidence": "LOW (rule-assisted — top: degraded_deployment w=0.77, 1 hypothesis(es))",
           "context_stats": {
             "seeds": 4,
-            "drift": 1,
+            "drift": 0,
             "events": 2,
             "helm": 1,
             "related": 0,
-            "total": 27,
+            "total": 26,
             "anchors": [
               "Deployment/production/inventory-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
               "Deployment/production/inventory-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -547,7 +600,7 @@
           ],
           "policy_violations": [],
           "pre_llm_confidence": {
-            "score": 0.54,
+            "score": 0.47,
             "label": "MEDIUM",
             "reasons": [
               "BFS depth 4/5 → 0.20",
@@ -555,33 +608,27 @@
               "TF-IDF features 0/20 → 0.00",
               "Anchors matched 14 → 0.15",
               "Critical signals 4 → 0.12",
-              "Helm drift items 1 → 0.07"
+              "Helm drift items 0 → 0.00"
             ]
           },
           "blast_radius": {
             "risk": "LOW",
-            "summary": "2 resource(s) — ns: production",
-            "resources": [
-              "(none confirmed)",
-              "Deployment/production/inventory-api"
-            ],
-            "namespaces": [
-              "production"
-            ],
+            "summary": "No remediation commands.",
+            "resources": [],
+            "namespaces": [],
             "cluster_scoped": false,
-            "command_count": 13,
-            "rollback_available": false,
+            "command_count": 0,
+            "rollback_available": true,
             "method": "command-heuristic"
           },
           "decision": {
             "verdict": "NO_GO",
             "reasons": [
-              "score 0.54 < 0.6 minimum",
-              "rollback_available=False — no safe recovery path"
+              "score 0.47 < 0.6 minimum"
             ],
-            "score": 0.54,
+            "score": 0.47,
             "risk": "LOW",
-            "rollback_available": false,
+            "rollback_available": true,
             "namespace": "production",
             "mc_win_rate": 1.0
           },
@@ -633,7 +680,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-09T03:05:47.123927+00:00"
+        "ts": "2026-10-14T05:01:57.134504+00:00"
       },
       {
         "router": "confidence",
@@ -652,7 +699,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-09T03:05:47.129277+00:00"
+        "ts": "2026-10-14T05:01:57.145795+00:00"
       },
       {
         "router": "confidence",
@@ -670,7 +717,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-09T03:05:47.133528+00:00"
+        "ts": "2026-10-14T05:01:57.154983+00:00"
       },
       {
         "router": "policy",
@@ -685,7 +732,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-09T03:05:47.138282+00:00"
+        "ts": "2026-10-14T05:01:57.163839+00:00"
       },
       {
         "router": "human",
@@ -697,20 +744,10 @@
           "remediation_count": 1,
           "dry_run_failures": 0
         },
-        "ts": "2026-10-09T03:05:47.141442+00:00"
+        "ts": "2026-10-14T05:01:57.168683+00:00"
       }
     ],
     "hypothesis_sources": [
-      {
-        "rule_id": "helm_drift",
-        "symptom": "Helm drift — cluster state diverged from chart declaration",
-        "affected": "Deployment/production/inventory-api",
-        "weight": 0.95,
-        "evidence": [
-          "1 drift field(s)",
-          "entity is unhealthy + drift"
-        ]
-      },
       {
         "rule_id": "degraded_deployment",
         "symptom": "Deployment degraded — fewer replicas ready than desired",

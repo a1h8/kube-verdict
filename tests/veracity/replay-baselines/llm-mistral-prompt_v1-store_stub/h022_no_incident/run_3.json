@@ -1,0 +1,26 @@
+{
+  "answerable": null,
+  "case": "h022_no_incident",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "forbidden_matched": [
+    "image"
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v1",
+  "reason": "no_incident: confidence MEDIUM, LOW expected",
+  "root_cause": "The root cause is the image pull policy for the 'ledger' containers being set to 'IfNotPresent', which may lead to container images not being updated or pulled when they should be.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-14T04:30:45.211289+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 85.88
+}

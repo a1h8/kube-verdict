@@ -1,0 +1,34 @@
+{
+  "answerable": true,
+  "case": "h001_crashloopbackoff",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "secret",
+      "payment-db-secret",
+      "not found"
+    ]
+  ],
+  "matched_keywords": [
+    "secret",
+    "payment-db-secret",
+    "not found"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.56,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is that the secret \"payment-db-secret\" is not found, as indicated by the warning message \"Error: secret 'payment-db-secret' not found\". This secret is expected to be mounted to the pod's rootfs at \"/run/secrets/payment-db-secret\".",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T04:53:20.472074+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 138.53
+}

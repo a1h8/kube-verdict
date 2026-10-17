@@ -300,10 +300,21 @@ class HelmDriftDetector:
         release: HelmRelease,
         drifts: list[DriftItem],
     ) -> int:
-        if not drifts:
+        """Annotate config drift as ``drift.*`` (+ DRIFTS_FROM), runtime status as ``health.*``.
+
+        A symptom is not a drift (docs/evidence-score.md § Prerequisite 2, corrected):
+        readyReplicas, container state, restartCount… say the workload is unhealthy,
+        not that it differs from what the release declares. Returns the number of
+        configuration drift items only.
+        """
+        config = [d for d in drifts if not is_health_field(d.field_path)]
+        for item in drifts:
+            if item in config:
+                _annotate_entity(entity, item)
+            else:
+                entity.annotations[f"health.{item.field_path}"] = item.to_text()
+        if not config:
             return 0
-        for drift in drifts:
-            _annotate_entity(entity, drift)
         # Add a single DRIFTS_FROM edge (idempotent — check first)
         already_has_edge = any(
             e.rel_type == RelationshipType.DRIFTS_FROM and e.target_uid == release.uid
@@ -311,12 +322,20 @@ class HelmDriftDetector:
         )
         if not already_has_edge:
             graph.add_edge(Edge(entity.uid, release.uid, RelationshipType.DRIFTS_FROM))
-        return len(drifts)
+        return len(config)
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+_HEALTH_PREFIXES = ("status.", "container.")
+
+
+def is_health_field(field_path: str) -> bool:
+    """Runtime status (a symptom), not declared configuration."""
+    return field_path.startswith(_HEALTH_PREFIXES)
+
 
 def _annotate_entity(entity: Any, drift: DriftItem) -> None:
     key = f"drift.{drift.field_path}"

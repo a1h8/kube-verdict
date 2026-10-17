@@ -1,0 +1,36 @@
+{
+  "answerable": true,
+  "case": "h008_init_container_fail",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "container",
+      "migration",
+      "database",
+      "failed"
+    ]
+  ],
+  "matched_keywords": [
+    "container",
+    "migration",
+    "database",
+    "failed"
+  ],
+  "model": "mistral",
+  "pre_llm_confidence_score": 0.39,
+  "prompt": "v1",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is a failed database migration due to the absence of the 'user_tokens' relation. This failure prevents the db-migrate container from starting, causing the backend pod to remain Pending.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-13T05:45:10.977060+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 172.01
+}

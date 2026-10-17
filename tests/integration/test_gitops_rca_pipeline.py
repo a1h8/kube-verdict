@@ -827,7 +827,7 @@ class TestRemediationEngineOnDriftedGraph:
 
     def test_all_hypotheses_have_commands(self, hypotheses):
         for h in hypotheses:
-            assert len(h.commands) > 0, f"rule {h.rule_id} has no commands"
+            assert h.commands or h.checks, f"rule {h.rule_id} has no commands or checks"
 
     def test_no_weight_exceeds_one(self, hypotheses):
         assert all(h.weight <= 1.0 for h in hypotheses)
@@ -1065,7 +1065,8 @@ class TestFullRCAPipelineWithRuleFallback:
         assert found >= 3
 
     def test_fallback_remediation_has_kubectl_commands(self, report):
-        kubectl_cmds = [c for c in report.remediation if c.startswith("kubectl")]
+        kubectl_cmds = [c for c in report.remediation + [d.command for d in report.diagnostics]
+                        if c.startswith("kubectl")]
         assert len(kubectl_cmds) >= 5
 
     def test_fallback_remediation_has_helm_upgrade(self, report):
@@ -1073,8 +1074,10 @@ class TestFullRCAPipelineWithRuleFallback:
         assert len(helm_cmds) >= 1
 
     def test_fallback_remediation_has_rule_headers(self, report):
+        # a header groups a rule's actions; rules with only checks show up as diagnostics
         headers = [c for c in report.remediation if c.startswith("[rule:")]
-        assert len(headers) >= 3
+        assert len(headers) >= 1
+        assert len({d.hypothesis for d in report.diagnostics}) >= 3
 
     def test_fallback_confidence_contains_weight(self, report):
         import re

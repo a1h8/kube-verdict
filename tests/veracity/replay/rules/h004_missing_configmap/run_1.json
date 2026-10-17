@@ -1,0 +1,34 @@
+{
+  "answerable": null,
+  "case": "h004_missing_configmap",
+  "confidence": "LOW",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "configmap",
+      "not found",
+      "missing"
+    ]
+  ],
+  "matched_keywords": [
+    "configmap",
+    "not found",
+    "missing"
+  ],
+  "model": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "CreateContainerConfigError \u2014 ConfigMap or Secret not found. A required ConfigMap or Secret does not exist in the namespace. Create the missing resources before redeploying. (Pod/production/api-gateway-5c7d9b8f4-x2k9p)",
+  "rule_id": "missing_config",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-10-14T04:56:49.173575+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.01
+}

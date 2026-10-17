@@ -1,5 +1,6 @@
 {
   "scenario": "ImagePullBackOff — private image 401 + Helm tag drift",
+  "query": "ml-inference pods do not start in production",
   "namespace": "production",
   "release": "ml-inference",
   "affected_resources": ["Pod/production/ml-inference-7c9d8b6f5-pq3r7"],

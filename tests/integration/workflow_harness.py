@@ -257,6 +257,78 @@ HIGH — the saturation alert, the refused-connection logs and the db.connect tr
 }
 
 
+# Tier-C cases (docs/scenarios-v2.md): the decoy is true data, so it must reach
+# the prompt; the trap is for the solver, not for a filter. Kept apart from
+# CASE_SCRIPTS for the same reason as MULTI_SIGNAL_SCRIPTS.
+TIER_C_SCRIPTS: dict[str, CaseScript] = {
+    "h022": CaseScript(
+        case="h022_no_incident",
+        query="is something wrong with ledger in production",
+        hypotheses=(
+            "A ledger pod crashed and is restarting",
+            "ledger is healthy; the BackOff event is a resolved transient restart",
+            "ledger image v5.0.2 is faulty",
+        ),
+        final_response="""\
+### 1. Summary
+No incident: ledger is 3/3 Ready and nothing in the evidence points to a fault.
+
+### 2. Affected resources
+- (none)
+
+### 3. Root cause
+None found. One container restarted once 3 h ago and has been Ready since; the BackOff event is from that single restart.
+
+### 4. Causal chain
+1. One restart 3 h ago.
+2. Every pod Ready since; no alert, log or trace.
+
+### 5. Remediation
+kubectl get events -n production --field-selector involvedObject.name=ledger-7d9f8c6b5-a1b2c
+
+### 6. Confidence
+LOW — there is no incident to diagnose.
+""",
+        prompt_evidence=("BackOff",),
+        signals=(),
+    ),
+    "h024": CaseScript(
+        case="h024_multi_cause",
+        query="why are api and worker down in production",
+        hypotheses=(
+            "worker cannot start: Secret queue-credentials is missing",
+            "api is OOMKilled: its memory limit drifted from 1Gi to 256Mi",
+            "worker image tag v2.3.0 is wrong",
+        ),
+        final_response="""\
+### 1. Summary
+Two independent faults: worker cannot start because Secret queue-credentials is missing, and api is OOMKilled because its memory limit drifted to 256Mi.
+
+### 2. Affected resources
+- Pod/production/worker-58c9d7b6f-h4m8n — CreateContainerConfigError
+- Deployment/production/api — 0/1 Ready, OOMKilled
+
+### 3. Root cause
+worker references Secret queue-credentials, which is missing. Separately, api runs with a 256Mi memory limit while values.yaml declares 1Gi, so it is OOMKilled on every start.
+
+### 4. Causal chain
+1. Secret queue-credentials was never created; worker stays in CreateContainerConfigError.
+2. A helm upgrade --set left the api memory limit at 256Mi.
+3. api exceeds 256Mi and is OOMKilled in a loop.
+
+### 5. Remediation
+kubectl create secret generic queue-credentials -n production --from-literal=password=<value>
+helm upgrade api ./chart -n production --set resources.limits.memory=1Gi
+
+### 6. Confidence
+HIGH — the missing-Secret event and the declared-vs-deployed memory limit name both causes.
+""",
+        prompt_evidence=("queue-credentials", "256Mi"),
+        signals=(),
+    ),
+}
+
+
 class ScriptedLLM:
     """Deterministic LLM: hypotheses on demand, then LOW, LOW, HIGH for analyze.
 
@@ -291,6 +363,31 @@ class ScriptedLLM:
         return self._low
 
 
+class RecordingLLM:
+    """Wraps a real LLM for the veracity replay: same answers, analyze prompts kept.
+
+    Spec: docs/test-cases.md → *Veracity replay harness*. Keeping the prompts is
+    what lets the replay tell "the evidence was not there" from "the model was
+    wrong" (``answerable``).
+    """
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+        self.model = getattr(inner, "model", "unknown")
+        self.analyze_prompts: list[str] = []
+
+    def is_available(self) -> bool:
+        return self._inner.is_available()
+
+    def model_is_pulled(self) -> bool:
+        return self._inner.model_is_pulled()
+
+    def generate(self, prompt: str, system: str | None = None, **kwargs: Any) -> str:
+        if not prompt.startswith(_HYPOTHESIZE_PROMPT_PREFIX):
+            self.analyze_prompts.append(prompt)
+        return self._inner.generate(prompt, system=system, **kwargs)
+
+
 class StubStore:
     """No FAISS / embedding: retrieval returns nothing, the graph carries the evidence."""
 
@@ -308,7 +405,7 @@ class CaseRun:
     state: dict[str, Any]
     status: str                      # "AWAITING_REVIEW" | "COMPLETED"
     review_payload: dict | None
-    llm: ScriptedLLM
+    llm: ScriptedLLM | RecordingLLM
     expect: dict = field(default_factory=dict)
     graph: OntologyGraph | None = None   # after the collector nodes ran
 
@@ -317,18 +414,34 @@ CUTTABLE = ("prometheus", "loki", "otel")
 _UNREACHABLE = requests.ConnectionError("connection refused (fixture-replay: backend cut)")
 
 
-def run_case(key: str, cut: str | None = None) -> CaseRun:
-    """Run one scripted case (``h013`` … ``h016``) through the workflow.
+def case_dir_for(key: str) -> Path:
+    """``h014`` → ``tests/integration/cases/h014_cert_expiry``."""
+    matches = sorted(CASES_ROOT.glob(f"{key}_*/"))
+    if len(matches) != 1:
+        raise KeyError(f"{key}: expected one case directory, found {len(matches)}")
+    return matches[0]
 
+
+def run_case(key: str, cut: str | None = None, llm: Any = None) -> CaseRun:
+    """Run one case through the workflow.
+
+    Without ``llm``: a scripted case (``h013`` … ``h016``, ``h022``, ``h024``),
+    answered by ``ScriptedLLM``. With ``llm``: any native case, answered by that
+    model (wrapped in ``RecordingLLM``), with ``expect.json["query"]`` as the query.
     ``cut`` — one of CUTTABLE — makes that collector's backend unreachable.
     """
     if cut is not None and cut not in CUTTABLE:
         raise ValueError(f"cut must be one of {CUTTABLE}, got {cut!r}")
-    script = {**CASE_SCRIPTS, **MULTI_SIGNAL_SCRIPTS}[key]
-    case = load_case(script.case_dir)
+    if llm is None:
+        script = {**CASE_SCRIPTS, **MULTI_SIGNAL_SCRIPTS, **TIER_C_SCRIPTS}[key]
+        case = load_case(script.case_dir)
+        query = script.query
+    else:
+        case = load_case(case_dir_for(key))
+        query = case["expect"]["query"]
     namespace = case["expect"].get("namespace", "default")
     graph = build_case_graph(case, wire_signals=False)
-    llm = ScriptedLLM(script, namespace)
+    llm = ScriptedLLM(script, namespace) if llm is None else RecordingLLM(llm)
 
     alerts = case.get("prometheus_alerts", [])
     loki_query = fixture_loki_query(case.get("loki_streams", []))
@@ -377,7 +490,7 @@ def run_case(key: str, cut: str | None = None) -> CaseRun:
             "thread_id": f"fixture-replay-{key}" + (f"-cut-{cut}" if cut else ""),
             "graph": graph, "store": StubStore(), "llm": llm,
         }}
-        workflow.invoke({"query": script.query, "namespaces": [namespace]}, config)
+        workflow.invoke({"query": query, "namespaces": [namespace]}, config)
         snapshot = workflow.get_state(config)
 
     review_payload = None

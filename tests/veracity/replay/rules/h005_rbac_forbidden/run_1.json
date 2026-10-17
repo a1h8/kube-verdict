@@ -1,0 +1,26 @@
+{
+  "answerable": null,
+  "case": "h005_rbac_forbidden",
+  "confidence": "LOW",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "keyword group(s) [0] below threshold",
+  "root_cause": "",
+  "rule_id": null,
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-10-14T04:56:49.201925+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.02
+}
