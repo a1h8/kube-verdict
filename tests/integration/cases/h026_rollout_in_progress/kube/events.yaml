@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: EventList
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: invoice.scaling
+    namespace: production
+  type: Normal
+  reason: ScalingReplicaSet
+  message: "Scaled up replica set invoice-6c8b7f9d4 to 1"
+  involvedObject:
+    kind: Deployment
+    name: invoice
+    namespace: production
+  count: 1
+  firstTimestamp: "2026-10-17T10:00:00Z"
+  lastTimestamp: "2026-10-17T10:00:00Z"
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: invoice-6c8b7f9d4-h5n3v.unhealthy
+    namespace: production
+  type: Warning
+  reason: Unhealthy
+  message: "Readiness probe failed: Get \"http://10.0.4.17:8080/ready\": dial tcp 10.0.4.17:8080: connect: connection refused"
+  involvedObject:
+    kind: Pod
+    name: invoice-6c8b7f9d4-h5n3v
+    namespace: production
+  count: 1
+  firstTimestamp: "2026-10-17T10:00:20Z"
+  lastTimestamp: "2026-10-17T10:00:20Z"

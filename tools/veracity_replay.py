@@ -35,7 +35,8 @@ from tools.veracity import grade, normalize_label  # noqa: E402
 
 CASES_ROOT = ROOT / "tests/integration/cases"
 REPLAY_DIR = ROOT / "tests/veracity/replay"
-GRADING_KEYS = ("root_cause_contains", "root_cause_contains_all",
+GRADING_KEYS = ("root_cause_concepts", "root_cause_concepts_all",
+                "root_cause_contains", "root_cause_contains_all",
                 "root_cause_must_not_contain", "expected_outcome", "expected_verdict")
 TIERS = ("A", "B", "C", "M")
 
@@ -61,7 +62,8 @@ def answerable(expect: dict, prompts: list[str]) -> bool | None:
     """
     if expect.get("expected_outcome", "cause") != "cause" or not prompts:
         return None
-    truth = {k: expect[k] for k in ("root_cause_contains", "root_cause_contains_all") if k in expect}
+    truth = {k: expect[k] for k in ("root_cause_concepts", "root_cause_concepts_all",
+                                    "root_cause_contains", "root_cause_contains_all") if k in expect}
     return grade("\n".join(prompts), truth)["veracity"] == "PASS"
 
 
@@ -132,6 +134,9 @@ def solve_llm(case_name: str, client, run: int) -> dict:
         "fallbacks": sorted(k for k, v in stats.items() if isinstance(v, dict) and v.get("fallback")),
         "signals_mode": (stats.get("signals") or {}).get("mode"),
         "root_cause": report.get("root_cause", ""),
+        # docs/case-audit-001.md F8: what the model was sent and what it read
+        "llm_calls": list(getattr(result.llm, "calls", [])),
+        "num_ctx_max": getattr(client, "num_ctx_max", None),
     })
     return record
 

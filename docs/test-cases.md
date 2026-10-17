@@ -836,3 +836,31 @@ The fixture loader's `_detect_missing_deps` now delegates to `readiness.detect_m
 - Observed: full suite 2498 passed, 1 xfailed; `rules` replay unchanged (4/18).
 - Not done yet (phase 3, rest): building the loader's Kubernetes entities through the
   fake-API → `K8sCollector` path.
+
+## h026 — negative: a healthy rolling update
+
+> Spec (2026-10-17), written before the fixture and the seed guard it tests. Why: making
+> Running-but-NotReady pods seeds (`docs/reasoning-path-tests.md` P1) also makes every new
+> pod of a normal rollout look like an incident while it starts.
+
+**Scenario.** `invoice` (production, Helm release `invoice`) is being upgraded from
+`v2.3.0` to `v2.4.0`, declared in `values.yaml` and in the release (no drift). Strategy
+RollingUpdate, `maxSurge: 1`, `maxUnavailable: 0`, 3 replicas. At the snapshot: three old
+pods Running and Ready; one new pod Running, container started 20 s ago, not ready yet
+(readiness `initialDelaySeconds: 10`, one `Unhealthy` warning "Readiness probe failed:
+connection refused" 5 s ago). Deployment status: `replicas: 4`, `updatedReplicas: 1`,
+`readyReplicas: 3`, `availableReplicas: 3`, `unavailableReplicas: 1`; conditions
+`Available=True` (`MinimumReplicasAvailable`), `Progressing=True` (`ReplicaSetUpdated`).
+
+**Expected.** `expected_outcome: no_incident`, verdict `HUMAN_REVIEW` (production),
+`root_cause_must_not_contain: [crash, oom, regression, misconfigur, bug]`.
+Reasoning path: no Pod or Deployment of `invoice` is a seed (`seeds_exclude`).
+
+**What makes it pass.** A NotReady pod whose Deployment reports `Progressing=True` with
+reason `ReplicaSetUpdated` (or `NewReplicaSetCreated`, `FoundNewReplicaSet`) is not a seed.
+When the rollout stalls, Kubernetes sets `Progressing=False` / `ProgressDeadlineExceeded`
+after `progressDeadlineSeconds`, and the pod is a seed again. Deployment conditions (type,
+status, reason) are collected live and loaded from fixtures alike.
+
+**Not covered.** A pod restarted outside a rollout is a seed while it starts; telling that
+apart needs the graph's history.

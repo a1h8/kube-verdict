@@ -345,6 +345,8 @@ class K8sCollector:
                 available_replicas=s.available_replicas or 0,
                 strategy=item.spec.strategy.type if item.spec.strategy else "RollingUpdate",
                 selector=item.spec.selector.match_labels or {},
+                conditions=[{"type": c.type, "status": c.status, "reason": c.reason}
+                            for c in (s.conditions or [])],
                 raw=item.to_dict(),
             )
             graph.add_entity(e)

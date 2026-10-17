@@ -5,6 +5,7 @@
   "release": "order-service",
   "affected_resources": ["Pod/production/order-service-6f9b8c7d5-q4r2s"],
   "root_cause_contains": ["networkpolicy", "egress", "blocked", "connection", "timeout"],
+  "root_cause_concepts": ["networkpolicy|network policy"],
   "fix_commands_contain": ["kubectl edit networkpolicy", "egress"],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.40,

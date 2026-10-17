@@ -6,6 +6,7 @@
   "path": "render-vs-live",
   "affected_resources": ["Deployment/production/api", "Pod/production/api-6d8f9b7c4-xvk2p"],
   "root_cause_contains": ["OOMKilled", "memory", "512Mi", "128Mi", "replicas", "drift"],
+  "root_cause_concepts": ["memory", "drift|512mi|declared|render|expected state"],
   "render_vs_live_drift": [
     {"field_path": "spec.replicas", "declared": 3, "observed": 1, "severity": "critical"},
     {"field_path": "container.api.resources.memory", "declared": "512Mi", "observed": "128Mi"}

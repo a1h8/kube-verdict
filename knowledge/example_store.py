@@ -12,6 +12,7 @@ immediately with HIGH confidence.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -22,6 +23,11 @@ if TYPE_CHECKING:  # avoid a runtime knowledge→decision import; from_report is
     from decision.models import IncidentReport
 
 _DEFAULT_DIR = Path("./data/examples")
+
+
+def default_example_dir() -> Path:
+    """``KUBEVERDICT_EXAMPLE_DIR`` when set, else ``./data/examples``."""
+    return Path(os.getenv("KUBEVERDICT_EXAMPLE_DIR") or _DEFAULT_DIR)
 
 EXAMPLE_UID_PREFIX = "example:"
 
@@ -78,8 +84,8 @@ class ResolvedIncident:
 class ExampleStore:
     """File-backed store for resolved incidents."""
 
-    def __init__(self, data_dir: Path | str = _DEFAULT_DIR) -> None:
-        self._dir = Path(data_dir)
+    def __init__(self, data_dir: Path | str | None = None) -> None:
+        self._dir = Path(data_dir) if data_dir is not None else default_example_dir()
         self._dir.mkdir(parents=True, exist_ok=True)
 
     def save(self, incident: ResolvedIncident) -> ResolvedIncident:
