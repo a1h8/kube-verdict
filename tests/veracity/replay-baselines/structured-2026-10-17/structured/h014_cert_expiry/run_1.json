@@ -1,0 +1,37 @@
+{
+  "answerable": null,
+  "case": "h014_cert_expiry",
+  "confidence": "LOW",
+  "diagnoses": [],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "outcome": "insufficient_evidence",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: certificate|x509|tls, expired|expir|renew",
+  "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "cert.issuer_failed",
+    "dependency.unreachable",
+    "pod.not_ready",
+    "probe.readiness_failed",
+    "tls.cert_expired"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:45:30.554303+00:00",
+  "tier": "B",
+  "unclassified": {},
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 6.32
+}

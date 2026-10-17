@@ -1,0 +1,55 @@
+{
+  "answerable": null,
+  "case": "h001_crashloopbackoff",
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "config-missing",
+      "location": "absent:Secret/production/payment-db-secret",
+      "rule": "dependency.missing",
+      "score": 0.65,
+      "signals": [
+        "516ae2619a6b8f2d",
+        "f536c25bb1c1227a",
+        "1d2aa0715b8b7465"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "secret",
+      "not found|missing"
+    ]
+  ],
+  "matched_keywords": [
+    "secret",
+    "not found|missing"
+  ],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The Secret payment-db-secret referenced by payment-service-6d8f9b7c4-xk9p2 does not exist (it is missing).",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "container.crashloop",
+    "dependency.missing",
+    "pod.not_ready"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:44:45.408752+00:00",
+  "tier": "A",
+  "unclassified": {
+    "k8s_event": 1
+  },
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 3.11
+}

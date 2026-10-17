@@ -1,0 +1,33 @@
+{
+  "answerable": null,
+  "case": "h026_rollout_in_progress",
+  "confidence": "LOW",
+  "diagnoses": [],
+  "expected_outcome": "no_incident",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "",
+  "outcome": "no_incident",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "no_incident: LOW and no cause named",
+  "root_cause": "No incident: no fault signal in the evidence.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "pod.not_ready",
+    "probe.readiness_failed",
+    "rollout.progressing"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:46:05.592719+00:00",
+  "tier": "C",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 3.28
+}

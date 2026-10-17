@@ -1,0 +1,35 @@
+{
+  "answerable": null,
+  "case": "h006_networkpolicy_blocked",
+  "confidence": "LOW",
+  "diagnoses": [],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "outcome": "insufficient_evidence",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: networkpolicy|network policy",
+  "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "dns.failed",
+    "pod.not_ready",
+    "probe.readiness_failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:45:10.577838+00:00",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 11.41
+}

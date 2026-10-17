@@ -19,20 +19,49 @@ signals give the same diagnoses. A diagnosis names a cause **family**, the objec
 cause is, the signals that support it and those that contradict it — the "typed gap between
 declared and observed" applied to the whole diagnosis.
 
-## 1. Signals
+## 1. Signals — on the correlation-spine model
 
-A signal is one observed fact, typed, attached to one entity, pointing to its raw evidence.
+The event model is the one already used by reconcileflow for its evidence (public:
+[`docs/provenance.md`](https://github.com/a1h8/reconcileflow/blob/main/docs/provenance.md) —
+immutable raw evidence, a canonical record that points to it, versioned normalisation).
+Three layers, never mixed:
+
+```
+RAW EVIDENCE    the graph entity or annotation, untouched           → payload_ref
+SIGNAL          a minimal envelope: what was observed, when, by whom
+DERIVED EDGES   which entity a signal is about: method, confidence, version — kept apart
+```
+
+and its rule **authored ≠ observed ≠ derived**: what the source wrote, what we read in it,
+and what we reconstructed are never flattened into one field.
 
 ```python
 @dataclass(frozen=True)
 class Signal:
-    kind: str            # controlled list below
-    entity: str          # fqn, e.g. Pod/production/billing-gateway-5b7d9c8f6-4hxkd
-    source: str          # k8s_event | k8s_status | helm | prometheus | loki | otel | graph
-    attrs: dict          # kind-specific fields (container, reason, field, declared, observed…)
-    observed_at: str     # ISO time when known, "" otherwise
-    evidence: str        # uid of the raw entity or annotation (event, log line, span, drift item)
+    signal_id: str          # stable hash of (kind, payload_ref, authored, observed)
+    kind: str               # controlled list below
+    plan: str               # k8s | helm | telemetry
+    source: str             # k8s_status | k8s_event | helm | loki | otel | prometheus
+    event_time: str         # when it happened, ISO; "" when the raw item does not say
+    authored: tuple         # written at the source: an event's involvedObject, a stream's labels, an alert's labels
+    observed: tuple         # read by the extractor: reason, container, field, declared/observed, error code
+    payload_ref: str        # the raw entity uid, or "<uid>#<annotation key>"
+    extractor_version: str  # "signals/1"
+
+@dataclass(frozen=True)
+class DerivedEdge:          # which entity the signal is about
+    signal_id: str
+    entity: str             # fqn
+    method: str             # self | event.involvedObject | loki.stream_labels | otel.resource_attributes
+                            # | prometheus.label_match | helm_drift.detector | readiness.detector
+    confidence: float       # a property of the method (1.0 for involvedObject, 0.9 for a label match)
+    correlator_version: str # "attribution/1"
 ```
+
+A diagnosis (§ 2) is itself a derived edge, from the signals that support it to a cause,
+made by a versioned rule (`RULES_VERSION`). When an extractor, an attribution method or a
+rule changes, its version changes, so a replay tells "the data changed" from "the algorithm
+changed" — reconcileflow's `correlator_version` argument.
 
 **Extractors**, one per source, deterministic (fields first, then fixed patterns on
 messages). A raw item that matches no pattern produces no signal and is **counted**
@@ -130,6 +159,37 @@ them. Both are answers, graded as such.
 **Decoys.** A signal that matches a rule's `contradicts` lowers it; a rule that fires on a
 signal whose entity is outside the incident's seeds and their reached context is dropped
 (h016's catalog-api).
+
+### Step 2 — first rules and score (2026-10-17)
+
+The 7 rules of `rca/remediation_engine.py` are ported onto signals, corrected where the
+audit found them wrong:
+
+| Rule | Family | Requires | Strengthens | Location | Note |
+|---|---|---|---|---|---|
+| `dependency.missing` | config-missing | `dependency.missing` on a pod | `container.config_error`, `container.crashloop` on that pod | `absent:<Kind>/<ns>/<name>` | was `missing_config` |
+| `oom.memory_drift` | oom | `container.oom_killed` on a pod + `drift.config` on a memory field of its release | — | the drifted release | new: OOM explained by a declared-vs-deployed gap |
+| `oom.limit` | oom | `container.oom_killed` | — | the pod | was `oom_kill` |
+| `image.pull` | image-pull | `image.pull_failed` | `drift.config` on an image field of its release | the pod (or the release when the tag drifted) | was `image_pull_backoff`; cause worded from the error code |
+| `scheduling` | scheduling | `scheduling.failed` | — | the pod | was `pending_unschedulable`; cause worded from the class (cpu, memory, affinity, volume…) |
+| `config.drift` | helm-drift | `drift.config` | a fault signal on a workload of the same release | the release | was `helm_drift`; **generic**: capped when nothing of that release is failing |
+| `container.crash` | crashloop | `container.crashloop` | — | the pod | was `crashloop_db`, which named a database with no evidence of one; **generic** |
+
+Not ported: `degraded_deployment` — fewer ready replicas is a symptom, not a cause.
+
+**Score** (provisional, to calibrate as `docs/evidence-score.md` § Calibration says):
+0.5 when every required signal is present, + 0.15 per strengthening signal from a source
+not already counted, − 0.3 per contradicting signal, clamped to [0, 1]. A generic rule is
+capped at 0.4. A diagnosis is reported when its score ≥ 0.5; labels: LOW < 0.5 ≤ MEDIUM
+< 0.75 ≤ HIGH.
+
+**Abstention.** No diagnosis reported → `no_incident` when no fault signal exists
+(a `drift.config` is a cause candidate, not a symptom: alone it is no incident; context kinds — `event.past`, `restart.past`, `rollout.progressing`, a `pod.not_ready`
+that is starting in a progressing rollout and a probe failure on such a pod — are not faults), else `insufficient_evidence`.
+
+**Development set, not validation.** These rules are written knowing the 19 native
+cases; their result on those cases measures the implementation, not generalization. That
+needs cases the rules have not seen (the incident corpus, new cases).
 
 ## 3. The LLM
 

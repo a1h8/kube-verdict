@@ -1,0 +1,48 @@
+{
+  "answerable": null,
+  "case": "h012_gitops_render_vs_live",
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "oom",
+      "location": "Pod/production/api-6d8f9b7c4-xvk2p",
+      "rule": "oom.limit",
+      "score": 0.5,
+      "signals": [
+        "8e400b0272a86623"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "memory"
+    ]
+  ],
+  "matched_keywords": [
+    "memory"
+  ],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: drift|512mi|declared|render|expected state",
+  "root_cause": "The container api of api-6d8f9b7c4-xvk2p exceeds its memory limit (OOMKilled).",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "container.oom_killed",
+    "event.past"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:45:23.351859+00:00",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 1.42
+}

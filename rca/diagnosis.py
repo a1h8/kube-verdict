@@ -1,0 +1,231 @@
+"""Typed diagnoses derived from typed signals — docs/structured-diagnosis.md § 2.
+
+On the correlation-spine model (rca/signals.py), a diagnosis is a derived edge from the
+signals that support it to a cause, produced by a versioned rule (``RULES_VERSION``).
+
+A rule names a cause family, the signals it requires, those that strengthen or contradict
+it, where the cause is, and how to word it. Everything is deterministic: the same signals
+give the same diagnoses, in the same order. The LLM, when used, only words the result.
+"""
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass, field
+
+from rca.signals import Signal, SignalSet
+
+RULES_VERSION = "rules/1"   # bump when a rule, a weight or a threshold changes
+REPORT_MIN = 0.5            # a diagnosis below this is not reported
+GENERIC_CAP = 0.4           # a generic rule (drift alone, crash alone) never reaches REPORT_MIN
+BASE, STRENGTH, CONTRA = 0.5, 0.15, 0.3
+
+# kinds that describe context, never a fault on their own
+CONTEXT_KINDS = {"event.past", "restart.past", "rollout.progressing"}
+
+
+@dataclass
+class Diagnosis:
+    family: str
+    cause: str
+    cause_location: str
+    rule: str
+    score: float
+    supports: list[Signal] = field(default_factory=list)
+    contradicts: list[Signal] = field(default_factory=list)
+    checks: list[str] = field(default_factory=list)
+    rule_version: str = RULES_VERSION   # a diagnosis is a derived edge: signals → cause
+
+    @property
+    def signal_ids(self) -> list[str]:
+        return [x.signal_id for x in self.supports]
+
+    @property
+    def label(self) -> str:
+        return label_of(self.score)
+
+
+@dataclass
+class Outcome:
+    """What the structured pipeline concludes: ranked diagnoses, or an abstention."""
+    diagnoses: list[Diagnosis]
+    outcome: str                 # "cause" | "no_incident" | "insufficient_evidence"
+
+    @property
+    def confidence(self) -> str:
+        return self.diagnoses[0].label if self.diagnoses else "LOW"
+
+    def root_cause(self) -> str:
+        if self.outcome == "no_incident":
+            return "No incident: no fault signal in the evidence."
+        if self.outcome == "insufficient_evidence":
+            return "Insufficient evidence: fault signals exist but no rule explains them."
+        return " ".join(d.cause for d in self.diagnoses)
+
+
+def label_of(score: float) -> str:
+    return "HIGH" if score >= 0.75 else "MEDIUM" if score >= REPORT_MIN else "LOW"
+
+
+# ── helpers ─────────────────────────────────────────────────────────────────────
+
+def _ns(fqn: str) -> str:
+    parts = fqn.split("/")
+    return parts[1] if len(parts) == 3 else ""
+
+
+def _name(fqn: str) -> str:
+    return fqn.rsplit("/", 1)[-1]
+
+
+def _same_workload(pod: str, other: str) -> bool:
+    """A pod and a release / Deployment of the same app: same namespace, pod named after it."""
+    return _ns(pod) == _ns(other) and _name(pod).startswith(_name(other) + "-")
+
+
+def _score(n_strengthening_sources: int, n_contradicting: int, generic: bool) -> float:
+    score = BASE + STRENGTH * n_strengthening_sources - CONTRA * n_contradicting
+    score = max(0.0, min(1.0, score))
+    return min(score, GENERIC_CAP) if generic else score
+
+
+def _diag(rule: str, family: str, cause: str, location: str, required: list[Signal],
+          strengthening: list[Signal] = (), contradicting: list[Signal] = (),
+          checks: list[str] = (), generic: bool = False) -> Diagnosis:
+    sources = {s.source for s in strengthening} - {s.source for s in required}
+    return Diagnosis(family=family, cause=cause, cause_location=location, rule=rule,
+                     score=_score(len(sources) + (1 if strengthening and not sources else 0),
+                                  len(contradicting), generic),
+                     supports=list(required) + list(strengthening),
+                     contradicts=list(contradicting), checks=list(checks))
+
+
+# ── rules (docs/structured-diagnosis.md § Step 2) ───────────────────────────────
+
+def _dependency_missing(ss: SignalSet) -> list[Diagnosis]:
+    out = []
+    for s in ss.of("dependency.missing"):
+        kind, name = s.attr("kind"), s.attr("name")
+        if not kind or not name:
+            continue
+        kind_title = {"configmap": "ConfigMap", "secret": "Secret", "persistentvolumeclaim": "PersistentVolumeClaim",
+                      "pvc": "PersistentVolumeClaim", "serviceaccount": "ServiceAccount"}.get(kind.lower(), kind)
+        strong = [x for x in ss.signals if ss.subject(x) == ss.subject(s)
+                  and x.kind in ("container.config_error", "container.crashloop")]
+        out.append(_diag("dependency.missing", "config-missing",
+                         f"The {kind_title} {name} referenced by {_name(ss.subject(s))} does not exist (it is missing).",
+                         f"absent:{kind_title}/{_ns(ss.subject(s))}/{name}", [s], strong,
+                         checks=[f"kubectl get {kind.lower()} {name} -n {_ns(ss.subject(s))}"]))
+    return out
+
+
+def _oom(ss: SignalSet) -> list[Diagnosis]:
+    out = []
+    memory_drifts = [d for d in ss.of("drift.config") if "memory" in d.attr("field")]
+    for s in ss.of("container.oom_killed"):
+        drift = next((d for d in memory_drifts if "limits" in d.attr("field") and _same_workload(ss.subject(s), ss.subject(d))), None) \
+            or next((d for d in memory_drifts if _same_workload(ss.subject(s), ss.subject(d))), None)
+        if drift:
+            out.append(_diag("oom.memory_drift", "oom",
+                             f"The memory limit of {_name(ss.subject(drift))} drifted from the declared value: "
+                             f"{drift.attr('field')} is declared {drift.attr('declared')} but deployed "
+                             f"{drift.attr('observed')}, and the container is OOMKilled.",
+                             ss.subject(drift), [s, drift],
+                             checks=[f"helm get values {_name(ss.subject(drift))} -n {_ns(ss.subject(drift))}"]))
+        else:
+            out.append(_diag("oom.limit", "oom",
+                             f"The container {s.attr('container')} of {_name(ss.subject(s))} exceeds its memory limit (OOMKilled).",
+                             ss.subject(s), [s]))
+    return out
+
+
+def _image_pull(ss: SignalSet) -> list[Diagnosis]:
+    out = []
+    for s in ss.of("image.pull_failed"):
+        drift = next((d for d in ss.of("drift.config") if "image" in d.attr("field")
+                      and _same_workload(ss.subject(s), ss.subject(d))), None)
+        code = s.attr("code").lower()
+        if drift:
+            cause = (f"The image tag of {_name(ss.subject(drift))} drifted: declared {drift.attr('declared')}, "
+                     f"deployed {drift.attr('observed')}, and that image cannot be pulled.")
+            location = ss.subject(drift)
+        elif code in ("401", "403", "unauthorized"):
+            cause, location = f"The image of {_name(ss.subject(s))} cannot be pulled: the registry refuses the credentials.", ss.subject(s)
+        elif code in ("404", "not found"):
+            cause, location = f"The image of {_name(ss.subject(s))} cannot be pulled: the image or tag does not exist.", ss.subject(s)
+        else:
+            cause, location = f"The image of {_name(ss.subject(s))} cannot be pulled.", ss.subject(s)
+        out.append(_diag("image.pull", "image-pull", cause, location, [s], [drift] if drift else []))
+    return out
+
+
+def _scheduling(ss: SignalSet) -> list[Diagnosis]:
+    words = {"cpu": "not enough CPU on the nodes", "memory": "not enough memory on the nodes",
+             "affinity": "no node matches its affinity or selector", "volume": "its volume is bound to another node",
+             "unschedulable": "the matching nodes are cordoned", "taint": "the nodes carry taints it does not tolerate"}
+    return [_diag("scheduling", "scheduling",
+                  f"{_name(ss.subject(s))} cannot be scheduled: {words.get(s.attr('cls'), 'no node fits it')}.",
+                  ss.subject(s), [s]) for s in ss.of("scheduling.failed")]
+
+
+def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
+    """A configuration drift alone is generic; it is reported when a workload of the same
+    release is failing and no more specific rule already used that drift."""
+    faults = [s for s in ss.signals if s.kind not in CONTEXT_KINDS | {"drift.config"}]
+    out = []
+    for d in ss.of("drift.config"):
+        if d.payload_ref in explained:
+            continue
+        failing = [f for f in faults if _same_workload(ss.subject(f), ss.subject(d))]
+        out.append(_diag("config.drift", "helm-drift",
+                         f"{_name(ss.subject(d))} drifted from its declared configuration: {d.attr('field')} is declared "
+                         f"{d.attr('declared')} but deployed {d.attr('observed')}.",
+                         ss.subject(d), [d], failing, generic=not failing))
+    return out
+
+
+def _crash(ss: SignalSet, explained_pods: set[str]) -> list[Diagnosis]:
+    return [_diag("container.crash", "crashloop",
+                  f"The container {s.attr('container')} of {_name(ss.subject(s))} keeps crashing; the cause is not identified.",
+                  ss.subject(s), [s], generic=True)
+            for s in ss.of("container.crashloop") if ss.subject(s) not in explained_pods]
+
+
+RULES: list[Callable[[SignalSet], list[Diagnosis]]] = [_dependency_missing, _oom, _image_pull, _scheduling]
+
+
+def _starting_in_rollout(ss: SignalSet) -> set[str]:
+    """Pods starting cleanly in a rollout that progresses while the Deployment stays
+    available — the same rule as the seed guard (dedup/bfs.py, docs/test-cases.md § h026)."""
+    rolling = [ss.subject(r) for r in ss.of("rollout.progressing") if r.attr("available") == "true"]
+    return {ss.subject(p) for p in ss.of("pod.not_ready") if p.attr("starting") == "true"
+            and any(_same_workload(ss.subject(p), dep) for dep in rolling)}
+
+
+def _is_fault(ss: SignalSet, s: Signal, starting: set[str]) -> bool:
+    # a drift is a cause candidate, not a symptom: with nothing failing there is no incident
+    if s.kind in CONTEXT_KINDS or s.kind == "drift.config":
+        return False
+    if s.kind in ("pod.not_ready", "probe.readiness_failed") and ss.subject(s) in starting:
+        return False
+    return True
+
+
+def diagnose(ss: SignalSet) -> Outcome:
+    """Ranked diagnoses whose score reaches REPORT_MIN, or an abstention."""
+    found: list[Diagnosis] = []
+    for rule in RULES:
+        found += rule(ss)
+    explained_drifts = {s.payload_ref for d in found for s in d.supports if s.kind == "drift.config"}
+    explained_pods = {ss.subject(s) for d in found for s in d.supports}
+    found += _config_drift(ss, explained_drifts)
+    found += _crash(ss, explained_pods)
+    found.sort(key=lambda d: (-d.score, d.rule, d.cause_location))
+    reported = []
+    for d in found:
+        if d.score >= REPORT_MIN and (d.family, d.cause_location) not in {(r.family, r.cause_location) for r in reported}:
+            reported.append(d)
+    if reported:
+        return Outcome(reported, "cause")
+    starting = _starting_in_rollout(ss)
+    faults = [s for s in ss.signals if _is_fault(ss, s, starting)]
+    return Outcome([], "insufficient_evidence" if faults else "no_incident")

@@ -1,0 +1,84 @@
+{
+  "answerable": null,
+  "case": "h024_multi_cause",
+  "confidence": "HIGH",
+  "diagnoses": [
+    {
+      "family": "helm-drift",
+      "location": "HelmRelease/production/api",
+      "rule": "config.drift",
+      "score": 0.8,
+      "signals": [
+        "f5ad2f9ce5d9d692",
+        "6133d7a2f2f94ef3",
+        "406d041b097b3695",
+        "4b32cd41fc03ac7a",
+        "0874d2d50a3a8516"
+      ]
+    },
+    {
+      "family": "config-missing",
+      "location": "absent:Secret/production/queue-credentials",
+      "rule": "dependency.missing",
+      "score": 0.65,
+      "signals": [
+        "709f5712284ac826",
+        "89f08ccfb53bc2d3"
+      ]
+    },
+    {
+      "family": "oom",
+      "location": "HelmRelease/production/api",
+      "rule": "oom.memory_drift",
+      "score": 0.5,
+      "signals": [
+        "406d041b097b3695",
+        "602488c19521fc80"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "secret|queue-credentials",
+      "missing|not found"
+    ],
+    [
+      "memory|oom",
+      "drift|1gi|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "secret|queue-credentials",
+    "missing|not found",
+    "memory|oom",
+    "drift|1gi|declared"
+  ],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "api drifted from its declared configuration: resources.requests.memory is declared 512Mi but deployed 128Mi. The Secret queue-credentials referenced by worker-58c9d7b6f-h4m8n does not exist (it is missing). The memory limit of api drifted from the declared value: resources.limits.memory is declared 1Gi but deployed 256Mi, and the container is OOMKilled.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "container.config_error",
+    "container.crashloop",
+    "container.oom_killed",
+    "dependency.missing",
+    "drift.config",
+    "pod.not_ready"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:46:02.300615+00:00",
+  "tier": "C",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 6.2
+}

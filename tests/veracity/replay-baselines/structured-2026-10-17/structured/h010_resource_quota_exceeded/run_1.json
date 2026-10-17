@@ -1,0 +1,44 @@
+{
+  "answerable": null,
+  "case": "h010_resource_quota_exceeded",
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "scheduling",
+      "location": "Pod/staging/worker-service-7d8f9c6b5-xp2qr",
+      "rule": "scheduling",
+      "score": 0.5,
+      "signals": [
+        "da93850b96499c44"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: quota",
+  "root_cause": "worker-service-7d8f9c6b5-xp2qr cannot be scheduled: not enough CPU on the nodes.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "quota.exceeded",
+    "scheduling.failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:45:20.302274+00:00",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 3.81
+}

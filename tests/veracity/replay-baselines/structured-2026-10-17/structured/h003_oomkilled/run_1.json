@@ -1,0 +1,66 @@
+{
+  "answerable": null,
+  "case": "h003_oomkilled",
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "helm-drift",
+      "location": "HelmRelease/production/api",
+      "rule": "config.drift",
+      "score": 0.65,
+      "signals": [
+        "10a71076c843e69f",
+        "7b80287e52c2561a",
+        "3c693bb8388c7d0e",
+        "e24c3f3704f1a432"
+      ]
+    },
+    {
+      "family": "oom",
+      "location": "HelmRelease/production/api",
+      "rule": "oom.memory_drift",
+      "score": 0.5,
+      "signals": [
+        "3c693bb8388c7d0e",
+        "4b506b250cfe1691"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "memory",
+      "drift|512mi|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "memory",
+    "drift|512mi|declared"
+  ],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "api drifted from its declared configuration: resources.requests.memory is declared 256Mi but deployed 64Mi. The memory limit of api drifted from the declared value: resources.limits.memory is declared 512Mi but deployed 128Mi, and the container is OOMKilled.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "container.crashloop",
+    "container.oom_killed",
+    "drift.config",
+    "pod.not_ready",
+    "rollout.progressing"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:44:49.208128+00:00",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 1.31
+}

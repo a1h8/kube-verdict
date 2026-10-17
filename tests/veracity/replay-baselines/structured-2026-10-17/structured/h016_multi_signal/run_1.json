@@ -1,0 +1,41 @@
+{
+  "answerable": null,
+  "case": "h016_multi_signal",
+  "confidence": "LOW",
+  "diagnoses": [],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "outcome": "insufficient_evidence",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: max_connections|connection pool|pool, replica|scale",
+  "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "app.error_rate",
+    "db.connect_failed",
+    "db.connections_exhausted",
+    "db.pool_timeout",
+    "dependency.unreachable",
+    "drift.config",
+    "pod.not_ready",
+    "probe.readiness_failed",
+    "rollout.stalled"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:45:44.796223+00:00",
+  "tier": "B",
+  "unclassified": {},
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 12.34
+}

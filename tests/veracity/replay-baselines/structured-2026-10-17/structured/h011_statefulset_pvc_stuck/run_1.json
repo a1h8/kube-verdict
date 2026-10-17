@@ -1,0 +1,61 @@
+{
+  "answerable": null,
+  "case": "h011_statefulset_pvc_stuck",
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "config-missing",
+      "location": "absent:PersistentVolumeClaim/data/data-kafka-2",
+      "rule": "dependency.missing",
+      "score": 0.5,
+      "signals": [
+        "006d4e0ff9e35b8d"
+      ]
+    },
+    {
+      "family": "scheduling",
+      "location": "Pod/data/kafka-2",
+      "rule": "scheduling",
+      "score": 0.5,
+      "signals": [
+        "d97535875d95d003"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "volume",
+      "pending"
+    ]
+  ],
+  "matched_keywords": [
+    "volume",
+    "pending"
+  ],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The PersistentVolumeClaim data-kafka-2 referenced by kafka-2 does not exist (it is missing). kafka-2 cannot be scheduled: no node fits it.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "dependency.missing",
+    "scheduling.failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T12:45:21.927158+00:00",
+  "tier": "A",
+  "unclassified": {
+    "k8s_event": 1
+  },
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 1.62
+}
