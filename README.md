@@ -29,15 +29,14 @@ How often KubeVerdict names the right cause, on what, and how it was measured. E
 
 | Measurement | Result | How |
 |---|---|---|
-| Offline, real model — mistral 7B via Ollama, no retrieval | **28/54 runs (52 %)** — tier A (stated cause) 25/36, B (cause in one signal) 3/12, C (reasoning) 0/6 | 18 native cases × 3 runs through the real collectors and workflow; graded on cause concepts: every part of the cause must be named, the symptom alone fails ([veracity-replay.md](docs/veracity-replay.md)) |
+| Offline, real model — mistral 7B via Ollama, no retrieval | **invalidated — re-measure in progress** | the model read only ~17 % of each prompt: Ollama's default 2048-token context cut the evidence and kept the end. The recorded 28/54 measures the prompt's tail, not the diagnosis ([case-audit-001.md](docs/case-audit-001.md) F8) |
 | Offline, rules alone (no LLM) | **3/18** | same cases, top deterministic hypothesis ([REPORT.md](tests/veracity/replay/REPORT.md)) |
 | Live, real cluster | **not measured yet** | the two live captures of 2026-09-26 (0/2) do not count: the scenarios were staged — the pod failed on a closed probe port while the "cause" was only printed text ([case-audit-001.md](docs/case-audit-001.md) F3) |
 
 What these numbers say, and do not say:
 
-- **The model does the diagnosis.** Rules alone find 3/18, so the LLM is not only "explaining" a verdict built without it.
-- **It does not say "I don't know" yet.** On a healthy cluster (h022) the model invents a cause 3/3 times; its confidence label is MEDIUM on 53/54 runs, right or wrong. The rules alone do abstain.
-- **The offline baseline predates a fix.** It was recorded before runtime status stopped being counted as Helm drift (2026-10-14), which was the most common wrong answer. It is to be re-measured.
+- **Rules alone find 3/18.** What the LLM adds is not known yet: it has not been measured on the whole prompt.
+- **It does not say "I don't know" yet.** On a healthy cluster (h022) the model invented a cause 3/3 times and answered MEDIUM on 53/54 runs, under the truncated prompt; part of the cause is in the pipeline: a restart from hours ago makes the healthy pod a starting point. The rules alone do abstain.
 - **18 cases are not a general accuracy.** They are prepared scenarios with a known cause; incidents we did not write are not measured yet. An audit of the 18 found 8 to correct or retire ([case-audit-001.md](docs/case-audit-001.md)); the numbers will be re-measured on the corrected cases.
 
 ## Why it matters
