@@ -190,6 +190,10 @@ def _crash(ss: SignalSet, explained_pods: set[str]) -> list[Diagnosis]:
             for s in ss.of("container.crashloop") if ss.subject(s) not in explained_pods]
 
 
+# every rule id ``diagnose`` can produce — docs/diagnosis-coverage.md checks rows against it
+RULE_IDS: frozenset[str] = frozenset({"dependency.missing", "oom.memory_drift", "oom.limit", "image.pull",
+                                       "scheduling", "config.drift", "container.crash"})
+
 RULES: list[Callable[[SignalSet], list[Diagnosis]]] = [_dependency_missing, _oom, _image_pull, _scheduling]
 
 

@@ -1,0 +1,512 @@
+# Diagnosis coverage — one row per cause, checked against the code by tools/coverage.py.
+# Reference catalog: prometheus-operator/runbooks @ a685d14cf512 (Apache-2.0), runbooks
+# kubernetes/* and node/*, whose "Diagnosis" sections list the causes below; plus the
+# families of docs/incident-corpus.md. Only `live` is a judgment (with its reason);
+# signals, rule and cases are verified by the script.
+#
+# A row cites a runbook only when that runbook's Diagnosis section names the cause.
+# fields: id, cause, family, runbooks, signals (kinds that show it), rule (rule id or null),
+#         cases (native cases where it is the cause), live (yes | partial | no) + live_note
+rows:
+- id: missing-config
+  cause: a referenced ConfigMap, Secret or volume does not exist
+  family: config-missing
+  runbooks:
+  - KubePodCrashLooping
+  - KubePodNotReady
+  - KubeContainerWaiting
+  signals:
+  - dependency.missing
+  - container.config_error
+  rule: dependency.missing
+  cases:
+  - h001
+  - h004
+  - h024
+  live: 'yes'
+  live_note: kubelet events and the readiness detector, collected live
+  terms: configmaps?/secrets?|missing files
+- id: oom-limit
+  cause: the container needs more memory than its limit
+  family: oom
+  runbooks:
+  - KubePodCrashLooping
+  - KubePodNotReady
+  signals:
+  - container.oom_killed
+  rule: oom.limit
+  cases: []
+  live: 'yes'
+  live_note: container lastState is collected live
+  terms: memory
+- id: oom-memory-drift
+  cause: the deployed memory limit differs from the declared one
+  family: oom
+  runbooks:
+  - KubePodCrashLooping
+  signals:
+  - container.oom_killed
+  - drift.config
+  rule: oom.memory_drift
+  cases:
+  - h003
+  - h024
+  live: 'yes'
+  live_note: Helm values of the release are collected live
+  terms: memory
+- id: image-pull-auth
+  cause: the registry refuses the pull credentials
+  family: image-pull
+  runbooks: []
+  signals:
+  - image.pull_failed
+  rule: image.pull
+  cases: []
+  live: 'yes'
+  live_note: kubelet events
+- id: image-tag-drift
+  cause: the deployed image tag differs from the declared one and cannot be pulled
+  family: image-pull
+  runbooks: []
+  signals:
+  - image.pull_failed
+  - drift.config
+  rule: image.pull
+  cases:
+  - h002
+  live: 'yes'
+  live_note: kubelet events and Helm values
+- id: probe-misconfigured
+  cause: a liveness or readiness probe is wrong (port, command) or too aggressive (timeout)
+  family: probe
+  runbooks:
+  - KubePodCrashLooping
+  - KubePodNotReady
+  signals:
+  - probe.liveness_failed
+  - probe.readiness_failed
+  rule: null
+  cases: []
+  live: 'yes'
+  live_note: probe events; the spec is in the pod
+  terms: probe
+- id: probe-timeout-drift
+  cause: the deployed probe timeout differs from the declared one
+  family: probe
+  runbooks:
+  - KubePodCrashLooping
+  signals:
+  - probe.liveness_failed
+  - drift.config
+  rule: config.drift
+  cases:
+  - h009
+  live: 'yes'
+  live_note: probe events and Helm values
+  terms: probe
+- id: dependency-unavailable
+  cause: the app waits for a service that is down or unreachable (database, upstream)
+  family: dependency
+  runbooks:
+  - KubePodCrashLooping
+  - KubePodNotReady
+  signals:
+  - dependency.unreachable
+  - net.connection_refused
+  - net.timeout
+  rule: null
+  cases: []
+  live: partial
+  live_note: needs Loki for the app's logs
+  terms: other services|database
+- id: init-failed
+  cause: an init container exits non-zero or never completes
+  family: init-container
+  runbooks:
+  - KubePodNotReady
+  signals:
+  - container.exited
+  rule: null
+  cases:
+  - h008
+  live: 'yes'
+  live_note: init container status and events
+  terms: init container
+- id: app-crash
+  cause: the app crashes on start (misconfiguration, code error)
+  family: crashloop
+  runbooks:
+  - KubePodCrashLooping
+  signals:
+  - container.crashloop
+  rule: container.crash
+  cases: []
+  live: partial
+  live_note: the reason is in the app's logs (Loki)
+  terms: misconfiguration
+- id: readonly-fs
+  cause: the app writes to a read-only filesystem
+  family: crashloop
+  runbooks:
+  - KubePodCrashLooping
+  - KubePodNotReady
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: only in the app's logs
+  terms: read only filesystem
+- id: security-context
+  cause: wrong user, missing capability or securityContext denies the app
+  family: crashloop
+  runbooks:
+  - KubePodCrashLooping
+  - KubePodNotReady
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: logs and pod spec
+  terms: securityContext|permissions
+- id: insufficient-resources
+  cause: no node has enough CPU or memory (or the special resource, e.g. GPU)
+  family: scheduling
+  runbooks:
+  - KubePodNotReady
+  - KubeContainerWaiting
+  - KubeDaemonSetNotScheduled
+  signals:
+  - scheduling.failed
+  rule: scheduling
+  cases: []
+  live: 'yes'
+  live_note: FailedScheduling events
+  terms: resource|requests|GPU
+- id: affinity-taints
+  cause: no node matches the pod's affinity, selector or tolerations
+  family: scheduling
+  runbooks:
+  - KubeContainerWaiting
+  - KubeDaemonSetNotScheduled
+  - KubeDaemonSetMisScheduled
+  signals:
+  - scheduling.failed
+  rule: scheduling
+  cases: []
+  live: 'yes'
+  live_note: FailedScheduling events
+  terms: taint|affinity|selector
+- id: volume-binding
+  cause: a PVC is pending or bound to a volume another node holds
+  family: storage
+  runbooks:
+  - KubePersistentVolumeErrors
+  signals:
+  - scheduling.failed
+  - dependency.missing
+  rule: scheduling
+  cases: []
+  live: 'yes'
+  live_note: PVC phase and FailedScheduling events
+  terms: pending|bound|provision
+- id: quota-exceeded
+  cause: the namespace ResourceQuota refuses new pods
+  family: quota
+  runbooks:
+  - KubeQuotaExceeded
+  - KubeQuotaFullyUsed
+  - KubeQuotaAlmostFull
+  signals:
+  - quota.exceeded
+  rule: null
+  cases: []
+  live: partial
+  live_note: FailedCreate events live; ResourceQuota objects not typed live (D1.2)
+  terms: quota
+- id: rollout-stalled
+  cause: a rollout stops progressing (progress deadline exceeded)
+  family: rollout
+  runbooks:
+  - KubeDeploymentGenerationMismatch
+  - KubeStatefulSetUpdateNotRolledOut
+  - KubeDaemonSetRolloutStuck
+  signals:
+  - rollout.stalled
+  rule: null
+  cases: []
+  live: 'yes'
+  live_note: Deployment conditions are collected live
+  terms: rollout|update|roll
+- id: hpa-no-metrics
+  cause: the HPA cannot read its metrics
+  family: hpa
+  runbooks: []
+  signals:
+  - hpa.metrics_unavailable
+  rule: null
+  cases:
+  - h007
+  live: partial
+  live_note: HPA events live; HPA objects not typed live (D1.2)
+- id: hpa-maxed-out
+  cause: the load needs more replicas than the HPA maximum
+  family: hpa
+  runbooks:
+  - KubeHpaMaxedOut
+  signals: []
+  rule: null
+  cases: []
+  live: 'no'
+  live_note: HPA status not typed live
+  terms: max
+- id: job-failed
+  cause: a Job reaches its backoff limit or deadline
+  family: job
+  runbooks:
+  - KubeJobFailed
+  signals: []
+  rule: null
+  cases: []
+  live: 'no'
+  live_note: Jobs not typed live
+  terms: fail|backoff
+- id: node-not-ready
+  cause: a node is NotReady or unreachable (kubelet down, PLEG, network)
+  family: node
+  runbooks:
+  - KubeNodeNotReady
+  - KubeNodeUnreachable
+  - KubeNodeReadinessFlapping
+  - KubeletDown
+  - KubeletPlegDurationHigh
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: Node conditions are collected; no signal yet
+  terms: kubelet|network|node
+- id: node-disk-pressure
+  cause: node filesystem pressure evicts pods
+  family: node
+  runbooks:
+  - NodeFilesystemAlmostOutOfSpace
+  - NodeFilesystemSpaceFillingUp
+  - NodeFilesystemAlmostOutOfFiles
+  - NodeFilesystemFilesFillingUp
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: eviction events live; node-exporter metrics need Prometheus
+  terms: filesystem|disk|space|files
+- id: node-clock-skew
+  cause: node clock skew breaks token or certificate validation
+  family: node
+  runbooks:
+  - NodeClockSkewDetected
+  - NodeClockNotSynchronising
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: needs node-exporter metrics
+  terms: clock|ntp
+- id: kubelet-too-many-pods
+  cause: the kubelet reached its pod limit
+  family: node
+  runbooks:
+  - KubeletTooManyPods
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: node capacity is collected; no signal yet
+  terms: pods
+- id: pv-filling-up
+  cause: a persistent volume is full or failing
+  family: storage
+  runbooks:
+  - KubePersistentVolumeFillingUp
+  - KubePersistentVolumeErrors
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: needs kubelet volume metrics in Prometheus
+  terms: volume|space|filling
+- id: cpu-throttling
+  cause: CPU limits throttle the container
+  family: resources
+  runbooks:
+  - CPUThrottlingHigh
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: needs cAdvisor metrics in Prometheus
+  terms: throttl
+- id: app-cert-expired
+  cause: an application TLS certificate expired (issuer could not renew)
+  family: certificate
+  runbooks: []
+  signals:
+  - tls.cert_expired
+  - cert.issuer_failed
+  rule: null
+  cases:
+  - h014
+  live: partial
+  live_note: cert-manager events live; x509 errors need Loki
+- id: kubelet-cert-expired
+  cause: a kubelet client or server certificate expires or fails to renew
+  family: certificate
+  runbooks:
+  - KubeletClientCertificateExpiration
+  - KubeletServerCertificateExpiration
+  - KubeletClientCertificateRenewalErrors
+  - KubeletServerCertificateRenewalErrors
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: needs kubelet metrics
+  terms: certificate
+- id: control-plane-down
+  cause: an API server, scheduler, controller manager or kube-proxy is down
+  family: control-plane
+  runbooks:
+  - KubeAPIDown
+  - KubeSchedulerDown
+  - KubeControllerManagerDown
+  - KubeProxyDown
+  - KubeAggregatedAPIDown
+  - KubeAggregatedAPIErrors
+  signals: []
+  rule: null
+  cases: []
+  live: partial
+  live_note: needs Prometheus target health
+  terms: down|unavailable|target|disappeared
+- id: etcd-slow
+  cause: etcd is slow (compaction, disk) and requests time out
+  family: etcd
+  runbooks:
+  - KubeAPIErrorBudgetBurn
+  signals:
+  - etcd.slow
+  rule: null
+  cases:
+  - h015
+  live: partial
+  live_note: needs OTel traces or etcd metrics
+  terms: etcd
+- id: network-policy
+  cause: a NetworkPolicy blocks the app's traffic
+  family: network-policy
+  runbooks: []
+  signals:
+  - dns.failed
+  - net.timeout
+  rule: null
+  cases: []
+  live: 'no'
+  live_note: NetworkPolicies not typed live (D1.2)
+- id: dns-failure
+  cause: cluster DNS fails (CoreDNS down or throttled)
+  family: dns
+  runbooks: []
+  signals:
+  - dns.failed
+  rule: null
+  cases: []
+  live: partial
+  live_note: CoreDNS in kube-system is outside the collected namespaces by default
+- id: rbac-denied
+  cause: the ServiceAccount lacks the permissions the app needs
+  family: rbac
+  runbooks: []
+  signals:
+  - rbac.denied
+  - rbac.unbound
+  rule: null
+  cases:
+  - h005
+  live: partial
+  live_note: denials are in app logs (Loki); RoleBindings not typed live (D1.2)
+- id: db-connections-exhausted
+  cause: a scale-out exhausts the database's connections
+  family: dependency
+  runbooks: []
+  signals:
+  - db.connections_exhausted
+  - db.pool_timeout
+  - drift.config
+  rule: null
+  cases:
+  - h016
+  live: partial
+  live_note: needs Loki, Prometheus or OTel
+- id: slo-dependency
+  cause: a dependency slows down and burns the SLO error budget
+  family: slo
+  runbooks: []
+  signals:
+  - slo.burn
+  rule: null
+  cases:
+  - h013
+  live: partial
+  live_note: needs Prometheus SLO rules
+- id: config-drift
+  cause: the live object differs from what the release declares
+  family: helm-drift
+  runbooks: []
+  signals:
+  - drift.config
+  rule: config.drift
+  cases: []
+  live: 'yes'
+  live_note: Helm values collected live
+- id: gitops-render-drift
+  cause: the live object differs from the manifests rendered from Git
+  family: gitops-drift
+  runbooks: []
+  signals: []
+  rule: null
+  cases:
+  - h012
+  live: partial
+  live_note: render path opt-in (GITOPS_REPO_URL), off in the replay
+- id: declared-bad-value
+  cause: the declared value itself is wrong (image tag that does not exist, limit above LimitRange)
+  family: helm-drift
+  runbooks: []
+  signals:
+  - image.pull_failed
+  rule: null
+  cases: []
+  live: partial
+  live_note: needs checking declared values against the registry and LimitRanges
+- id: no-incident-past-restart
+  cause: nothing is broken; a past restart is resolved
+  family: negative
+  runbooks: []
+  signals:
+  - restart.past
+  - event.past
+  rule: null
+  cases:
+  - h022
+  live: 'yes'
+  live_note: container status
+- id: no-incident-rollout
+  cause: nothing is broken; a healthy rollout is in progress
+  family: negative
+  runbooks: []
+  signals:
+  - rollout.progressing
+  rule: null
+  cases:
+  - h026
+  live: 'yes'
+  live_note: Deployment conditions

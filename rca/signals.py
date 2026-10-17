@@ -168,6 +168,15 @@ _LIFECYCLE = {"container.crashloop", "container.oom_killed", "container.exited",
               "image.pull_failed", "probe.readiness_failed", "probe.liveness_failed"}
 
 
+# every kind an extractor can emit — docs/diagnosis-coverage.md checks rows against it
+SIGNAL_KINDS: frozenset[str] = frozenset(
+    {k for k, _rx, _g in _EVENT_PATTERNS + _LOG_PATTERNS}
+    | {k for k, _rx in _TRACE_PATTERNS + _ALERT_PATTERNS}
+    | {"container.crashloop", "container.config_error", "image.pull_failed", "container.oom_killed",
+       "restart.past", "pod.not_ready", "rollout.progressing", "rollout.stalled", "scheduling.failed",
+       "event.past", "drift.config", "rbac.unbound", "dependency.missing"})
+
+
 def _match(patterns, text: str):
     for kind, rx, groups in patterns:
         m = rx.search(text or "")
