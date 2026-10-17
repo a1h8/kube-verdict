@@ -1,11 +1,10 @@
 # KubeVerdict
 
-**Evidence-first Kubernetes troubleshooting for SRE and platform teams.** It correlates events, rendered Helm/GitOps manifests, policies and past fixes into an **explainable root cause** and a **human-approved** remediation — it does not guess from live symptoms, and it never changes your cluster on its own.
+**An RCA assistant for Kubernetes that tells a configuration drift from a symptom, and publishes how often it names the right cause.**
 
-Its wedge is **anchor-by-render**: it reconstructs the expected state from Helm/GitOps rendered manifests, compares it with live Kubernetes reality, and turns the drift into first-class RCA evidence *before* any LLM explanation.
+For the on-call SRE or platform engineer running workloads with Helm (GitOps optional). KubeVerdict compares what a release declares with what actually runs, collects Kubernetes, Helm and observability evidence into one graph, and proposes a root cause and a fix with its rollback. Then it stops at a human gate: it never changes the cluster on its own.
 
 [![CI](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml/badge.svg)](https://github.com/a1h8/kube-verdict/actions/workflows/ci.yml)
-[![Validated cases](https://img.shields.io/badge/validated%20cases-h001--h010%20%2B%20h012-blue)](#validated-scenarios)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
@@ -20,11 +19,26 @@ make demo
 
 `make demo` runs a **real** render-vs-live RCA on a committed fixture (`h012`): it diffs the `helm template` expected state against the observed cluster and ranks the root cause — the same code that runs in CI (`tests/integration/test_render_vs_live_h012.py`). No mocks.
 
-📺 **[▶ Watch the 35-second demo](demo/kubeverdict-short.mp4)** — incident → evidence → verdict → human gate.  ·  [View on GitHub](https://github.com/a1h8/kube-verdict)
-
-✅ Air-gapped by default (Ollama + Mistral) · ✅ No auto-remediation without approval · ✅ 11 failure scenarios reproduced offline in CI (h001–h010 + h012 render-vs-live)
+📺 **[▶ Watch the 35-second demo](demo/kubeverdict-short.mp4)** — incident → evidence → verdict → human gate.
 
 ---
+
+## Status — measured, not claimed
+
+How often KubeVerdict names the right cause, on what, and how it was measured. Every number links to its records.
+
+| Measurement | Result | How |
+|---|---|---|
+| Offline, real model — mistral 7B via Ollama, no retrieval | **30/54 runs (56 %)** — tier A (stated cause) 27/36, B (cause in one signal) 3/12, C (reasoning) 0/6 | 18 native cases × 3 runs through the real collectors and workflow; keyword + synonym grading ([veracity-replay.md](docs/veracity-replay.md)) |
+| Offline, rules alone (no LLM) | **4/18** | same cases, top deterministic hypothesis ([REPORT.md](tests/veracity/replay/REPORT.md)) |
+| Live, real cluster | **0/2** (expired certificate, etcd compaction) | 2026-09-26, [veracity-benchmark.md](docs/veracity-benchmark.md) |
+
+What these numbers say, and do not say:
+
+- **The model does the diagnosis.** Rules alone find 4/18, so the LLM is not only "explaining" a verdict built without it.
+- **It does not say "I don't know" yet.** On a healthy cluster (h022) the model invents a cause 3/3 times; its confidence label is MEDIUM on 53/54 runs, right or wrong. The rules alone do abstain.
+- **The offline baseline predates a fix.** It was recorded before runtime status stopped being counted as Helm drift (2026-10-14), which was the most common wrong answer. It is to be re-measured.
+- **18 cases are not a general accuracy.** They are prepared scenarios with a known cause; incidents we did not write are not measured yet.
 
 ## Why it matters
 
@@ -32,46 +46,45 @@ Most Kubernetes outages are not caused by a single failing pod.
 
 When payment-service crashes, the on-call engineer opens five tabs simultaneously: pod logs, Kubernetes events, Helm history, Prometheus graphs, and the GitOps repo. Under pressure, at 2 AM, with three Slack threads open. The root cause is rarely where the alert fired — it's three hops away in a misconfigured Helm value or a drift between what was declared and what actually runs.
 
-KubeVerdict reduces that cognitive load. It starts from an Alertmanager incident signal, correlates Kubernetes events and Helm/GitOps drift against the expected state rendered from source, so the RCA starts from intent, not only from live symptoms — then ranks the diagnosis by confidence and keeps a human approval gate before any remediation command touches production.
+## What it does differently: a drift is not a symptom
 
----
+Most RCA tools start from live symptoms: events, logs, metrics and alerts. KubeVerdict also starts from **intent**: it reconstructs what *should* be running from the Helm release (and, when configured, from the rendered GitOps manifests: [anchor-by-render](docs/anchor-by-render.md)), compares it with the live cluster, and keeps two kinds of gap apart:
 
-## Anchor-by-render
+- **Configuration drift** — the live object differs from what the release declares (`spec.replicas` vs `replicaCount`, an image tag, a memory limit, a probe timeout). It is a cause candidate (`drift.*`).
+- **Symptom** — the workload is unhealthy (`readyReplicas: 0`, `CrashLoopBackOff`, restarts). It is evidence that something is wrong, not a cause (`health.*`).
 
-Most Kubernetes RCA tools start from live symptoms: events, logs, metrics and alerts.
+A bad value that is *declared* is not a drift either: the cluster matches the release, and the cause is the value itself.
 
-KubeVerdict starts one step earlier: it reconstructs what *should* have been running from Helm/GitOps rendered manifests.
-
-This rendered expected state becomes the evidence anchor. KubeVerdict then compares it with the live cluster state, detects declared-vs-observed drift, and uses that drift to rank root-cause hypotheses.
-
-The LLM does not invent the diagnosis. It explains an evidence path built from rendered intent, runtime state, Kubernetes events, policy signals, temporal anomalies and incident memory.
-
-> Status: the current validated scenario set exercises the Helm-values-drift path. A stronger GitOps render-vs-live scenario should be promoted into the validated h0NN set before claiming full render-backed validation.
-
----
-
-## Enterprise anchors, not generic RCA
-
-KubeVerdict does not ask an LLM to guess the root cause. It builds **typed evidence anchors** —
-probes, resources, images, services, dependencies, policies, owners, releases, chart values —
-from deterministic sources, ranks RCA hypotheses from them, and uses the LLM **only to explain
-the ranked verdict**.
-
-The evidence sources it can draw on, and how far each is proven today:
+## Evidence sources, and how far each is proven
 
 | Evidence source | Status |
 |---|---|
-| Helm value drift (declared vs live) | **validated** (h001–h010) |
-| Kubernetes events / runtime state | **validated** |
-| Resolved-incident memory (past human-approved fixes) | **wired & populated** — `knowledge/example_store.py`, 221 examples in `data/examples`, indexed into FAISS |
+| Helm configuration drift (declared vs live) | **tested offline** on the native cases that carry one (h002, h003, h009, h016, h024); runtime status kept apart as a symptom |
+| Kubernetes events / runtime state | **tested offline**, collected live |
+| Rendered Helm/GitOps manifests (expected state) | **opt-in** (`GITOPS_REPO_URL`); one fixture case (h012); no GitOps controller tested live yet |
+| Prometheus alerts, Loki logs, OTel traces | **tested offline** through the real collectors (h013–h015); reached live once each (2026-09-26, [evidence](docs/evidence/prometheus-live.md)), but both live diagnoses were wrong |
+| Resolved-incident memory (past human-approved fixes) | **wired** — `knowledge/example_store.py`, indexed into FAISS; its effect on accuracy is not measured yet |
 | Policy reports (Kyverno / OPA `PolicyReport`) | **wired** — ingested as `PolicyViolation` evidence |
-| Rendered Helm/GitOps manifests (expected state) | **opt-in** — activates with `GITOPS_REPO_URL` |
-| Enterprise docs / runbooks / SOPs | **pluggable** — `knowledge/doc_indexer.py` indexes `EnterpriseDoc` chunks; no corpus ships by default |
+| Enterprise docs / runbooks / SOPs | **pluggable** — `knowledge/doc_indexer.py`; no corpus ships by default |
 
-Because the diagnosis is assembled from deterministic anchors *before* the model runs,
-KubeVerdict is **LLM-light**: less hallucination, more reproducibility, and an auditable evidence
-path — the properties a platform or SRE team needs before trusting and signing off on a
-remediation.
+## Out of scope, on purpose
+
+- **No autonomous remediation.** Every fix goes through human approval; the blast radius is a heuristic over the proposed command, not a guarantee.
+- **Single cluster.** Multi-cluster is not wired.
+- **No incident prediction.** Temporal anomaly scores (PatchTST) are a supporting signal; offline they run on synthetic series and add no evidence.
+
+## Experimental — kept, not measured as contributing
+
+The Monte Carlo stability check (it feeds the policy gate), beam-search path switching and the PatchTST detector are part of the workflow, but their contribution to the right answer has not been measured. A layer-by-layer comparison is the next measurement.
+
+## Two modes: local (air-gapped) or hosted
+
+| Mode | Model | What leaves the cluster | Measured |
+|---|---|---|---|
+| **Local / air-gapped** (default) | Ollama + mistral on your hardware; the embedding model (`all-MiniLM-L6-v2`) from a pre-seeded cache (see [Air-gapped clusters](#air-gapped-clusters)) | nothing | the numbers in [Status](#status--measured-not-claimed); 127 s median per case on 8 CPU cores, no GPU (61–332 s) |
+| **Hosted** | Groq, Anthropic, OpenAI or Google (`LLM_PROVIDER` + API key) | the evidence sent to the model: object names, events, log lines | not measured yet |
+
+The hosted mode is there for hardware that cannot run a local model fast enough. The replay (`tools/veracity_replay.py`) drives Ollama only today; measuring the hosted mode on the same cases needs it to accept the other providers. Dependencies are not pinned yet.
 
 ---
 
@@ -227,7 +240,7 @@ Cases h001–h010 each have a `test_hybrid_pipeline_NNN.py` running the full pre
 - **h014 — expired mTLS certificate** (`test_loki_fixture_h014.py`): a cert-manager issuer cannot renew, the certificate expires and both replicas fail readiness (Deployment 0/2). Events show the symptom (readiness 503) and an issuer warning but never name the expired certificate; only the pods' logs do (`x509: certificate has expired`). The log streams are served to the **real** `LokiSource`, which selects the pods because they are `Running` but not ready, and a same-named pod in another namespace is not returned.
 - **h015 — etcd compaction latency** (`test_otel_fixture_h015.py`): a pod `Ready=False` on a readiness timeout whose cause appears only in OTel error traces (`DeadlineExceeded` on etcd `Range`). The traces are served to the **real** `OtelCollector` by a fixture backend, so the pod is picked by the same readiness-aware selection a live run uses (a `Running` pod that is not ready), and a trace for an unrelated service is dropped.
 
-Both are validated at the **evidence-path level** — fixture → graph → context window, deterministic in CI, no cluster, no Ollama. They do not assert the LLM's root-cause wording (that needs a model and runs through the generic `test_native_helm_dialogue`). On live telemetry: one real Prometheus run was captured in roadmap B13 (`docs/evidence/prometheus-live.md`); no live OTel-backend or Loki capture is recorded yet — B13 covers Prometheus only.
+Both are validated at the **evidence-path level** — fixture → graph → context window, deterministic in CI, no cluster, no Ollama. They do not assert the LLM's root-cause wording (that needs a model and runs through the generic `test_native_helm_dialogue`). On live telemetry: Prometheus, Loki and OTel were each reached live on 2026-09-26 (`docs/evidence/prometheus-live.md`); the two graded live diagnoses (h014, h015) were wrong — see [Status](#status--measured-not-claimed).
 
 ---
 
@@ -405,7 +418,7 @@ The temporal detector (`signals/patchtst_detector.py`) can produce forecast resi
 
 Several constraints are intentional or known:
 
-- **Validated cases: h001–h010** (h011 is wired in but not yet passing — see Validated scenarios). Advanced scenarios on the roadmap — Helmfile multi-release, MCTS routing, Slack/PagerDuty enrichment, RBAC-aware (impersonated) scoping — are not yet implemented.
+- **Scenarios h001–h010 are reproduced in CI with a scripted LLM**, which checks the evidence path, not the diagnosis; the real-model numbers are in [Status](#status--measured-not-claimed) (h011 is wired in but not yet passing). Advanced scenarios on the roadmap — Helmfile multi-release, MCTS routing, Slack/PagerDuty enrichment, RBAC-aware (impersonated) scoping — are not yet implemented.
 - **Single-cluster.** Multi-cluster support is not yet wired end-to-end.
 - **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
 - **LLM performance is local-hardware-dependent.** Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.
