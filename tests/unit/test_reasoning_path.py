@@ -18,9 +18,7 @@ KNOWN: dict[tuple[str, str], str] = {
     ("h007_hpa_no_metrics", "seeds"): "P3: the fixture has no Deployment, HPA or metrics-server",
     ("h007_hpa_no_metrics", "rule"): "P4: no rule for HPA metrics unavailable",
     ("h008_init_container_fail", "rule"): "P4/P6: no init-container rule; pending_unschedulable fires instead",
-    ("h016_multi_signal", "seeds"): "P1: Running-but-NotReady pods are not seeds",
     ("h016_multi_signal", "rule"): "P4/P5: no connection-exhaustion rule; helm_drift on the decoy catalog-api ranks first",
-    ("h022_no_incident", "seeds"): "P2: a restart from hours ago makes a healthy pod a seed",
 }
 
 

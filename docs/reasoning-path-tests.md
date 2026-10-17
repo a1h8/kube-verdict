@@ -83,12 +83,21 @@ h009, h024); the failures below are strict xfails in `tests/unit/test_reasoning_
 
 | Id | Case / step | Finding |
 |---|---|---|
-| P1 | h016 seeds | Running-but-NotReady pods are not seeds (`dedup/bfs.py`: phase or restarts only) |
-| P2 | h022 seeds | any past restart makes a pod a seed, however old: the healthy cluster has an "unhealthy" pod |
+| P1 | h016 seeds | Running-but-NotReady pods are not seeds (`dedup/bfs.py`: phase or restarts only) — **fixed 2026-10-17** |
+| P2 | h022 seeds | any past restart makes a pod a seed, however old: the healthy cluster has an "unhealthy" pod — **fixed 2026-10-17** |
 | P3 | h007 seeds | the fixture has no Deployment, HPA or metrics-server |
 | P4 | h007, h008, h016 rule | no rule for HPA metrics, init-container failure, connection exhaustion |
 | P5 | h016 rule | `helm_drift` on the decoy catalog-api ranks first |
 | P6 | h008 rule | `pending_unschedulable` fires for an init container that exits non-zero |
+
+**Fix of P1 / P2 (2026-10-17).** A pod is a seed when it is not Running or a container is
+not ready; a past restart alone is not. A not-ready pod is skipped only when it starts
+cleanly (every container running, never restarted) in a rollout Kubernetes reports as
+progressing while the Deployment stays available — the negative case h026. A first version
+skipped any not-ready pod of a progressing rollout; h003 caught it: `Progressing=True`
+stays set until `progressDeadlineSeconds` even when the new pods crash, so that version hid
+a broken rollout. Deployment conditions are now collected live and from fixtures alike.
+Tests: `tests/unit/test_seed_selection.py`; after the fix 7 of 10 cases pass steps 1–4.
 
 "Evidence PASS" means the marker is in the prompt **sent**; the model read only ~17 % of it
 until the context window is fixed (`docs/case-audit-001.md` F8).
