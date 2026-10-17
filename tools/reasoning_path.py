@@ -3,8 +3,9 @@
 
 Spec: docs/reasoning-path-tests.md. Each native case declares ``expect.json["reasoning_path"]``;
 this runs the case through the real offline workflow (``workflow_harness.run_case``)
-with an LLM that only records what it is sent, and grades steps 1–4:
+with an LLM that only records what it is sent, and grades steps 0–4:
 
+0. signals      the expected signal kinds are extracted (docs/structured-diagnosis.md)
 1. seeds        ``find_unhealthy`` picks the faulty workloads, and only them
 2. cause        the cause object is reached (or, when absent, reported as missing)
 3. evidence     each marker reaches the analyze prompt, in the section it belongs to
@@ -27,7 +28,7 @@ sys.path.insert(0, str(ROOT))
 
 CASES_ROOT = ROOT / "tests/integration/cases"
 REPORT = ROOT / "tests/veracity/PATH.md"
-STEPS = ("seeds", "cause", "evidence", "rule")
+STEPS = ("signals", "seeds", "cause", "evidence", "rule")
 TOP_K = 3
 
 # section name in expect.json → header of that section in ContextWindow.to_prompt_block()
@@ -82,6 +83,19 @@ def _section(prompt: str, header: str) -> str:
         return ""
     end = prompt.find("\n### ", start + len(header))
     return prompt[start:end if end >= 0 else len(prompt)]
+
+
+def _signals(path: dict, kinds: set[str]) -> tuple[str, str]:
+    """docs/structured-diagnosis.md § 4: the case's expected signal kinds are extracted."""
+    if "signals_expected" not in path:
+        return "n.a.", "no signals declared"
+    missing = [k for k in path["signals_expected"] if k not in kinds]
+    forbidden = [k for k in path.get("signals_forbidden", []) if k in kinds]
+    if missing or forbidden:
+        parts = ([f"not extracted: {', '.join(missing)}"] if missing else []) + \
+                ([f"wrongly extracted: {', '.join(forbidden)}"] if forbidden else [])
+        return "FAIL", "; ".join(parts)
+    return "PASS", ", ".join(sorted(kinds)) or "none"
 
 
 def _seeds(path: dict, seeds: set[str]) -> tuple[str, str]:
@@ -180,7 +194,10 @@ def evaluate(case_name: str) -> dict[str, tuple[str, str]]:
     reached = {e.fqn for e in expand_incident_context(graph, seed_entities)}
     prompt = run.llm.analyze_prompts[0] if run.llm.analyze_prompts else ""
     ranked = [(h.rule_id, h.affected) for h in RemediationEngine().score(graph)]
+    from rca.signals import extract_signals
+    kinds = extract_signals(graph).kinds()
     return {
+        "signals": _signals(path, kinds),
         "seeds": _seeds(path, seeds),
         "cause": _cause(path, graph, seed_entities, reached),
         "evidence": _evidence(path, prompt),

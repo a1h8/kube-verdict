@@ -1,0 +1,37 @@
+{
+  "answerable": null,
+  "case": "h015_etcd_compaction",
+  "confidence": "LOW",
+  "diagnoses": [],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "outcome": "insufficient_evidence",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: etcd, compaction|compacted|latency|slow",
+  "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "etcd.slow",
+    "pod.not_ready",
+    "probe.readiness_failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T13:55:44.634703+00:00",
+  "tier": "B",
+  "unclassified": {
+    "k8s_event": 1
+  },
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 1.98
+}

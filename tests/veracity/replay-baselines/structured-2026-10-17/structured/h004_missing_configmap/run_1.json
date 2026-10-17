@@ -1,0 +1,61 @@
+{
+  "answerable": null,
+  "case": "h004_missing_configmap",
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "config-missing",
+      "location": "absent:ConfigMap/production/api-gateway-config",
+      "rule": "dependency.missing",
+      "score": 0.65,
+      "signals": [
+        "fec31624aeb9c18c",
+        "1d8375f528e4a8b4"
+      ]
+    },
+    {
+      "family": "config-missing",
+      "location": "absent:Secret/production/db-credentials",
+      "rule": "dependency.missing",
+      "score": 0.65,
+      "signals": [
+        "491c16903b859be8",
+        "1d8375f528e4a8b4"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "configmap|api-gateway-config",
+      "missing|not found"
+    ]
+  ],
+  "matched_keywords": [
+    "configmap|api-gateway-config",
+    "missing|not found"
+  ],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The ConfigMap api-gateway-config referenced by api-gateway-5c7d9b8f4-x2k9p does not exist (it is missing). The Secret db-credentials referenced by api-gateway-5c7d9b8f4-x2k9p does not exist (it is missing).",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "container.config_error",
+    "dependency.missing"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T13:55:21.405986+00:00",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 2.26
+}

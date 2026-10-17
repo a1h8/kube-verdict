@@ -27,6 +27,15 @@
     "cause": null,
     "evidence": [],
     "rule": null,
-    "decoy_rules": []
+    "decoy_rules": [],
+    "signals_expected": [
+      "rollout.progressing"
+    ],
+    "signals_forbidden": [
+      "container.crashloop",
+      "container.oom_killed",
+      "dependency.missing",
+      "rollout.stalled"
+    ]
   }
 }

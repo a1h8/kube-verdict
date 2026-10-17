@@ -255,6 +255,10 @@ class K8sCollector:
                 node_name=item.spec.node_name or "",
                 restart_count=restart_count,
                 container_statuses=container_statuses,
+                init_container_statuses=[
+                    self._api_client.sanitize_for_serialization(cs)
+                    for cs in (item.status.init_container_statuses or [])
+                ],
                 owner_ref_kind=owner_kind,
                 owner_ref_name=owner_name,
                 raw=item.to_dict(),

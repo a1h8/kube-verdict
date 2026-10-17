@@ -47,12 +47,14 @@ def test_failed_listing_is_unknown_never_missing():
     assert detect_missing(_pod(spec), Present(configmaps=None, pvcs=None, serviceaccounts=None)) == {}
 
 
-def test_pvc_and_serviceaccount():
+def test_pvc_missing_but_serviceaccount_never_inferred():
+    """A pod exists, so its ServiceAccount passed admission: absence from the listing is
+    not evidence it is missing (finding S1)."""
     spec = {"containers": [{"name": "api"}],
             "volumes": [{"name": "data", "persistentVolumeClaim": {"claimName": "pvc-1"}}],
             "serviceAccountName": "api-sa"}
     out = detect_missing(_pod(spec), Present(pvcs=set(), serviceaccounts=set()))
-    assert set(out) == {"missing.pvc.pvc-1", "missing.serviceaccount.api-sa"}
+    assert set(out) == {"missing.pvc.pvc-1"}
 
 
 def test_default_serviceaccount_is_never_flagged():

@@ -110,6 +110,34 @@ def solve_rules(case_name: str) -> dict:
     return record
 
 
+def solve_structured(case_name: str) -> dict:
+    """Typed signals → typed diagnoses, no LLM (docs/structured-diagnosis.md). Deterministic."""
+    from rca.diagnosis import RULES_VERSION, diagnose
+    from rca.signals import EXTRACTOR_VERSION, extract_signals
+    from tests.integration.workflow_harness import run_case
+    from tools.reasoning_path import _RecordOnly
+
+    t0 = time.perf_counter()
+    run = run_case(_key(case_name), llm=_RecordOnly())
+    signals = extract_signals(run.graph)
+    outcome = diagnose(signals)
+    expect = run.expect
+    record = _base_record(case_name, expect, "structured", "", 1)
+    structured_expect = {k: v for k, v in grading_expect(expect).items() if k != "expected_verdict"}
+    record.update(grade(outcome.root_cause(), structured_expect, confidence=outcome.confidence))
+    record.update({
+        "wall_s": round(time.perf_counter() - t0, 2), "answerable": None,
+        "confidence": outcome.confidence, "pre_llm_confidence_score": None, "verdict": None,
+        "fallbacks": [], "signals_mode": None, "root_cause": outcome.root_cause(),
+        "outcome": outcome.outcome,
+        "diagnoses": [{"rule": d.rule, "family": d.family, "location": d.cause_location,
+                       "score": round(d.score, 2), "signals": d.signal_ids} for d in outcome.diagnoses],
+        "signal_kinds": sorted(signals.kinds()), "unclassified": dict(signals.unclassified),
+        "extractor_version": EXTRACTOR_VERSION, "rules_version": RULES_VERSION,
+    })
+    return record
+
+
 def solve_llm(case_name: str, client, run: int) -> dict:
     """The offline workflow on the case fixtures, answered by ``client``."""
     from tests.integration.workflow_harness import run_case
@@ -258,7 +286,7 @@ def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Grade a real model or the rules on the native cases")
-    ap.add_argument("--solver", help="rules | llm | llm:<model>")
+    ap.add_argument("--solver", help="rules | structured | llm | llm:<model>")
     ap.add_argument("--regrade", metavar="DIR",
                     help="re-grade the records under DIR (writes DIR/REGRADED.md), run nothing")
     ap.add_argument("--cases", default="", help="comma-separated keys, e.g. h001,h014 (default: all)")
@@ -279,8 +307,8 @@ def main(argv: list[str] | None = None) -> int:
 
     out_dir = Path(args.out)
     solver, _, model = args.solver.partition(":")
-    if solver not in ("rules", "llm"):
-        ap.error("--solver must be rules, llm or llm:<model>")
+    if solver not in ("rules", "structured", "llm"):
+        ap.error("--solver must be rules, structured, llm or llm:<model>")
     wanted = {k.strip() for k in args.cases.split(",") if k.strip()}
     cases = [c for c in native_cases() if not wanted or _key(c) in wanted]
 
@@ -303,7 +331,7 @@ def main(argv: list[str] | None = None) -> int:
     previous = os.environ.get("EXAMPLE_LOOKUP_DISABLED")
     os.environ["EXAMPLE_LOOKUP_DISABLED"] = "1"
     try:
-        runs = 1 if solver == "rules" else args.runs
+        runs = 1 if solver in ("rules", "structured") else args.runs
         run_range = [args.child_run] if args.child_run else range(1, runs + 1)
         for case_name in cases:
             for run in run_range:
@@ -315,6 +343,7 @@ def main(argv: list[str] | None = None) -> int:
                     continue
                 try:
                     record = (solve_rules(case_name) if solver == "rules"
+                              else solve_structured(case_name) if solver == "structured"
                               else solve_llm(case_name, client, run))
                 except Exception as exc:  # one failed run must not stop an hours-long replay
                     print(f"{case_name} run {run}: ERROR — {type(exc).__name__}: {exc} "

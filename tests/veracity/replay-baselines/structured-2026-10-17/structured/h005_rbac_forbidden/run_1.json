@@ -1,0 +1,51 @@
+{
+  "answerable": null,
+  "case": "h005_rbac_forbidden",
+  "confidence": "MEDIUM",
+  "diagnoses": [
+    {
+      "family": "rbac",
+      "location": "ServiceAccount/monitoring/audit-exporter-sa",
+      "rule": "rbac",
+      "score": 0.65,
+      "signals": [
+        "172ef18143a61960",
+        "9f7057d5324c7743"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "serviceaccount|service account|audit-exporter-sa",
+      "rbac|binding|permission"
+    ]
+  ],
+  "matched_keywords": [
+    "serviceaccount|service account|audit-exporter-sa",
+    "rbac|binding|permission"
+  ],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The ServiceAccount audit-exporter-sa has no (Cluster)RoleBinding granting the permission to watch events: its API calls are forbidden.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "rbac.denied",
+    "rbac.unbound"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T13:55:23.154612+00:00",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 1.74
+}

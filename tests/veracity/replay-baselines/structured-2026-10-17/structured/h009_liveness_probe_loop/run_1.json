@@ -1,0 +1,56 @@
+{
+  "answerable": null,
+  "case": "h009_liveness_probe_loop",
+  "confidence": "HIGH",
+  "diagnoses": [
+    {
+      "family": "helm-drift",
+      "location": "HelmRelease/production/search-service",
+      "rule": "config.drift",
+      "score": 0.8,
+      "signals": [
+        "d6e1e8ac534d926f",
+        "2e06491b783407b3",
+        "63236a40511fc2b2",
+        "558f75a6bf327fd0",
+        "9a11f1a8d17a5e98"
+      ]
+    }
+  ],
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "matched_groups": [
+    [
+      "liveness",
+      "drift|timeoutseconds|declared|too short|too aggressive"
+    ]
+  ],
+  "matched_keywords": [
+    "liveness",
+    "drift|timeoutseconds|declared|too short|too aggressive"
+  ],
+  "model": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "search-service drifted from its declared configuration: livenessProbe.timeoutSeconds is declared 5 but deployed 1.",
+  "rules_version": "rules/1",
+  "run": 1,
+  "signal_kinds": [
+    "container.crashloop",
+    "drift.config",
+    "pod.not_ready",
+    "probe.liveness_failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-10-17T13:55:33.818520+00:00",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 4.34
+}

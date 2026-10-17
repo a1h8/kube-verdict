@@ -61,7 +61,9 @@ rollback:
 `family` (controlled, extended only by editing this file): `crashloop-dependency`,
 `image-pull`, `oom`, `config-missing`, `rbac`, `network-policy`, `scheduling`,
 `quota`, `probe`, `init-container`, `storage`, `hpa`, `dns`, `certificate`, `etcd`,
-`node`, `rollout`, `gitops-drift`, `helm-drift`, `slo`.
+`node`, `rollout`, `gitops-drift`, `helm-drift`, `slo`, `crashloop`, `dependency`, `job`,
+`resources`, `control-plane`, `negative` (the last six added 2026-10-17 with the coverage
+matrix, `docs/diagnosis-coverage.md`).
 
 ## Sources, and what each may contain
 
