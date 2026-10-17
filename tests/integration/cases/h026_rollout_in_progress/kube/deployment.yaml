@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invoice
+  namespace: production
+  uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110026
+  creationTimestamp: "2026-09-02T09:00:00Z"
+  labels:
+    app.kubernetes.io/name: invoice
+    app.kubernetes.io/instance: invoice
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    deployment.kubernetes.io/revision: "6"
+    meta.helm.sh/release-name: invoice
+    meta.helm.sh/release-namespace: production
+spec:
+  replicas: 3
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: invoice
+      app.kubernetes.io/instance: invoice
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: invoice
+        app.kubernetes.io/instance: invoice
+    spec:
+      containers:
+      - name: invoice
+        image: ghcr.io/acme/invoice:v2.4.0
+        resources:
+          limits:
+            memory: 512Mi
+            cpu: "1"
+          requests:
+            memory: 256Mi
+            cpu: 200m
+status:
+  observedGeneration: 6
+  replicas: 4
+  updatedReplicas: 1
+  readyReplicas: 3
+  availableReplicas: 3
+  unavailableReplicas: 1
+  conditions:
+  - type: Available
+    status: "True"
+    reason: MinimumReplicasAvailable
+    message: Deployment has minimum availability.
+  - type: Progressing
+    status: "True"
+    reason: ReplicaSetUpdated
+    message: ReplicaSet "invoice-6c8b7f9d4" is progressing.
