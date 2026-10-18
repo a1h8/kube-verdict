@@ -39,3 +39,10 @@ def test_without_the_token_the_route_answers_401(client, method, path):
     # control: with the token the request reaches the route (unknown session → 404)
     assert getattr(client, method)(path, headers={"Authorization": "Bearer s3cret"}).status_code == 404
 
+
+def test_the_approver_names_the_oidc_subject_or_the_gate(monkeypatch):
+    monkeypatch.setattr(cfg, "API_TOKEN", None)
+    assert sessions._approver({"iss": "https://idp/", "sub": "alice"}) == "oidc:https://idp/#alice"
+    assert sessions._approver(None) == "anonymous"
+    monkeypatch.setattr(cfg, "API_TOKEN", "s3cret")
+    assert sessions._approver(None) == "shared-token"

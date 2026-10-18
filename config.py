@@ -127,7 +127,8 @@ API_TOKEN: str | None = _resolve_api_token()
 
 # Per-identity JWT / OIDC auth (preferred over the shared secret above). When
 # OIDC_JWKS_URL is set, bearer tokens are verified against the provider's JWKS
-# (RS256), with optional issuer/audience checks. Unset → JWT auth disabled and
+# (RS256); OIDC_ISSUER and OIDC_AUDIENCE are then required (a JWT is refused without them).
+# Unset → JWT auth disabled and
 # the request falls back to the shared-secret gate. OIDC_REQUIRED=1 rejects any
 # request without a valid JWT (no shared-secret / open fallback).
 OIDC_JWKS_URL: str | None = os.getenv("OIDC_JWKS_URL") or None

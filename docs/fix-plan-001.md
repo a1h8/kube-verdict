@@ -34,9 +34,10 @@
 - [x] **H16 — `GET /{id}/state`, `GET /{id}/stream` and `DELETE /{id}` are not behind
   `require_auth`.** `/stream` resumes the graph. → the three routes require auth, like the other
   session routes.
-- [ ] **H44 — OIDC with only a JWKS URL accepts a token issued for any application of the
-  provider**, and `/feedback` does not record who approved. → OIDC requires an issuer and an
-  audience (startup error otherwise); the approver's subject is stored with the decision.
+- [x] **H44 — OIDC with only a JWKS URL accepts a token issued for any application of the
+  provider**, and `/feedback` does not record who approved. → a JWT is refused unless issuer and
+  audience are both configured; an unknown key id refetches the JWKS at most once a minute; the
+  approver (OIDC subject, or the gate that let them in) is stored with the decision.
 - [ ] **H46 — the Streamlit UI runs remediation commands outside the decision gate**, with any
   binary. → the UI runs only what the dry-run gate accepts (`_kubectl_dry_run_refusal` and the
   helm equivalent) and only when the session's verdict is not NO_GO.

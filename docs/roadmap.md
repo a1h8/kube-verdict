@@ -83,7 +83,7 @@ What separates a validated prototype from a prod-grade deployment. Each item is 
 check that turns green when implemented.
 
 - [x] **Shared-secret bearer gate (interim)** — `KUBEVERDICT_API_TOKEN` guards every session route (read, stream and delete included), the webhook and `/investigate` routes (`api/auth.py`, constant-time compare); no-op when unset. This is *not* per-identity auth.
-- [x] **API auth — JWT / OIDC** — per-identity bearer auth on the session, webhook and `/investigate` routes; JWTs verified against the provider JWKS (RS256) with optional issuer/audience checks (`api/oidc.py`). Layers over the shared secret; `OIDC_REQUIRED=1` rejects any request without a valid JWT.
+- [x] **API auth — JWT / OIDC** — per-identity bearer auth on the session, webhook and `/investigate` routes; JWTs verified against the provider JWKS (RS256) with required issuer and audience checks (`api/oidc.py`); the approver's subject is recorded with each decision. Layers over the shared secret; `OIDC_REQUIRED=1` rejects any request without a valid JWT.
 - [x] **Golden-scenario regression guard** — `tests/golden/` replays the h001–h010 decision fixtures and diffs verdict + blast-radius risk against a recorded `baseline.json`; CI fails on any drift (regenerate intentionally via `python -m tests.golden.update_baseline`)
 - [x] **Artifact Hub listing** — `helm/kube-verdict/artifacthub-repo.yml` + Chart.yaml `artifacthub.io/*` annotations so the chart is discoverable / verifiable
 - [x] **RBAC-aware scoping** — `K8sCollector` impersonates a tenant identity via apiserver `Impersonate-User`/`-Group` headers (`KUBE_IMPERSONATE_USER` / `_GROUPS`); analysis is scoped by the tenant's RBAC, not the collector's

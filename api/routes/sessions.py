@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 
+import config as app_cfg
+
 from api.oidc import require_auth
 from api.models import (
     BlastRadius, EdgeEntry, FeedbackRequest, IncidentReport, RunRequest,
@@ -190,13 +192,21 @@ async def run_session(session_id: str, body: RunRequest) -> SessionState:
     return _state_to_response(session)
 
 
-@router.post("/{session_id}/feedback", response_model=SessionState, dependencies=[Depends(require_auth)])
-async def feedback(session_id: str, body: FeedbackRequest) -> SessionState:
+def _approver(identity: dict | None) -> str:
+    """Who answered the review: the OIDC subject, else the kind of gate that let them in."""
+    if identity and identity.get("sub"):
+        return f"oidc:{identity.get('iss', '')}#{identity['sub']}"
+    return "shared-token" if app_cfg.API_TOKEN else "anonymous"
+
+
+@router.post("/{session_id}/feedback", response_model=SessionState)
+async def feedback(session_id: str, body: FeedbackRequest,
+                   identity: dict | None = Depends(require_auth)) -> SessionState:
     session = store.get_or_404(session_id)
 
     if session.status == SessionStatus.AWAITING_REVIEW:
         decision = (body.human_decision or "reject").lower()
-        resume = Command(resume=decision)
+        resume = Command(resume={"decision": decision, "by": _approver(identity)})
         task = asyncio.create_task(_run_graph(session, {}, resume_cmd=resume))
         session.task = task
 

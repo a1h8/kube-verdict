@@ -360,6 +360,18 @@ class TestWorkflowApprove:
         human = [e for e in compiled.get_state(cfg_).values["edge_log"] if e["router"] == "human"]
         assert [e["edge_taken"] for e in human] == ["approve"]
 
+    def test_the_approver_is_recorded(self, synthetic_graph, store):
+        # docs/fix-plan-001.md, H44: who approved is kept with the decision
+        compiled = build_graph()
+        cfg_ = _config("t-approver", synthetic_graph, store, _make_llm(_CANNED_HIGH))
+        list(compiled.stream(_initial_state(), config=cfg_))
+        final = compiled.invoke(Command(resume={"decision": "approve", "by": "oidc:idp#alice"}),
+                                config=cfg_)
+        assert final["human_decision"] == "approve"
+        assert final["human_decided_by"] == "oidc:idp#alice"
+        human = [e for e in final["edge_log"] if e["router"] == "human"]
+        assert human[-1]["snapshot"]["decided_by"] == "oidc:idp#alice"
+
     def test_reject_does_not_reach_remediation(self, synthetic_graph, store):
         compiled = build_graph()
         cfg_ = _config("t-reject-path", synthetic_graph, store, _make_llm(_CANNED_HIGH))

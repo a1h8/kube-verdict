@@ -1147,7 +1147,8 @@ def human_review_node(state: RCAState, config: RunnableConfig) -> dict:
     Pause execution and surface the report to a human operator.
 
     Raises a LangGraph Interrupt — caller resumes with:
-        Command(resume="approve")  or  Command(resume="reject")
+        Command(resume="approve")  or  Command(resume="reject"), or
+        Command(resume={"decision": "approve", "by": "<who>"}) to record the approver.
 
     Interrupt payload (what the human sees):
         summary, root_cause, remediation commands, confidence
@@ -1185,16 +1186,20 @@ def human_review_node(state: RCAState, config: RunnableConfig) -> dict:
 
     if config.get("configurable", {}).get("auto_approve"):
         log.info("human_review: auto-approve mode — skipping interrupt")
-        return {"human_decision": "approve"}
+        return {"human_decision": "approve", "human_decided_by": "auto-approve"}
 
-    decision: str = interrupt(payload)
+    answer = interrupt(payload)
+    if isinstance(answer, dict):
+        decision, decided_by = answer.get("decision"), str(answer.get("by") or "")
+    else:
+        decision, decided_by = answer, ""
 
-    normalised = (decision or "").strip().lower()
+    normalised = (decision or "").strip().lower() if isinstance(decision, str) else ""
     if normalised not in ("approve", "reject"):
         normalised = "reject"
 
-    log.info("human_review: decision=%s", normalised)
-    return {"human_decision": normalised}
+    log.info("human_review: decision=%s by=%s", normalised, decided_by or "(unknown)")
+    return {"human_decision": normalised, "human_decided_by": decided_by}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1850,6 +1855,7 @@ def log_human_decision_node(state: RCAState) -> dict:
         "reason":     reason,
         "snapshot": {
             "human_decision":     decision or "(none)",
+            "decided_by":         state.get("human_decided_by") or "(unknown)",
             "confidence":         confidence,
             "remediation_count":  len(remediation),
             "dry_run_failures":   len(failed_dry),

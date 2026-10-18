@@ -64,6 +64,7 @@ class RCAState(TypedDict, total=False):
     # ── Control flow ──────────────────────────────────────────────────────────
     retry_count: int            # how many times analyze has been retried on current path
     human_decision: str         # "approve" | "reject" | ""
+    human_decided_by: str       # who answered the review (OIDC subject, "shared-token", …)
     _verdict_edge: str          # internal: pre-computed edge for verdict_router
     error: str
 
