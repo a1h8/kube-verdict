@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h003_oomkilled",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 94.8,
+      "answer_tokens": 469,
+      "estimated_prompt_tokens": 2642,
+      "num_ctx": 4096,
+      "prompt_eval_s": 80.6,
+      "prompt_tokens_read": 2289
+    }
+  ],
+  "matched_groups": [
+    [
+      "memory",
+      "drift|512mi|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "memory",
+    "drift|512mi|declared"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.56,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The Helm deployment for the api in the production namespace has resources.limits.memory and resources.requests.memory set to lower values than declared in the values.yaml file, leading to insufficient resources for the pods.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:00:39.601619+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 175.86
+}

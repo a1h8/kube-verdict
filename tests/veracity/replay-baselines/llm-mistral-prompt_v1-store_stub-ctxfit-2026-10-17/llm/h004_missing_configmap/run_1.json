@@ -1,0 +1,41 @@
+{
+  "answerable": true,
+  "case": "h004_missing_configmap",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 99.3,
+      "answer_tokens": 511,
+      "estimated_prompt_tokens": 2392,
+      "num_ctx": 4096,
+      "prompt_eval_s": 74.0,
+      "prompt_tokens_read": 2143
+    }
+  ],
+  "matched_groups": [
+    [
+      "configmap|api-gateway-config"
+    ]
+  ],
+  "matched_keywords": [
+    "configmap|api-gateway-config"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: missing|not found",
+  "root_cause": "The api-gateway pod is unable to start because it requires ConfigMap and Secret resources that are not present in the cluster.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:03:40.070073+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 174.13
+}

@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h007_hpa_no_metrics",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 80.8,
+      "answer_tokens": 445,
+      "estimated_prompt_tokens": 2197,
+      "num_ctx": 3072,
+      "prompt_eval_s": 67.4,
+      "prompt_tokens_read": 1741
+    }
+  ],
+  "matched_groups": [
+    [
+      "metrics",
+      "hpa|autoscal"
+    ]
+  ],
+  "matched_keywords": [
+    "metrics",
+    "hpa|autoscal"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is that the HPA is unable to get CPU metrics for resource cpu, which prevents it from scaling up under load.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:36:05.228591+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 176.63
+}

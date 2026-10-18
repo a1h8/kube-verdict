@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h011_statefulset_pvc_stuck",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 123.0,
+      "answer_tokens": 460,
+      "estimated_prompt_tokens": 2353,
+      "num_ctx": 4096,
+      "prompt_eval_s": 87.8,
+      "prompt_tokens_read": 1966
+    }
+  ],
+  "matched_groups": [
+    [
+      "volume",
+      "pending"
+    ]
+  ],
+  "matched_keywords": [
+    "volume",
+    "pending"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is a combination of volume node affinity conflict and unschedulable nodes, preventing the Pod from being scheduled on any available worker node.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T12:27:09.382020+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 249.66
+}

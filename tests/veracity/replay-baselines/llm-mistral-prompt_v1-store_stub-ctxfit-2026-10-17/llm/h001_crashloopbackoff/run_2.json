@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h001_crashloopbackoff",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 96.2,
+      "answer_tokens": 410,
+      "estimated_prompt_tokens": 2679,
+      "num_ctx": 4096,
+      "prompt_eval_s": 130.5,
+      "prompt_tokens_read": 2343
+    }
+  ],
+  "matched_groups": [
+    [
+      "secret",
+      "not found|missing"
+    ]
+  ],
+  "matched_keywords": [
+    "secret",
+    "not found|missing"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is the absence of the Secret resource 'payment-db-secret' in the production namespace, which is required by the payment-service pod.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T10:37:01.595634+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 265.68
+}

@@ -1,0 +1,49 @@
+{
+  "answerable": true,
+  "case": "h024_multi_cause",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 153.2,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3600,
+      "num_ctx": 5120,
+      "prompt_eval_s": 145.7,
+      "prompt_tokens_read": 3219
+    }
+  ],
+  "matched_groups": [
+    [
+      "secret|queue-credentials",
+      "missing|not found"
+    ],
+    [
+      "memory|oom",
+      "drift|1gi|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "secret|queue-credentials",
+    "missing|not found",
+    "memory|oom",
+    "drift|1gi|declared"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.65,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The Helm release for the `api` deployment has drifted, causing insufficient memory resources to be declared in the Kubernetes manifest. Additionally, the `worker` deployment is affected by a missing secret `queue-credentials`.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T14:51:01.244529+00:00",
+  "tier": "C",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 300.02
+}

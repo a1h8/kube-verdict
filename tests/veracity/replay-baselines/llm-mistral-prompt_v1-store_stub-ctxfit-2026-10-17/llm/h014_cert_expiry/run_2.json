@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h014_cert_expiry",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 150.7,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 4276,
+      "num_ctx": 5120,
+      "prompt_eval_s": 176.3,
+      "prompt_tokens_read": 4003
+    }
+  ],
+  "matched_groups": [
+    [
+      "certificate|x509|tls",
+      "expired|expir|renew"
+    ]
+  ],
+  "matched_keywords": [
+    "certificate|x509|tls",
+    "expired|expir|renew"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.45,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The repeated restarts of the billing-gateway pods are likely due to the unhealthy state of the pods, as indicated by the critical restart_count and the unhealthy events. The unhealthy state may be caused by the expired or invalid TLS certificate for the payments-backend upstream service, as evidenced by the error logs.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T13:15:37.691206+00:00",
+  "tier": "B",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 381.49
+}

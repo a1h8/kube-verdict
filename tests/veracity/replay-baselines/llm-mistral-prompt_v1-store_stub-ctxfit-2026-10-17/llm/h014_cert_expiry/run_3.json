@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h014_cert_expiry",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 151.7,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 4276,
+      "num_ctx": 5120,
+      "prompt_eval_s": 174.1,
+      "prompt_tokens_read": 4003
+    }
+  ],
+  "matched_groups": [
+    [
+      "certificate|x509|tls",
+      "expired|expir|renew"
+    ]
+  ],
+  "matched_keywords": [
+    "certificate|x509|tls",
+    "expired|expir|renew"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.45,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The repeated restarts of the billing-gateway pods indicate that the application is crashing, likely due to an expired or invalid TLS certificate.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T13:21:54.958987+00:00",
+  "tier": "B",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 370.5
+}

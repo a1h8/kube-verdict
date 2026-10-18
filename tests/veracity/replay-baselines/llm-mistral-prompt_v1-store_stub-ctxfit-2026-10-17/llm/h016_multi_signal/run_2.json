@@ -1,0 +1,37 @@
+{
+  "answerable": true,
+  "case": "h016_multi_signal",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 245.7,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 5587,
+      "num_ctx": 7168,
+      "prompt_eval_s": 339.9,
+      "prompt_tokens_read": 4985
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.52,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: max_connections|connection pool|pool, replica|scale",
+  "root_cause": "The root cause appears to be a high error rate and database connection issues with the orders-api deployment, as indicated by the Prometheus alerts, OpenTelemetry error traces, and recent log lines.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T14:04:44.193248+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 692.87
+}

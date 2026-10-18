@@ -1,0 +1,37 @@
+{
+  "answerable": null,
+  "case": "h022_no_incident",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "forbidden_matched": [
+    "image"
+  ],
+  "llm_calls": [
+    {
+      "answer_s": 136.7,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3104,
+      "num_ctx": 4096,
+      "prompt_eval_s": 140.6,
+      "prompt_tokens_read": 2765
+    }
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.33,
+  "prompt": "v2",
+  "reason": "no_incident: confidence MEDIUM, LOW expected",
+  "root_cause": "The root cause is likely a container image pull failure or an issue with the container itself, as the Warning event suggests a BackOff restart attempt due to a failed container. The Helm deployment has a higher replica count than declared, which may be a symptom of the container issue or a misconfiguration.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T14:25:28.349330+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 309.98
+}

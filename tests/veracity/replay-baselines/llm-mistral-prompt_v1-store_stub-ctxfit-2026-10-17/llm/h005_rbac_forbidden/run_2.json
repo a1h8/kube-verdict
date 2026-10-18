@@ -1,0 +1,43 @@
+{
+  "answerable": false,
+  "case": "h005_rbac_forbidden",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 87.0,
+      "answer_tokens": 475,
+      "estimated_prompt_tokens": 2116,
+      "num_ctx": 3072,
+      "prompt_eval_s": 70.3,
+      "prompt_tokens_read": 1815
+    }
+  ],
+  "matched_groups": [
+    [
+      "serviceaccount|service account|audit-exporter-sa",
+      "rbac|binding|permission"
+    ]
+  ],
+  "matched_keywords": [
+    "serviceaccount|service account|audit-exporter-sa",
+    "rbac|binding|permission"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The service account audi-exporter-sa lacks the necessary permissions to list and watch pods and events in the production namespace.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:16:07.308686+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 184.72
+}

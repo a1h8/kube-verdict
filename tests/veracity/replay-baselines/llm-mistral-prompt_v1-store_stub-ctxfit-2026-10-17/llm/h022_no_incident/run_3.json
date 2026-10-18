@@ -1,0 +1,37 @@
+{
+  "answerable": null,
+  "case": "h022_no_incident",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "forbidden_matched": [
+    "image"
+  ],
+  "llm_calls": [
+    {
+      "answer_s": 142.3,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3104,
+      "num_ctx": 4096,
+      "prompt_eval_s": 136.2,
+      "prompt_tokens_read": 2765
+    }
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.33,
+  "prompt": "v2",
+  "reason": "no_incident: confidence MEDIUM, LOW expected",
+  "root_cause": "The root cause is likely a misconfiguration in the container image or its startup script, causing the container to fail during startup. The higher replica count in the Helm deployment compared to the observed pod count suggests that the deployment might not be in sync with the actual cluster state.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T14:30:43.601230+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 307.91
+}

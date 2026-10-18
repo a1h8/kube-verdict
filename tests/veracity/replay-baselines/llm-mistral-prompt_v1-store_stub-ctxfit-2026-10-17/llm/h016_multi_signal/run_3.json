@@ -1,0 +1,41 @@
+{
+  "answerable": true,
+  "case": "h016_multi_signal",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 201.5,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 5587,
+      "num_ctx": 7168,
+      "prompt_eval_s": 247.3,
+      "prompt_tokens_read": 4985
+    }
+  ],
+  "matched_groups": [
+    [
+      "max_connections|connection pool|pool"
+    ]
+  ],
+  "matched_keywords": [
+    "max_connections|connection pool|pool"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.52,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: replica|scale",
+  "root_cause": "The root cause is the PostgreSQL connection pool being saturated with too many clients. This is indicated by the firing Prometheus alert 'PostgresConnectionsSaturated' and the OpenTelemetry error traces with the error 'pool timeout after 5000ms: postgres-primary refused the connection (too many clients already)'.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T14:14:18.537551+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 567.46
+}

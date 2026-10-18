@@ -1,0 +1,41 @@
+{
+  "answerable": true,
+  "case": "h012_gitops_render_vs_live",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 154.2,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2337,
+      "num_ctx": 4096,
+      "prompt_eval_s": 123.9,
+      "prompt_tokens_read": 2017
+    }
+  ],
+  "matched_groups": [
+    [
+      "memory"
+    ]
+  ],
+  "matched_keywords": [
+    "memory"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: drift|512mi|declared|render|expected state",
+  "root_cause": "The memory limit of the container in the api deployment is set to 128Mi, which is not enough to run the application, causing it to be OOMKilled. This is evident from the event messages stating \"Memory cgroup out of memory: Killed process in container api (memory limit 128Mi exceeded)\".",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T12:42:18.488997+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 336.61
+}

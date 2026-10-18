@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h008_init_container_fail",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 96.5,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2182,
+      "num_ctx": 3072,
+      "prompt_eval_s": 75.0,
+      "prompt_tokens_read": 1940
+    }
+  ],
+  "matched_groups": [
+    [
+      "migration",
+      "init|db-migrate"
+    ]
+  ],
+  "matched_keywords": [
+    "migration",
+    "init|db-migrate"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.39,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is a failed database migration that prevents the `db-migrate` container from starting successfully. The error message \"FATAL: database migration failed \u2014 relation 'user_tokens' does not exist\" indicates that the database schema is missing the 'user_tokens' relation, which is required for the migration to complete.",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:49:52.056688+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 204.6
+}

@@ -1,0 +1,37 @@
+{
+  "answerable": true,
+  "case": "h015_etcd_compaction",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 177.1,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3374,
+      "num_ctx": 5120,
+      "prompt_eval_s": 178.7,
+      "prompt_tokens_read": 2999
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: etcd, compaction|compacted|latency|slow",
+  "root_cause": "The repeated failures in the readiness probe of the inventory-api pod are causing the pod to restart, which in turn is reducing the number of available replicas for the Deployment. The root cause of the readiness probe failures appears to be a timeout when attempting to access the pod's readiness endpoint (context deadline exceeded).",
+  "run": 3,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T13:42:19.834156+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 417.68
+}

@@ -1,0 +1,41 @@
+{
+  "answerable": true,
+  "case": "h010_resource_quota_exceeded",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 93.2,
+      "answer_tokens": 482,
+      "estimated_prompt_tokens": 2380,
+      "num_ctx": 4096,
+      "prompt_eval_s": 83.5,
+      "prompt_tokens_read": 2119
+    }
+  ],
+  "matched_groups": [
+    [
+      "quota"
+    ]
+  ],
+  "matched_keywords": [
+    "quota"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.62,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The root cause is the exceeded CPU quota in the `staging` namespace, preventing the scheduling of the `worker-service` Pod.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T12:09:15.311764+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 209.58
+}
