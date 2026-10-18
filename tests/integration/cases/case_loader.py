@@ -189,10 +189,20 @@ def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
             if rq.exhausted_resources or rq.near_limit_resources:
                 graph.add_edge(Edge(rq.uid, ns_entity.uid, RelationshipType.QUOTA_BLOCKS))
 
-    # ── 6. Value drift: values.yaml vs helm/release.json ───────────────────
-    live_values = case["observed"].get("helm_release_values")
-    if live_values and case["helm_values"]:
-        _annotate_value_drift(graph, helm_release, case["helm_values"], live_values)
+    # ── 6. Value drift: values.yaml vs helm/release.json — not made here ───
+    # Production has no path that compares a values file to the deployed values (the GitOps
+    # render uses the deployed values, docs/fix-plan-001.md F11 / H48): a drift written here was
+    # evidence only the test could see. The fixture's helm/release.json stays as data.
+
+    # ── 6b. Render vs live: the production ManifestDiffer on the case's rendered chart ──
+    # (rendered/expected.yaml is `helm template` of chart/, checked by a helm-guarded test).
+    # Its gitops.* drifts are what the GitOps node writes live (fix plan 001, h012 / H28).
+    rendered_path = Path(case["case_dir"]) / "rendered" / "expected.yaml"
+    if rendered_path.exists():
+        from ingestion.manifest_differ import ManifestDiffer
+        rendered = [d for d in yaml.safe_load_all(rendered_path.read_text()) if isinstance(d, dict)]
+        ManifestDiffer(track_orphans=False).diff(rendered, graph, release_uid=helm_release.uid,
+                                                 namespace=ns)
 
     # ── 7. Policy violations ─────────────────────────────────────────────
     for report in case.get("policy_reports", []):
@@ -712,42 +722,6 @@ def _parse_ts(ts_str: str | None) -> datetime | None:
 
 
 # ---------------------------------------------------------------------------
-# Value drift: declared (values.yaml) vs live (helm get values)
-# ---------------------------------------------------------------------------
-
-def _annotate_value_drift(
-    graph: OntologyGraph,
-    release: HelmRelease,
-    declared: dict,
-    live: dict,
-) -> None:
-    """
-    Flat-compare declared values (values.yaml) vs live deployed values
-    (helm get values). Annotate the HelmRelease entity with discovered diffs.
-    """
-    flat_declared = flatten_values(declared)
-    flat_live     = flatten_values(live)
-
-    drift_count = 0
-    for key in flat_declared:
-        if key not in flat_live:
-            continue
-        d_val = str(flat_declared[key])
-        l_val = str(flat_live[key])
-        if d_val != l_val:
-            annotation_key = f"drift.helm.{key.replace('.', '_')}"
-            release.annotations[annotation_key] = (
-                f"field={key} declared='{d_val}' [values.yaml] "
-                f"observed='{l_val}' [helm-deployed] severity=warning"
-            )
-            drift_count += 1
-
-    if drift_count:
-        release.annotations["drift.helm.summary"] = (
-            f"{drift_count} value(s) differ between values.yaml and deployed release"
-        )
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

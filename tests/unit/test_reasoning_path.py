@@ -19,6 +19,15 @@ KNOWN: dict[tuple[str, str], str] = {
     ("h007_hpa_no_metrics", "rule"): "P4: no rule for HPA metrics unavailable",
     ("h008_init_container_fail", "rule"): "P4/P6: no init-container rule; pending_unschedulable fires instead",
     ("h016_multi_signal", "rule"): "P4: no connection-exhaustion rule (P5 fixed 2026-10-18, H26)",
+    ("h003_oomkilled", "signals"): "F11/H48: the drift was made by the test loader; production compares no values file to the deployed values",
+    ("h003_oomkilled", "evidence"): "F11/H48: the drift was made by the test loader; production compares no values file to the deployed values",
+    ("h003_oomkilled", "rule"): "F11/H48: the drift was made by the test loader; production compares no values file to the deployed values",
+    ("h009_liveness_probe_loop", "signals"): "F11/H48: the drift was made by the test loader; production compares no values file to the deployed values",
+    ("h009_liveness_probe_loop", "evidence"): "F11/H48: the drift was made by the test loader; production compares no values file to the deployed values",
+    ("h009_liveness_probe_loop", "rule"): "F11/H48: the drift was made by the test loader; production compares no values file to the deployed values",
+    ("h024_multi_cause", "signals"): "F11/H48: the drift was made by the test loader; production compares no values file to the deployed values",
+    ("h024_multi_cause", "evidence"): "F11/H48: the drift was made by the test loader; production compares no values file to the deployed values",
+    ("h024_multi_cause", "rule"): "F11/H48: the drift was made by the test loader; production compares no values file to the deployed values",
 }
 
 

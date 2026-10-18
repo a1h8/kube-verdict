@@ -9,6 +9,8 @@
 > and 4 — evidence made by the test loader and lenient fixtures are removed. That is the real
 > number. Measured offline on 2026-10-18 by dropping the signals whose evidence only the loader
 > writes: **10/19**; 8/18 once h005 (an Event Kubernetes does not emit) and h011 are set aside.
+> **Measured after F11 (2026-10-18): 11/19** — the 10/19 above, plus h012 now graded through the
+> production render-vs-live path.
 >
 > H9–H46 were added on 2026-10-18 by a file-by-file pass over every module; the order below is the
 > order of the commits.
@@ -100,7 +102,7 @@
 
 ## 2. Real evidence
 
-- [ ] **F11 — on a live cluster the Helm detector sees no memory, image or probe drift**; those
+- [x] **F11 — on a live cluster the Helm detector sees no memory, image or probe drift**; those
   drifts (h002, h003, h009, h024) are made by the test loader. → the GitOps render-vs-live path
   (chart rendered locally, F9 already reads the live containers) is wired into the workflow and
   produces `drift.config` with its provenance; the loader stops making `drift.helm.*`.
@@ -119,7 +121,12 @@
   (Pod → ReplicaSet → Deployment) are linked and used.
 - [x] **H27 — Helmfile CLI mode returns no release** although it logs a fallback. → the fallback
   parses the YAML.
-- [ ] **h012 end to end** in the replay through that path, nothing injected.
+- [x] **h012 end to end** in the replay through that path, nothing injected: the loader runs the
+  production `ManifestDiffer` on the case's rendered chart.
+- [ ] **H48 — the GitOps render uses the deployed values**, so a values change against Git is
+  never a drift (only an edit made outside Helm is). → `GITOPS_VALUES_SOURCE=git` renders with
+  Git's values; the default stays `deployed` until it is decided. h002, h003, h009, h024 (their
+  drifts were made by the loader) are strict xfails naming F11/H48.
 - [ ] **H1 — `env.*` is never written in production**: the GitOps env diff is blind live, and the
   database checks built from `env.DB_HOST` never appear. → read env from the live containers.
 - [x] **H5 — collection failures read as absence.** `ingestion/helm_collector.py:203`,

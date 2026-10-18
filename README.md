@@ -17,7 +17,7 @@ git clone https://github.com/a1h8/kube-verdict && cd kube-verdict
 make demo
 ```
 
-`make demo` walks through the render-vs-live evidence of a committed fixture (`h012`): the `helm template` expected state, the live Deployment, the declared-vs-live gap (512Mi declared, 128Mi deployed) and the hypotheses of the rule engine. It is an illustration, not the measured pipeline: the gap is computed by the demo script (the GitOps collector's diff reads the live containers since F9, but it is not wired into the measured pipeline yet — [case-audit-001.md](docs/case-audit-001.md) F11), and the closing verdict lines are written by the script. The measured path is the structured diagnosis (`python tools/veracity_replay.py --solver structured`).
+`make demo` walks through the render-vs-live evidence of a committed fixture (`h012`): the `helm template` expected state, the live Deployment, the declared-vs-live gap (512Mi declared, 128Mi deployed) and the hypotheses of the rule engine. It is an illustration, not the measured pipeline: the gap is computed by the demo script, and the closing verdict lines are written by the script. The measured pipeline runs the GitOps collector's own diff on the same fixture and reads its drift ([fix-plan-001.md](docs/fix-plan-001.md) F11, H28). The measured path is the structured diagnosis (`python tools/veracity_replay.py --solver structured`).
 
 📺 **[▶ Watch the 35-second demo](demo/kubeverdict-short.mp4)** — incident → evidence → verdict → human gate.
 

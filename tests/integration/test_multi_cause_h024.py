@@ -22,6 +22,7 @@ def run():
     return run_case("h024")
 
 
+@pytest.mark.xfail(strict=True, reason="F11/H48: the drift was made by the test loader; production compares no values file to the deployed values (docs/fix-plan-001.md)")
 def test_both_causes_reach_every_analyze_prompt(run):
     assert run.llm.analyze_prompts
     for prompt in run.llm.analyze_prompts:
@@ -38,6 +39,7 @@ def test_each_cause_is_answerable_from_the_prompt(run, group):
         assert grade(prompt, expect)["veracity"] == "PASS", keywords
 
 
+@pytest.mark.xfail(strict=True, reason="F11/H48: the drift was made by the test loader; production compares no values file to the deployed values (docs/fix-plan-001.md)")
 def test_final_answer_names_both_causes(run):
     assert run.state["confidence"] == "HIGH"
     root_cause = run.state["report_dict"]["root_cause"]
