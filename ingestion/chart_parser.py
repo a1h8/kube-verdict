@@ -50,7 +50,7 @@ class ChartParser:
         with tempfile.TemporaryDirectory() as tmp:
             try:
                 with tarfile.open(path, "r:gz") as tar:
-                    tar.extractall(tmp)
+                    tar.extractall(tmp, filter="data")   # no path outside tmp, no links out, no devices
             except (tarfile.TarError, OSError) as exc:
                 log.warning("Cannot extract %s: %s", path, exc)
                 return None
