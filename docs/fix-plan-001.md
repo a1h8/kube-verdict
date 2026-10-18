@@ -31,7 +31,7 @@
 - [x] **H31 — the Git token is part of the clone URL**, so a failed clone logs it and the clone's
   `.git/config` keeps it. → the token is passed to git through an environment-scoped credential
   helper, never in the URL; command errors are redacted.
-- [ ] **H16 — `GET /{id}/state`, `GET /{id}/stream` and `DELETE /{id}` are not behind
+- [x] **H16 — `GET /{id}/state`, `GET /{id}/stream` and `DELETE /{id}` are not behind
   `require_auth`.** `/stream` resumes the graph. → the three routes require auth, like the other
   session routes.
 - [ ] **H44 — OIDC with only a JWKS URL accepts a token issued for any application of the

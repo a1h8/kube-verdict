@@ -215,12 +215,12 @@ async def feedback(session_id: str, body: FeedbackRequest) -> SessionState:
     return _state_to_response(session)
 
 
-@router.get("/{session_id}/state", response_model=SessionState)
+@router.get("/{session_id}/state", response_model=SessionState, dependencies=[Depends(require_auth)])
 async def get_state(session_id: str) -> SessionState:
     return _state_to_response(store.get_or_404(session_id))
 
 
-@router.get("/{session_id}/stream")
+@router.get("/{session_id}/stream", dependencies=[Depends(require_auth)])
 async def stream_session(session_id: str) -> StreamingResponse:
     """SSE stream — emits one JSON event per LangGraph state update."""
     session = store.get_or_404(session_id)
@@ -236,7 +236,7 @@ async def stream_session(session_id: str) -> StreamingResponse:
     return StreamingResponse(_generate(), media_type="text/event-stream")
 
 
-@router.delete("/{session_id}", status_code=204)
+@router.delete("/{session_id}", status_code=204, dependencies=[Depends(require_auth)])
 async def delete_session(session_id: str) -> None:
     store.get_or_404(session_id)
     store.delete(session_id)
