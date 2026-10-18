@@ -9,6 +9,16 @@
 > and 4 — evidence made by the test loader and lenient fixtures are removed. That is the real
 > number.
 
+## 0. Safety
+
+- [x] **H15 — the dry-run ran commands kubectl cannot dry-run.** `_exec_dry_run` appended
+  `--dry-run=server` to every kubectl line and ran it, before the human gate. → only verbs that
+  have a server-side dry-run (checked against `kubectl <verb> --help`, v1.37) are run; any other
+  line, an explicit `--dry-run` other than `server`, `--` or a flag that changes the target
+  cluster or identity is not run and is left for manual review. Tests:
+  `tests/unit/test_dry_run_safety.py` (nothing runs for each refused line; control: the allowed
+  verbs run with `--dry-run=server`).
+
 ## 1. One pipeline
 
 - [x] **H3 — the CLI runs its own pipeline.** `main.py` (the CronJob's entry point) collected

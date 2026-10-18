@@ -1243,6 +1243,46 @@ def _nested_get(d: dict, dotted_key: str):
     return cur
 
 
+# kubectl verbs whose --dry-run=server only simulates (checked against `kubectl <verb>
+# --help`, v1.37). Anything else (exec, cp, port-forward, attach, edit, debug, rollout
+# restart, plugins…) has no dry-run and would really run, or fail on the unknown flag.
+_DRY_RUN_VERBS = {"apply", "create", "delete", "patch", "replace", "scale", "label",
+                  "annotate", "autoscale", "expose", "run", "cordon", "uncordon", "drain", "taint"}
+_DRY_RUN_SUBVERBS = {"rollout": {"undo"},
+                     "set": {"image", "env", "resources", "selector", "serviceaccount", "subject"}}
+# Flags that take a value; the verb is the first word that is not a flag or a flag value.
+_KUBECTL_VALUE_FLAGS = {"-n", "--namespace", "-l", "--selector", "-f", "--filename", "-o", "--output"}
+# Flags that would point the dry-run at another cluster or identity.
+_KUBECTL_TARGET_FLAGS = ("--kubeconfig", "--context", "--cluster", "--user", "--server", "-s",
+                         "--token", "--as", "--as-group", "--as-uid")
+
+
+def _kubectl_dry_run_refusal(args: list[str]) -> str:
+    """Why a kubectl command must not be run as a dry-run, or "" when it can be."""
+    words: list[str] = []
+    skip = False
+    for a in args:
+        if a == "--":
+            return "arguments passed to another command"
+        if a.split("=", 1)[0] in _KUBECTL_TARGET_FLAGS:
+            return f"{a.split('=', 1)[0]} changes the target cluster or identity"
+        if a.startswith("--dry-run") and a != "--dry-run=server":
+            return f"{a} is not a server-side dry-run"
+        if skip:
+            skip = False
+        elif a in _KUBECTL_VALUE_FLAGS:
+            skip = True
+        elif not a.startswith("-"):
+            words.append(a)
+    verb = words[0] if words else ""
+    if verb in _DRY_RUN_SUBVERBS:
+        sub = words[1] if len(words) > 1 else ""
+        return "" if sub in _DRY_RUN_SUBVERBS[verb] else f"'kubectl {verb} {sub}' has no dry-run"
+    if verb in _DRY_RUN_VERBS:
+        return ""
+    return f"'kubectl {verb}' has no dry-run" if verb else "no kubectl verb"
+
+
 def _exec_dry_run(cmd: str) -> tuple[str, str, int]:
     """
     Transform one remediation command into its dry-run equivalent and execute it.
@@ -1251,7 +1291,8 @@ def _exec_dry_run(cmd: str) -> tuple[str, str, int]:
     Strategy:
       helm upgrade/install → try `helm diff upgrade --reuse-values` first,
                               fall back to `helm upgrade --dry-run --reuse-values`
-      kubectl *            → append `--dry-run=server`
+      kubectl <verb>       → append `--dry-run=server`, only for verbs that support it
+                              (``_kubectl_dry_run_refusal``); never run otherwise
       piped / heredoc      → not supported (shlex cannot parse them safely)
       other tools          → returned unchanged with an explanatory note
     """
@@ -1313,9 +1354,10 @@ def _exec_dry_run(cmd: str) -> tuple[str, str, int]:
 
     # ── kubectl ───────────────────────────────────────────────────────────────
     elif tool == "kubectl":
-        dry_parts = parts.copy()
-        if "--dry-run" not in cmd:
-            dry_parts.append("--dry-run=server")
+        refused = _kubectl_dry_run_refusal(parts[1:])
+        if refused:
+            return cmd, f"[dry-run not run: {refused} — review manually]", 0
+        dry_parts = parts + ([] if "--dry-run=server" in parts else ["--dry-run=server"])
         try:
             r = subprocess.run(dry_parts, capture_output=True, text=True, timeout=30)
             output = r.stdout or r.stderr or "[no output]"
