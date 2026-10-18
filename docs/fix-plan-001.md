@@ -22,13 +22,13 @@
   cluster or identity is not run and is left for manual review. Tests:
   `tests/unit/test_dry_run_safety.py` (nothing runs for each refused line; control: the allowed
   verbs run with `--dry-run=server`).
-- [ ] **H42 — `propose_patch` accepts any `file_path`.** The path is joined to the clone and read
+- [x] **H42 — `propose_patch` accepts any `file_path`.** The path is joined to the clone and read
   as is. → a path that resolves outside the clone is refused.
 - [ ] **H41 — the Google client puts its key in the URL**, so a failed request carries it into
   the error message and the session state. → the key goes in a header; error messages are
   redacted. With it, **H47**: `GoogleClient.chat` was defined at module level (indentation), so
   the client had no `chat`.
-- [ ] **H31 — the Git token is part of the clone URL**, so a failed clone logs it and the clone's
+- [x] **H31 — the Git token is part of the clone URL**, so a failed clone logs it and the clone's
   `.git/config` keeps it. → the token is passed to git through an environment-scoped credential
   helper, never in the URL; command errors are redacted.
 - [ ] **H16 — `GET /{id}/state`, `GET /{id}/stream` and `DELETE /{id}` are not behind
