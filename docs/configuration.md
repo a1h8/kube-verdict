@@ -71,7 +71,7 @@ acceptable, don't silently adopt the smaller model's baseline.
 
 | Variable | Default | Description |
 |---|---|---|
-| `VECTOR_STORE_PATH` | `./data/index.faiss` | Path to persist the FAISS index. Mount a PVC here in K8s. |
+| `VECTOR_STORE_PATH` | `./data/index.faiss` | Default path of `FAISSStore.save()` / `load()`. Neither the API nor the workflow reads or writes it: each investigation indexes the cluster it collects, plus the knowledge base (`docs/fix-plan-001.md`, H40). |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence-transformers model name. Must match the model used to build the index. |
 
 ## Deduplication

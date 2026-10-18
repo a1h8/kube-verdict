@@ -34,10 +34,6 @@ def _build_graph(checkpointer=None):
 # SqliteSaver-backed instance.
 _graph = _build_graph()
 
-# Pre-loaded FAISS store — set by app.py lifespan if index.faiss exists on disk.
-# When set, index_node skips re-embedding and uses this store directly.
-_faiss_store = None
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -115,8 +111,6 @@ def _build_incident_report(report: dict) -> IncidentReport | None:
 async def _run_graph(session: Session, initial_state: dict, resume_cmd: Command | None = None) -> None:
     """Run (or resume) the LangGraph workflow in a background task."""
     configurable: dict = {"thread_id": session.session_id}
-    if _faiss_store is not None:
-        configurable["store"] = _faiss_store
     cfg = {"configurable": configurable}
     try:
         store.set_status(session.session_id, SessionStatus.RUNNING)

@@ -81,10 +81,10 @@
   state where it is needed.
 - [x] **H11 — `GIT_REPOS_JSON` is read only by the UI**, and malformed JSON is ignored silently.
   → the workflow reads it; a parse error is logged.
-- [ ] **H40 — the API searches a vector store from an earlier run** (any cluster) and puts its
+- [x] **H40 — the API searches a vector store from an earlier run** (any cluster) and puts its
   texts in the prompt. → the cluster index is built per investigation; only the knowledge base
   (examples, docs) persists.
-- [ ] **H39 — resolved incidents and documents are indexed only by the UI.** → indexed by the
+- [x] **H39 — resolved incidents and documents are indexed only by the UI.** → indexed by the
   workflow's `index` step for every entry point.
 - [ ] **H17 — three "expected state" paths; the only real render-vs-live diff runs outside the
   workflow** (MCP tools). → one path, in the workflow (with F11).

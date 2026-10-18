@@ -107,6 +107,8 @@ section, anchor-based hypotheses and the re-ranking after a failed path.
     investigation's graph and its anchor violations are never indexed, so
     `hybrid_search` finds neither the entities at fault nor the `anchor:` hypotheses
     (RRF-on-anchors does not run through the API).
+    *Fixed 2026-10-18 (`docs/fix-plan-001.md`, H40, H39): the API loads no store; every
+    investigation indexes its graph, anchors, charts, examples and documents.*
   - *Without a persisted index* (CLI, `test_native_helm_dialogue`): `index_node`
     builds a FAISS on the graph and its anchors only, with no knowledge base.
 - **The graph is rebuilt for every investigation**: a snapshot taken by the collector,

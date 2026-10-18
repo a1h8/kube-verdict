@@ -25,7 +25,7 @@ under Next.
 - [x] **Beam search confidence routing** — `path_confidence_history` detects LOW × 2 → early path switch; `archive_path_node` re-ranks remaining candidates via hybrid_search on failed analysis text
 - [x] **RRF-on-anchors** — `index_anchor_violations()` indexes each manifest drift field as `doc_source="anchor"` (×1.6 weight); Phase 2b processes `anchor:` UIDs from hybrid_search into testable hypotheses
 - [x] **FastAPI REST API** — `POST /run`, `GET /state`, `GET /stream` (SSE), `POST /feedback`, `DELETE`; exposes `hypothesis_sources`, `path_confidence_history`, `edge_log` with `declining` flag
-- [x] **SQLite persistence** — sessions + LangGraph checkpoints survive restarts; FAISS index preloaded from `index.faiss` at startup (Option A) or rebuilt from raw texts in `vector_store_docs` without re-collecting from the cluster (Option B); SQL dialect compatible with PostgreSQL (`ON CONFLICT DO UPDATE`)
+- [x] **SQLite persistence** — sessions + LangGraph checkpoints survive restarts; FAISS index no longer preloaded at startup (2026-10-18, `docs/fix-plan-001.md` H40: a preloaded index made investigations search an earlier snapshot of the cluster); SQL dialect compatible with PostgreSQL (`ON CONFLICT DO UPDATE`)
 - [x] **LangGraph multi-path workflow** — hypothesize → analyze → retry / archive_path → select_best → dry_run → human_review
 - [x] **Alertmanager webhook** — receives Prometheus Alertmanager `POST /webhook` payloads; auto-triggers RCA session; maps alert `labels` to namespace + resource + query (`demo/demo_webhook.py`)
 - [x] **AnchorEngine** — manifest + schema anchors; `anchor_fix_hints()` generates `helm upgrade --set` commands; **anchor pivot table** in UI (declared → observed → status → fix)

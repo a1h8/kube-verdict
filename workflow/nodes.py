@@ -491,7 +491,13 @@ def anchor_node(state: RCAState, config: RunnableConfig) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def index_node(state: RCAState, config: RunnableConfig) -> dict:
-    """Embed entities and build FAISSStore. Skipped if already in config."""
+    """Build this investigation's FAISSStore. Skipped only when a caller injects one (replay).
+
+    The store holds the cluster as collected by this run, plus the knowledge base — resolved
+    incidents and documents — for every entry point, not only the UI (docs/fix-plan-001.md,
+    H39). It is not saved: a store from an earlier run (another moment, another cluster) put
+    its pods in this run's prompt (H40).
+    """
     graph, store = _get_infra(config, state)
     if store is not None:
         log.info("index: pre-built store provided — skipping")
@@ -520,17 +526,17 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
     except Exception as exc:  # noqa: BLE001 — enterprise store must never break RCA
         log.warning("index: enterprise chart indexing skipped: %s", exc)
 
-    built_store.save()
-
-    from persistence.db import get_db
-    conn = get_db()
+    # Knowledge base: resolved incidents (ExampleStore) and enterprise documents (DocStore).
+    examples = docs = 0
     try:
-        built_store.persist_texts(conn)
-    finally:
-        conn.close()
+        from knowledge import DocIndexer, DocStore, ExampleIndexer, ExampleStore
+        examples = ExampleIndexer(built_store).index_all(ExampleStore())
+        docs = DocIndexer(built_store).index_all(DocStore())
+    except Exception as exc:  # noqa: BLE001 — the knowledge base must never break RCA
+        log.warning("index: knowledge base skipped: %s", exc)
 
-    log.info("index: %d vectors, %d anchor violation(s), %d chart anchor(s)",
-             built_store.size, anchor_count, chart_anchor_count)
+    log.info("index: %d vectors, %d anchor violation(s), %d chart anchor(s), %d example(s), "
+             "%d doc chunk(s)", built_store.size, anchor_count, chart_anchor_count, examples, docs)
 
     config.setdefault("configurable", {})["store"] = built_store
     # Also refresh the thread-local infra cache: LangGraph does not reliably

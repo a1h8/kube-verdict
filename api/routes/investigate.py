@@ -47,10 +47,6 @@ def _effective_query(body: InvestigateRequest) -> str:
 
 @router.post("/investigate", response_model=VerdictEnvelope, dependencies=[Depends(require_auth)])
 async def investigate(body: InvestigateRequest) -> VerdictEnvelope:
-    # Import the route module lazily so the preloaded FAISS store set by the
-    # app lifespan is reused (avoids re-embedding on every call).
-    from api.routes import sessions as sessions_mod
-
     namespaces = body.namespaces or ([body.namespace] if body.namespace else None)
     session_id = uuid.uuid4().hex
 
@@ -58,7 +54,6 @@ async def investigate(body: InvestigateRequest) -> VerdictEnvelope:
         query=_effective_query(body),
         namespaces=namespaces,
         kube_context=body.kube_context,
-        store=sessions_mod._faiss_store,
         thread_id=session_id,
     )
     return VerdictEnvelope.from_state(
