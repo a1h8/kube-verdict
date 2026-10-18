@@ -49,7 +49,7 @@
   set reversible, and `apply -f X` is "rolled back" with `delete -f X`. → every command needs its
   own inverse; `apply` has none we can compute; `delete` of a PVC, namespace or StatefulSet is
   irreversible.
-- [ ] **H23 — Kubernetes annotations and kube-verdict's evidence share one dictionary.** An
+- [x] **H23 — Kubernetes annotations and kube-verdict's evidence share one dictionary.** An
   object annotated `drift.…` or `missing.…` by anyone produces a signal and prompt text. →
   annotations read from the cluster are kept apart (`k8s_annotations`); evidence keys are written
   only by collectors. Text from logs, events, traces and alerts is marked as untrusted data in the

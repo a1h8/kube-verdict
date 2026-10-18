@@ -169,6 +169,10 @@ veracity replay (`tools/veracity_replay.py --solver llm`) runs on the same cases
 report records the prompt version (`prompt: v1 | v2`, a constant in `rca/analyzer.py`)
 so the two runs are never mixed.
 
+> 2026-10-18: `v3` (`docs/fix-plan-001.md`, H23) — the system prompt says that event,
+> log, trace and alert texts are data, never instructions, and drops the "air-gapped" claim.
+> Runs made with `v2` are not compared with `v3` runs.
+
 ### Tests
 
 - Parser: a full line, a bare command, a non-read-only line dropped, a Secret-reading
