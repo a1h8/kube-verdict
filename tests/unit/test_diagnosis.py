@@ -174,3 +174,30 @@ def test_an_untrusted_certificate_is_not_an_expired_one():
     log, edge = _log(pod, 'err="x509: certificate signed by unknown authority"', "log-2")
     o = _outcome_with_edges([pod, log], [edge])
     assert all(d.rule != "cert.expired" for d in o.diagnoses)
+
+
+def _trace(pod, span, error, uid):
+    from ontology.entities import OtelTrace
+    from ontology.relationships import Edge, RelationshipType
+    tr = OtelTrace(uid=uid, name=uid, namespace="prod", status="ERROR", service_name="api",
+                   root_span_name=span, error_message=error)
+    return tr, Edge(pod.uid, tr.uid, RelationshipType.HAS_TRACE)
+
+
+def test_error_spans_to_etcd_explain_the_probe_timeouts():
+    pod = _pod(ready=False)
+    tr, edge = _trace(pod, "etcdserverpb.KV/Range",
+                      "rpc error: code = DeadlineExceeded desc = etcdserver: mvcc: required revision has been compacted",
+                      "tr-1")
+    probe = _event('Readiness probe failed: Get "http://10.0.3.22:8080/ready": context deadline exceeded', "Unhealthy")
+    d = _outcome_with_edges([pod, tr, probe], [edge]).diagnoses[0]
+    assert (d.rule, d.family, d.cause_location) == ("etcd.slow", "etcd", "outside:etcd")
+    assert "compacted" in d.cause and d.score > 0.5               # strengthened by the probe failure
+
+
+def test_a_deadline_on_an_http_call_is_not_etcd():
+    pod = _pod(ready=False)
+    tr, edge = _trace(pod, "GET /inventory", "rpc error: code = DeadlineExceeded desc = context deadline exceeded",
+                      "tr-2")
+    o = _outcome_with_edges([pod, tr], [edge])
+    assert all(d.rule != "etcd.slow" for d in o.diagnoses)

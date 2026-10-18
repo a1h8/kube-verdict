@@ -251,6 +251,28 @@ def _cert_expired(ss: SignalSet) -> list[Diagnosis]:
     return out
 
 
+def _etcd_slow(ss: SignalSet) -> list[Diagnosis]:
+    """Error spans to etcd; the workload's probe failures are the symptom it explains."""
+    by_workload: dict[str, list[Signal]] = {}
+    for s in ss.of("etcd.slow"):
+        subject = ss.subject(s)
+        key = subject if subject.startswith("Deployment/") else subject.rsplit("-", 2)[0]
+        by_workload.setdefault(key, []).append(s)
+    out = []
+    for workload, spans in sorted(by_workload.items()):
+        symptoms = [x for x in ss.signals if x.kind in ("probe.readiness_failed", "pod.not_ready")
+                    and (_same_workload(ss.subject(x), workload) or ss.subject(x).startswith(workload))]
+        error = next((x.attr("error") for x in spans if x.attr("error")), "")
+        reported = f" ({error})" if error else ""
+        out.append(_diag("etcd.slow", "etcd",
+                         f"Calls from {_name(workload)} to etcd ({spans[0].attr('span')}) fail{reported}: etcd is "
+                         f"slow or compacting, and {_name(workload)} times out.",
+                         "outside:etcd", spans[:1], symptoms,
+                         checks=["kubectl get --raw /readyz/etcd",
+                                 "kubectl -n kube-system get pods -l component=etcd"]))
+    return out
+
+
 def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
     """A configuration drift alone is generic; it is reported when a workload of the same
     release is failing and no more specific rule already used that drift."""
@@ -277,10 +299,10 @@ def _crash(ss: SignalSet, explained_pods: set[str]) -> list[Diagnosis]:
 # every rule id ``diagnose`` can produce — docs/diagnosis-coverage.md checks rows against it
 RULE_IDS: frozenset[str] = frozenset({"dependency.missing", "oom.memory_drift", "oom.limit", "image.pull",
                                        "scheduling", "config.drift", "container.crash",
-                                       "init.failed", "rbac", "hpa.metrics", "cert.expired"})
+                                       "init.failed", "rbac", "hpa.metrics", "cert.expired", "etcd.slow"})
 
 RULES: list[Callable[[SignalSet], list[Diagnosis]]] = [_dependency_missing, _oom, _image_pull, _scheduling,
-                                                       _init_failed, _rbac, _hpa_metrics, _cert_expired]
+                                                       _init_failed, _rbac, _hpa_metrics, _cert_expired, _etcd_slow]
 
 
 def _starting_in_rollout(ss: SignalSet) -> set[str]:

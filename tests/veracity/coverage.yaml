@@ -395,7 +395,7 @@ rows:
   - KubeAPIErrorBudgetBurn
   signals:
   - etcd.slow
-  rule: null
+  rule: etcd.slow
   cases:
   - h015
   live: partial
