@@ -107,7 +107,8 @@ class GitopsCollector:
                       release.namespace, release.name)
             return []
 
-        drifts = self._differ.diff(rendered, graph, release_uid=release.uid)
+        drifts = self._differ.diff(rendered, graph, release_uid=release.uid,
+                                   namespace=release.namespace or "default")
 
         if drifts:
             release.annotations["gitops.drift_count"] = str(len(drifts))

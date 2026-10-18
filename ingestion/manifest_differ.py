@@ -52,11 +52,17 @@ class ManifestDiffer:
         rendered: list[dict],
         graph: OntologyGraph,
         release_uid: str = "",
+        namespace: str = "",
     ) -> list[DriftItem]:
         """
         Returns all DriftItems found.
         Side-effect: writes gitops.* annotations onto entities.
+
+        *namespace* is the release namespace: `helm template` often leaves
+        `metadata.namespace` out, and a rendered object is compared only with the live
+        object of its own namespace (docs/fix-plan-001.md, H29).
         """
+        default_ns = namespace
         all_drifts: list[DriftItem] = []
         matched_uids: set[str] = set()
 
@@ -64,7 +70,7 @@ class ManifestDiffer:
             kind = manifest.get("kind", "")
             meta = manifest.get("metadata", {})
             name = meta.get("name", "")
-            namespace = meta.get("namespace", "")
+            namespace = meta.get("namespace") or default_ns
 
             entity = _find_entity(graph, kind, name, namespace)
 
@@ -282,8 +288,8 @@ def _find_entity(
             continue
         if entity.kind.value != kind:
             continue
-        if namespace and entity.namespace and entity.namespace != namespace:
-            continue
+        if entity.namespace and entity.namespace != namespace:
+            continue                       # a namespaced object of another (or unknown) namespace
         return entity
     return None
 

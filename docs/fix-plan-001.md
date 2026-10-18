@@ -110,7 +110,7 @@
   value, strings become numbers. → a values file.
 - [x] **H30 — with a GitHub URL the GitOps path never reads Git** (`GithubProvider` has no local
   checkout). → GitHub repositories are cloned like any other.
-- [ ] **H29 — rendered objects without a namespace match a live object in any namespace.** → the
+- [x] **H29 — rendered objects without a namespace match a live object in any namespace.** → the
   release namespace is used.
 - [x] **H26 — every `managed-by=Helm` object is linked to every release of its namespace**: two
   healthy releases make two false replica drifts. → linked by `meta.helm.sh/release-name` and the

@@ -394,7 +394,7 @@ def _rendered_expected_drift(graph, chart_name: str, version, namespace: str,
         return None, []
 
     rendered = ChartIndexer(None).render(cs, chart, namespace=namespace)
-    drifts = ManifestDiffer().diff(rendered, graph)
+    drifts = ManifestDiffer().diff(rendered, graph, namespace=namespace)
     items = [
         {
             "field":    d.field_path,
