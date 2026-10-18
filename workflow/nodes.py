@@ -1222,11 +1222,20 @@ def _helm_values_diff(
     import json
 
     get_cmd = ["helm", "get", "values", release, "-o", "json"] + ns_flags
+    # An unreadable current state gives no diff, not a diff against {} that shows every key as
+    # new (docs/fix-plan-001.md, H13). `null` / empty output = no user-supplied values.
     try:
         r = subprocess.run(get_cmd, capture_output=True, text=True, timeout=15)
-        current: dict = json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {}
-    except Exception:
-        current = {}
+    except (OSError, subprocess.SubprocessError) as exc:
+        return " ".join(get_cmd), f"[current values unreadable: {exc} — no diff computed]", 1
+    if r.returncode != 0:
+        why = (r.stderr or r.stdout or "").strip()[:300] or f"exit {r.returncode}"
+        return " ".join(get_cmd), f"[current values unreadable: {why} — no diff computed]", r.returncode
+    try:
+        current = json.loads(r.stdout) if r.stdout.strip() else {}
+    except json.JSONDecodeError as exc:
+        return " ".join(get_cmd), f"[current values unreadable: {exc} — no diff computed]", 1
+    current = current if isinstance(current, dict) else {}
 
     # Parse proposed overrides from --set flags (format: key=value or a.b.c=value)
     proposed: dict = {}

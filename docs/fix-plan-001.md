@@ -57,7 +57,7 @@
 - [x] **H35 — the OTLP receiver binds `0.0.0.0` by default, without a body limit.** → default
   `127.0.0.1`, a body limit, an optional bearer token.
 - [x] **H36 — `ChartParser.from_tgz` extracts without a filter.** → `filter="data"`.
-- [ ] **H13 — the remediation diff shown for approval can start from empty values** when
+- [x] **H13 — the remediation diff shown for approval can start from empty values** when
   `helm get values` fails. → the failure is shown, no diff is computed.
 
 ## 1. One pipeline
