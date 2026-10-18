@@ -313,7 +313,7 @@ def _from_traces(graph: OntologyGraph, b: _Builder) -> None:
         owners = _graph_owners(graph, tr.uid, RelationshipType.HAS_TRACE) or [tr.fqn]
         b.add(kind, "otel", tr.uid, [(o, "otel.resource_attributes", 0.9) for o in owners],
               event_time=tr.started_at, authored={"service": tr.service_name, "trace_id": tr.trace_id},
-              observed={"span": tr.root_span_name})
+              observed={"span": tr.root_span_name, "error": (tr.error_message or "")[:200]})
 
 
 def _from_alerts(graph: OntologyGraph, b: _Builder) -> None:

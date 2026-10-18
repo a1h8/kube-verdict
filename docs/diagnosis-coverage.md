@@ -13,9 +13,9 @@ a covered row is implemented, not validated.
 |---|---|
 | Causes in the catalog | 40 |
 | Signals extracted | 27 |
-| Rule implemented | 17 |
-| A case passes | 10 |
-| **Covered** | **10 / 40** |
+| Rule implemented | 18 |
+| A case passes | 11 |
+| **Covered** | **11 / 40** |
 | Runbooks cited by a row | 39 / 60 |
 
 | Cause | Family | Signals | Rule | Cases | Live |
@@ -49,7 +49,7 @@ a covered row is implemented, not validated.
 | an application TLS certificate expired (issuer could not renew) | certificate | ✅ | ✅ cert.expired | ✅ h014 | partial |
 | a kubelet client or server certificate expires or fails to renew | certificate | — | — — | — — | partial |
 | an API server, scheduler, controller manager or kube-proxy is down | control-plane | — | — — | — — | partial |
-| etcd is slow (compaction, disk) and requests time out | etcd | ✅ | — — | — h015 | partial |
+| etcd is slow (compaction, disk) and requests time out | etcd | ✅ | ✅ etcd.slow | ✅ h015 | partial |
 | a NetworkPolicy blocks the app's traffic | network-policy | ✅ | — — | — — | no |
 | cluster DNS fails (CoreDNS down or throttled) | dns | ✅ | — — | — — | partial |
 | the ServiceAccount lacks the permissions the app needs | rbac | ✅ | ✅ rbac | ✅ h005 | partial |
