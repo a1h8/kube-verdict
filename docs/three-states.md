@@ -83,12 +83,13 @@ B reads Secrets of type `helm.sh/release.v1` only. The chart grants a namespaced
 
 ## Replay
 
-Read from the fixtures on 2026-10-18: in h002, h003, h009 and h024 the live objects **equal**
-the deployed values (`helm/release.json`), and those differ from `helm/values.yaml` (image tag,
-memory limit, liveness timeout, memory limit). Their fault is **A** (`git-vs-deployed`), not a
-live edit; h012 is the **B** case (`kubectl edit` of an applied release).
+Read from the fixtures on 2026-10-18: in h002, h003, h009, h024 and h012 the live objects
+**equal** what Helm applied, and that differs from what Git declares (image tag, memory limit,
+liveness timeout, memory limit; h012: `helm upgrade --set`, named in its chart's values). Their
+fault is **A** (`git-vs-deployed`). No native case is a live edit (**B**); B is covered by unit
+tests.
 
-To run them through the production path, each such case gains:
+To run them through the production path, each case gains:
 
 - `chart/` — a minimal chart whose `values.yaml` is the case's `helm/values.yaml` (the declared
   state), and `rendered/declared.yaml`, its `helm template` output, committed and checked

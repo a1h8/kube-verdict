@@ -220,3 +220,25 @@ in correction 2).
   512Mi → 128Mi from the Deployment alone.
 - Not in this correction: `spec.replicas` managed by an HPA still reads as a drift. Knowing that an
   HPA targets a Deployment needs HPAs collected live (D1.2); left open.
+
+## Correction F11 / H48 — declared, applied, live (2026-10-18, spec `docs/three-states.md`)
+
+The test loader compared `helm/values.yaml` with `helm/release.json` and wrote `drift.helm.*`, a
+comparison no production code made: those drifts were evidence only the test could see. The
+loader now runs the production comparisons on files that say what each state is:
+
+| Case | Added | What it asserts |
+|---|---|---|
+| h002, h003, h009, h024 | `chart/` (a minimal chart; `values.yaml` = the case's `helm/values.yaml`), `rendered/declared.yaml` (`helm template` of it), `helm/manifest.yaml` (the same chart rendered with `helm/release.json`) | Git declares one value, Helm applied another (image tag, memory limit, liveness timeout, memory limit), the live objects equal what Helm applied: comparison A finds the drift, B finds none |
+| h012 | `helm/release.json` (`replicaCount: 1`, `resources.limits.memory: 128Mi`), `helm/manifest.yaml` | the overrides named in its own `chart/values.yaml` comment (`helm upgrade --set …`): A as above; its declared render stays `rendered/expected.yaml` |
+
+- `expect.json["drift_provenance"]` is `git-vs-deployed` for these five; every other case has no
+  configuration drift (`tests/unit/test_case_drift_provenance.py`). No native case is a live
+  edit (B); B is covered by `tests/unit/test_three_states.py`.
+- The renders are checked against their chart by `tests/integration/test_three_states_goldens.py`
+  (needs `helm`).
+- A kind the fixture does not hold is not "listed": h002 and h009 have no live Deployment, so B
+  does not report the applied Deployment as missing (in production: a refused listing, H24).
+- Structured replay: 11/19 → **15/19**; h002, h003, h009, h024 pass through A. Their
+  reasoning-path "rule" step stays a strict xfail: the old `RemediationEngine` reads `drift.*`
+  only (two engines, H4).

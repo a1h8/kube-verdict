@@ -194,15 +194,28 @@ def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
     # render uses the deployed values, docs/fix-plan-001.md F11 / H48): a drift written here was
     # evidence only the test could see. The fixture's helm/release.json stays as data.
 
-    # ── 6b. Render vs live: the production ManifestDiffer on the case's rendered chart ──
-    # (rendered/expected.yaml is `helm template` of chart/, checked by a helm-guarded test).
-    # Its gitops.* drifts are what the GitOps node writes live (fix plan 001, h012 / H28).
-    rendered_path = Path(case["case_dir"]) / "rendered" / "expected.yaml"
-    if rendered_path.exists():
-        from ingestion.manifest_differ import ManifestDiffer
-        rendered = [d for d in yaml.safe_load_all(rendered_path.read_text()) if isinstance(d, dict)]
-        ManifestDiffer(track_orphans=False).diff(rendered, graph, release_uid=helm_release.uid,
-                                                 namespace=ns)
+    # ── 6b. Declared → applied → live (docs/three-states.md), the production comparisons ──
+    # helm/manifest.yaml is what `helm get manifest` returns; rendered/declared.yaml (h012:
+    # rendered/expected.yaml) is Git's `helm template`. Both are renders of the case's chart/,
+    # checked by a helm-guarded test.
+    case_dir = Path(case["case_dir"])
+    applied_path = case_dir / "helm" / "manifest.yaml"
+    declared_path = next((p for p in (case_dir / "rendered" / "declared.yaml",
+                                      case_dir / "rendered" / "expected.yaml") if p.exists()), None)
+    if applied_path.exists():
+        from ingestion.manifest_differ import ManifestDiffer, compare_applied_to_live
+        helm_release.applied_manifest = [d for d in yaml.safe_load_all(applied_path.read_text())
+                                         if isinstance(d, dict) and d.get("kind")]
+        # a kind the fixture does not hold was not "listed": its objects are unknown, not missing
+        listed = {k for k, key in (("Deployment", "deployments"), ("StatefulSet", "statefulsets"),
+                                   ("Service", "services"), ("ConfigMap", "configmaps"))
+                  if case["observed"].get(key)}
+        compare_applied_to_live(graph, covered=lambda kind, _ns: kind in listed)   # B
+        if declared_path is not None:                                           # A
+            declared = [d for d in yaml.safe_load_all(declared_path.read_text()) if isinstance(d, dict)]
+            ManifestDiffer(track_orphans=False).diff_manifests(
+                declared, helm_release.applied_manifest, graph,
+                release_uid=helm_release.uid, namespace=ns)
 
     # ── 7. Policy violations ─────────────────────────────────────────────
     for report in case.get("policy_reports", []):

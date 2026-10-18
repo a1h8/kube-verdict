@@ -10,7 +10,8 @@
 > number. Measured offline on 2026-10-18 by dropping the signals whose evidence only the loader
 > writes: **10/19**; 8/18 once h005 (an Event Kubernetes does not emit) and h011 are set aside.
 > **Measured after F11 (2026-10-18): 11/19** — the 10/19 above, plus h012 now graded through the
-> production render-vs-live path.
+> production render-vs-live path. **After H48: 15/19**, every drift found by the production
+> comparisons on fixtures that say what Git declared and what Helm applied.
 >
 > H9–H46 were added on 2026-10-18 by a file-by-file pass over every module; the order below is the
 > order of the commits.
@@ -123,13 +124,17 @@
   parses the YAML.
 - [x] **h012 end to end** in the replay through that path, nothing injected: the loader runs the
   production `ManifestDiffer` on the case's rendered chart.
-- [ ] **H48 — the GitOps render uses the deployed values**, so a values change against Git is
+- [x] **H48 — the GitOps render uses the deployed values**, so a values change against Git is
   never a drift (only an edit made outside Helm is). → spec `docs/three-states.md`: declared
   (Git) → applied (`helm get manifest`) → live, two comparisons with their provenance, no mode
-  to choose; `GITOPS_VALUES_SOURCE` (an interim switch) is removed. h002, h003, h009, h024 (their
+  to choose; `GITOPS_VALUES_SOURCE` (an interim switch) is removed. Done: replay 11/19 → 15/19,
+  h002 / h003 / h009 / h024 / h012 found by A with their provenance (`docs/case-audit-001.md`
+  § Correction F11 / H48). h002, h003, h009, h024 (their
   drifts were made by the loader) are strict xfails naming F11/H48.
 - [ ] **H1 — `env.*` is never written in production**: the GitOps env diff is blind live, and the
   database checks built from `env.DB_HOST` never appear. → read env from the live containers.
+  Half done with H48: the differ reads env from the live containers. Open: `RemediationEngine`'s
+  database checks still read an `env.DB_HOST` annotation no collector writes (two engines, H4).
 - [x] **H5 — collection failures read as absence.** `ingestion/helm_collector.py:203`,
   `ingestion/git_provider.py:114,120`, the K8s collector's listings other than ConfigMaps / PVCs /
   ServiceAccounts (H24), metrics-server, and the discovery's refused groups and CRDs (logged at

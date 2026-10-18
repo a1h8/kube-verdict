@@ -3,6 +3,7 @@
   "query": "search-service goes down every few minutes in production",
   "namespace": "production",
   "release": "search-service",
+  "drift_provenance": "git-vs-deployed",
   "affected_resources": ["Pod/production/search-service-5c9b7d6f4-rk8st"],
   "root_cause_contains": ["liveness", "probe", "timeout", "threshold", "restart", "drift"],
   "root_cause_concepts": ["liveness", "drift|timeoutseconds|declared|too short|too aggressive"],
