@@ -124,8 +124,9 @@
 - [x] **h012 end to end** in the replay through that path, nothing injected: the loader runs the
   production `ManifestDiffer` on the case's rendered chart.
 - [ ] **H48 — the GitOps render uses the deployed values**, so a values change against Git is
-  never a drift (only an edit made outside Helm is). → `GITOPS_VALUES_SOURCE=git` renders with
-  Git's values; the default stays `deployed` until it is decided. h002, h003, h009, h024 (their
+  never a drift (only an edit made outside Helm is). → spec `docs/three-states.md`: declared
+  (Git) → applied (`helm get manifest`) → live, two comparisons with their provenance, no mode
+  to choose; `GITOPS_VALUES_SOURCE` (an interim switch) is removed. h002, h003, h009, h024 (their
   drifts were made by the loader) are strict xfails naming F11/H48.
 - [ ] **H1 — `env.*` is never written in production**: the GitOps env diff is blind live, and the
   database checks built from `env.DB_HOST` never appear. → read env from the live containers.
