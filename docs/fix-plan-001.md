@@ -24,7 +24,7 @@
   verbs run with `--dry-run=server`).
 - [x] **H42 — `propose_patch` accepts any `file_path`.** The path is joined to the clone and read
   as is. → a path that resolves outside the clone is refused.
-- [ ] **H41 — the Google client puts its key in the URL**, so a failed request carries it into
+- [x] **H41 — the Google client puts its key in the URL**, so a failed request carries it into
   the error message and the session state. → the key goes in a header; error messages are
   redacted. With it, **H47**: `GoogleClient.chat` was defined at module level (indentation), so
   the client had no `chat`.
