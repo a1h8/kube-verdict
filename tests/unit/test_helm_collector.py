@@ -289,22 +289,26 @@ class TestLinkManagedResources:
         neighbour_uids = {e.uid for e in g.neighbors("pod-api-0")}
         assert "helm-prod-api" in neighbour_uids
 
-    def test_links_entity_with_managed_by_label(self):
+    def test_links_entity_with_instance_label_not_managed_by_alone(self):
+        # managed-by=Helm says "some release"; the instance label names which (H26)
         g = OntologyGraph()
         release = HelmRelease(uid="helm-prod-api", name="api", namespace="prod", source="helm")
         pod = Pod(
             uid="pod-api-1", name="api-1", namespace="prod",
-            labels={"app.kubernetes.io/managed-by": "Helm"},
-            annotations={},
+            labels={"app.kubernetes.io/managed-by": "Helm", "app.kubernetes.io/instance": "api"},
         )
-        g.add_entity(release)
-        g.add_entity(pod)
+        other = Pod(
+            uid="pod-web-1", name="web-1", namespace="prod",
+            labels={"app.kubernetes.io/managed-by": "Helm"},
+        )
+        for e in (release, pod, other):
+            g.add_entity(e)
 
         c = HelmCollector()
         c._link_managed_resources(g, release, "prod")
 
-        neighbour_uids = {e.uid for e in g.neighbors("pod-api-1")}
-        assert "helm-prod-api" in neighbour_uids
+        assert "helm-prod-api" in {e.uid for e in g.neighbors("pod-api-1")}
+        assert "helm-prod-api" not in {e.uid for e in g.neighbors("pod-web-1")}
 
     def test_skips_different_namespace(self):
         g = OntologyGraph()

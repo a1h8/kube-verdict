@@ -148,17 +148,17 @@ def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
     )
     graph.add_entity(helm_release)
 
-    # ── 2. Deployments ──────────────────────────────────────────────────────
-    for dep_raw in case["observed"].get("deployments", []):
-        dep = _deployment_from_kubectl(dep_raw)
-        graph.add_entity(dep)
-        graph.add_edge(Edge(dep.uid, helm_release.uid, RelationshipType.MANAGED_BY_HELM))
-
-    # ── 3. Pods ─────────────────────────────────────────────────────────────
-    for pod_raw in case["observed"].get("pods", []):
-        pod = _pod_from_kubectl(pod_raw)
-        graph.add_entity(pod)
-        graph.add_edge(Edge(pod.uid, helm_release.uid, RelationshipType.MANAGED_BY_HELM))
+    # ── 2. Deployments, 3. Pods ─────────────────────────────────────────────
+    # Linked to the case's release by the production rule (release-name annotation, else the
+    # instance label), not all of them: a decoy of another release is not its resource
+    # (docs/fix-plan-001.md, H26 / D2.1).
+    from ingestion.helm_collector import belongs_to_release
+    for raw, build in ([(d, _deployment_from_kubectl) for d in case["observed"].get("deployments", [])]
+                       + [(p, _pod_from_kubectl) for p in case["observed"].get("pods", [])]):
+        entity = build(raw)
+        graph.add_entity(entity)
+        if belongs_to_release(entity, helm_release.name):
+            graph.add_edge(Edge(entity.uid, helm_release.uid, RelationshipType.MANAGED_BY_HELM))
 
     if wire_signals:
         # ── 3b. OTel error traces (fixture) ────────────────────────────────
@@ -611,6 +611,7 @@ def _deployment_from_kubectl(raw: dict) -> Deployment:
         name=meta.get("name", "unknown"),
         namespace=meta.get("namespace"),
         labels=meta.get("labels", {}),
+        k8s_annotations=dict(meta.get("annotations") or {}),
         replicas=spec.get("replicas", 0),
         ready_replicas=status.get("readyReplicas", 0),
         available_replicas=status.get("availableReplicas", 0),
@@ -643,6 +644,7 @@ def _pod_from_kubectl(raw: dict) -> Pod:
         name=meta.get("name", "unknown"),
         namespace=meta.get("namespace"),
         labels=meta.get("labels", {}),
+        k8s_annotations=dict(meta.get("annotations") or {}),
         phase=status.get("phase", "Unknown"),
         node_name=spec.get("nodeName", ""),
         restart_count=total_restarts,

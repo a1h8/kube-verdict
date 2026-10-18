@@ -87,7 +87,7 @@ h009, h024); the failures below are strict xfails in `tests/unit/test_reasoning_
 | P2 | h022 seeds | any past restart makes a pod a seed, however old: the healthy cluster has an "unhealthy" pod — **fixed 2026-10-17** |
 | P3 | h007 seeds | the fixture has no Deployment, HPA or metrics-server |
 | P4 | h007, h008, h016 rule | no rule for HPA metrics, init-container failure, connection exhaustion |
-| P5 | h016 rule | `helm_drift` on the decoy catalog-api ranks first |
+| P5 | h016 rule | `helm_drift` on the decoy catalog-api ranks first — **fixed 2026-10-18**: the drift was false, made by linking every object of the namespace to the case's release (`docs/fix-plan-001.md`, H26); `drift.config` is now forbidden for h016 |
 | P6 | h008 rule | `pending_unschedulable` fires for an init container that exits non-zero |
 
 **Fix of P1 / P2 (2026-10-17).** A pod is a seed when it is not Running or a container is

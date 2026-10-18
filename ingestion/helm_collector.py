@@ -6,12 +6,28 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from ontology.entities import HelmRelease, HelmChart, HelmRepository
+from ontology.entities import HelmRelease, HelmChart, HelmRepository, ResourceKind
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
 from ingestion.chart_parser import ChartParser
 
 log = logging.getLogger(__name__)
+
+
+def belongs_to_release(entity, release: str) -> bool:
+    """True when *entity* was deployed by the Helm release named *release*.
+
+    Helm writes `meta.helm.sh/release-name` on the objects it creates; pods, which it does not
+    create, carry the chart's `app.kubernetes.io/instance` label. `managed-by=Helm` alone says
+    *some* release — linking on it tied every object of a namespace to every release there and
+    made false replica drifts (docs/fix-plan-001.md, H26).
+    """
+    if entity.kind == ResourceKind.HELM_RELEASE:
+        return False
+    annotated = getattr(entity, "k8s_annotations", {}).get("meta.helm.sh/release-name")
+    if annotated:
+        return annotated == release
+    return (entity.labels or {}).get("app.kubernetes.io/instance") == release
 
 # K8s name validation: RFC 1123 label (lowercase alphanumeric / hyphens / dots)
 _SAFE_K8S_NAME = re.compile(r'^[a-z0-9][a-z0-9\-\.]{0,252}$')
@@ -243,11 +259,7 @@ class HelmCollector:
         self, graph: OntologyGraph, helm_entity: HelmRelease, namespace: str
     ) -> None:
         for entity in graph.entities():
-            if entity.namespace != namespace:
-                continue
-            release_ann = entity.k8s_annotations.get("meta.helm.sh/release-name", "")
-            managed_by = entity.labels.get("app.kubernetes.io/managed-by", "")
-            if release_ann == helm_entity.name or managed_by == "Helm":
+            if entity.namespace == namespace and belongs_to_release(entity, helm_entity.name):
                 graph.add_edge(
                     Edge(entity.uid, helm_entity.uid, RelationshipType.MANAGED_BY_HELM)
                 )

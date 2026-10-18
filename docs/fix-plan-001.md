@@ -112,7 +112,7 @@
   checkout). → GitHub repositories are cloned like any other.
 - [ ] **H29 — rendered objects without a namespace match a live object in any namespace.** → the
   release namespace is used.
-- [ ] **H26 — every `managed-by=Helm` object is linked to every release of its namespace**: two
+- [x] **H26 — every `managed-by=Helm` object is linked to every release of its namespace**: two
   healthy releases make two false replica drifts. → linked by `meta.helm.sh/release-name` and the
   `app.kubernetes.io/instance` label only. Likely cause of **D2.1** (h016).
 - [ ] **H25 — a pod is tied to its workload by name prefix.** → owner references
@@ -158,7 +158,7 @@
 
 ## 4. Cases and claims
 
-- [ ] **D2.1 — h016's replica drift is attached to the wrong Deployment** (catalog-api, the decoy).
+- [x] **D2.1 — h016's replica drift is attached to the wrong Deployment** (catalog-api, the decoy).
   → release-to-workload matching fixed (H26).
 - [ ] **Fixtures from the audit:** h002 and h010 (two causes each), h005 (RBAC denial as an Event
   Kubernetes never emits), h006 (a kubelet message that names the cause); **h011** retired.
