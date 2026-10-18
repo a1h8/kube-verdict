@@ -62,6 +62,17 @@ Verdict: **keep**, **correct** (what, below) or **retire**.
   with the same default, their logs are gone; `answerable` was computed on the prompt
   sent, not the prompt read. Found 2026-10-17.
 
+- **F9 — The GitOps resource diff is blind on a live cluster** (found 2026-10-18, raised by an
+  outside review and checked in the code). `ingestion/manifest_differ.py` `_diff_resources`
+  compares the rendered limits/requests with an annotation `gitops.resources.<container>.<field>`
+  that no production code writes; limits and requests also share one key (`memory`), so one
+  overwrites the other; `_diff_replicas` flags any `spec.replicas` difference, including one an HPA
+  manages. The Helm path (`ingestion/helm_drift.py`, values vs deployed release) is not affected.
+- **F10 — The h012 proof and `make demo` supply the observed side themselves.**
+  `test_render_vs_live_h012.py` writes the observed memory limit into the graph; `demo/real_run.py`
+  computes its own diff (not `ManifestDiffer`) and prints fixed verdict lines. The README said
+  "the same code that runs in CI. No mocks"; corrected 2026-10-18.
+
 ## Per case
 
 | Case | 1 Realistic | 2 Live evidence | 3 Unintended | 4 Grading | 5 Live | Verdict |

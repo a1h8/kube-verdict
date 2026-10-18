@@ -69,9 +69,9 @@ def observed_graph() -> OntologyGraph:
     Build the OBSERVED live cluster graph from kube/*.yaml.
 
     The live deployment runs replicas=1 with memory=128Mi (declared 3 / 512Mi)
-    and its pod was OOMKilled. The `gitops.resources.api.memory` annotation
-    mirrors what K8sCollector writes from the live container spec — it is the
-    observed side the differ compares the rendered limit against.
+    and its pod was OOMKilled. The `gitops.resources.api.memory` annotation is
+    written here by the test: K8sCollector does NOT write it, so on a live cluster
+    the differ never sees an observed limit (docs/case-audit-001.md F9).
     """
     g = OntologyGraph()
 
