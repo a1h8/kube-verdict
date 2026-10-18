@@ -57,8 +57,15 @@ def find_unhealthy(graph: OntologyGraph) -> list[K8sEntity]:
         elif entity.is_not_ready and not (entity.is_starting and _in_rollout(entity, rolling)):
             seeds.append(entity)
 
+    # A Deployment short of ready replicas is a seed when it is not available or one of its
+    # pods is a seed; a scale-up in progress with every pod coming up cleanly is not
+    # (docs/fix-plan-001.md, H38).
+    seed_pods = [s for s in seeds if s.kind == ResourceKind.POD]
     for entity in graph.entities(ResourceKind.DEPLOYMENT):
-        if entity.is_degraded:
+        if entity.is_degraded and (not entity.is_available or any(
+                p.namespace == entity.namespace and entity.selector
+                and all((p.labels or {}).get(k) == v for k, v in entity.selector.items())
+                for p in seed_pods)):
             seeds.append(entity)
 
     for entity in graph.entities(ResourceKind.STATEFULSET):

@@ -134,7 +134,7 @@
 - [ ] **H37 — the graph walk from a sick pod reaches almost nothing** (outgoing edges only;
   quotas, logs, traces, alerts and scaling not in the incident relations). → the walk follows the
   incident relations both ways.
-- [ ] **H38 — an old `Failed` pod (Evicted, failed Job) is a seed**, and a Deployment scaling up
+- [x] **H38 — an old `Failed` pod (Evicted, failed Job) is a seed**, and a Deployment scaling up
   is "Unhealthy". → terminated pods older than the window are not seeds; the rollout guard applies
   to Deployments.
 - [ ] **H43 — synthetic PatchTST series built from the current state enter the prompt as

@@ -130,7 +130,18 @@ class Pod(K8sEntity):
 
     @property
     def is_unhealthy(self) -> bool:
-        return self.phase not in ("Running", "Succeeded")
+        return self.phase not in ("Running", "Succeeded") and not self.is_replaced_leftover
+
+    @property
+    def is_replaced_leftover(self) -> bool:
+        """A Failed pod its controller already replaced (eviction, node shutdown, preemption).
+
+        Kubernetes keeps it until garbage collection; it says nothing about the workload now,
+        whose own state does (docs/fix-plan-001.md, H38: an Evicted pod of yesterday was a seed).
+        """
+        reason = ((self.raw or {}).get("status") or {}).get("reason") or ""
+        return (self.phase == "Failed" and reason in _REPLACED_REASONS
+                and self.owner_ref_kind in ("ReplicaSet", "StatefulSet", "DaemonSet"))
 
     @property
     def is_not_ready(self) -> bool:
@@ -163,6 +174,9 @@ class Pod(K8sEntity):
 
 
 _ROLLOUT_REASONS = frozenset({"ReplicaSetUpdated", "NewReplicaSetCreated", "FoundNewReplicaSet"})
+# status.reason of a pod Kubernetes terminated and its controller replaces
+_REPLACED_REASONS = frozenset({"Evicted", "Shutdown", "NodeShutdown", "Terminated", "Preempting",
+                               "NodeAffinity", "OutOfcpu", "OutOfmemory"})
 
 
 @dataclass
