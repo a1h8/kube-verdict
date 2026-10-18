@@ -277,7 +277,7 @@ class TestLinkManagedResources:
         release = HelmRelease(uid="helm-prod-api", name="api", namespace="prod", source="helm")
         pod = Pod(
             uid="pod-api-0", name="api-0", namespace="prod",
-            annotations={"meta.helm.sh/release-name": "api"},
+            k8s_annotations={"meta.helm.sh/release-name": "api"},
             labels={},
         )
         g.add_entity(release)
@@ -311,7 +311,7 @@ class TestLinkManagedResources:
         release = HelmRelease(uid="helm-prod-api", name="api", namespace="prod", source="helm")
         pod = Pod(
             uid="pod-other", name="other", namespace="staging",
-            annotations={"meta.helm.sh/release-name": "api"},
+            k8s_annotations={"meta.helm.sh/release-name": "api"},
             labels={},
         )
         g.add_entity(release)
@@ -479,7 +479,7 @@ class TestCollect:
             g = OntologyGraph()
             pod = Pod(
                 uid="pod-api-0", name="api-0", namespace="prod",
-                annotations={"meta.helm.sh/release-name": "api"},
+                k8s_annotations={"meta.helm.sh/release-name": "api"},
                 labels={},
             )
             g.add_entity(pod)

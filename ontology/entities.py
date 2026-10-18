@@ -48,7 +48,11 @@ class K8sEntity:
     kind: ResourceKind = field(default=ResourceKind.NAMESPACE)
     namespace: str | None = None
     labels: dict[str, str] = field(default_factory=dict)
+    # Evidence written by kube-verdict's collectors (drift.*, missing.*, alert.*, signal.*…).
     annotations: dict[str, str] = field(default_factory=dict)
+    # metadata.annotations as read from the cluster: anyone who can patch the object writes
+    # them, so they are never evidence nor prompt text (docs/fix-plan-001.md, H23).
+    k8s_annotations: dict[str, str] = field(default_factory=dict)
     created_at: datetime | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 

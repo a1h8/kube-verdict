@@ -338,7 +338,7 @@ class HelmfileCollector:
         for e in graph.entities():
             if e.namespace != entity.namespace:
                 continue
-            release_ann = e.annotations.get("meta.helm.sh/release-name", "")
+            release_ann = getattr(e, "k8s_annotations", {}).get("meta.helm.sh/release-name", "")
             managed_by = e.labels.get("app.kubernetes.io/managed-by", "")
             if release_ann == entity.name or managed_by == "Helm":
                 graph.add_edge(Edge(e.uid, entity.uid, RelationshipType.MANAGED_BY_HELM))

@@ -67,7 +67,7 @@ class GenericEntity(K8sEntity):
             kind=ResourceKind.NAMESPACE,  # overridden below
             namespace=meta.get("namespace"),
             labels=meta.get("labels") or {},
-            annotations=meta.get("annotations") or {},
+            k8s_annotations=dict(meta.get("annotations") or {}),
             created_at=ts,
             api_version=resource_info.api_version,
             resource_kind_str=resource_info.kind,

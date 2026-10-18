@@ -245,7 +245,7 @@ class HelmCollector:
         for entity in graph.entities():
             if entity.namespace != namespace:
                 continue
-            release_ann = entity.annotations.get("meta.helm.sh/release-name", "")
+            release_ann = entity.k8s_annotations.get("meta.helm.sh/release-name", "")
             managed_by = entity.labels.get("app.kubernetes.io/managed-by", "")
             if release_ann == helm_entity.name or managed_by == "Helm":
                 graph.add_edge(

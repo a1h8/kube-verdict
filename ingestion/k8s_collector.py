@@ -193,7 +193,7 @@ class K8sCollector:
                 name=item.metadata.name,
                 namespace=None,
                 labels=item.metadata.labels or {},
-                annotations=item.metadata.annotations or {},
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 phase=item.status.phase or "Active",
                 raw=item.to_dict(),
@@ -214,7 +214,7 @@ class K8sCollector:
                 name=item.metadata.name,
                 namespace=None,
                 labels=item.metadata.labels or {},
-                annotations=item.metadata.annotations or {},
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 ready=ready,
                 allocatable_cpu=alloc.get("cpu", ""),
@@ -254,7 +254,7 @@ class K8sCollector:
                 name=item.metadata.name,
                 namespace=namespace,
                 labels=item.metadata.labels or {},
-                annotations=item.metadata.annotations or {},
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 phase=item.status.phase or "Unknown",
                 node_name=item.spec.node_name or "",
@@ -338,7 +338,7 @@ class K8sCollector:
         ns_entity = self._find_by_name(graph, namespace, None, "Namespace")
         for item in items:
             s = item.status
-            ann = dict(item.metadata.annotations or {})
+            ann: dict[str, str] = {}     # kube-verdict's own keys only (H23)
             for c in (item.spec.template.spec.containers or []):
                 if c.image:
                     ann[f"spec.container.{c.name}.image"] = c.image
@@ -348,6 +348,7 @@ class K8sCollector:
                 namespace=namespace,
                 labels=item.metadata.labels or {},
                 annotations=ann,
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 replicas=item.spec.replicas or 0,
                 ready_replicas=s.ready_replicas or 0,
@@ -371,13 +372,14 @@ class K8sCollector:
             log.warning("Cannot list statefulsets in %s: %s", namespace, exc)
             return
         for item in items:
-            sts_ann = dict(item.metadata.annotations or {})
+            sts_ann: dict[str, str] = {}     # kube-verdict's own keys only (H23)
             for c in (item.spec.template.spec.containers or []):
                 if c.image:
                     sts_ann[f"spec.container.{c.name}.image"] = c.image
             graph.add_entity(StatefulSet(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
                 labels=item.metadata.labels or {}, annotations=sts_ann,
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 replicas=item.spec.replicas or 0, ready_replicas=item.status.ready_replicas or 0,
                 selector=item.spec.selector.match_labels or {}, raw=item.to_dict(),
@@ -392,7 +394,7 @@ class K8sCollector:
         for item in items:
             graph.add_entity(DaemonSet(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 desired=item.status.desired_number_scheduled or 0,
                 ready=item.status.number_ready or 0,
@@ -412,7 +414,7 @@ class K8sCollector:
             )
             e = ReplicaSet(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 replicas=item.spec.replicas or 0, ready_replicas=item.status.ready_replicas or 0,
                 owner_ref_name=owner_name,
@@ -435,7 +437,7 @@ class K8sCollector:
                      for p in (item.spec.ports or [])]
             e = Service(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 service_type=item.spec.type or "ClusterIP",
                 cluster_ip=item.spec.cluster_ip or "",
@@ -496,7 +498,7 @@ class K8sCollector:
     def _add_ingress(self, graph, item, namespace, rules, ingress_class) -> None:
         e = Ingress(
             uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-            labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+            labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
             created_at=_ts(item.metadata.creation_timestamp),
             rules=rules, ingress_class=ingress_class, raw=item.to_dict(),
         )
@@ -516,7 +518,7 @@ class K8sCollector:
         for item in items:
             graph.add_entity(ConfigMap(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 data_keys=list((item.data or {}).keys()), raw=item.to_dict(),
             ))
@@ -526,7 +528,7 @@ class K8sCollector:
             capacity = (item.spec.capacity or {}).get("storage", "")
             graph.add_entity(PersistentVolume(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=None,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 capacity=capacity, access_modes=item.spec.access_modes or [],
                 reclaim_policy=item.spec.persistent_volume_reclaim_policy or "Retain",
@@ -547,7 +549,7 @@ class K8sCollector:
                 req_storage = item.spec.resources.requests.get("storage", "")
             e = PersistentVolumeClaim(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 requested_storage=req_storage, access_modes=item.spec.access_modes or [],
                 status_phase=item.status.phase or "Pending",
@@ -570,7 +572,7 @@ class K8sCollector:
         for item in items:
             graph.add_entity(ServiceAccount(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 secrets=[s.name for s in (item.secrets or [])], raw=item.to_dict(),
             ))
@@ -585,7 +587,7 @@ class K8sCollector:
             uid = item.metadata.uid or f"event-{item.metadata.name}-{namespace}"
             e = K8sEvent(
                 uid=uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 reason=item.reason or "", message=item.message or "",
                 event_type=item.type or "Normal",
