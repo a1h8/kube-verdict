@@ -1,36 +1,32 @@
-#!/usr/bin/env python3
 """
 KubeVerdict — command-line entry point.
+
+Runs the canonical investigation pipeline (``services.investigation_service``), the
+same LangGraph workflow as the REST API and the MCP ``kube_rca`` tool: one pipeline,
+whatever the entry point (docs/fix-plan-001.md, H3). Proposal-only: it stops at the
+policy verdict and never executes a remediation.
 
 The LLM provider is selected by `LLM_PROVIDER` in .env (ollama | groq |
 anthropic | openai | google | demo); defaults to Ollama for the local,
 air-gapped path. See `llm.build_llm_client`.
 
 Usage:
-    # Collect from cluster, index, then run RCA
     python main.py --query "pods are crashlooping in namespace production"
-
-    # Re-use an existing index (skip cluster collection)
     python main.py --load-index --query "OOMKilled on worker nodes"
-
-    # Stream output token by token
     python main.py --query "ingress returns 502" --stream
-
-    # Limit to specific namespaces
     python main.py -n default -n kube-system --query "coredns not resolving"
 
 Config is read from .env (see .env.example). CLI flags override .env values.
 """
 import argparse
+import asyncio
+import sys
 
 import config as cfg  # loads .env
-from ingestion import K8sCollector, HelmCollector, HelmfileCollector, HelmDriftDetector, PolicyCollector
-from llm import build_llm_client
-from rca import RCAAnalyzer
-from vectorstore import Embedder, FAISSStore
+from services.investigation_service import run_investigation, verdict_summary
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="KubeVerdict — Kubernetes Root Cause Analysis")
     parser.add_argument("--namespace", "-n", action="append", dest="namespaces",
                         help="Namespace to analyse (repeatable). Overrides KUBE_NAMESPACES.")
@@ -43,102 +39,67 @@ def main() -> None:
     parser.add_argument("--helm-environment", default=None,
                         help="Helmfile environment. Overrides HELMFILE_ENVIRONMENT.")
     parser.add_argument("--load-index", action="store_true",
-                        help="Load an existing FAISS index instead of re-collecting.")
+                        help="Use the persisted FAISS index as the knowledge store.")
     parser.add_argument("--stream", action="store_true",
-                        help="Stream Mistral output token by token.")
+                        help="Print each pipeline step as it completes.")
     parser.add_argument("--policy", action="store_true",
-                        help="Collect OPA / Kyverno PolicyReport violations (requires wgpolicyk8s.io CRD).")
-    args = parser.parse_args()
+                        help="Deprecated: policy reports are always collected by the pipeline.")
+    args = parser.parse_args(argv)
 
-    namespaces = args.namespaces or cfg.KUBE_NAMESPACES or None
-    kubeconfig = args.kubeconfig or cfg.KUBECONFIG
-    context = args.context or cfg.KUBE_CONTEXT
+    if args.helmfile:
+        cfg.HELMFILE_PATH = args.helmfile
+    if args.helm_environment:
+        cfg.HELMFILE_ENVIRONMENT = args.helm_environment
+    if args.policy:
+        print("note: --policy is no longer needed — the pipeline collects policy reports.", file=sys.stderr)
 
-    embedder = Embedder()
-    store = FAISSStore(embedder=embedder)
-
+    store = None
     if args.load_index:
+        from vectorstore import Embedder, FAISSStore
+        store = FAISSStore(embedder=Embedder())
         store.load()
-        # Reconstruct a minimal graph shell just to carry the server version
-        # The store already has all entity texts — graph is only needed for BFS.
-        # For --load-index mode we skip BFS and rely purely on FAISS.
-        from ontology.graph import OntologyGraph
-        graph = OntologyGraph()
-    else:
-        collector = K8sCollector(kubeconfig=kubeconfig, context=context)
-        graph = collector.collect(namespaces=namespaces)
 
-        helm = HelmCollector(kubeconfig=kubeconfig, kube_context=context)
-        helm.collect(graph, namespaces=namespaces)
+    seen: set[str] = set()
 
-        helmfile_path = args.helmfile or cfg.HELMFILE_PATH
-        if helmfile_path:
-            hf = HelmfileCollector(
-                helmfile_path=helmfile_path,
-                environment=args.helm_environment or cfg.HELMFILE_ENVIRONMENT,
-                use_cli=cfg.HELMFILE_USE_CLI,
-            )
-            hf.collect(graph)
-
-        # Drift detection: Helm declared vs K8s observed + events correlation
-        drift_count = HelmDriftDetector().detect_all(graph)
-        if drift_count:
-            import logging
-            logging.getLogger(__name__).info(
-                "%d drift item(s) annotated on graph entities", drift_count
-            )
-
-        if args.policy:
-            policy_result = PolicyCollector().collect(graph, namespaces=namespaces)
-            import logging as _logging
-            _logging.getLogger(__name__).info(
-                "policy violations: fail=%d audit=%d webhooks=%d",
-                policy_result.fail_count,
-                policy_result.audit_count,
-                policy_result.mutation_webhooks,
-            )
-
-        print(graph.summary())
-
-        store.index_graph(graph)
-        store.save()
-
-    print(store.summary())
-    print()
-
-    llm = build_llm_client()
-    analyzer = RCAAnalyzer(graph=graph, store=store, llm=llm)
+    def on_step(state: dict) -> None:
+        for key in state:
+            if key not in seen:
+                seen.add(key)
+                print(f"  · {key}", flush=True)
 
     if args.stream:
-        print(f"Analysing: {args.query!r}\n")
-        report = None
-        for item in analyzer.stream_analyze(args.query):
-            if isinstance(item, str):
-                print(item, end="", flush=True)
-            else:
-                report = item
-        print()
-        if report:
-            _print_report_meta(report)
-    else:
-        report = analyzer.analyze(args.query)
-        print(report)
-        if report.remediation:
-            print("\n── Quick remediation ──")
-            for cmd in report.remediation:
-                print(f"  $ {cmd}")
+        print(f"Investigating: {args.query!r}")
+    state = asyncio.run(run_investigation(
+        query=args.query,
+        namespaces=args.namespaces or cfg.KUBE_NAMESPACES or None,
+        kubeconfig=args.kubeconfig or cfg.KUBECONFIG,
+        kube_context=args.context or cfg.KUBE_CONTEXT,
+        store=store,
+        on_step=on_step if args.stream else None,
+    ))
+    print(_render(verdict_summary(state), state))
+    return 0
 
 
-def _print_report_meta(report) -> None:
-    ctx = report.context
-    print(
-        f"\n[K8s: {report.kube_version}  |  "
-        f"seeds={len(ctx.seeds)}  drift={len(ctx.drift)}  "
-        f"events={len(ctx.events)}  helm={len(ctx.helm)}  "
-        f"related={len(ctx.related)}  |  "
-        f"confidence={report.confidence or '?'}]"
-    )
+def _render(summary: dict, state: dict) -> str:
+    lines = [f"Query:      {summary.get('query') or ''}",
+             f"Root cause: {summary.get('root_cause') or '(none)'}",
+             f"Confidence: {summary.get('confidence') or '?'}",
+             f"Verdict:    {summary.get('verdict') or '?'}"]
+    for reason in summary.get("verdict_reasons") or []:
+        lines.append(f"  - {reason}")
+    if summary.get("remediation"):
+        lines.append("Remediation (proposal, human approval required):")
+        lines += [f"  $ {cmd}" for cmd in summary["remediation"]]
+    if summary.get("diagnostics"):
+        lines.append("Read-only checks:")
+        for check in summary["diagnostics"]:
+            command = check.get("command") if isinstance(check, dict) else str(check)
+            lines.append(f"  $ {command}")
+    if state.get("error"):
+        lines.append(f"Error: {state['error']}")
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

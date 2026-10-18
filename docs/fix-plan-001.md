@@ -11,11 +11,13 @@
 
 ## 1. One pipeline
 
-- [ ] **H3 — four entry points, four pipelines.** The CLI (`main.py`, used by the CronJob) calls
-  `RCAAnalyzer` directly and is the only one to collect policies; the API runs the LangGraph
-  workflow without policies; the replay runs it with GitOps off; the MCP server has its own drift
-  paths. → CLI, API and MCP run the same workflow. Test: the same fixture through the three entry
-  points gives the same evidence.
+- [x] **H3 — the CLI runs its own pipeline.** `main.py` (the CronJob's entry point) collected
+  K8s/Helm/Helmfile itself, policies only with `--policy`, then called `RCAAnalyzer` directly —
+  no Prometheus, Loki, OTel, GitOps, anchors or decision. The API and the MCP `kube_rca` tool
+  already run the canonical `services.investigation_service`. → the CLI runs it too; `--stream`
+  prints the pipeline's steps; `--policy` is a no-op kept for existing callers. Tests:
+  `tests/unit/test_cli.py` (the service is called; control: the CLI module no longer has its
+  own collectors or analyzer).
 - [ ] **H2 — `PolicyCollector` only in the CLI.** → collected in the workflow.
 - [ ] **H4 — the product does not use the structured diagnosis.** `rca/diagnosis.py` is called only
   by the measurement tools. → the workflow runs `extract_signals` + `diagnose`; its outcome is the
