@@ -115,7 +115,7 @@
 - [x] **H26 — every `managed-by=Helm` object is linked to every release of its namespace**: two
   healthy releases make two false replica drifts. → linked by `meta.helm.sh/release-name` and the
   `app.kubernetes.io/instance` label only. Likely cause of **D2.1** (h016).
-- [ ] **H25 — a pod is tied to its workload by name prefix.** → owner references
+- [x] **H25 — a pod is tied to its workload by name prefix.** → owner references
   (Pod → ReplicaSet → Deployment) are linked and used.
 - [ ] **H27 — Helmfile CLI mode returns no release** although it logs a fallback. → the fallback
   parses the YAML.

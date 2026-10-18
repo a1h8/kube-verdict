@@ -77,9 +77,6 @@ def _name(fqn: str) -> str:
     return fqn.rsplit("/", 1)[-1]
 
 
-def _same_workload(pod: str, other: str) -> bool:
-    """A pod and a release / Deployment of the same app: same namespace, pod named after it."""
-    return _ns(pod) == _ns(other) and _name(pod).startswith(_name(other) + "-")
 
 
 def _score(n_strengthening_sources: int, n_contradicting: int, generic: bool) -> float:
@@ -122,8 +119,8 @@ def _oom(ss: SignalSet) -> list[Diagnosis]:
     out = []
     memory_drifts = [d for d in ss.of("drift.config") if "memory" in d.attr("field")]
     for s in ss.of("container.oom_killed"):
-        drift = next((d for d in memory_drifts if "limits" in d.attr("field") and _same_workload(ss.subject(s), ss.subject(d))), None) \
-            or next((d for d in memory_drifts if _same_workload(ss.subject(s), ss.subject(d))), None)
+        drift = next((d for d in memory_drifts if "limits" in d.attr("field") and ss.same_workload(ss.subject(s), ss.subject(d))), None) \
+            or next((d for d in memory_drifts if ss.same_workload(ss.subject(s), ss.subject(d))), None)
         if drift:
             out.append(_diag("oom.memory_drift", "oom",
                              f"The memory limit of {_name(ss.subject(drift))} drifted from the declared value: "
@@ -142,7 +139,7 @@ def _image_pull(ss: SignalSet) -> list[Diagnosis]:
     out = []
     for s in ss.of("image.pull_failed"):
         drift = next((d for d in ss.of("drift.config") if "image" in d.attr("field")
-                      and _same_workload(ss.subject(s), ss.subject(d))), None)
+                      and ss.same_workload(ss.subject(s), ss.subject(d))), None)
         code = s.attr("code").lower()
         if drift:
             cause = (f"The image tag of {_name(ss.subject(drift))} drifted: declared {drift.attr('declared')}, "
@@ -256,12 +253,13 @@ def _etcd_slow(ss: SignalSet) -> list[Diagnosis]:
     by_workload: dict[str, list[Signal]] = {}
     for s in ss.of("etcd.slow"):
         subject = ss.subject(s)
-        key = subject if subject.startswith("Deployment/") else subject.rsplit("-", 2)[0]
+        key = subject if subject.startswith("Deployment/") else next(
+            (o for o in sorted(ss.workloads.get(subject, ())) if o.startswith("Deployment/")), subject)
         by_workload.setdefault(key, []).append(s)
     out = []
     for workload, spans in sorted(by_workload.items()):
         symptoms = [x for x in ss.signals if x.kind in ("probe.readiness_failed", "pod.not_ready")
-                    and (_same_workload(ss.subject(x), workload) or ss.subject(x).startswith(workload))]
+                    and ss.same_workload(ss.subject(x), workload)]
         error = next((x.attr("error") for x in spans if x.attr("error")), "")
         reported = f" ({error})" if error else ""
         out.append(_diag("etcd.slow", "etcd",
@@ -281,7 +279,7 @@ def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
     for d in ss.of("drift.config"):
         if d.payload_ref in explained:
             continue
-        failing = [f for f in faults if _same_workload(ss.subject(f), ss.subject(d))]
+        failing = [f for f in faults if ss.same_workload(ss.subject(f), ss.subject(d))]
         out.append(_diag("config.drift", "helm-drift",
                          f"{_name(ss.subject(d))} drifted from its declared configuration: {d.attr('field')} is declared "
                          f"{d.attr('declared')} but deployed {d.attr('observed')}.",
@@ -310,7 +308,7 @@ def _starting_in_rollout(ss: SignalSet) -> set[str]:
     available — the same rule as the seed guard (dedup/bfs.py, docs/test-cases.md § h026)."""
     rolling = [ss.subject(r) for r in ss.of("rollout.progressing") if r.attr("available") == "true"]
     return {ss.subject(p) for p in ss.of("pod.not_ready") if p.attr("starting") == "true"
-            and any(_same_workload(ss.subject(p), dep) for dep in rolling)}
+            and any(ss.same_workload(ss.subject(p), dep) for dep in rolling)}
 
 
 def _is_fault(ss: SignalSet, s: Signal, starting: set[str]) -> bool:

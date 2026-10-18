@@ -425,6 +425,12 @@ class K8sCollector:
                 deployment = self._find_by_name(graph, owner_name, namespace, "Deployment")
                 if deployment:
                     graph.add_edge(Edge(deployment.uid, e.uid, RelationshipType.OWNS))
+            # ReplicaSet → Pod from the pods' owner references: the link a pod's workload is
+            # read from, not its name (docs/fix-plan-001.md, H25). Pods are collected first.
+            for pod in graph.entities(ResourceKind.POD):
+                if (pod.namespace == namespace and pod.owner_ref_kind == "ReplicaSet"
+                        and pod.owner_ref_name == e.name):
+                    graph.add_edge(Edge(e.uid, pod.uid, RelationshipType.OWNS))
 
     def _collect_services(self, graph: OntologyGraph, namespace: str) -> None:
         try:

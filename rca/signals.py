@@ -70,6 +70,13 @@ class SignalSet:
     signals: list[Signal] = field(default_factory=list)
     edges: list[DerivedEdge] = field(default_factory=list)
     unclassified: Counter = field(default_factory=Counter)
+    # pod fqn → the fqns of what runs it (ReplicaSet, Deployment / StatefulSet / DaemonSet,
+    # Helm release), read from owner references, selectors and Helm labels — never from the
+    # pod's name (docs/fix-plan-001.md, H25)
+    workloads: dict[str, set[str]] = field(default_factory=dict)
+
+    def same_workload(self, pod: str, other: str) -> bool:
+        return pod == other or other in self.workloads.get(pod, set())
 
     def kinds(self) -> set[str]:
         return {s.kind for s in self.signals}
@@ -329,6 +336,41 @@ def _from_alerts(graph: OntologyGraph, b: _Builder) -> None:
               event_time=al.started_at, authored={"alert": al.alert_name, "severity": al.severity})
 
 
+_CONTROLLERS = (ResourceKind.DEPLOYMENT, ResourceKind.STATEFULSET, ResourceKind.DAEMONSET)
+
+
+def _workloads(graph: OntologyGraph) -> dict[str, set[str]]:
+    """For each pod, what runs it — the relations Kubernetes and Helm themselves use."""
+    from ingestion.helm_collector import belongs_to_release
+    controllers = [e for k in _CONTROLLERS for e in graph.entities(k)]
+    replicasets = {(e.namespace, e.name): e for e in graph.entities(ResourceKind.REPLICASET)}
+    releases = list(graph.entities(ResourceKind.HELM_RELEASE))
+    out: dict[str, set[str]] = {}
+    for pod in graph.entities(ResourceKind.POD):
+        ns, labels, owners = pod.namespace, pod.labels or {}, set()
+        kind, name = getattr(pod, "owner_ref_kind", ""), getattr(pod, "owner_ref_name", "")
+        if kind == "ReplicaSet" and name:
+            owners.add(f"ReplicaSet/{ns}/{name}")
+            rs = replicasets.get((ns, name))
+            dep = (rs.owner_ref_name if rs is not None else "") or (
+                name.removesuffix("-" + labels["pod-template-hash"])
+                if labels.get("pod-template-hash") and name.endswith("-" + labels["pod-template-hash"]) else "")
+            if dep:
+                owners.add(f"Deployment/{ns}/{dep}")
+        elif kind and name:
+            owners.add(f"{kind}/{ns}/{name}")
+        for c in controllers:                               # the controller's selector
+            if c.namespace == ns and c.selector and all(labels.get(k) == v for k, v in c.selector.items()):
+                owners.add(c.fqn)
+        controllers_of_pod = [c for c in controllers if c.fqn in owners]
+        for rel in releases:
+            if rel.namespace == ns and (belongs_to_release(pod, rel.name)
+                                        or any(belongs_to_release(c, rel.name) for c in controllers_of_pod)):
+                owners.add(rel.fqn)
+        out[pod.fqn] = owners
+    return out
+
+
 def extract_signals(graph: OntologyGraph) -> SignalSet:
     """Every typed signal the graph holds, with its attributions, in a stable order."""
     b = _Builder()
@@ -336,6 +378,7 @@ def extract_signals(graph: OntologyGraph) -> SignalSet:
                       _from_logs, _from_traces, _from_alerts):
         extractor(graph, b)
     out = b.out
+    out.workloads = _workloads(graph)
     first_subject = {}
     for e in out.edges:
         first_subject.setdefault(e.signal_id, e.entity)
