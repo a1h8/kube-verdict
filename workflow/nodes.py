@@ -1309,6 +1309,55 @@ def _kubectl_dry_run_refusal(args: list[str]) -> str:
     return f"'kubectl {verb}' has no dry-run" if verb else "no kubectl verb"
 
 
+# What an operator may run from the UI's manual remediation panel (docs/fix-plan-001.md, H46):
+# kubectl and helm only, against the current context, never a command that runs code in a pod,
+# opens a tunnel or calls another binary.
+_MANUAL_KUBECTL_VERBS = (_DRY_RUN_VERBS - {"run"}) | {"rollout", "set", "get", "describe",
+                                                       "logs", "top", "explain"}
+_MANUAL_HELM_VERBS = {"upgrade", "install", "rollback", "status", "get", "history", "list", "diff"}
+_HELM_TARGET_FLAGS = ("--kube-context", "--kubeconfig", "--kube-apiserver", "--kube-token",
+                      "--kube-as-user", "--kube-as-group", "--kube-ca-file")
+
+
+def manual_apply_refusal(cmd: str) -> str:
+    """Why the UI must not run *cmd* for the operator, or "" when it may."""
+    import shlex
+    if any(tok in cmd for tok in ("<<", "&&", "||", "|", ";", "`", "$(", ">")):
+        return "shell construct"
+    try:
+        parts = shlex.split(cmd)
+    except ValueError as exc:
+        return f"cannot parse ({exc})"
+    if not parts:
+        return "empty command"
+    tool, args = parts[0], parts[1:]
+    if tool == "kubectl":
+        words, skip = [], False
+        for a in args:
+            if a == "--":
+                return "arguments passed to another command"
+            if a.split("=", 1)[0] in _KUBECTL_TARGET_FLAGS:
+                return f"{a.split('=', 1)[0]} changes the target cluster or identity"
+            if skip:
+                skip = False
+            elif a in _KUBECTL_VALUE_FLAGS:
+                skip = True
+            elif not a.startswith("-"):
+                words.append(a)
+        verb = words[0] if words else ""
+        return "" if verb in _MANUAL_KUBECTL_VERBS else f"'kubectl {verb}' is not run from the UI"
+    if tool == "helm":
+        for a in args:
+            flag = a.split("=", 1)[0]
+            if flag in _HELM_TARGET_FLAGS:
+                return f"{flag} changes the target cluster or identity"
+            if flag == "--post-renderer":
+                return "--post-renderer runs another binary"
+        verb = next((a for a in args if not a.startswith("-")), "")
+        return "" if verb in _MANUAL_HELM_VERBS else f"'helm {verb}' is not run from the UI"
+    return f"only kubectl and helm commands are run from the UI, not '{tool}'"
+
+
 def _exec_dry_run(cmd: str) -> tuple[str, str, int]:
     """
     Transform one remediation command into its dry-run equivalent and execute it.

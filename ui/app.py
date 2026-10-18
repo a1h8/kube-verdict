@@ -2746,7 +2746,13 @@ def _render_remediation_panel(cmds: list[str], case_name: str) -> None:
         use_container_width=True,
         key=f"rem_apply_{case_name}",
     ):
+        from workflow.nodes import manual_apply_refusal
         for cmd in selected_cmds:
+            refused = manual_apply_refusal(cmd)
+            if refused:
+                # docs/fix-plan-001.md, H46: the commands come from model output
+                st.warning(f"Not run — {refused}: `{cmd}`. Run it yourself if it is right.")
+                continue
             st.markdown(f"**Running:** `{cmd}`")
             try:
                 args = shlex.split(cmd)

@@ -38,9 +38,10 @@
   provider**, and `/feedback` does not record who approved. → a JWT is refused unless issuer and
   audience are both configured; an unknown key id refetches the JWKS at most once a minute; the
   approver (OIDC subject, or the gate that let them in) is stored with the decision.
-- [ ] **H46 — the Streamlit UI runs remediation commands outside the decision gate**, with any
-  binary. → the UI runs only what the dry-run gate accepts (`_kubectl_dry_run_refusal` and the
-  helm equivalent) and only when the session's verdict is not NO_GO.
+- [x] **H46 — the Streamlit UI runs remediation commands outside the decision gate**, with any
+  binary. → the panel runs only kubectl and helm remediation lines (`manual_apply_refusal`): no
+  shell construct, no `--`, no flag that changes the cluster or identity, no `exec`, `cp`,
+  `port-forward`, `run`, `debug` or helm `--post-renderer`; any other line is shown, not run.
 - [x] **H18 — an approval never reaches remediation.** `log_human_decision` runs before
   `human_review`, so `human_router` always reads "reject". → the decision is logged after the
   interrupt; test: resume with `approve` reaches `remediation`, `reject` does not.
