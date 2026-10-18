@@ -104,7 +104,7 @@
   drifts (h002, h003, h009, h024) are made by the test loader. → the GitOps render-vs-live path
   (chart rendered locally, F9 already reads the live containers) is wired into the workflow and
   produces `drift.config` with its provenance; the loader stops making `drift.helm.*`.
-- [ ] **H28 — the render-vs-live drift is written as `gitops.*`, which neither the prompt nor the
+- [x] **H28 — the render-vs-live drift is written as `gitops.*`, which neither the prompt nor the
   signals read.** → part of F11: the signals read it.
 - [x] **H32 — `helm template` gets the values as `--set`**: lists are dropped, commas split a
   value, strings become numbers. → a values file.

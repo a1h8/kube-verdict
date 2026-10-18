@@ -25,7 +25,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
         "kube_version": "unknown",
-        "timestamp": "2026-10-18T16:37:33.112883+00:00",
+        "timestamp": "2026-10-18T16:59:15.791287+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)",
@@ -201,7 +201,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-18T16:37:33.111383+00:00"
+      "ts": "2026-10-18T16:59:15.789817+00:00"
     },
     {
       "router": "confidence",
@@ -220,7 +220,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-18T16:37:33.114277+00:00"
+      "ts": "2026-10-18T16:59:15.792577+00:00"
     },
     {
       "router": "confidence",
@@ -238,7 +238,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-18T16:37:33.116928+00:00"
+      "ts": "2026-10-18T16:59:15.795053+00:00"
     },
     {
       "router": "policy",
@@ -253,7 +253,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-18T16:37:33.120115+00:00"
+      "ts": "2026-10-18T16:59:15.797808+00:00"
     }
   ],
   "ingestion_stats": {
@@ -299,7 +299,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\nExpired mTLS certificate to payments-backend fails the readiness probe\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-18T16:37:33.115798+00:00",
+    "timestamp": "2026-10-18T16:59:15.794084+00:00",
     "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
     "affected": [
       "Deployment/production/billing-gateway — 0/2 Ready"
@@ -478,7 +478,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
           "kube_version": "unknown",
-          "timestamp": "2026-10-18T16:37:33.112883+00:00",
+          "timestamp": "2026-10-18T16:59:15.791287+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)",
@@ -666,7 +666,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-18T16:37:33.111383+00:00"
+        "ts": "2026-10-18T16:59:15.789817+00:00"
       },
       {
         "router": "confidence",
@@ -685,7 +685,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-18T16:37:33.114277+00:00"
+        "ts": "2026-10-18T16:59:15.792577+00:00"
       },
       {
         "router": "confidence",
@@ -703,7 +703,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-18T16:37:33.116928+00:00"
+        "ts": "2026-10-18T16:59:15.795053+00:00"
       },
       {
         "router": "policy",
@@ -718,7 +718,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-18T16:37:33.120115+00:00"
+        "ts": "2026-10-18T16:59:15.797808+00:00"
       }
     ],
     "hypothesis_sources": [

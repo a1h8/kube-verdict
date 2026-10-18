@@ -28,7 +28,7 @@ from ontology.relationships import RelationshipType
 EXTRACTOR_VERSION = "signals/1"
 CORRELATOR_VERSION = "attribution/1"
 
-PLANS = {"k8s_status": "k8s", "k8s_event": "k8s", "helm": "helm",
+PLANS = {"k8s_status": "k8s", "k8s_event": "k8s", "helm": "helm", "gitops": "helm",
          "loki": "telemetry", "otel": "telemetry", "prometheus": "telemetry"}
 
 
@@ -168,6 +168,11 @@ _ALERT_PATTERNS: list[tuple[str, re.Pattern]] = [
     ("db.connections_exhausted", re.compile(r"ConnectionsSaturated|TooManyConnections", re.I)),
     ("app.error_rate", re.compile(r"HighErrorRate|5xx", re.I)),
 ]
+# `gitops.<field>` written by ManifestDiffer (DriftItem.to_text()): rendered from Git vs live.
+# Values may hold spaces, so declared/observed run up to the fixed ` severity=` tail.
+_GITOPS_DRIFT = re.compile(r"^drift field=(?P<field>\S+) declared=(?P<declared>.*) "
+                           r"observed=(?P<observed>.*) severity=(?P<severity>\S+)$")
+_GITOPS_META = {"gitops.drift_count", "gitops.critical_drifts", "gitops.orphan"}
 _DRIFT_TEXT = re.compile(r"field=(?P<field>\S+) declared='?(?P<declared>[^'\s\[]+)'?.*?observed='?(?P<observed>[^'\s\[]+)'?")
 _ROLLOUT_REASONS = {"ReplicaSetUpdated", "NewReplicaSetCreated", "FoundNewReplicaSet"}
 # signals a pod that is Running and ready now contradicts: its container lifecycle
@@ -285,6 +290,14 @@ def _from_annotations(graph: OntologyGraph, b: _Builder) -> None:
                              "observed": m.group("observed")} if m else {"field": key[len("drift."):]})
                 # the entity carrying the drift was chosen by the detector: a derived attribution
                 b.add("drift.config", "helm", ref, [(e.fqn, "helm_drift.detector", 1.0)], observed=observed)
+            elif key.startswith("gitops.") and key not in _GITOPS_META:
+                # the render-vs-live diff: the chart from Git, rendered, against the live object
+                # — written as gitops.*, which no signal read (docs/fix-plan-001.md, H28)
+                m = _GITOPS_DRIFT.match(str(text))
+                if m:
+                    b.add("drift.config", "gitops", ref, [(e.fqn, "manifest_differ", 1.0)],
+                          observed={"field": m.group("field"), "declared": m.group("declared"),
+                                    "observed": m.group("observed")})
             elif key.startswith("missing.rbac."):
                 b.add("rbac.unbound", "k8s_status", ref, [(e.fqn, "readiness.detector", 1.0)],
                       observed={"serviceaccount": key[len("missing.rbac."):]})

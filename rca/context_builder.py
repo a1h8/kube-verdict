@@ -349,6 +349,10 @@ class ContextBuilder:
             drifts = [
                 v for k, v in entity.annotations.items()
                 if k.startswith("drift.")
+            ] + [
+                # rendered from Git vs live (ManifestDiffer) — H28: never shown before
+                f"[rendered from Git] {v}" for k, v in entity.annotations.items()
+                if k.startswith("gitops.") and str(v).startswith("drift field=")
             ]
             if drifts:
                 drift_uids.add(entity.uid)
