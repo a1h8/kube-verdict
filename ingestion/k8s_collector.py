@@ -351,6 +351,8 @@ class K8sCollector:
                 selector=item.spec.selector.match_labels or {},
                 conditions=[{"type": c.type, "status": c.status, "reason": c.reason}
                             for c in (s.conditions or [])],
+                containers=[self._api_client.sanitize_for_serialization(c)
+                            for c in (item.spec.template.spec.containers or [])],
                 raw=item.to_dict(),
             )
             graph.add_entity(e)

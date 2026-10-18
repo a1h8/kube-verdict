@@ -196,3 +196,16 @@ in correction 2).
   native case's analyze prompt fits under the default ceiling.
 - Cost, measured: ~22 prompt tokens/s on the CPU-only pod — 103 s to read h001, 212 s for
   h016, before the answer.
+
+## Correction F9 — the GitOps resource diff reads the live containers (2026-10-18, spec)
+
+- `Deployment.containers` (typed: `name`, `image`, `resources.limits`, `resources.requests`) is
+  filled from the live object by the collector (`sanitize_for_serialization`, camelCase) and from
+  the fixture's spec by the loader — the same shape both ways; `raw` is not used (snake_case live,
+  camelCase in fixtures).
+- `_diff_resources` compares limits with limits and requests with requests, on distinct paths
+  (`container.<c>.resources.limits.memory`); no annotation is read for the observed side.
+- Control: `test_render_vs_live_h012.py` no longer writes the observed value; the differ must find
+  512Mi → 128Mi from the Deployment alone.
+- Not in this correction: `spec.replicas` managed by an HPA still reads as a drift. Knowing that an
+  HPA targets a Deployment needs HPAs collected live (D1.2); left open.

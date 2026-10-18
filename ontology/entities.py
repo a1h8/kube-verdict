@@ -169,6 +169,8 @@ class Deployment(K8sEntity):
     strategy: str = "RollingUpdate"
     selector: dict[str, str] = field(default_factory=dict)
     conditions: list[dict] = field(default_factory=list)   # [{type, status, reason}]
+    # live pod-template containers: name, image, resources {limits, requests} (API camelCase)
+    containers: list[dict] = field(default_factory=list)
 
     def __post_init__(self):
         self.kind = ResourceKind.DEPLOYMENT

@@ -69,20 +69,13 @@ def observed_graph() -> OntologyGraph:
     Build the OBSERVED live cluster graph from kube/*.yaml.
 
     The live deployment runs replicas=1 with memory=128Mi (declared 3 / 512Mi)
-    and its pod was OOMKilled. The `gitops.resources.api.memory` annotation is
-    written here by the test: K8sCollector does NOT write it, so on a live cluster
-    the differ never sees an observed limit (docs/case-audit-001.md F9).
+    and its pod was OOMKilled. Nothing is injected: the differ reads the live limit
+    from the Deployment's containers, as on a live cluster (case-audit-001 F9).
     """
     g = OntologyGraph()
 
     dep_raw = _load_yaml_docs(CASE_DIR / "kube" / "deployment.yaml")[0]
     dep = _deployment_from_kubectl(dep_raw)
-    # Live container memory limit, as the collector would surface it.
-    live_mem = (
-        dep_raw["spec"]["template"]["spec"]["containers"][0]
-        ["resources"]["limits"]["memory"]
-    )
-    dep.annotations["gitops.resources.api.memory"] = live_mem
     g.add_entity(dep)
 
     for pod_raw in _load_yaml_docs(CASE_DIR / "kube" / "pod.yaml"):
@@ -114,7 +107,7 @@ class TestRenderVsLiveDrift:
         assert replica[0].severity == "critical"
 
     def test_memory_limit_drift_detected(self, drifts):
-        mem = [d for d in drifts if d.field_path == "container.api.resources.memory"]
+        mem = [d for d in drifts if d.field_path == "container.api.resources.limits.memory"]
         assert mem, "expected rendered memory limit (512Mi) vs live (128Mi) drift"
         assert str(mem[0].declared) == "512Mi"
         assert str(mem[0].observed) == "128Mi"
