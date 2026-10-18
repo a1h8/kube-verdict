@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from decision.models import DecisionResult, IncidentReport
 from decision.policy_gate import evaluate as pg_evaluate
+from decision.labels import normalize_label
 
 # LLM diagnosis confidence label → policy-gate score.
 #   LOW / MEDIUM → HUMAN_REVIEW (operator decides)
@@ -27,7 +28,7 @@ class DecisionEngine:
 
     def score_for(self, confidence: str) -> float:
         """Map an LLM diagnosis confidence label to a policy-gate score."""
-        return _LLM_SCORE.get((confidence or "").upper(), _DEFAULT_SCORE)
+        return _LLM_SCORE.get(normalize_label(confidence), _DEFAULT_SCORE)   # "HIGH:" too (H20)
 
     def decide(
         self,

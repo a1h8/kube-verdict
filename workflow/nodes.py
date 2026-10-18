@@ -18,6 +18,7 @@ from langgraph.types import interrupt
 
 import config as cfg
 import telemetry
+from decision.labels import normalize_label
 from rca.analyzer import RCAAnalyzer, _generate_rollback, unrecoverable_commands
 from rca.context_builder import ContextBuilder
 from decision.decision_engine import DecisionEngine
@@ -1124,7 +1125,7 @@ def analyze_node(state: RCAState, config: RunnableConfig) -> dict:
     analyzer._ctx_builder = ctx_builder
 
     report = analyzer.analyze(focused_query)
-    confidence = (report.confidence or "").strip().upper().split()[0] if report.confidence else ""
+    confidence = normalize_label(report.confidence)   # "MEDIUM:" → MEDIUM (H20)
 
     log.info(
         "analyze: confidence=%s  retry=%d  hypothesis='%s'  chunks=%d",

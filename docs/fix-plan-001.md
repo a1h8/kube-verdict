@@ -95,7 +95,7 @@
   prompt and backs the reasoning-path "rule" step; its rules claim a precise cause on a broad clue
   (any Pending pod, any "not found" event, H22) and propose fixed commands (`demo/charts/…`, H21).
   → the structured diagnosis replaces it there.
-- [ ] **H20 — the product reads the LLM's raw confidence word** (`MEDIUM:`), the measurement the
+- [x] **H20 — the product reads the LLM's raw confidence word** (`MEDIUM:`), the measurement the
   normalised one. → one normaliser for both.
 
 ## 2. Real evidence
