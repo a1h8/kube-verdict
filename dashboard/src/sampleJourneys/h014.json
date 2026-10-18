@@ -25,7 +25,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
         "kube_version": "unknown",
-        "timestamp": "2026-10-17T09:30:12.026829+00:00",
+        "timestamp": "2026-10-18T14:58:21.216301+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)",
@@ -199,7 +199,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-17T09:30:12.023140+00:00"
+      "ts": "2026-10-18T14:58:21.214794+00:00"
     },
     {
       "router": "confidence",
@@ -218,7 +218,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-17T09:30:12.027971+00:00"
+      "ts": "2026-10-18T14:58:21.217622+00:00"
     },
     {
       "router": "confidence",
@@ -236,7 +236,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-17T09:30:12.032283+00:00"
+      "ts": "2026-10-18T14:58:21.220875+00:00"
     },
     {
       "router": "policy",
@@ -251,19 +251,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-17T09:30:12.036026+00:00"
-    },
-    {
-      "router": "human",
-      "edge_taken": "reject",
-      "reason": "no human decision received — defaulting to reject",
-      "snapshot": {
-        "human_decision": "(none)",
-        "confidence": "HIGH",
-        "remediation_count": 1,
-        "dry_run_failures": 0
-      },
-      "ts": "2026-10-17T09:30:12.038950+00:00"
+      "ts": "2026-10-18T14:58:21.222935+00:00"
     }
   ],
   "ingestion_stats": {
@@ -306,7 +294,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\nExpired mTLS certificate to payments-backend fails the readiness probe\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-17T09:30:12.030850+00:00",
+    "timestamp": "2026-10-18T14:58:21.219047+00:00",
     "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
     "affected": [
       "Deployment/production/billing-gateway — 0/2 Ready"
@@ -485,7 +473,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/billing-gateway\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready",
           "kube_version": "unknown",
-          "timestamp": "2026-10-17T09:30:12.026829+00:00",
+          "timestamp": "2026-10-18T14:58:21.216301+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)",
@@ -671,7 +659,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-17T09:30:12.023140+00:00"
+        "ts": "2026-10-18T14:58:21.214794+00:00"
       },
       {
         "router": "confidence",
@@ -690,7 +678,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-17T09:30:12.027971+00:00"
+        "ts": "2026-10-18T14:58:21.217622+00:00"
       },
       {
         "router": "confidence",
@@ -708,7 +696,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-17T09:30:12.032283+00:00"
+        "ts": "2026-10-18T14:58:21.220875+00:00"
       },
       {
         "router": "policy",
@@ -723,19 +711,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-17T09:30:12.036026+00:00"
-      },
-      {
-        "router": "human",
-        "edge_taken": "reject",
-        "reason": "no human decision received — defaulting to reject",
-        "snapshot": {
-          "human_decision": "(none)",
-          "confidence": "HIGH",
-          "remediation_count": 1,
-          "dry_run_failures": 0
-        },
-        "ts": "2026-10-17T09:30:12.038950+00:00"
+        "ts": "2026-10-18T14:58:21.222935+00:00"
       }
     ],
     "hypothesis_sources": [

@@ -24,7 +24,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
         "kube_version": "unknown",
-        "timestamp": "2026-10-14T05:01:45.883515+00:00",
+        "timestamp": "2026-10-18T14:58:20.260273+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)"
@@ -147,7 +147,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-14T05:01:45.870714+00:00"
+      "ts": "2026-10-18T14:58:20.256379+00:00"
     },
     {
       "router": "confidence",
@@ -166,7 +166,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-14T05:01:45.886158+00:00"
+      "ts": "2026-10-18T14:58:20.261045+00:00"
     },
     {
       "router": "confidence",
@@ -184,7 +184,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-14T05:01:45.909922+00:00"
+      "ts": "2026-10-18T14:58:20.266099+00:00"
     },
     {
       "router": "policy",
@@ -199,19 +199,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-14T05:01:45.920689+00:00"
-    },
-    {
-      "router": "human",
-      "edge_taken": "reject",
-      "reason": "no human decision received — defaulting to reject",
-      "snapshot": {
-        "human_decision": "(none)",
-        "confidence": "HIGH",
-        "remediation_count": 1,
-        "dry_run_failures": 0
-      },
-      "ts": "2026-10-14T05:01:45.926761+00:00"
+      "ts": "2026-10-18T14:58:20.268664+00:00"
     }
   ],
   "ingestion_stats": {
@@ -254,7 +242,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\nDependency latency to payments-gateway burns the checkout-api SLO error budget\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
     "kube_version": "unknown",
-    "timestamp": "2026-10-14T05:01:45.906447+00:00",
+    "timestamp": "2026-10-18T14:58:20.265168+00:00",
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
     "affected": [
       "Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing"
@@ -428,7 +416,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\ncheckout-api pods are CPU-throttled under load\n\nINCIDENT QUERY:\nwhy is checkout-api slow",
           "kube_version": "unknown",
-          "timestamp": "2026-10-14T05:01:45.883515+00:00",
+          "timestamp": "2026-10-18T14:58:20.260273+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)"
@@ -573,7 +561,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-14T05:01:45.870714+00:00"
+        "ts": "2026-10-18T14:58:20.256379+00:00"
       },
       {
         "router": "confidence",
@@ -592,7 +580,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-14T05:01:45.886158+00:00"
+        "ts": "2026-10-18T14:58:20.261045+00:00"
       },
       {
         "router": "confidence",
@@ -610,7 +598,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-14T05:01:45.909922+00:00"
+        "ts": "2026-10-18T14:58:20.266099+00:00"
       },
       {
         "router": "policy",
@@ -625,19 +613,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-14T05:01:45.920689+00:00"
-      },
-      {
-        "router": "human",
-        "edge_taken": "reject",
-        "reason": "no human decision received — defaulting to reject",
-        "snapshot": {
-          "human_decision": "(none)",
-          "confidence": "HIGH",
-          "remediation_count": 1,
-          "dry_run_failures": 0
-        },
-        "ts": "2026-10-14T05:01:45.926761+00:00"
+        "ts": "2026-10-18T14:58:20.268664+00:00"
       }
     ],
     "hypothesis_sources": []

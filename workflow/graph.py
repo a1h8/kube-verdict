@@ -53,9 +53,9 @@ Graph topology
          │               │                   │
     dry_run         dry_run                 END
          │               │
-    remediation   log_human_decision
+    remediation     human_review   [INTERRUPT]
          │               │
-        END          human_review   [INTERRUPT]
+        END       log_human_decision
                          │
                     ── human_router ──
                          │           │
@@ -222,13 +222,15 @@ def build_graph(checkpointer=None) -> StateGraph:
         verdict_router,
         {
             "auto":         "remediation",
-            "human_review": "log_human_decision",
+            "human_review": "human_review",
             "no_go":        END,                   # safety net (already gated above)
         },
     )
-    builder.add_edge("log_human_decision", "human_review")
+    # The decision is logged after the interrupt, once the operator has answered:
+    # logged before it, the router always read an empty decision (docs/fix-plan-001.md, H18).
+    builder.add_edge("human_review", "log_human_decision")
     builder.add_conditional_edges(
-        "human_review",
+        "log_human_decision",
         human_router,
         {
             "approve": "remediation",

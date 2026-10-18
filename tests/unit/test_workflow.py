@@ -343,6 +343,31 @@ class TestWorkflowApprove:
 
         assert final.get("human_decision") == "reject"
 
+    # The path, not only the decision (docs/fix-plan-001.md, H18): the decision used to be
+    # logged before the interrupt, so the router always read "reject".
+    @staticmethod
+    def _resumed_nodes(compiled, cfg_, decision):
+        list(compiled.stream(_initial_state(), config=cfg_))
+        return [next(iter(u)) for u in
+                compiled.stream(Command(resume=decision), config=cfg_, stream_mode="updates")]
+
+    def test_approve_reaches_remediation(self, synthetic_graph, store):
+        compiled = build_graph()
+        cfg_ = _config("t-approve-path", synthetic_graph, store, _make_llm(_CANNED_HIGH))
+        nodes = self._resumed_nodes(compiled, cfg_, "approve")
+        assert nodes[:2] == ["human_review", "log_human_decision"]
+        assert "remediation" in nodes and "save_example" in nodes
+        human = [e for e in compiled.get_state(cfg_).values["edge_log"] if e["router"] == "human"]
+        assert [e["edge_taken"] for e in human] == ["approve"]
+
+    def test_reject_does_not_reach_remediation(self, synthetic_graph, store):
+        compiled = build_graph()
+        cfg_ = _config("t-reject-path", synthetic_graph, store, _make_llm(_CANNED_HIGH))
+        nodes = self._resumed_nodes(compiled, cfg_, "reject")
+        assert "remediation" not in nodes                                        # control
+        human = [e for e in compiled.get_state(cfg_).values["edge_log"] if e["router"] == "human"]
+        assert [e["edge_taken"] for e in human] == ["reject"]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Retry path — LOW confidence auto-retries then escalates to human

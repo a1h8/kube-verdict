@@ -171,6 +171,8 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    - `log_human_decision` writes a `human → reject` edge ("no human decision
      received — defaulting to reject") *before* the interrupt, so a journey waiting
      for review already shows a reject entry in `edge_log`.
+     *Fixed 2026-10-18 (`docs/fix-plan-001.md`, H18): the node ran before the interrupt,
+     so an approval never reached remediation; it now runs after it.*
    - the scripted remediation must be reversible (`helm upgrade` / `rollout
      restart`): diagnostic-only commands have no rollback, and the policy gate
      then returns `NO_GO`, as designed.

@@ -40,7 +40,7 @@
 - [ ] **H46 — the Streamlit UI runs remediation commands outside the decision gate**, with any
   binary. → the UI runs only what the dry-run gate accepts (`_kubectl_dry_run_refusal` and the
   helm equivalent) and only when the session's verdict is not NO_GO.
-- [ ] **H18 — an approval never reaches remediation.** `log_human_decision` runs before
+- [x] **H18 — an approval never reaches remediation.** `log_human_decision` runs before
   `human_review`, so `human_router` always reads "reject". → the decision is logged after the
   interrupt; test: resume with `approve` reaches `remediation`, `reject` does not.
 - [ ] **H19 — AUTO accepts an irreversible change.** One inverse among N commands marks the whole
