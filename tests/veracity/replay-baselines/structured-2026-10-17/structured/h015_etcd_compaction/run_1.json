@@ -1,22 +1,40 @@
 {
   "answerable": null,
   "case": "h015_etcd_compaction",
-  "confidence": "LOW",
-  "diagnoses": [],
+  "confidence": "HIGH",
+  "diagnoses": [
+    {
+      "family": "etcd",
+      "location": "outside:etcd",
+      "rule": "etcd.slow",
+      "score": 0.8,
+      "signals": [
+        "2c11c8bd488ed27a",
+        "e40b2c549d091784",
+        "d38de12e9a633a7d"
+      ]
+    }
+  ],
   "expected_outcome": "cause",
   "extractor_version": "signals/1",
   "fallbacks": [],
   "forbidden_matched": [],
   "matched_groups": [
-    []
+    [
+      "etcd",
+      "compaction|compacted|latency|slow"
+    ]
   ],
-  "matched_keywords": [],
+  "matched_keywords": [
+    "etcd",
+    "compaction|compacted|latency|slow"
+  ],
   "model": "",
-  "outcome": "insufficient_evidence",
+  "outcome": "cause",
   "pre_llm_confidence_score": null,
   "prompt": "v2",
-  "reason": "cause concept(s) not named: etcd, compaction|compacted|latency|slow",
-  "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+  "reason": "cause named, no decoy",
+  "root_cause": "Calls from inventory-api to etcd (etcdserverpb.KV/Range) fail (rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted): etcd is slow or compacting, and inventory-api times out.",
   "rules_version": "rules/1",
   "run": 1,
   "signal_kinds": [
@@ -26,12 +44,12 @@
   ],
   "signals_mode": null,
   "solver": "structured",
-  "started_at": "2026-10-17T13:55:44.634703+00:00",
+  "started_at": "2026-10-17T14:19:25.241981+00:00",
   "tier": "B",
   "unclassified": {
     "k8s_event": 1
   },
-  "veracity": "FAIL",
+  "veracity": "PASS",
   "verdict": null,
-  "wall_s": 1.98
+  "wall_s": 5.52
 }
