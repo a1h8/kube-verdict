@@ -602,16 +602,17 @@ def signal_analysis_node(state: RCAState, config: RunnableConfig) -> dict:
                 token=cfg.PROMETHEUS_TOKEN,
                 timeout=cfg.PROMETHEUS_TIMEOUT,
             )
-        results = SignalAnalyzer(prometheus_source=prom_source).analyze(graph)
-        anomalous = [r for r in results if r.is_anomalous]
-        mode = "real" if prom_source else "synthetic"
+        analyzer = SignalAnalyzer(prometheus_source=prom_source)
+        results = analyzer.analyze(graph)
+        anomalous = [r for r in results if r.is_anomalous and not r.synthetic]
+        mode = analyzer.last_mode
         log.info(
             "signal_analysis[%s]: %d metrics analysed, %d anomalous",
             mode, len(results), len(anomalous),
         )
         return _stats(state, "signals", {
             "total": len(results), "anomalous": len(anomalous),
-            "mode": mode, "fallback": False,
+            "synthetic": analyzer.last_synthetic, "mode": mode, "fallback": False,
         })
     except Exception as exc:
         log.warning("signal_analysis failed (%s) — continuing without signal data", exc)

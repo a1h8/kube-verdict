@@ -49,6 +49,8 @@ class SignalSegment:
     metric_name: str
     values: np.ndarray          # shape (T,), float32
     sample_interval_s: int = 60  # seconds between consecutive samples
+    # built from the current state, not measured: never evidence (docs/fix-plan-001.md, H43)
+    synthetic: bool = False
 
 
 @dataclass
@@ -62,6 +64,7 @@ class AnomalyResult:
     horizon: str = ""       # "short" | "medium" | "long" | "" (synthetic)
     forecast: np.ndarray = field(default_factory=lambda: np.empty(0))
     actual: np.ndarray = field(default_factory=lambda: np.empty(0))
+    synthetic: bool = False
 
     def to_text(self) -> str:
         horizon_part = f" horizon={self.horizon}" if self.horizon else ""

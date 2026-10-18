@@ -137,7 +137,7 @@
 - [x] **H38 — an old `Failed` pod (Evicted, failed Job) is a seed**, and a Deployment scaling up
   is "Unhealthy". → terminated pods older than the window are not seeds; the rollout guard applies
   to Deployments.
-- [ ] **H43 — synthetic PatchTST series built from the current state enter the prompt as
+- [x] **H43 — synthetic PatchTST series built from the current state enter the prompt as
   anomalies, recorded as `mode: real`.** → synthetic series are labelled, never sent to the
   prompt or the decision.
 
