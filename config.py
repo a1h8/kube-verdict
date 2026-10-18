@@ -100,6 +100,10 @@ LOKI_TOKEN: str | None = os.getenv("LOKI_TOKEN") or None
 LOKI_LOOKBACK_HOURS: int = _int("LOKI_LOOKBACK_HOURS", 1)
 LOKI_TIMEOUT: int = _int("LOKI_TIMEOUT", 30)
 LOKI_MAX_LOGS_PER_POD: int = _int("LOKI_MAX_LOGS_PER_POD", 20)
+# Stream labels naming the pod and its namespace: the OTel Collector's by default; Promtail and
+# Alloy's defaults are `pod` / `namespace` (docs/fix-plan-001.md, H34)
+LOKI_POD_LABEL: str = os.getenv("LOKI_POD_LABEL", "k8s_pod_name")
+LOKI_NAMESPACE_LABEL: str = os.getenv("LOKI_NAMESPACE_LABEL", "k8s_namespace_name")
 
 # ── Metrics Server ─────────────────────────────────────────────────────────────
 METRICS_SERVER_ENABLED: bool = os.getenv("METRICS_SERVER_ENABLED", "false").lower() == "true"

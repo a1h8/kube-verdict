@@ -443,12 +443,15 @@ def fixture_loki_query(streams: list[dict]):
     and answers newest-first; the time window is not applied (frozen fixtures).
     """
     def _query(logql: str, start_ns: int, end_ns: int) -> list[tuple[int, str]]:
-        wanted = dict(_LOGQL_MATCHER.findall(logql))
+        selector, _, line_filter = logql.partition(" |~ ")
+        wanted = dict(_LOGQL_MATCHER.findall(selector))
+        keep = re.compile(line_filter.strip("`").removeprefix("(?i)"), re.I) if line_filter else None
         rows = [
             (int(ts), line)
             for s in streams
             if all(s.get("stream", {}).get(k) == v for k, v in wanted.items())
             for ts, line in s.get("values", [])
+            if keep is None or keep.search(line)
         ]
         rows.sort(key=lambda r: r[0], reverse=True)
         return rows

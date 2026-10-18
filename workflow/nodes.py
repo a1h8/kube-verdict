@@ -383,6 +383,7 @@ def otel_node(state: RCAState, config: RunnableConfig) -> dict:
                 url=cfg.LOKI_URL, token=cfg.LOKI_TOKEN, timeout=cfg.LOKI_TIMEOUT,
                 lookback_hours=cfg.LOKI_LOOKBACK_HOURS,
                 max_logs_per_pod=cfg.LOKI_MAX_LOGS_PER_POD,
+                pod_label=cfg.LOKI_POD_LABEL, namespace_label=cfg.LOKI_NAMESPACE_LABEL,
             )
             count = loki.collect(graph)
             if loki.last_error:

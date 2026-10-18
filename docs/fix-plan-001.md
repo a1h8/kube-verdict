@@ -129,7 +129,7 @@
   diagnosis does not abstain as `no_incident` when a collector that could carry evidence failed.
 - [x] **H33 — an alert that matches no entity is dropped silently.** → kept as cluster-level
   evidence and counted.
-- [ ] **H34 — the Loki query assumes the OTel Collector's labels** and keeps the last 20 lines of
+- [x] **H34 — the Loki query assumes the OTel Collector's labels** and keeps the last 20 lines of
   any level. → labels are configurable; error lines first.
 - [ ] **H37 — the graph walk from a sick pod reaches almost nothing** (outgoing edges only;
   quotas, logs, traces, alerts and scaling not in the incident relations). → the walk follows the

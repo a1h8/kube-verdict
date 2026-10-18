@@ -3,8 +3,12 @@ LokiSource — queries Grafana Loki for pod logs and wires them into the
 OntologyGraph via HAS_LOG edges.
 
 LogQL strategy:
-  • Pod with namespace → {k8s_pod_name="<pod>",k8s_namespace_name="<ns>"}
-  • Pod without namespace → {k8s_pod_name="<pod>"}
+  • Pod with namespace → {<pod label>="<pod>",<namespace label>="<ns>"}
+  • Pod without namespace → {<pod label>="<pod>"}
+  The labels default to the OTel Collector's (k8s_pod_name / k8s_namespace_name); Promtail and
+  Alloy's defaults are pod / namespace: LOKI_POD_LABEL, LOKI_NAMESPACE_LABEL.
+  Error-level lines are fetched first, then the most recent lines fill the cap: the 20 latest
+  lines of any level used to push an error out (docs/fix-plan-001.md, H34).
 
 Each log entry becomes a LokiLog node attached to the pod entity.
 Log level is extracted from the structured `level` stream label or
@@ -54,8 +58,12 @@ class LokiSource:
         timeout: int = 30,
         lookback_hours: int = 1,
         max_logs_per_pod: int = 20,
+        pod_label: str = "k8s_pod_name",
+        namespace_label: str = "k8s_namespace_name",
     ) -> None:
         self.url = url.rstrip("/")
+        self.pod_label = pod_label
+        self.namespace_label = namespace_label
         self.token = token
         self.timeout = timeout
         self.lookback_hours = lookback_hours
@@ -87,8 +95,11 @@ class LokiSource:
         for entity in unhealthy_pods:
 
             namespace = entity.namespace or ""
-            logql = _build_logql(entity.name, namespace)
-            rows = self._query(logql, start_ns, end_ns)
+            selector = _build_logql(entity.name, namespace, self.pod_label, self.namespace_label)
+            rows = self._query(f"{selector} |~ `{_ERROR_LINE}`", start_ns, end_ns)
+            if len(rows) < self.max_logs:
+                known = set(rows)
+                rows += [r for r in self._query(selector, start_ns, end_ns) if r not in known]
 
             for ts_ns, line in rows[: self.max_logs]:
                 uid = f"loki-log-{entity.name}-{ts_ns}"
@@ -177,10 +188,15 @@ class LokiSource:
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _build_logql(pod_name: str, namespace: str) -> str:
+# a line Loki keeps in the first query (RE2, case-insensitive)
+_ERROR_LINE = r"(?i)(error|fatal|panic|exception|fail|refused|denied|timeout|timed out)"
+
+
+def _build_logql(pod_name: str, namespace: str, pod_label: str = "k8s_pod_name",
+                 namespace_label: str = "k8s_namespace_name") -> str:
     if namespace:
-        return f'{{k8s_pod_name="{pod_name}",k8s_namespace_name="{namespace}"}}'
-    return f'{{k8s_pod_name="{pod_name}"}}'
+        return f'{{{pod_label}="{pod_name}",{namespace_label}="{namespace}"}}'
+    return f'{{{pod_label}="{pod_name}"}}'
 
 
 def _detect_level(line: str) -> str:
