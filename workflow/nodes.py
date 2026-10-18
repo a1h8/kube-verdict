@@ -125,9 +125,21 @@ def _get_infra(config: RunnableConfig, state: RCAState | None = None) -> tuple[A
     return graph, store
 
 
-def _get_provider(config: RunnableConfig):
-    """Return the GitProvider stored by gitops_node, or None."""
-    return config.get("configurable", {}).get("provider")
+# GitOps sources of a run, [(provider, charts_path), …], keyed like _INFRA_CACHE: gitops_node
+# used to put the provider in config, which the next node never sees (fix plan 001, H10).
+_PROVIDER_CACHE: dict[str, list[tuple[Any, str]]] = {}
+
+
+def _run_key(config: RunnableConfig, state: RCAState | None) -> str:
+    return (state or {}).get("_infra_key") or config.get("configurable", {}).get("thread_id", "")
+
+
+def _get_providers(config: RunnableConfig, state: RCAState | None = None) -> list[tuple[Any, str]]:
+    """The GitOps sources gitops_node used in this run (an injected provider first), or []."""
+    injected = config.get("configurable", {}).get("provider")
+    if injected is not None:
+        return [(injected, cfg.GITOPS_CHARTS_PATH)]
+    return _PROVIDER_CACHE.get(_run_key(config, state), [])
 
 
 def _get_llm(config: RunnableConfig):
@@ -381,8 +393,12 @@ def gitops_node(state: RCAState, config: RunnableConfig) -> dict:
     Skipped when GITOPS_ENABLED=false or no GITOPS_REPO_URL is configured.
     Fails silently — gitops drift is enrichment, not a blocker.
     """
-    if not cfg.GITOPS_ENABLED or not cfg.GITOPS_REPO_URL:
-        log.info("gitops: disabled or no repo URL — skipping")
+    # Every repository of GIT_REPOS (GIT_REPOS_JSON, or the legacy GITOPS_REPO_URL), as the UI
+    # does (H11); each one cloned — GitHub too: the REST provider has no checkout, so the
+    # collector never found a chart in it (H30).
+    repos = cfg.GIT_REPOS
+    if not cfg.GITOPS_ENABLED or not repos:
+        log.info("gitops: disabled or no repository — skipping")
         return _stats(state, "gitops", {"skipped": True})
 
     graph, _ = _get_infra(config, state)
@@ -390,33 +406,35 @@ def gitops_node(state: RCAState, config: RunnableConfig) -> dict:
         log.info("gitops: no graph — skipping")
         return {}
 
-    try:
-        from ingestion.git_provider import GithubProvider, LocalGitProvider
-        from ingestion.gitops_collector import GitopsCollector
+    from ingestion.git_provider import make_provider
+    from ingestion.gitops_collector import GitopsCollector
 
-        if cfg.GITOPS_REPO_URL.startswith(("https://github.com", "git@github.com")):
-            repo = cfg.GITOPS_REPO_URL.removeprefix("https://github.com/").removesuffix(".git")
-            provider = GithubProvider(repo=repo, ref=cfg.GITOPS_BRANCH, token=cfg.GITHUB_TOKEN)
-        else:
-            provider = LocalGitProvider(
-                repo_url=cfg.GITOPS_REPO_URL, branch=cfg.GITOPS_BRANCH,
-            )
+    drifts: list = []
+    sources: list[tuple[Any, str]] = []
+    errors: list[str] = []
+    for repo in repos:
+        charts_path = repo.get("charts_path") or cfg.GITOPS_CHARTS_PATH
+        try:
+            provider = make_provider(repo["url"], branch=repo.get("branch") or cfg.GITOPS_BRANCH,
+                                     token=repo.get("token") or None)
+            drifts += GitopsCollector(provider, charts_path=charts_path).collect(graph)
+            sources.append((provider, charts_path))
+        except Exception as exc:  # noqa: BLE001 — one repository must not stop the others
+            log.warning("gitops: %s failed (%s)", repo.get("label") or repo["url"], exc)
+            errors.append(f"{repo.get('label') or repo['url']}: {exc}")
+    _PROVIDER_CACHE[_run_key(config, state)] = sources
+    while len(_PROVIDER_CACHE) > _INFRA_CACHE_MAX:
+        _PROVIDER_CACHE.pop(next(iter(_PROVIDER_CACHE)))
 
-        collector = GitopsCollector(provider, charts_path=cfg.GITOPS_CHARTS_PATH)
-        drifts = collector.collect(graph)
-        critical = sum(1 for d in drifts if d.severity == "critical")
-        log.info("gitops: %d drift(s) found, %d critical", len(drifts), critical)
-
-        config.setdefault("configurable", {})["provider"] = provider
-        update = _stats(state, "gitops", {
-            "drifts": len(drifts), "critical": critical, "fallback": False,
-        })
-        update["drift_evidence"] = _render_evidence_rows(graph)
-        return update
-
-    except Exception as exc:
-        log.warning("gitops node failed (%s) — continuing without gitops data", exc)
-        return _stats(state, "gitops", {"fallback": True, "error": str(exc)})
+    critical = sum(1 for d in drifts if d.severity == "critical")
+    log.info("gitops: %d drift(s) found, %d critical, %d repo(s)", len(drifts), critical, len(repos))
+    stat = {"drifts": len(drifts), "critical": critical, "repos": len(repos),
+            "fallback": bool(errors)}
+    if errors:
+        stat["error"] = "; ".join(errors)
+    update = _stats(state, "gitops", stat)
+    update["drift_evidence"] = _render_evidence_rows(graph)
+    return update
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -448,16 +466,12 @@ def anchor_node(state: RCAState, config: RunnableConfig) -> dict:
         log.info("anchor: no graph — skipping")
         return {}
 
-    provider = _get_provider(config)  # None when gitops is disabled
+    sources = _get_providers(config, state)  # [] when gitops is disabled
 
     try:
         from ingestion.anchor_engine import AnchorEngine
         engine = AnchorEngine()
-        records = engine.collect(
-            graph,
-            provider=provider,
-            charts_path=cfg.GITOPS_CHARTS_PATH,
-        )
+        records = engine.collect(graph, sources=sources)
         with_manifest = sum(1 for r in records if r.source == "manifest")
         log.info(
             "anchor: %d anchor(s) (%d from manifest, %d from schema)",

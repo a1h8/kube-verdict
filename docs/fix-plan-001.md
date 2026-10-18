@@ -76,10 +76,10 @@
 - [x] **H9 — the graph is cached per thread id, never evicted.** The API uses the session id, so
   a second investigation on a session (or a `/feedback` re-run) diagnoses the previous snapshot.
   → the cache lives for one run only.
-- [ ] **H10 — the rendered-manifest anchors never run.** `gitops_node` stores the Git provider in
+- [x] **H10 — the rendered-manifest anchors never run.** `gitops_node` stores the Git provider in
   `config`, which LangGraph does not pass to the next node. → the provider is rebuilt from the
   state where it is needed.
-- [ ] **H11 — `GIT_REPOS_JSON` is read only by the UI**, and malformed JSON is ignored silently.
+- [x] **H11 — `GIT_REPOS_JSON` is read only by the UI**, and malformed JSON is ignored silently.
   → the workflow reads it; a parse error is logged.
 - [ ] **H40 — the API searches a vector store from an earlier run** (any cluster) and puts its
   texts in the prompt. → the cluster index is built per investigation; only the knowledge base
@@ -108,7 +108,7 @@
   signals read.** → part of F11: the signals read it.
 - [ ] **H32 — `helm template` gets the values as `--set`**: lists are dropped, commas split a
   value, strings become numbers. → a values file.
-- [ ] **H30 — with a GitHub URL the GitOps path never reads Git** (`GithubProvider` has no local
+- [x] **H30 — with a GitHub URL the GitOps path never reads Git** (`GithubProvider` has no local
   checkout). → GitHub repositories are cloned like any other.
 - [ ] **H29 — rendered objects without a namespace match a live object in any namespace.** → the
   release namespace is used.

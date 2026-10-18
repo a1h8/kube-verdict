@@ -10,7 +10,7 @@ Strategy:
 """
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from ontology.graph import OntologyGraph
 import workflow.nodes as _nodes_mod
@@ -298,7 +298,7 @@ def test_gitops_node_skip_when_disabled(monkeypatch):
 def test_gitops_node_skip_when_no_url(monkeypatch):
     import config as cfg
     monkeypatch.setattr(cfg, "GITOPS_ENABLED", True)
-    monkeypatch.setattr(cfg, "GITOPS_REPO_URL", "")
+    monkeypatch.setattr(cfg, "GIT_REPOS", [])
     result = gitops_node(_state(), _config())
     assert result["ingestion_stats"]["gitops"]["skipped"] is True
 
@@ -306,13 +306,22 @@ def test_gitops_node_skip_when_no_url(monkeypatch):
 def test_gitops_node_fallback_on_error(monkeypatch):
     import config as cfg
     monkeypatch.setattr(cfg, "GITOPS_ENABLED", True)
-    monkeypatch.setattr(cfg, "GITOPS_REPO_URL", "https://github.com/acme/charts.git")
-    monkeypatch.setattr(cfg, "GITOPS_BRANCH", "main")
-    monkeypatch.setattr(cfg, "GITHUB_TOKEN", "")
+    monkeypatch.setattr(cfg, "GIT_REPOS", [{"url": "https://github.com/acme/charts.git"},
+                                           {"url": "https://git.example/acme/infra.git"}])
     graph = _empty_graph()
-    with patch("ingestion.git_provider.GithubProvider", side_effect=RuntimeError("api error")):
+    ok = MagicMock(); ok.collect.return_value = []
+
+    def make(url, **_):
+        if "github" in url:
+            raise RuntimeError("clone failed")
+        return MagicMock()
+
+    with patch("ingestion.git_provider.make_provider", side_effect=make), \
+         patch("ingestion.gitops_collector.GitopsCollector", return_value=ok):
         result = gitops_node(_state(), _config(graph=graph))
-    assert result["ingestion_stats"]["gitops"]["fallback"] is True
+    stat = result["ingestion_stats"]["gitops"]
+    assert stat["fallback"] is True and "clone failed" in stat["error"]
+    ok.collect.assert_called_once()          # the other repository is still read (H11)
 
 
 # ---------------------------------------------------------------------------

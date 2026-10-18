@@ -53,7 +53,7 @@ of this concept lives in [anchor-by-render.md](anchor-by-render.md).
 │  GitOps diff layer                                                    │
 │                                                                       │
 │  GitopsCollector                                                      │
-│  ├── GitProvider: LocalGitProvider (clone) or GithubProvider (API)    │
+│  ├── GitProvider: LocalGitProvider (shallow clone, any host)          │
 │  ├── ManifestRenderer: helm template → []dict                         │
 │  └── ManifestDiffer: rendered vs observed → DriftItem list            │
 │      ├── MISSING   rendered resource absent from cluster  (critical)  │
@@ -179,7 +179,7 @@ prometheus      PrometheusCollector → firing alerts → alert.* annotations
 otel            OtelCollector (Tempo/Jaeger) + LokiSource → HAS_TRACE / HAS_LOG edges
   │             (opt-in: OTEL_ENABLED=true, LOKI_ENABLED=true)
 gitops          GitopsCollector → ManifestRenderer → ManifestDiffer
-  │             (skipped when GITOPS_ENABLED=false or no GITOPS_REPO_URL)
+  │             (skipped when GITOPS_ENABLED=false or no repository configured)
 anchor          AnchorEngine → K8s schema + rendered manifests → anchor.*
   │
 index           embed entities → FAISSStore
@@ -320,11 +320,11 @@ GET    /api/v1/health
 
 `SessionState` response includes: `reasoning_history`, `hypothesis_sources`, `path_confidence_history`, `edge_log` (router decisions with `declining` flag), `dry_run_results`, `review_payload`.
 
-The `gitops` node auto-detects provider from `GITOPS_REPO_URL`:
-- `https://github.com/…` → `GithubProvider` (REST API, no local clone, needs `GITHUB_TOKEN`)
-- any other URL or local path → `LocalGitProvider` (shallow clone, fast-forward pull)
+The `gitops` node reads every repository of `GIT_REPOS_JSON` (or the single `GITOPS_REPO_URL`)
+and clones each one with `LocalGitProvider` (shallow clone, fast-forward pull), GitHub included:
+`GithubProvider` (REST API) has no local checkout, which the chart renderer needs.
 
-Heavy objects (`OntologyGraph`, `FAISSStore`, `GitProvider`) are **never stored in LangGraph state** — they are injected via `config["configurable"]` to avoid msgpack serialisation failures with `MemorySaver`. Only JSON-serialisable primitives live in `RCAState`.
+Heavy objects (`OntologyGraph`, `FAISSStore`, `GitProvider`) are **never stored in LangGraph state**. They are injected via `config["configurable"]`, or cached per run in `workflow/nodes.py` under the key `ingest` writes in `state["_infra_key"]` — LangGraph does not pass a mutated `config` from one node to the next. Only JSON-serialisable primitives live in `RCAState`.
 
 ### State (`workflow/state.py`)
 

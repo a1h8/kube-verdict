@@ -60,8 +60,10 @@ def _git_repos() -> list[dict]:
             repos = json.loads(raw)
             if isinstance(repos, list):
                 return [r for r in repos if isinstance(r, dict) and r.get("url")]
-        except Exception:
-            pass
+            logging.getLogger(__name__).warning("GIT_REPOS_JSON is not a JSON list — ignored")
+        except ValueError as exc:
+            # not silent: a typo here turns GitOps off (docs/fix-plan-001.md, H11)
+            logging.getLogger(__name__).warning("GIT_REPOS_JSON is not valid JSON (%s) — ignored", exc)
     if os.getenv("GITOPS_REPO_URL"):
         return [{"url": os.getenv("GITOPS_REPO_URL"), "branch": GITOPS_BRANCH,
                  "token": GITHUB_TOKEN or "", "label": "", "charts_path": GITOPS_CHARTS_PATH}]

@@ -472,8 +472,7 @@ class TestAnchorNode:
             anchor_node({}, self._cfg(synthetic_graph, provider=fake_provider))
 
         mock_collect.assert_called_once()
-        _, kwargs = mock_collect.call_args
-        assert kwargs.get("provider") is fake_provider or mock_collect.call_args[0][1] is fake_provider
+        assert mock_collect.call_args.kwargs["sources"][0][0] is fake_provider
 
     def test_fails_silently_on_exception(self, synthetic_graph):
         """AnchorEngine crash must not propagate — analysis must continue."""
@@ -488,28 +487,36 @@ class TestAnchorNode:
         g = build_graph()
         assert "anchor" in g.nodes
 
-    def test_gitops_stores_provider_in_config(self, synthetic_graph, monkeypatch):
-        """gitops_node stores provider so anchor_node can reuse it."""
-        import config as cfg
-        monkeypatch.setattr(cfg, "GITOPS_ENABLED", True)
-        monkeypatch.setattr(cfg, "GITOPS_REPO_URL", "https://github.com/org/repo")
-        monkeypatch.setattr(cfg, "GITOPS_BRANCH", "main")
-        monkeypatch.setattr(cfg, "GITHUB_TOKEN", None)
+    def test_gitops_sources_reach_anchor_node_through_langgraph(self, synthetic_graph, monkeypatch):
+        """The provider used by gitops_node reaches anchor_node in a real LangGraph run.
 
+        docs/fix-plan-001.md, H10: it was stored in config, which LangGraph does not pass from
+        one node to the next, so the rendered-manifest anchors never ran. Calling the two nodes
+        by hand with one shared dict (as this test used to) could not see it.
+        """
+        import config as cfg
         from unittest.mock import patch, MagicMock
+        from langgraph.graph import StateGraph, START, END
+        from workflow.nodes import gitops_node
+        from workflow.state import RCAState
+        monkeypatch.setattr(cfg, "GITOPS_ENABLED", True)
+        monkeypatch.setattr(cfg, "GIT_REPOS", [{"url": "https://github.com/org/repo.git",
+                                                "branch": "main", "charts_path": "charts"}])
         fake_provider = MagicMock()
         fake_collector = MagicMock()
         fake_collector.collect.return_value = []
 
-        config = {"configurable": {"graph": synthetic_graph}}
-
-        with patch("ingestion.git_provider.GithubProvider", return_value=fake_provider), \
-             patch("ingestion.gitops_collector.GitopsCollector",
-                   return_value=fake_collector):
-            from workflow.nodes import gitops_node
-            gitops_node({}, config)
-
-        assert config["configurable"].get("provider") is fake_provider
+        b = StateGraph(RCAState)
+        b.add_node("gitops", gitops_node)
+        b.add_node("anchor", anchor_node)
+        b.add_edge(START, "gitops"); b.add_edge("gitops", "anchor"); b.add_edge("anchor", END)
+        with patch("ingestion.git_provider.make_provider", return_value=fake_provider) as mk, \
+             patch("ingestion.gitops_collector.GitopsCollector", return_value=fake_collector), \
+             patch("ingestion.anchor_engine.AnchorEngine.collect", return_value=[]) as collect:
+            b.compile().invoke({"query": "q"}, {"configurable": {"graph": synthetic_graph,
+                                                               "thread_id": "t-h10"}})
+        assert mk.call_args.args[0] == "https://github.com/org/repo.git"   # cloned, GitHub too
+        assert collect.call_args.kwargs["sources"] == [(fake_provider, "charts")]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

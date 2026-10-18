@@ -136,19 +136,22 @@ class AnchorEngine:
         graph:        OntologyGraph,
         provider=None,          # GitProvider | None
         charts_path:  str = "charts",
+        sources: list | None = None,   # [(GitProvider, charts_path), …] — several repositories
     ) -> list[AnchorRecord]:
         """
         Collect all anchors and write them as annotations.
         Returns the complete list of AnchorRecord objects.
         """
+        if sources is None:
+            sources = [(provider, charts_path)] if provider is not None else []
         records: list[AnchorRecord] = []
 
         # Source 1 — K8s schema: valid values + defaults (always available)
         records += self._from_k8s_schema(graph)
 
         # Source 2 — Rendered manifests: helm template output (generic ground truth)
-        if provider is not None:
-            records += self._from_rendered_manifests(graph, provider, charts_path)
+        for src_provider, src_path in sources:
+            records += self._from_rendered_manifests(graph, src_provider, src_path)
 
         # Deduplicate: highest-priority source wins for each (entity_uid, field_path)
         final = self._deduplicate(records)
