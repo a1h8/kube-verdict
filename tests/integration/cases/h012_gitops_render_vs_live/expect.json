@@ -9,7 +9,7 @@
   "root_cause_concepts": ["memory", "drift|512mi|declared|render|expected state"],
   "render_vs_live_drift": [
     {"field_path": "spec.replicas", "declared": 3, "observed": 1, "severity": "critical"},
-    {"field_path": "container.api.resources.memory", "declared": "512Mi", "observed": "128Mi"}
+    {"field_path": "container.api.resources.limits.memory", "declared": "512Mi", "observed": "128Mi"}
   ],
   "expected_rules": ["oom_kill"],
   "fix_commands_contain": ["helm upgrade", "memory"],

@@ -90,7 +90,8 @@ before the model is called.
   **[amended 2026-10-18]** "Validated" overstated it: the test writes the observed memory limit
   into the graph itself (`gitops.resources.api.memory`), an annotation no production code writes,
   so the resource diff is proven on the test's input, not on what the collector reads live
-  (`docs/case-audit-001.md` F9).
+  (`docs/case-audit-001.md` F9). **Fixed the same day**: the test no longer writes it; the differ
+  reads the live Deployment's containers. The path is still outside the measured pipeline (F11).
 
 ## See also
 

@@ -68,10 +68,21 @@ Verdict: **keep**, **correct** (what, below) or **retire**.
   that no production code writes; limits and requests also share one key (`memory`), so one
   overwrites the other; `_diff_replicas` flags any `spec.replicas` difference, including one an HPA
   manages. The Helm path (`ingestion/helm_drift.py`, values vs deployed release) is not affected.
+  *Status:* resources fixed 2026-10-18 (§ Correction F9); the HPA case stays open.
 - **F10 — The h012 proof and `make demo` supply the observed side themselves.**
   `test_render_vs_live_h012.py` writes the observed memory limit into the graph; `demo/real_run.py`
   computes its own diff (not `ManifestDiffer`) and prints fixed verdict lines. The README said
   "the same code that runs in CI. No mocks"; corrected 2026-10-18.
+  *Status:* the test no longer supplies the observed side (F9); the demo still computes its own
+  diff and prints fixed verdict lines.
+- **F11 — On a live cluster the Helm detector sees neither memory, image nor probes** (found
+  2026-10-18). `ingestion/helm_drift.py` compares the values Helm deployed with the live objects
+  and emits only `spec.replicas`, status fields, PVC storage, container state, restart count and
+  subchart conditions. The `drift.helm.<field>` items that h002, h003, h009 and h024 rely on
+  (values.yaml vs deployed values) are made by the test loader alone
+  (`case_loader.py` `_annotate_value_drift`). So four of the fourteen cases the structured
+  diagnosis passes rest on evidence a live run does not build. On a live cluster only the
+  GitOps render-vs-live diff can see those gaps, and it is not in the measured pipeline.
 
 ## Per case
 
@@ -196,3 +207,16 @@ in correction 2).
   native case's analyze prompt fits under the default ceiling.
 - Cost, measured: ~22 prompt tokens/s on the CPU-only pod — 103 s to read h001, 212 s for
   h016, before the answer.
+
+## Correction F9 — the GitOps resource diff reads the live containers (2026-10-18, spec)
+
+- `Deployment.containers` (typed: `name`, `image`, `resources.limits`, `resources.requests`) is
+  filled from the live object by the collector (`sanitize_for_serialization`, camelCase) and from
+  the fixture's spec by the loader — the same shape both ways; `raw` is not used (snake_case live,
+  camelCase in fixtures).
+- `_diff_resources` compares limits with limits and requests with requests, on distinct paths
+  (`container.<c>.resources.limits.memory`); no annotation is read for the observed side.
+- Control: `test_render_vs_live_h012.py` no longer writes the observed value; the differ must find
+  512Mi → 128Mi from the Deployment alone.
+- Not in this correction: `spec.replicas` managed by an HPA still reads as a drift. Knowing that an
+  HPA targets a Deployment needs HPAs collected live (D1.2); left open.

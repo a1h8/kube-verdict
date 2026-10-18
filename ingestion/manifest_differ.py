@@ -203,24 +203,28 @@ def _diff_containers(pod_spec: dict, entity: K8sEntity) -> list[DriftItem]:
 def _diff_resources(
     c_name: str, rendered_resources: dict, entity: K8sEntity
 ) -> list[DriftItem]:
-    # Without the full raw K8s spec on entity we can only report if both sides
-    # have explicit values. Skip silently when one side is unknown.
+    """Rendered limits vs live limits, rendered requests vs live requests, read from the live
+    pod-template container (``Deployment.containers``). docs/case-audit-001.md § Correction F9:
+    the observed side was an annotation no production code wrote, and limits and requests
+    shared one key."""
+    live = next((c for c in getattr(entity, "containers", []) or [] if c.get("name") == c_name), None)
+    if live is None:
+        return []
+    live_resources = live.get("resources") or {}
     drifts: list[DriftItem] = []
-    limits = rendered_resources.get("limits") or {}
-    requests = rendered_resources.get("requests") or {}
-
-    # Look for resource annotations set by HelmDriftDetector or prior gitops runs
-    for field, rendered_val in {**limits, **requests}.items():
-        ann_key = f"gitops.resources.{c_name}.{field}"
-        observed_val = entity.annotations.get(ann_key)
-        if observed_val and str(rendered_val) != str(observed_val):
-            drifts.append(DriftItem(
-                field_path=f"container.{c_name}.resources.{field}",
-                declared=rendered_val,
-                observed=observed_val,
-                severity="info",
-                source="gitops",
-            ))
+    for category in ("limits", "requests"):
+        rendered = (rendered_resources or {}).get(category) or {}
+        observed = live_resources.get(category) or {}
+        for field, rendered_val in rendered.items():
+            observed_val = observed.get(field)
+            if observed_val is not None and str(rendered_val) != str(observed_val):
+                drifts.append(DriftItem(
+                    field_path=f"container.{c_name}.resources.{category}.{field}",
+                    declared=rendered_val,
+                    observed=observed_val,
+                    severity="warning" if category == "limits" else "info",
+                    source="gitops",
+                ))
     return drifts
 
 

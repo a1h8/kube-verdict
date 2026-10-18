@@ -17,7 +17,7 @@ git clone https://github.com/a1h8/kube-verdict && cd kube-verdict
 make demo
 ```
 
-`make demo` walks through the render-vs-live evidence of a committed fixture (`h012`): the `helm template` expected state, the live Deployment, the declared-vs-live gap (512Mi declared, 128Mi deployed) and the hypotheses of the rule engine. It is an illustration, not the measured pipeline: the gap is computed by the demo script (the GitOps collector's resource diff is blind on a live cluster today — [case-audit-001.md](docs/case-audit-001.md) F9), and the closing verdict lines are written by the script. The measured path is the structured diagnosis (`python tools/veracity_replay.py --solver structured`).
+`make demo` walks through the render-vs-live evidence of a committed fixture (`h012`): the `helm template` expected state, the live Deployment, the declared-vs-live gap (512Mi declared, 128Mi deployed) and the hypotheses of the rule engine. It is an illustration, not the measured pipeline: the gap is computed by the demo script (the GitOps collector's diff reads the live containers since F9, but it is not wired into the measured pipeline yet — [case-audit-001.md](docs/case-audit-001.md) F11), and the closing verdict lines are written by the script. The measured path is the structured diagnosis (`python tools/veracity_replay.py --solver structured`).
 
 📺 **[▶ Watch the 35-second demo](demo/kubeverdict-short.mp4)** — incident → evidence → verdict → human gate.
 
@@ -58,7 +58,7 @@ A bad value that is *declared* is not a drift either: the cluster matches the re
 
 | Evidence source | Status |
 |---|---|
-| Helm configuration drift (declared vs live) | **tested offline** on the native cases that carry one (h002, h003, h009, h016, h024); runtime status kept apart as a symptom |
+| Helm configuration drift (declared vs live) | **tested offline** on the native cases that carry one (h002, h003, h009, h016, h024); runtime status kept apart as a symptom. For memory, image and probe fields the drift is built by the test loader: a live run does not produce it yet ([F11](docs/case-audit-001.md)) |
 | Kubernetes events / runtime state | **tested offline**, collected live |
 | Rendered Helm/GitOps manifests (expected state) | **opt-in** (`GITOPS_REPO_URL`); one fixture case (h012); no GitOps controller tested live yet |
 | Prometheus alerts, Loki logs, OTel traces | **tested offline** through the real collectors (h013–h015); reached live once each (2026-09-26, [evidence](docs/evidence/prometheus-live.md)); those live scenarios were staged, so the runs prove the collectors, not the diagnosis |
@@ -232,7 +232,7 @@ Ten failure patterns reproduced end-to-end in CI as offline fixtures — no clus
 
 Cases h001–h010 each have a `test_hybrid_pipeline_NNN.py` running the full pre-LLM pipeline: graph construction → hybrid retrieval (BM25 + FAISS + RRF) → context building → anchor/drift/policy scoring → proposal generation. A further case — **h011 (StatefulSet update stuck on a bound PVC)** — is wired in but not yet passing its confidence/resolvable-path assertions; it is a good first contribution.
 
-**h012** (`test_render_vs_live_h012.py`) exercises the **anchor-by-render** diff — with the observed memory limit supplied by the test, because the live collector does not provide it yet (F9): the expected state is reconstructed by rendering the chart with `helm template` (committed as evidence) and diffed against the observed cluster. The diff/ranking runs deterministically in CI with **no helm binary**; a helm-guarded check re-renders the chart to keep the committed golden faithful. It is a **fixture-based** scenario — it demonstrates the render-vs-live evidence flow, not production-grade telemetry.
+**h012** (`test_render_vs_live_h012.py`) exercises the **anchor-by-render** diff — the differ reads the observed limit from the live Deployment's containers (F9), but this path is not part of the measured pipeline yet (F11): the expected state is reconstructed by rendering the chart with `helm template` (committed as evidence) and diffed against the observed cluster. The diff/ranking runs deterministically in CI with **no helm binary**; a helm-guarded check re-renders the chart to keep the committed golden faithful. It is a **fixture-based** scenario — it demonstrates the render-vs-live evidence flow, not production-grade telemetry.
 
 **h013, h014 and h015** are the three *telemetry-only* cases — one per observability signal (metrics, logs, traces): Kubernetes status shows at most a symptom, never the cause, so the evidence comes purely from observability data, replayed from committed fixtures through the real collectors.
 - **h013 — SLO error-budget burn** (`test_prometheus_fixture_h013.py`): a pod with 3/3 replicas Ready, zero restarts and no drift, while Prometheus fires multi-window burn-rate alerts (14.4× over 1h/5m, 6× over 6h/30m) and a p99/p95 latency-SLO breach isolated to one dependency. The alerts run through the **real** `PrometheusCollector` (only its HTTP fetch is swapped for the fixture), so a `pending` alert and an alert with no matching entity are dropped exactly as they would be live.

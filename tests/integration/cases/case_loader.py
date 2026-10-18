@@ -618,6 +618,7 @@ def _deployment_from_kubectl(raw: dict) -> Deployment:
         selector=spec.get("selector", {}).get("matchLabels", {}),
         conditions=[{"type": c.get("type"), "status": c.get("status"), "reason": c.get("reason")}
                     for c in status.get("conditions", [])],
+        containers=list(spec.get("template", {}).get("spec", {}).get("containers", [])),
         raw=raw,
     )
 

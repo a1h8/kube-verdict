@@ -16,7 +16,7 @@ rendered/expected.yaml     EXPECTED state (committed as evidence)
         ▼   vs
 kube/*.yaml                OBSERVED: replicas=1, memory=128Mi, Pod OOMKilled
         ▼
-drift:  spec.replicas 3→1 (critical) + container.api.resources.memory 512Mi→128Mi
+drift:  spec.replicas 3→1 (critical) + container.api.resources.limits.memory 512Mi→128Mi
 ranked: oom_kill = H1
 fix:    helm upgrade … resources.limits.memory (restore declared intent)
 ```
