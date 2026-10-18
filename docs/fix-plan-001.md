@@ -127,7 +127,7 @@
   ServiceAccounts (H24), metrics-server, and the discovery's refused groups and CRDs (logged at
   debug only) return empty. → each reports `fallback: true` like Prometheus/Loki/OTel, and a
   diagnosis does not abstain as `no_incident` when a collector that could carry evidence failed.
-- [ ] **H33 — an alert that matches no entity is dropped silently.** → kept as cluster-level
+- [x] **H33 — an alert that matches no entity is dropped silently.** → kept as cluster-level
   evidence and counted.
 - [ ] **H34 — the Loki query assumes the OTel Collector's labels** and keeps the last 20 lines of
   any level. → labels are configurable; error lines first.

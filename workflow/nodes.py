@@ -284,7 +284,9 @@ def prometheus_node(state: RCAState, config: RunnableConfig) -> dict:
                 "alerts": count, "fallback": True, "error": collector.last_error,
             })
         log.info("prometheus: %d alert(s) correlated", count)
-        return _stats(state, "prometheus", {"alerts": count, "fallback": False})
+        return _stats(state, "prometheus", {"alerts": count, "fallback": False,
+                                            "uncorrelated": collector.uncorrelated,
+                                            "out_of_scope": collector.out_of_scope})
     except Exception as exc:
         log.warning("prometheus node failed (%s) — continuing without alert data", exc)
         return _stats(state, "prometheus", {"fallback": True, "error": str(exc)})
