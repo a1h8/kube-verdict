@@ -106,7 +106,7 @@
   produces `drift.config` with its provenance; the loader stops making `drift.helm.*`.
 - [ ] **H28 — the render-vs-live drift is written as `gitops.*`, which neither the prompt nor the
   signals read.** → part of F11: the signals read it.
-- [ ] **H32 — `helm template` gets the values as `--set`**: lists are dropped, commas split a
+- [x] **H32 — `helm template` gets the values as `--set`**: lists are dropped, commas split a
   value, strings become numbers. → a values file.
 - [x] **H30 — with a GitHub URL the GitOps path never reads Git** (`GithubProvider` has no local
   checkout). → GitHub repositories are cloned like any other.

@@ -81,19 +81,6 @@ class TestManifestRenderer:
         docs = ManifestRenderer._parse_multidoc(text)
         assert len(docs) == 1
 
-    def test_flatten_simple(self):
-        result = ManifestRenderer._flatten({"a": 1, "b": "x"})
-        assert result == {"a": "1", "b": "x"}
-
-    def test_flatten_nested(self):
-        result = ManifestRenderer._flatten({"image": {"tag": "1.0", "repo": "reg"}})
-        assert result["image.tag"] == "1.0"
-        assert result["image.repo"] == "reg"
-
-    def test_flatten_skips_lists(self):
-        result = ManifestRenderer._flatten({"ports": [80, 443]})
-        assert "ports" not in result
-
     def test_helm_failure_returns_empty(self):
         renderer = ManifestRenderer()
         with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "helm")):
@@ -124,7 +111,7 @@ class TestManifestRenderer:
         assert "api" in cmd
         assert "myrepo/api" in cmd
         assert "--version" in cmd
-        assert "--set" in cmd
+        assert "--set" not in cmd and "-f" in cmd     # inline values go in a values file (H32)
 
     def test_render_with_value_files(self):
         renderer = ManifestRenderer()
