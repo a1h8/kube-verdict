@@ -85,8 +85,12 @@ before the model is called.
   rendered golden (`rendered/expected.yaml`) against the observed graph, which runs on every CI
   run with no helm binary; and a **helm-guarded** freshness test that re-runs the real
   `ManifestRenderer` and asserts the chart still renders to the committed golden, so the evidence
-  cannot silently rot. The render-vs-live drift detection and OOM-ranks-H1 ranking are therefore
-  validated, not just claimed.
+  cannot silently rot.
+
+  **[amended 2026-10-18]** "Validated" overstated it: the test writes the observed memory limit
+  into the graph itself (`gitops.resources.api.memory`), an annotation no production code writes,
+  so the resource diff is proven on the test's input, not on what the collector reads live
+  (`docs/case-audit-001.md` F9).
 
 ## See also
 
