@@ -64,6 +64,9 @@ class HelmCollector:
         # (the resolved kubeconfig path contains "/", so it can't match the name
         # regex and must be allowlisted explicitly).
         self._safe_argv_values: set[str] = set()
+        # helm calls that failed in the last collect(): their empty result is not "no values"
+        # or "no release" (docs/fix-plan-001.md, H5)
+        self.failures: list[str] = []
         if kubeconfig:
             if not Path(kubeconfig).is_file():
                 raise ValueError(f"kubeconfig not found: {kubeconfig!r}")
@@ -77,6 +80,7 @@ class HelmCollector:
             self._safe_argv_values.add(kube_context)
 
     def collect(self, graph: OntologyGraph, namespaces: list[str] | None = None) -> None:
+        self.failures = []
         releases = self._list_releases(namespaces)
         log.info("Found %d Helm release(s) in cluster", len(releases))
         parser = ChartParser()
@@ -238,18 +242,25 @@ class HelmCollector:
         out = subprocess.run(cmd, capture_output=True, text=True, check=True)
         return out.stdout
 
+    def _fail(self, what: str) -> None:
+        self.__dict__.setdefault("failures", []).append(what)
+
     def _run_json(self, cmd: list[str], label: str) -> Any:
         try:
             return json.loads(self._exec(cmd)) or {}
         except subprocess.CalledProcessError as exc:
-            log.warning("%s failed: %s", label, exc.stderr.strip())
-            return {}
+            log.warning("%s failed: %s", label, (exc.stderr or "").strip())
+            self._fail(f"{label}: {(exc.stderr or '').strip()[:200] or exc.returncode}")
         except json.JSONDecodeError:
             log.warning("%s returned invalid JSON", label)
-            return {}
+            self._fail(f"{label}: invalid JSON")
         except ValueError as exc:
             log.warning("%s blocked unsafe argument: %s", label, exc)
-            return {}
+            self._fail(f"{label}: {exc}")
+        except OSError as exc:              # helm missing or not executable
+            log.warning("%s could not run: %s", label, exc)
+            self._fail(f"{label}: {exc}")
+        return {}
 
     # ------------------------------------------------------------------
     # Graph linking

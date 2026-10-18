@@ -183,6 +183,10 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
         helm.collect(built_graph, namespaces=state.get("namespaces") or None)
         from ontology.entities import ResourceKind as _RK
         helm_releases = sum(1 for _ in built_graph.entities(_RK.HELM_RELEASE))
+        helm_failures = list(getattr(helm, "failures", None) or [])
+        helm_stat = {"releases": helm_releases, "fallback": bool(helm_failures)}
+        if helm_failures:
+            helm_stat["error"] = "; ".join(helm_failures[:5])
 
         if cfg.HELMFILE_PATH:
             from ingestion import HelmfileCollector
@@ -216,18 +220,29 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
 
         kube_ver = getattr(collector, "kube_version", None)
         log.info("ingest: %s", built_graph.summary())
+        # A refused listing (403, timeout) leaves a hole the diagnosis would read as "nothing
+        # there": it is a collection failure (docs/fix-plan-001.md, H24).
+        failed_listings = list(getattr(collector, "listing_failures", None) or [])
+        discovery = getattr(collector, "_discovery", None)
+        refused_kinds = list(getattr(discovery, "failures", None) or []) if discovery else []
+        discovery_stat = {"refused": len(refused_kinds), "fallback": bool(refused_kinds)}
+        if refused_kinds:
+            discovery_stat["error"] = "; ".join(refused_kinds[:10])
 
         tid = config.get("configurable", {}).get("thread_id", "")
         infra_key = f"{tid}:{uuid.uuid4().hex}"
         _cache_put(infra_key, (built_graph, config.get("configurable", {}).get("store")))
         update = _stats(state, "policy", policy_stat)
+        update = _stats({**state, **update}, "helm", helm_stat)
+        update = _stats({**state, **update}, "discovery", discovery_stat)
         return {"_infra_key": infra_key, **_stats({**state, **update}, "ingest", {
             "entities": built_graph.node_count,
             "edges": built_graph.edge_count,
             "helm_releases": helm_releases,
             "helm_drift": drift_count,
             "kube_version": str(kube_ver) if kube_ver else "",
-            "fallback": False,
+            "fallback": bool(failed_listings),
+            **({"error": "cannot list " + "; ".join(failed_listings)} if failed_listings else {}),
         })}
 
     except Exception as exc:
@@ -418,6 +433,9 @@ def gitops_node(state: RCAState, config: RunnableConfig) -> dict:
             provider = make_provider(repo["url"], branch=repo.get("branch") or cfg.GITOPS_BRANCH,
                                      token=repo.get("token") or None)
             drifts += GitopsCollector(provider, charts_path=charts_path).collect(graph)
+            if getattr(provider, "last_error", None):
+                # an unreadable repository renders nothing: no drift ≠ no divergence (H5)
+                errors.append(f"{repo.get('label') or repo['url']}: {provider.last_error}")
             sources.append((provider, charts_path))
         except Exception as exc:  # noqa: BLE001 — one repository must not stop the others
             log.warning("gitops: %s failed (%s)", repo.get("label") or repo["url"], exc)

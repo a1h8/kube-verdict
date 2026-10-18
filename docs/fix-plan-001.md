@@ -122,7 +122,7 @@
 - [ ] **h012 end to end** in the replay through that path, nothing injected.
 - [ ] **H1 — `env.*` is never written in production**: the GitOps env diff is blind live, and the
   database checks built from `env.DB_HOST` never appear. → read env from the live containers.
-- [ ] **H5 — collection failures read as absence.** `ingestion/helm_collector.py:203`,
+- [x] **H5 — collection failures read as absence.** `ingestion/helm_collector.py:203`,
   `ingestion/git_provider.py:114,120`, the K8s collector's listings other than ConfigMaps / PVCs /
   ServiceAccounts (H24), metrics-server, and the discovery's refused groups and CRDs (logged at
   debug only) return empty. → each reports `fallback: true` like Prometheus/Loki/OTel, and a

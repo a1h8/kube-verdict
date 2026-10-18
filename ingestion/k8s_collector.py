@@ -107,6 +107,12 @@ class K8sCollector:
         self._discovery = APIServerDiscovery(self._api_client)
 
     @property
+    def listing_failures(self) -> list[str]:
+        """Listings the API refused or failed in the last collect(): what is absent from the
+        graph because it could not be read, not because it does not exist (fix plan 001, H24)."""
+        return sorted(f"{kind} in {ns}" for ns, kind in getattr(self, "_listing_failed", set()))
+
+    @property
     def api_client(self) -> k8s_client.ApiClient:
         """The configured client, impersonation headers included — for collectors run alongside."""
         return self._api_client
@@ -230,6 +236,7 @@ class K8sCollector:
             items = self._core.list_namespaced_pod(namespace).items
         except ApiException as exc:
             log.warning("Cannot list pods in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "pods"))
             return
 
         ns_entity = self._find_by_name(graph, namespace, None, "Namespace")
@@ -334,6 +341,7 @@ class K8sCollector:
             items = self._apps.list_namespaced_deployment(namespace).items
         except ApiException as exc:
             log.warning("Cannot list deployments in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "deployments"))
             return
         ns_entity = self._find_by_name(graph, namespace, None, "Namespace")
         for item in items:
@@ -370,6 +378,7 @@ class K8sCollector:
             items = self._apps.list_namespaced_stateful_set(namespace).items
         except ApiException as exc:
             log.warning("Cannot list statefulsets in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "statefulsets"))
             return
         for item in items:
             sts_ann: dict[str, str] = {}     # kube-verdict's own keys only (H23)
@@ -390,6 +399,7 @@ class K8sCollector:
             items = self._apps.list_namespaced_daemon_set(namespace).items
         except ApiException as exc:
             log.warning("Cannot list daemonsets in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "daemonsets"))
             return
         for item in items:
             graph.add_entity(DaemonSet(
@@ -406,6 +416,7 @@ class K8sCollector:
             items = self._apps.list_namespaced_replica_set(namespace).items
         except ApiException as exc:
             log.warning("Cannot list replicasets in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "replicasets"))
             return
         for item in items:
             owner_name = next(
@@ -437,6 +448,7 @@ class K8sCollector:
             items = self._core.list_namespaced_service(namespace).items
         except ApiException as exc:
             log.warning("Cannot list services in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "services"))
             return
         for item in items:
             ports = [{"port": p.port, "targetPort": str(p.target_port), "protocol": p.protocol}
@@ -465,6 +477,7 @@ class K8sCollector:
             items = self._ingress_api.list_namespaced_ingress(namespace).items
         except ApiException as exc:
             log.warning("Cannot list ingresses (v1) in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "ingresses"))
             return
         for item in items:
             ingress_class = item.spec.ingress_class_name or (
@@ -487,6 +500,7 @@ class K8sCollector:
             items = self._ingress_api.list_namespaced_ingress(namespace).items
         except ApiException as exc:
             log.warning("Cannot list ingresses (v1beta1) in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "ingresses"))
             return
         for item in items:
             ingress_class = (item.metadata.annotations or {}).get(
@@ -588,6 +602,7 @@ class K8sCollector:
             items = self._core.list_namespaced_event(namespace).items
         except ApiException as exc:
             log.warning("Cannot list events in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "events"))
             return
         for item in items:
             uid = item.metadata.uid or f"event-{item.metadata.name}-{namespace}"

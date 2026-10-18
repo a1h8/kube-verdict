@@ -74,6 +74,8 @@ class LocalGitProvider(GitProvider):
         self.repo_url = repo_url
         self.branch = branch
         self._token = token
+        # why the checkout is missing or stale, for the caller to report (fix plan 001, H5)
+        self.last_error: str | None = None
         self._base = clone_dir or Path("/tmp/kubeverdict-gitops")
 
     def _repo_dir(self) -> Path:
@@ -103,6 +105,7 @@ class LocalGitProvider(GitProvider):
             )
             if result.returncode != 0:
                 log.warning("git pull failed for %s: %s", dest, result.stderr.strip())
+                self.last_error = f"git pull failed, the checkout may be stale: {result.stderr.strip()[:200]}"
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(
@@ -138,7 +141,11 @@ class LocalGitProvider(GitProvider):
     def local_path(self) -> Path | None:
         try:
             return self._ensure_cloned()
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as exc:
+            self.last_error = f"git clone failed: {(exc.stderr or '').strip()[:200] or exc.returncode}"
+            return None
+        except OSError as exc:
+            self.last_error = f"git could not run: {exc}"
             return None
 
 
