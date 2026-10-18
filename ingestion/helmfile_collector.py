@@ -110,7 +110,11 @@ class HelmfileCollector:
         assert self.path is not None
 
         if self.use_cli and self._helmfile_available():
-            return self._load_via_cli()
+            specs = self._load_via_cli()
+            if specs is not None:
+                return specs
+            # the fallback the warning announces: it used to return [] — no release at all
+            # (docs/fix-plan-001.md, H27)
 
         # Directory mode: helmfile.d/*.yaml
         if self.path.is_dir():
@@ -137,23 +141,25 @@ class HelmfileCollector:
             log.warning("Cannot read %s: %s", path, exc)
             return None
 
-    def _load_via_cli(self) -> list[dict]:
-        """Uses `helmfile build` to get a fully rendered spec."""
+    def _load_via_cli(self) -> list[dict] | None:
+        """Uses `helmfile build` to get a fully rendered spec; None when it fails."""
         cmd = [
             "helmfile", "--file", str(self.path),
             "--environment", self.environment,
             "build", "--output", "json",
         ]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=120)
             data = json.loads(result.stdout)
             return [data] if isinstance(data, dict) else data
         except subprocess.CalledProcessError as exc:
-            log.warning("helmfile build failed: %s — falling back to YAML parse", exc.stderr.strip())
-            return []
+            log.warning("helmfile build failed: %s — falling back to YAML parse",
+                        (exc.stderr or "").strip()[:300])
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            log.warning("helmfile build did not run (%s) — falling back to YAML parse", exc)
         except json.JSONDecodeError:
             log.warning("helmfile build returned invalid JSON — falling back to YAML parse")
-            return []
+        return None
 
     # ------------------------------------------------------------------
     # Ontology: HelmRepository + HelmfileEnvironment nodes
