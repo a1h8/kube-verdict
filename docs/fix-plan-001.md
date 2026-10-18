@@ -131,7 +131,7 @@
   evidence and counted.
 - [x] **H34 — the Loki query assumes the OTel Collector's labels** and keeps the last 20 lines of
   any level. → labels are configurable; error lines first.
-- [ ] **H37 — the graph walk from a sick pod reaches almost nothing** (outgoing edges only;
+- [x] **H37 — the graph walk from a sick pod reaches almost nothing** (outgoing edges only;
   quotas, logs, traces, alerts and scaling not in the incident relations). → the walk follows the
   incident relations both ways.
 - [x] **H38 — an old `Failed` pod (Evicted, failed Job) is a seed**, and a Deployment scaling up

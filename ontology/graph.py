@@ -72,9 +72,12 @@ class OntologyGraph:
         start_uid: str,
         max_depth: int = 3,
         rel_types: set[RelationshipType] | None = None,
+        reverse_rel_types: set[RelationshipType] | None = None,
     ) -> list[K8sEntity]:
         """
         Breadth-first traversal from start_uid up to max_depth hops.
+        Follows outgoing edges of *rel_types* and incoming edges of *reverse_rel_types*
+        (e.g. Pod ← ReplicaSet ← Deployment, Namespace ← ResourceQuota).
         Returns all reachable entities (excluding the start node itself).
         """
         visited: set[str] = {start_uid}
@@ -85,15 +88,18 @@ class OntologyGraph:
             uid, depth = queue.popleft()
             if depth >= max_depth:
                 continue
-            for edge in self._adj[uid]:
-                if rel_types and edge.rel_type not in rel_types:
-                    continue
-                if edge.target_uid not in visited:
-                    visited.add(edge.target_uid)
-                    node = self._nodes.get(edge.target_uid)
+            steps = [(e, e.target_uid) for e in self._adj[uid]
+                     if not rel_types or e.rel_type in rel_types]
+            if reverse_rel_types:
+                steps += [(e, e.source_uid) for e in self._radj[uid]
+                          if e.rel_type in reverse_rel_types]
+            for _edge, nxt in steps:
+                if nxt not in visited:
+                    visited.add(nxt)
+                    node = self._nodes.get(nxt)
                     if node:
                         result.append(node)
-                        queue.append((edge.target_uid, depth + 1))
+                        queue.append((nxt, depth + 1))
 
         return result
 

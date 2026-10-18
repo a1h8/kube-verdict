@@ -22,6 +22,24 @@ _INCIDENT_RELS = {
     RelationshipType.USES_SERVICE_ACCOUNT,
     RelationshipType.MANAGED_BY_HELM,
     RelationshipType.HAS_EVENT,
+    # the evidence collectors attach to an entity (docs/fix-plan-001.md, H37)
+    RelationshipType.HAS_ALERT,
+    RelationshipType.HAS_TRACE,
+    RelationshipType.HAS_LOG,
+    RelationshipType.HAS_POLICY_VIOLATION,
+    RelationshipType.DRIFTS_FROM,
+    RelationshipType.BINDS_PV,
+}
+# Followed backwards: what owns, exposes, scales or constrains the entity reached. From a pod,
+# the walk used to reach only its Helm release — never its Deployment, Service, HPA or the
+# namespace's quota (H37). IN_NAMESPACE and MANAGED_BY_HELM are not here: backwards they
+# return every object of the namespace or of the release.
+_INCIDENT_RELS_BACKWARD = {
+    RelationshipType.OWNS,
+    RelationshipType.EXPOSES,
+    RelationshipType.SCALES,
+    RelationshipType.QUOTA_BLOCKS,
+    RelationshipType.LIMITS,
 }
 
 
@@ -138,7 +156,8 @@ def expand_incident_context(
 
     # BFS expansion
     for uid in all_uids:
-        for neighbour in graph.bfs(uid, max_depth=depth, rel_types=_INCIDENT_RELS):
+        for neighbour in graph.bfs(uid, max_depth=depth, rel_types=_INCIDENT_RELS,
+                                   reverse_rel_types=_INCIDENT_RELS_BACKWARD):
             if neighbour.uid not in seen:
                 seen.add(neighbour.uid)
                 result.append(neighbour)
