@@ -365,6 +365,8 @@ class HelmRelease(K8sEntity):
     environment: str = ""         # helmfile environment name
     value_files: list[str] = field(default_factory=list)   # paths of value files used
     needs: list[str] = field(default_factory=list)         # helmfile needs: references
+    # `helm get manifest`: what Helm applied at the last install / upgrade (docs/three-states.md)
+    applied_manifest: list[dict] = field(default_factory=list, repr=False)
 
     def __post_init__(self):
         self.kind = ResourceKind.HELM_RELEASE

@@ -512,7 +512,12 @@ def mock_renderer():
 
 @pytest.fixture
 def drifted_graph(demo_graph, local_provider, mock_renderer) -> OntologyGraph:
-    """Runs GitopsCollector on the observed graph; entities gain gitops.* annotations."""
+    """Helm applied what Git declares, then the live objects diverged (docs/three-states.md):
+    the Git render is each release's applied manifest, so A finds nothing and B — applied vs
+    live — annotates the live divergence as applied.* (edited outside Helm)."""
+    from ingestion.manifest_differ import compare_applied_to_live
+    for rel in demo_graph.entities(ResourceKind.HELM_RELEASE):
+        rel.applied_manifest = _rendered_for_release(rel.name)
     collector = GitopsCollector(
         provider=local_provider,
         charts_path="charts",
@@ -520,6 +525,7 @@ def drifted_graph(demo_graph, local_provider, mock_renderer) -> OntologyGraph:
         differ=ManifestDiffer(track_orphans=False),
     )
     collector.collect(demo_graph)
+    compare_applied_to_live(demo_graph)
     return demo_graph
 
 
@@ -755,7 +761,8 @@ class TestGitopsCollectorPipeline:
             e for e in drifted_graph.entities(ResourceKind.DEPLOYMENT)
             if e.name == "ml-inference"
         )
-        assert any("gitops." in k for k in ml_dep.annotations)
+        assert any(k.startswith("applied.") for k in ml_dep.annotations)
+        assert not any(k.startswith("gitops.") for k in ml_dep.annotations)   # Git = applied
 
     def test_replica_drift_annotated_on_payment_service(self, drifted_graph):
         """payment-service has replicas=1 in cluster vs replicas=3 declared → annotated."""
@@ -763,14 +770,14 @@ class TestGitopsCollectorPipeline:
             e for e in drifted_graph.entities(ResourceKind.DEPLOYMENT)
             if e.name == "payment-service"
         )
-        assert any("gitops." in k for k in ps_dep.annotations)
+        assert any(k.startswith("applied.") for k in ps_dep.annotations)
 
     def test_missing_configmap_drift_detected(self, drifted_graph):
         ns_rel = next(
             e for e in drifted_graph.entities(ResourceKind.HELM_RELEASE)
             if e.name == "notification-service"
         )
-        assert "gitops.drift_count" in ns_rel.annotations
+        assert any(k.startswith("applied.missing.ConfigMap.") for k in ns_rel.annotations)
 
     def test_analytics_worker_release_has_drift_count(self, drifted_graph):
         aw_rel = next(

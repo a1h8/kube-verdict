@@ -199,6 +199,18 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
 
         drift_count = HelmDriftDetector().detect_all(built_graph)
 
+        # B — the manifest Helm applied vs the live objects: an edit made outside Helm
+        # (docs/three-states.md). Needs no Git repository, only the release Secrets.
+        from ingestion.manifest_differ import compare_applied_to_live
+        applied_releases, applied_drifts = compare_applied_to_live(
+            built_graph, covered=getattr(collector, "covered", None))
+        manifest_failures = [f for f in (getattr(helm, "failures", None) or [])
+                             if str(f).startswith("helm get manifest")]
+        applied_stat = {"releases": applied_releases, "drifts": applied_drifts,
+                        "fallback": bool(manifest_failures)}
+        if manifest_failures:
+            applied_stat["error"] = "; ".join(manifest_failures[:5])
+
         # Policy reports (Kyverno / OPA PolicyReport) and mutating webhooks — collected on
         # every run, not only by the CLI's old --policy flag (docs/fix-plan-001.md, H2). Same
         # API client as the K8s collector, so impersonation applies. A cluster without the
@@ -235,6 +247,7 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
         update = _stats(state, "policy", policy_stat)
         update = _stats({**state, **update}, "helm", helm_stat)
         update = _stats({**state, **update}, "discovery", discovery_stat)
+        update = _stats({**state, **update}, "applied", applied_stat)
         return {"_infra_key": infra_key, **_stats({**state, **update}, "ingest", {
             "entities": built_graph.node_count,
             "edges": built_graph.edge_count,
@@ -435,8 +448,11 @@ def gitops_node(state: RCAState, config: RunnableConfig) -> dict:
         try:
             provider = make_provider(repo["url"], branch=repo.get("branch") or cfg.GITOPS_BRANCH,
                                      token=repo.get("token") or None)
-            drifts += GitopsCollector(provider, charts_path=charts_path,
-                                      values_source=cfg.GITOPS_VALUES_SOURCE).collect(graph)
+            collector = GitopsCollector(provider, charts_path=charts_path)
+            drifts += collector.collect(graph)
+            if collector.missing_applied:
+                errors.append(f"{repo.get('label') or repo['url']}: applied manifest unavailable for "
+                              + ", ".join(collector.missing_applied[:5]) + " — Git not compared")
             if getattr(provider, "last_error", None):
                 # an unreadable repository renders nothing: no drift ≠ no divergence (H5)
                 errors.append(f"{repo.get('label') or repo['url']}: {provider.last_error}")

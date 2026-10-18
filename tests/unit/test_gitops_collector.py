@@ -37,6 +37,8 @@ def simple_graph():
         chart="myrepo/api", chart_version="1.2.3",
         values={"replicaCount": 3},
         source="helm",
+        # what Helm applied — A compares Git's render with it (docs/three-states.md)
+        applied_manifest=[_rendered_deployment(replicas=3)],
     ))
     g.add_entity(Service(
         uid="svc-api", name="api-svc", namespace="production",
@@ -233,6 +235,12 @@ class TestGitopsCollector:
         collector.collect(simple_graph)
         release = simple_graph.get("helm-production-api")
         assert "gitops.drift_count" in release.annotations
+
+    def test_no_applied_manifest_means_not_compared(self, simple_graph):
+        simple_graph.get("helm-production-api").applied_manifest = []
+        collector = self._make_collector([_rendered_deployment(replicas=10)])
+        assert collector.collect(simple_graph) == []
+        assert collector.missing_applied == ["production/api"]
 
     def test_empty_rendered_no_drifts(self, simple_graph):
         collector = self._make_collector([])

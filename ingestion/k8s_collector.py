@@ -19,6 +19,11 @@ from ontology.version import KubeVersion, detect_version
 
 log = logging.getLogger(__name__)
 
+# kinds collect() lists per namespace → the name its listing failure is recorded under
+_TYPED_PLURALS = {"Deployment": "deployments", "StatefulSet": "statefulsets", "DaemonSet": "daemonsets",
+                  "Service": "services", "Ingress": "ingresses", "ConfigMap": "configmaps",
+                  "PersistentVolumeClaim": "pvcs", "ServiceAccount": "serviceaccounts"}
+
 
 def _ts(obj):
     from datetime import datetime
@@ -111,6 +116,11 @@ class K8sCollector:
         """Listings the API refused or failed in the last collect(): what is absent from the
         graph because it could not be read, not because it does not exist (fix plan 001, H24)."""
         return sorted(f"{kind} in {ns}" for ns, kind in getattr(self, "_listing_failed", set()))
+
+    def covered(self, kind: str, namespace: str) -> bool:
+        """Whether *kind* was listed in *namespace* by the last collect() (typed kinds only)."""
+        plural = _TYPED_PLURALS.get(kind)
+        return plural is not None and (namespace, plural) not in getattr(self, "_listing_failed", set())
 
     @property
     def api_client(self) -> k8s_client.ApiClient:

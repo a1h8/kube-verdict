@@ -79,6 +79,15 @@ def _name(fqn: str) -> str:
 
 
 
+_PROVENANCE_TEXT = {"git-vs-deployed": " It was deployed with a value Git does not declare.",
+                    "edited-outside-helm": " It was changed outside Helm after the release was applied."}
+
+
+def _provenance(drift: Signal) -> str:
+    """Who made the drift, when the comparison that found it says (docs/three-states.md, rule 5)."""
+    return _PROVENANCE_TEXT.get(drift.attr("provenance"), "")
+
+
 def _score(n_strengthening_sources: int, n_contradicting: int, generic: bool) -> float:
     score = BASE + STRENGTH * n_strengthening_sources - CONTRA * n_contradicting
     score = max(0.0, min(1.0, score))
@@ -125,7 +134,7 @@ def _oom(ss: SignalSet) -> list[Diagnosis]:
             out.append(_diag("oom.memory_drift", "oom",
                              f"The memory limit of {_name(ss.subject(drift))} drifted from the declared value: "
                              f"{drift.attr('field')} is declared {drift.attr('declared')} but deployed "
-                             f"{drift.attr('observed')}, and the container is OOMKilled.",
+                             f"{drift.attr('observed')}, and the container is OOMKilled.{_provenance(drift)}",
                              ss.subject(drift), [s, drift],
                              checks=[f"helm get values {_name(ss.subject(drift))} -n {_ns(ss.subject(drift))}"]))
         else:
@@ -282,7 +291,7 @@ def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
         failing = [f for f in faults if ss.same_workload(ss.subject(f), ss.subject(d))]
         out.append(_diag("config.drift", "helm-drift",
                          f"{_name(ss.subject(d))} drifted from its declared configuration: {d.attr('field')} is declared "
-                         f"{d.attr('declared')} but deployed {d.attr('observed')}.",
+                         f"{d.attr('declared')} but deployed {d.attr('observed')}.{_provenance(d)}",
                          ss.subject(d), [d], failing, generic=not failing))
     return out
 

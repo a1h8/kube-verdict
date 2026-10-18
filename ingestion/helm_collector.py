@@ -6,6 +6,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from ontology.entities import HelmRelease, HelmChart, HelmRepository, ResourceKind
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
@@ -44,7 +46,7 @@ def _safe_name(value: str, field: str) -> str:
 # and the exact set of flags/literal values. Anything outside this set must be an
 # RFC-1123 name (or a value validated in __init__) to reach the exec.
 _HELM_FIXED_TOKENS = frozenset({
-    "helm", "list", "get", "values", "notes", "repo",
+    "helm", "list", "get", "values", "notes", "manifest", "repo",
     "--output", "json",
     "--namespace", "--all-namespaces", "--all",
     "--kubeconfig", "--kube-context",
@@ -98,6 +100,7 @@ class HelmCollector:
 
             user_values = self._get_values(release_name, namespace, include_defaults=False)
             notes = self._get_notes(release_name, namespace)
+            applied = self._get_manifest(release_name, namespace)
 
             chart_str = rel.get("chart", "")
             chart_name = self._parse_chart_name(chart_str)
@@ -116,6 +119,7 @@ class HelmCollector:
                 status=rel.get("status", ""),
                 values=user_values,
                 source="helm",
+                applied_manifest=applied,
                 raw=rel,
             )
             graph.add_entity(entity)
@@ -212,6 +216,24 @@ class HelmCollector:
             cmd.append("--all")   # includes chart defaults + computed values
         result = self._run_json(cmd, f"helm get values {release_name}")
         return result if isinstance(result, dict) else {}
+
+    def _get_manifest(self, release_name: str, namespace: str) -> list[dict]:
+        """The manifests Helm applied (`helm get manifest`); [] and a recorded failure when the
+        release Secrets cannot be read (docs/three-states.md, rule 4)."""
+        cmd = ["helm", "get", "manifest", release_name, "--namespace", namespace] + self._env_flags
+        try:
+            text = self._exec(cmd)
+        except subprocess.CalledProcessError as exc:
+            self._fail(f"helm get manifest {release_name}: {(exc.stderr or '').strip()[:200]}")
+            return []
+        except (ValueError, OSError) as exc:
+            self._fail(f"helm get manifest {release_name}: {exc}")
+            return []
+        try:
+            return [d for d in yaml.safe_load_all(text) if isinstance(d, dict) and d.get("kind")]
+        except yaml.YAMLError as exc:
+            self._fail(f"helm get manifest {release_name}: invalid YAML ({exc})")
+            return []
 
     def _get_notes(self, release_name: str, namespace: str) -> str:
         cmd = [

@@ -48,9 +48,6 @@ GITOPS_ENABLED: bool = os.getenv("GITOPS_ENABLED", "false").lower() == "true"
 GITOPS_REPO_URL: str | None = os.getenv("GITOPS_REPO_URL") or None   # legacy single-repo
 GITOPS_BRANCH: str = os.getenv("GITOPS_BRANCH", "main")
 GITOPS_CHARTS_PATH: str = os.getenv("GITOPS_CHARTS_PATH", "charts")
-# What the Git chart is rendered with: "deployed" (the release's deployed values — sees edits
-# made outside Helm) or "git" (Git's own values — also sees deployed values ≠ Git). fix plan H48
-GITOPS_VALUES_SOURCE: str = os.getenv("GITOPS_VALUES_SOURCE", "deployed")
 GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN") or None          # legacy
 
 # Multi-repo registry — any git endpoint (GitHub, GitLab, Gist, self-hosted…)

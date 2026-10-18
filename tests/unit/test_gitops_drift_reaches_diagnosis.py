@@ -44,4 +44,4 @@ def test_the_gitops_drift_is_in_the_prompt_drift_section():
     from unittest.mock import MagicMock
     store = MagicMock(); store.hybrid_search.return_value = []; store.search.return_value = []
     ctx = ContextBuilder(_graph(), store).build("why is api crashing")
-    assert any("512Mi" in d and "rendered from Git" in d for d in ctx.drift)
+    assert any("512Mi" in d and "[deployed ≠ Git]" in d for d in ctx.drift)
