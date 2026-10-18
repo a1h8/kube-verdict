@@ -73,7 +73,7 @@
   step (so a failure counts in `_ingestion_failures`, H12), with the K8s collector's API client
   (impersonation applies), and a refused listing is reported (`last_error`), not read as "no
   violation".
-- [ ] **H9 — the graph is cached per thread id, never evicted.** The API uses the session id, so
+- [x] **H9 — the graph is cached per thread id, never evicted.** The API uses the session id, so
   a second investigation on a session (or a `/feedback` re-run) diagnoses the previous snapshot.
   → the cache lives for one run only.
 - [ ] **H10 — the rendered-manifest anchors never run.** `gitops_node` stores the Git provider in

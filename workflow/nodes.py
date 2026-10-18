@@ -3,13 +3,14 @@ LangGraph node functions for the KubeVerdict RCA workflow.
 
 Heavy objects (OntologyGraph, FAISSStore) are NOT stored in state — they are
 passed via config["configurable"] so the MemorySaver checkpointer never tries
-to serialise them.  Nodes that need them call _get_infra(config).
+to serialise them.  Nodes that need them call _get_infra(config, state).
 """
 from __future__ import annotations
 import logging
 import os
 import re
 import time
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -35,8 +36,19 @@ from vectorstore.store import FAISSStore
 from workflow.state import RCAState
 
 # LangGraph does not propagate config mutations between nodes.
-# Heavy non-serializable objects are cached here keyed by thread_id.
+# Heavy non-serializable objects are cached here, keyed per *run* (state["_infra_key"], set by
+# ingest_node), not per thread: an API session reuses its thread id, and a second investigation
+# on it must collect the cluster again, not diagnose the previous snapshot (fix plan 001, H9).
+# Bounded: the oldest runs are evicted in a long-lived process.
 _INFRA_CACHE: dict[str, tuple[Any, Any]] = {}
+_INFRA_CACHE_MAX = 64
+
+
+def _cache_put(key: str, value: tuple[Any, Any]) -> None:
+    _INFRA_CACHE.pop(key, None)
+    _INFRA_CACHE[key] = value
+    while len(_INFRA_CACHE) > _INFRA_CACHE_MAX:
+        _INFRA_CACHE.pop(next(iter(_INFRA_CACHE)))
 
 log = logging.getLogger(__name__)
 
@@ -98,14 +110,14 @@ def _render_evidence_rows(graph: Any) -> list[dict]:
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _get_infra(config: RunnableConfig) -> tuple[Any, Any]:
-    """Pull graph and store from config or the thread-local infra cache."""
+def _get_infra(config: RunnableConfig, state: RCAState | None = None) -> tuple[Any, Any]:
+    """Pull graph and store from config, else from this run's entry in the infra cache."""
     c = config.get("configurable", {})
     graph = c.get("graph")
     store = c.get("store")
     if graph is None:
-        tid = c.get("thread_id", "")
-        cached = _INFRA_CACHE.get(tid)
+        key = (state or {}).get("_infra_key") or c.get("thread_id", "")
+        cached = _INFRA_CACHE.get(key)
         if cached:
             graph, store_cached = cached
             if store is None:
@@ -136,8 +148,7 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
     Collect cluster state from K8s API + Helm + Helmfile.
     Skipped when a pre-built graph is already in config["configurable"].
     """
-    graph, _ = _get_infra(config)
-    if graph is not None:
+    if config.get("configurable", {}).get("graph") is not None:
         log.info("ingest: pre-built graph provided — skipping collection")
         return _stats(state, "ingest", {"skipped": True, "reason": "pre-built"})
 
@@ -195,17 +206,17 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
         log.info("ingest: %s", built_graph.summary())
 
         tid = config.get("configurable", {}).get("thread_id", "")
-        store_ref = config.get("configurable", {}).get("store")
-        _INFRA_CACHE[tid] = (built_graph, store_ref)
+        infra_key = f"{tid}:{uuid.uuid4().hex}"
+        _cache_put(infra_key, (built_graph, config.get("configurable", {}).get("store")))
         update = _stats(state, "policy", policy_stat)
-        return _stats({**state, **update}, "ingest", {
+        return {"_infra_key": infra_key, **_stats({**state, **update}, "ingest", {
             "entities": built_graph.node_count,
             "edges": built_graph.edge_count,
             "helm_releases": helm_releases,
             "helm_drift": drift_count,
             "kube_version": str(kube_ver) if kube_ver else "",
             "fallback": False,
-        })
+        })}
 
     except Exception as exc:
         log.error("ingest failed: %s", exc)
@@ -226,7 +237,7 @@ def prometheus_node(state: RCAState, config: RunnableConfig) -> dict:
         log.info("prometheus: disabled — skipping")
         return _stats(state, "prometheus", {"skipped": True})
 
-    graph, _ = _get_infra(config)
+    graph, _ = _get_infra(config, state)
     if graph is None:
         log.info("prometheus: no graph — skipping")
         return _stats(state, "prometheus", {"skipped": True, "reason": "no graph"})
@@ -266,7 +277,7 @@ def metrics_node(state: RCAState, config: RunnableConfig) -> dict:
         log.info("metrics-server: disabled — skipping")
         return _stats(state, "metrics", {"skipped": True})
 
-    graph, _ = _get_infra(config)
+    graph, _ = _get_infra(config, state)
     if graph is None:
         log.info("metrics-server: no graph — skipping")
         return _stats(state, "metrics", {"skipped": True, "reason": "no graph"})
@@ -304,7 +315,7 @@ def otel_node(state: RCAState, config: RunnableConfig) -> dict:
         update = _stats(state, "otel", {"skipped": True})
         return _stats({**state, **update}, "loki", {"skipped": True})
 
-    graph, _ = _get_infra(config)
+    graph, _ = _get_infra(config, state)
     if graph is None:
         log.info("otel: no graph — skipping")
         return {}
@@ -374,7 +385,7 @@ def gitops_node(state: RCAState, config: RunnableConfig) -> dict:
         log.info("gitops: disabled or no repo URL — skipping")
         return _stats(state, "gitops", {"skipped": True})
 
-    graph, _ = _get_infra(config)
+    graph, _ = _get_infra(config, state)
     if graph is None:
         log.info("gitops: no graph — skipping")
         return {}
@@ -432,7 +443,7 @@ def anchor_node(state: RCAState, config: RunnableConfig) -> dict:
 
     Fails silently — anchor enrichment never blocks the analysis.
     """
-    graph, _ = _get_infra(config)
+    graph, _ = _get_infra(config, state)
     if graph is None:
         log.info("anchor: no graph — skipping")
         return {}
@@ -467,7 +478,7 @@ def anchor_node(state: RCAState, config: RunnableConfig) -> dict:
 
 def index_node(state: RCAState, config: RunnableConfig) -> dict:
     """Embed entities and build FAISSStore. Skipped if already in config."""
-    graph, store = _get_infra(config)
+    graph, store = _get_infra(config, state)
     if store is not None:
         log.info("index: pre-built store provided — skipping")
         return {}
@@ -516,10 +527,10 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
     # Only *update* the entry ingest_node established for this thread — never
     # create one — so isolated node tests don't leak a graph into the global
     # cache across the suite.
-    tid = config.get("configurable", {}).get("thread_id", "")
-    cached = _INFRA_CACHE.get(tid)
+    key = state.get("_infra_key") or ""
+    cached = _INFRA_CACHE.get(key) if key else None
     if cached is not None:
-        _INFRA_CACHE[tid] = (cached[0], built_store)
+        _cache_put(key, (cached[0], built_store))
     return {}
 
 
@@ -535,7 +546,7 @@ def signal_analysis_node(state: RCAState, config: RunnableConfig) -> dict:
     surface in FAISS searches and appear in the LLM context window.
     Skipped gracefully if graph is not available.
     """
-    graph, _ = _get_infra(config)
+    graph, _ = _get_infra(config, state)
     if graph is None:
         log.info("signal_analysis: no graph — skipping")
         return {}
@@ -824,7 +835,7 @@ def hypothesize_node(state: RCAState, config: RunnableConfig) -> dict:
     from ontology.relationships import RelationshipType
     from rca.remediation_engine import RemediationEngine
 
-    graph, store = _get_infra(config)
+    graph, store = _get_infra(config, state)
     if graph is None:
         return {}
 
@@ -1020,7 +1031,7 @@ def archive_path_node(state: RCAState, config: RunnableConfig) -> dict:
     the evidence accumulated so far — the next path chosen is the one with the
     highest posterior probability given all signals observed.
     """
-    _, store   = _get_infra(config)
+    _, store   = _get_infra(config, state)
     history    = list(state.get("reasoning_history") or [])
     hypothesis = state.get("current_hypothesis") or ""
     report_dict = state.get("report_dict") or {}
@@ -1104,7 +1115,7 @@ def analyze_node(state: RCAState, config: RunnableConfig) -> dict:
     Build context window and call Mistral.
     BFS depth is widened by 1 on each retry attempt.
     """
-    graph, store = _get_infra(config)
+    graph, store = _get_infra(config, state)
     if graph is None or store is None:
         return {"error": "analyze_node: graph or store missing from config"}
 
@@ -1680,7 +1691,7 @@ def example_lookup_node(state: RCAState, config: RunnableConfig) -> dict:
     if not cfg.EXAMPLE_SHORTCUT_ENABLED:
         return {}
 
-    _, store = _get_infra(config)
+    _, store = _get_infra(config, state)
     if store is None:
         return {}
 
@@ -1733,7 +1744,7 @@ def save_example_node(state: RCAState, config: RunnableConfig) -> dict:
     from dedup.bfs import find_unhealthy
     from rca.context_builder import anchor_fix_hints
 
-    graph, store = _get_infra(config)
+    graph, store = _get_infra(config, state)
 
     report = IncidentReport.from_report_dict(state.get("report_dict"))
     # state holds the authoritative LLM label and query for this run.

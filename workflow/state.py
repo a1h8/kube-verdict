@@ -53,6 +53,7 @@ class RCAState(TypedDict, total=False):
     edge_log: list[dict]        # [{router, edge_taken, reason, snapshot, ts}]
     _confidence_edge: str       # internal: pre-computed edge for confidence_router
     _human_edge: str            # internal: pre-computed edge for human_router
+    _infra_key: str             # internal: this run's entry in the graph/store cache (H9)
 
     # ── Decision Engine (B6) ─────────────────────────────────────────────────
     mc_result: dict[str, Any]   # MCResult fields: win_rate, mean_score, std_score, is_stable, n_sims
