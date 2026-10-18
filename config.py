@@ -78,8 +78,12 @@ OTEL_TOKEN: str | None = os.getenv("OTEL_TOKEN") or None
 OTEL_LOOKBACK_HOURS: int = _int("OTEL_LOOKBACK_HOURS", 1)
 OTEL_TIMEOUT: int = _int("OTEL_TIMEOUT", 30)
 # OTLP push receiver (used when OTEL_BACKEND_TYPE=otlp)
-OTLP_HOST: str = os.getenv("OTLP_HOST", "0.0.0.0")
+# Loopback by default: anything that reaches the port writes evidence. Set OTLP_HOST=0.0.0.0 to
+# receive from a collector, with OTLP_TOKEN (the sender sends `Authorization: Bearer <token>`).
+OTLP_HOST: str = os.getenv("OTLP_HOST", "127.0.0.1")
 OTLP_PORT: int = _int("OTLP_PORT", 4318)
+OTLP_TOKEN: str = os.getenv("OTLP_TOKEN", "")
+OTLP_MAX_BODY_BYTES: int = _int("OTLP_MAX_BODY_BYTES", 16 * 1024 * 1024)
 
 # ── Self-observability (B15) — kube-verdict's own OTLP export, not evidence ingestion ──
 OTEL_SELF_MONITORING_ENABLED: bool = os.getenv("OTEL_SELF_MONITORING_ENABLED", "false").lower() == "true"

@@ -11,6 +11,7 @@ Usage:
     python send_trace.py --endpoint http://host:4318
     python send_trace.py --service payment --json         # use OTLP/JSON instead
     python send_trace.py --gzip                            # gzip the request body
+    python send_trace.py --token "$OTLP_TOKEN"             # when the receiver requires one
 """
 from __future__ import annotations
 
@@ -72,6 +73,7 @@ def main() -> int:
     ap.add_argument("--service", default="checkout", help="service.name to report")
     ap.add_argument("--json", action="store_true", help="send OTLP/JSON instead of protobuf")
     ap.add_argument("--gzip", action="store_true", help="gzip-compress the request body")
+    ap.add_argument("--token", default="", help="bearer token (the receiver's OTLP_TOKEN)")
     args = ap.parse_args()
 
     url = args.endpoint.rstrip("/") + "/v1/traces"
@@ -84,6 +86,8 @@ def main() -> int:
     if args.gzip:
         body = gzip.compress(body)
         headers["Content-Encoding"] = "gzip"
+    if args.token:
+        headers["Authorization"] = f"Bearer {args.token}"
 
     req = urllib.request.Request(url, data=body, headers=headers)
     try:

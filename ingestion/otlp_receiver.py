@@ -14,24 +14,27 @@ Spec: https://opentelemetry.io/docs/specs/otlp/#otlphttp
 
 Usage
 -----
-    receiver = OtlpReceiver(host="0.0.0.0", port=4318)
+    receiver = OtlpReceiver(host="127.0.0.1", port=4318, token="…")
     receiver.start()                    # non-blocking
     collector = OtelCollector(receiver, lookback_hours=1)
     collector.collect(graph)
     receiver.stop()
 
 Config env vars (read by config.py, forwarded by build_backend):
-    OTLP_HOST          default 0.0.0.0
-    OTLP_PORT          default 4318
-    OTLP_MAX_TRACES    default 2000
+    OTLP_HOST            default 127.0.0.1 (0.0.0.0 to receive from a collector)
+    OTLP_PORT            default 4318
+    OTLP_TOKEN           when set, a request needs `Authorization: Bearer <token>`
+    OTLP_MAX_BODY_BYTES  default 16 MiB, after gzip decompression too
+    OTLP_MAX_TRACES      default 2000
 """
 from __future__ import annotations
 
-import gzip
+import hmac
 import json
 import logging
 import threading
 import time
+import zlib
 from collections import deque
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
@@ -41,10 +44,26 @@ from ingestion.otel_backend import OtelBackend, in_namespace
 log = logging.getLogger(__name__)
 
 _DEFAULT_MAX_TRACES = 2_000
+_DEFAULT_MAX_BODY = 16 * 1024 * 1024
 
 
 class _DecodeError(Exception):
     """Raised when a request body cannot be parsed as OTLP JSON or protobuf."""
+
+
+class _TooLarge(Exception):
+    """Raised when a gzip body decompresses past the size limit."""
+
+
+def _gunzip(body: bytes, limit: int) -> bytes:
+    """Decompress gzip, refusing more than *limit* bytes of output (no decompression bomb)."""
+    d = zlib.decompressobj(wbits=16 + zlib.MAX_WBITS)
+    out = d.decompress(body, limit + 1)
+    if len(out) > limit or d.unconsumed_tail:
+        raise _TooLarge
+    if not d.eof:
+        raise EOFError("truncated gzip body")
+    return out
 
 
 class OtlpReceiver(OtelBackend):
@@ -57,15 +76,19 @@ class OtlpReceiver(OtelBackend):
 
     def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 4318,
         max_traces: int = _DEFAULT_MAX_TRACES,
+        token: str | None = None,
+        max_body_bytes: int = _DEFAULT_MAX_BODY,
     ) -> None:
         # OtelBackend.__init__ expects url, token, timeout — pass dummy values
         super().__init__(url=f"http://{host}:{port}", token=None, timeout=30)
         self._host = host
         self._port = port
         self._max_traces = max_traces
+        self._token = token or ""
+        self._max_body = max_body_bytes
         self._lock = threading.Lock()
         self._traces: dict[str, dict] = {}           # trace_id → normalised
         self._arrival_order: deque[str] = deque()    # trace_ids in arrival order
@@ -85,12 +108,28 @@ class OtlpReceiver(OtelBackend):
                     self.send_response(404)
                     self.end_headers()
                     return
-                length = int(self.headers.get("Content-Length", 0))
+                if receiver._token and not hmac.compare_digest(
+                        self.headers.get("Authorization", ""), f"Bearer {receiver._token}"):
+                    self.send_response(401)
+                    self.end_headers()
+                    return
+                try:
+                    length = int(self.headers.get("Content-Length", 0))
+                except ValueError:
+                    length = -1
+                if length < 0 or length > receiver._max_body:
+                    self.send_response(413)
+                    self.end_headers()
+                    return
                 body = self.rfile.read(length) if length else b""
                 if self.headers.get("Content-Encoding", "").lower() == "gzip":
                     try:
-                        body = gzip.decompress(body)
-                    except (OSError, EOFError):
+                        body = _gunzip(body, receiver._max_body)
+                    except _TooLarge:
+                        self.send_response(413)
+                        self.end_headers()
+                        return
+                    except (zlib.error, OSError, EOFError):
                         self.send_response(400)
                         self.end_headers()
                         return
@@ -251,16 +290,19 @@ _shared: dict[tuple[str, int], OtlpReceiver] = {}
 
 
 def get_shared_receiver(
-    host: str = "0.0.0.0",
+    host: str = "127.0.0.1",
     port: int = 4318,
     max_traces: int = _DEFAULT_MAX_TRACES,
+    token: str | None = None,
+    max_body_bytes: int = _DEFAULT_MAX_BODY,
 ) -> OtlpReceiver:
     """Return a started, process-wide OtlpReceiver for (host, port), creating it once."""
     key = (host, port)
     with _shared_lock:
         receiver = _shared.get(key)
         if receiver is None or not receiver.is_available():
-            receiver = OtlpReceiver(host=host, port=port, max_traces=max_traces)
+            receiver = OtlpReceiver(host=host, port=port, max_traces=max_traces,
+                                    token=token, max_body_bytes=max_body_bytes)
             receiver.start()
             _shared[key] = receiver
         return receiver
