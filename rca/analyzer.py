@@ -129,11 +129,54 @@ def _generate_rollback(remediation: list[str]) -> list[str]:
                 ns_parts = [parts[i + 1] for i, p in enumerate(parts) if p == "-n" and i + 1 < len(parts)]
                 ns = f"-n {ns_parts[0]}" if ns_parts else ""
                 rollback.append(f"helm rollback {release} {ns}".strip())
-        elif cmd.startswith("kubectl apply -f"):
-            rollback.append(cmd.replace("apply -f", "delete -f", 1))
         elif cmd.startswith("kubectl create"):
-            rollback.append(cmd.replace("create", "delete", 1))
+            inverse = _delete_created(cmd)
+            if inverse:
+                rollback.append(inverse)
+        # `kubectl apply -f X` has no computable inverse: apply also modifies objects that
+        # existed, and `delete -f X` would remove them (docs/fix-plan-001.md, H19).
     return rollback
+
+
+def _delete_created(cmd: str) -> str:
+    """`kubectl create <kind> <name> [flags]` → `kubectl delete <kind> <name> [-n ns]`."""
+    parts = cmd.split()
+    words = [p for p in parts[2:] if not p.startswith("-")]
+    ns = [parts[i + 1] for i, p in enumerate(parts) if p in ("-n", "--namespace") and i + 1 < len(parts)]
+    if len(words) < 2 or "=" in words[1] or "-f" in parts or "--filename" in parts:
+        return ""
+    kind, name = words[0], words[1]
+    if kind in ("secret", "service", "svc") and len(words) >= 3:   # `create secret generic x`
+        name = words[2]
+    return f"kubectl delete {kind} {name}" + (f" -n {ns[0]}" if ns else "")
+
+
+# Deleting these is not undone by recreating them from a controller: data or every object in them
+# goes with them.
+_SELF_HEALING_DELETE = {"pod", "pods", "po"}
+# A command starts with a lowercase program name; rule labels (`[rule:…] …`) and prose do not.
+_COMMAND_START = re.compile(r"^[a-z][a-z0-9._-]*(\s|$)")
+
+
+def unrecoverable_commands(remediation: list[str]) -> list[str]:
+    """Actions with no computed inverse (docs/fix-plan-001.md, H19).
+
+    Read-only lines, comments and prose are not actions; deleting a pod is recovered by its controller;
+    any other line needs its own inverse from ``_generate_rollback`` — one inverse among several
+    commands does not make the whole set reversible.
+    """
+    out: list[str] = []
+    for raw in remediation:
+        cmd = raw.strip().lstrip("$ ").strip()
+        if not cmd or not _COMMAND_START.match(cmd) or is_read_only(cmd):
+            continue
+        parts = cmd.split()
+        if parts[:2] == ["kubectl", "delete"] and len(parts) > 2 and \
+                parts[2].split("/")[0].split(".")[0] in _SELF_HEALING_DELETE:
+            continue
+        if not _generate_rollback([cmd]):
+            out.append(cmd)
+    return out
 
 
 @dataclass

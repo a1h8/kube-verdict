@@ -45,7 +45,7 @@
 - [x] **H18 — an approval never reaches remediation.** `log_human_decision` runs before
   `human_review`, so `human_router` always reads "reject". → the decision is logged after the
   interrupt; test: resume with `approve` reaches `remediation`, `reject` does not.
-- [ ] **H19 — AUTO accepts an irreversible change.** One inverse among N commands marks the whole
+- [x] **H19 — AUTO accepts an irreversible change.** One inverse among N commands marks the whole
   set reversible, and `apply -f X` is "rolled back" with `delete -f X`. → every command needs its
   own inverse; `apply` has none we can compute; `delete` of a PVC, namespace or StatefulSet is
   irreversible.

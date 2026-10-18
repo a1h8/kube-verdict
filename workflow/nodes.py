@@ -18,7 +18,7 @@ from langgraph.types import interrupt
 
 import config as cfg
 import telemetry
-from rca.analyzer import RCAAnalyzer, _generate_rollback
+from rca.analyzer import RCAAnalyzer, _generate_rollback, unrecoverable_commands
 from rca.context_builder import ContextBuilder
 from decision.decision_engine import DecisionEngine
 from decision.models import IncidentReport
@@ -1487,16 +1487,24 @@ def blast_radius_node(state: RCAState, config: RunnableConfig) -> dict:
     affected    = report.get("affected") or []
     rollback    = report.get("rollback") or _generate_rollback(remediation)
 
+    unrecoverable = unrecoverable_commands(remediation)
+
     drift_rows = state.get("drift_evidence") or []
+    br = None
     if drift_rows:
         drifts, drift_ns = _drifts_from_evidence(drift_rows)
         if drifts:
             br = compute_blast_radius_from_diff(drifts, rollback, namespaces=drift_ns)
             log.info("blast_radius[rendered-diff]: risk=%s  %s", br["risk"], br["summary"])
-            return {"blast_radius": br}
+    if br is None:
+        br = compute_blast_radius(remediation, affected, rollback)
+        log.info("blast_radius[heuristic]: risk=%s  %s", br["risk"], br["summary"])
 
-    br = compute_blast_radius(remediation, affected, rollback)
-    log.info("blast_radius[heuristic]: risk=%s  %s", br["risk"], br["summary"])
+    # Every action needs its own way back (docs/fix-plan-001.md, H19).
+    if unrecoverable:
+        br = {**br, "rollback_available": False, "unrecoverable": unrecoverable,
+              "summary": f"{br['summary']} — no rollback for: {'; '.join(unrecoverable[:3])}"}
+        log.info("blast_radius: %d command(s) without rollback", len(unrecoverable))
     return {"blast_radius": br}
 
 
