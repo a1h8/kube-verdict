@@ -435,7 +435,8 @@ def gitops_node(state: RCAState, config: RunnableConfig) -> dict:
         try:
             provider = make_provider(repo["url"], branch=repo.get("branch") or cfg.GITOPS_BRANCH,
                                      token=repo.get("token") or None)
-            drifts += GitopsCollector(provider, charts_path=charts_path).collect(graph)
+            drifts += GitopsCollector(provider, charts_path=charts_path,
+                                      values_source=cfg.GITOPS_VALUES_SOURCE).collect(graph)
             if getattr(provider, "last_error", None):
                 # an unreadable repository renders nothing: no drift ≠ no divergence (H5)
                 errors.append(f"{repo.get('label') or repo['url']}: {provider.last_error}")

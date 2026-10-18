@@ -25,7 +25,7 @@
       "report_dict": {
         "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
         "kube_version": "unknown",
-        "timestamp": "2026-10-18T16:59:26.037609+00:00",
+        "timestamp": "2026-10-18T16:59:35.712517+00:00",
         "summary": "The evidence for this hypothesis is inconclusive.",
         "affected": [
           "(none confirmed)",
@@ -197,7 +197,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-18T16:59:26.035959+00:00"
+      "ts": "2026-10-18T16:59:35.709914+00:00"
     },
     {
       "router": "confidence",
@@ -216,7 +216,7 @@
         "declining": true,
         "beam_switches": 1
       },
-      "ts": "2026-10-18T16:59:26.038870+00:00"
+      "ts": "2026-10-18T16:59:35.714140+00:00"
     },
     {
       "router": "confidence",
@@ -234,7 +234,7 @@
         "declining": false,
         "beam_switches": 1
       },
-      "ts": "2026-10-18T16:59:26.041777+00:00"
+      "ts": "2026-10-18T16:59:35.717929+00:00"
     },
     {
       "router": "policy",
@@ -249,7 +249,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-18T16:59:26.044756+00:00"
+      "ts": "2026-10-18T16:59:35.721147+00:00"
     }
   ],
   "ingestion_stats": {
@@ -295,7 +295,7 @@
   "report": {
     "query": "HYPOTHESIS TO INVESTIGATE:\netcd compaction latency makes Range calls exceed the readiness timeout\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-18T16:59:26.040551+00:00",
+    "timestamp": "2026-10-18T16:59:35.716095+00:00",
     "summary": "inventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.",
     "affected": [
       "Pod/production/inventory-api-7f9c8d6b5-x2qwe — Running, not Ready"
@@ -479,7 +479,7 @@
         "report_dict": {
           "query": "HYPOTHESIS TO INVESTIGATE:\nDeployment degraded — fewer replicas ready than desired affecting Deployment/production/inventory-api\n\nINCIDENT QUERY:\nwhy is inventory-api not ready",
           "kube_version": "unknown",
-          "timestamp": "2026-10-18T16:59:26.037609+00:00",
+          "timestamp": "2026-10-18T16:59:35.712517+00:00",
           "summary": "The evidence for this hypothesis is inconclusive.",
           "affected": [
             "(none confirmed)",
@@ -663,7 +663,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-18T16:59:26.035959+00:00"
+        "ts": "2026-10-18T16:59:35.709914+00:00"
       },
       {
         "router": "confidence",
@@ -682,7 +682,7 @@
           "declining": true,
           "beam_switches": 1
         },
-        "ts": "2026-10-18T16:59:26.038870+00:00"
+        "ts": "2026-10-18T16:59:35.714140+00:00"
       },
       {
         "router": "confidence",
@@ -700,7 +700,7 @@
           "declining": false,
           "beam_switches": 1
         },
-        "ts": "2026-10-18T16:59:26.041777+00:00"
+        "ts": "2026-10-18T16:59:35.717929+00:00"
       },
       {
         "router": "policy",
@@ -715,7 +715,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-18T16:59:26.044756+00:00"
+        "ts": "2026-10-18T16:59:35.721147+00:00"
       }
     ],
     "hypothesis_sources": [

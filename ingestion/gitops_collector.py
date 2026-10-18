@@ -52,7 +52,17 @@ class GitopsCollector:
         renderer: ManifestRenderer | None = None,
         differ: ManifestDiffer | None = None,
         track_orphans: bool = False,
+        values_source: str = "deployed",
     ) -> None:
+        # "deployed": render the Git chart with the release's deployed values (helm get values)
+        #   — sees an out-of-band edit of a live object (kubectl edit), not a values change.
+        # "git": render with what Git declares (the chart's values.yaml, the Helmfile's value
+        #   files and inline values) — also sees deployed values that differ from Git.
+        # docs/fix-plan-001.md, H48: only "deployed" existed, so "GitOps drift" never compared
+        # with Git's values.
+        if values_source not in ("deployed", "git"):
+            raise ValueError(f"values_source must be 'deployed' or 'git', not {values_source!r}")
+        self._values_source = values_source
         self._provider = provider
         self._charts_path = charts_path.rstrip("/")
         self._renderer = renderer or ManifestRenderer()
@@ -92,11 +102,13 @@ class GitopsCollector:
                       release.namespace, release.name)
             return []
 
+        # a live Helm release's values are what was deployed, not what Git declares
+        from_git = self._values_source == "git" and release.source != "helmfile"
         rendered = self._renderer.render(
             chart=chart_ref,
             release_name=release.name,
             namespace=release.namespace or "default",
-            values=release.values,
+            values=None if from_git else release.values,
             value_files=release.value_files,
             repo_url=repo_url,
             chart_version=release.chart_version or None,
