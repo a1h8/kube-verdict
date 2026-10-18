@@ -106,6 +106,11 @@ class K8sCollector:
 
         self._discovery = APIServerDiscovery(self._api_client)
 
+    @property
+    def api_client(self) -> k8s_client.ApiClient:
+        """The configured client, impersonation headers included — for collectors run alongside."""
+        return self._api_client
+
     # ------------------------------------------------------------------
     # Public entry point
     # ------------------------------------------------------------------

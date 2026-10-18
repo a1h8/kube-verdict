@@ -91,6 +91,9 @@ class PolicyCollector:
         self._custom   = k8s_client.CustomObjectsApi(api_client)
         self._admission = k8s_client.AdmissionregistrationV1Api(api_client)
         self._timeout  = timeout
+        # Set when a listing failed for another reason than "CRD not installed" (403, timeout…):
+        # the caller must not read the empty result as "no violation".
+        self.last_error: str | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -114,6 +117,7 @@ class PolicyCollector:
             None = all namespaces.
         """
         result = PolicyCollectResult()
+        self.last_error = None
 
         # Namespaced PolicyReports
         reports = self._fetch_namespaced_reports(namespaces)
@@ -176,8 +180,10 @@ class PolicyCollector:
                 log.debug("policy: wgpolicyk8s.io PolicyReport CRD not installed — skipping")
             else:
                 log.warning("policy: failed to fetch PolicyReports: %s", exc)
+                self.last_error = f"PolicyReports: {exc.status} {exc.reason}"
         except Exception as exc:
             log.warning("policy: unexpected error fetching PolicyReports: %s", exc)
+            self.last_error = f"PolicyReports: {exc}"
         return reports
 
     def _fetch_cluster_reports(self) -> list[dict]:
@@ -192,8 +198,10 @@ class PolicyCollector:
                 log.debug("policy: ClusterPolicyReport CRD not installed — skipping")
             else:
                 log.warning("policy: failed to fetch ClusterPolicyReports: %s", exc)
+                self.last_error = f"ClusterPolicyReports: {exc.status} {exc.reason}"
         except Exception as exc:
             log.warning("policy: unexpected error fetching ClusterPolicyReports: %s", exc)
+            self.last_error = f"ClusterPolicyReports: {exc}"
         return []
 
     # ------------------------------------------------------------------
@@ -309,8 +317,10 @@ class PolicyCollector:
                 log.debug("policy: MutatingWebhookConfiguration %s added", meta.name)
         except ApiException as exc:
             log.warning("policy: failed to fetch MutatingWebhookConfigurations: %s", exc)
+            self.last_error = f"MutatingWebhookConfigurations: {exc.status} {exc.reason}"
         except Exception as exc:
             log.warning("policy: unexpected error fetching webhooks: %s", exc)
+            self.last_error = f"MutatingWebhookConfigurations: {exc}"
         return count
 
 

@@ -67,7 +67,7 @@
   prints the pipeline's steps; `--policy` is a no-op kept for existing callers. Tests:
   `tests/unit/test_cli.py` (the service is called; control: the CLI module no longer has its
   own collectors or analyzer).
-- [ ] **H2 — `PolicyCollector` only in the CLI.** → collected in the workflow as its own `policy`
+- [x] **H2 — `PolicyCollector` only in the CLI.** → collected in the workflow as its own `policy`
   step (so a failure counts in `_ingestion_failures`, H12), with the K8s collector's API client
   (impersonation applies), and a refused listing is reported (`last_error`), not read as "no
   violation".

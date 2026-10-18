@@ -170,13 +170,34 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
             hf.collect(built_graph)
 
         drift_count = HelmDriftDetector().detect_all(built_graph)
+
+        # Policy reports (Kyverno / OPA PolicyReport) and mutating webhooks — collected on
+        # every run, not only by the CLI's old --policy flag (docs/fix-plan-001.md, H2). Same
+        # API client as the K8s collector, so impersonation applies. A cluster without the
+        # PolicyReport CRD is not a failure; a refused or broken listing is (its own step, so
+        # _ingestion_failures sees it).
+        try:
+            from ingestion import PolicyCollector
+            policies = PolicyCollector(api_client=getattr(collector, "api_client", None))
+            pr = policies.collect(
+                built_graph, namespaces=state.get("namespaces") or cfg.KUBE_NAMESPACES or None)
+            policy_stat = {"fail": pr.fail_count, "audit": pr.audit_count,
+                           "webhooks": pr.mutation_webhooks,
+                           "fallback": bool(policies.last_error)}
+            if policies.last_error:
+                policy_stat["error"] = policies.last_error
+        except Exception as exc:  # noqa: BLE001 — policies must never break the investigation
+            log.warning("policy collection failed: %s", exc)
+            policy_stat = {"fallback": True, "error": str(exc)}
+
         kube_ver = getattr(collector, "kube_version", None)
         log.info("ingest: %s", built_graph.summary())
 
         tid = config.get("configurable", {}).get("thread_id", "")
         store_ref = config.get("configurable", {}).get("store")
         _INFRA_CACHE[tid] = (built_graph, store_ref)
-        return _stats(state, "ingest", {
+        update = _stats(state, "policy", policy_stat)
+        return _stats({**state, **update}, "ingest", {
             "entities": built_graph.node_count,
             "edges": built_graph.edge_count,
             "helm_releases": helm_releases,
