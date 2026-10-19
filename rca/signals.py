@@ -96,6 +96,12 @@ class SignalSet:
         return [s for s in self.signals if s.signal_id in ids]
 
 
+def _as_dict(value) -> dict:
+    """A container state is an object in the API; anything else (a bare reason string) is read
+    as no state rather than crash the extraction."""
+    return value if isinstance(value, dict) else {}
+
+
 def _iso(value) -> str:
     if value is None or value == "":
         return ""
@@ -210,7 +216,7 @@ def _from_pods(graph: OntologyGraph, b: _Builder) -> None:
         me = [(pod.fqn, "self", 1.0)]
         for cs in pod.container_statuses:
             name = cs.get("name", "")
-            state, last = cs.get("state") or {}, cs.get("lastState") or {}
+            state, last = _as_dict(cs.get("state")), _as_dict(cs.get("lastState"))
             waiting = (state.get("waiting") or {}).get("reason", "")
             kind = {"CrashLoopBackOff": "container.crashloop", "CreateContainerConfigError": "container.config_error",
                     "ImagePullBackOff": "image.pull_failed", "ErrImagePull": "image.pull_failed"}.get(waiting)
@@ -226,7 +232,7 @@ def _from_pods(graph: OntologyGraph, b: _Builder) -> None:
                       event_time=(last.get("terminated") or {}).get("finishedAt", ""),
                       observed={"container": name, "restarts": cs.get("restartCount")})
         for cs in pod.init_container_statuses:
-            state, last = cs.get("state") or {}, cs.get("lastState") or {}
+            state, last = _as_dict(cs.get("state")), _as_dict(cs.get("lastState"))
             term = (state.get("terminated") or {}) or (last.get("terminated") or {})
             code = term.get("exitCode")
             if code not in (None, 0, "0"):

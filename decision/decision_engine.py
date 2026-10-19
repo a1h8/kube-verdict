@@ -40,6 +40,7 @@ class DecisionEngine:
         mc_win_rate: float = 1.0,
         max_switches_reached: bool = False,
         command_count: int | None = None,
+        score: float | None = None,
     ) -> DecisionResult:
         """Classify a remediation given the report and its safety context.
 
@@ -47,7 +48,9 @@ class DecisionEngine:
         ``risk=HIGH`` (blast radius unknown) and ``rollback_available=False``
         both push away from AUTO.
         """
-        score = self.score_for(report.confidence)
+        # the structured diagnosis' score when given (docs/structured-in-product.md, rule 6);
+        # the LLM label's mapping otherwise
+        score = self.score_for(report.confidence) if score is None else score
         gate = pg_evaluate(
             score=score,
             risk=risk,

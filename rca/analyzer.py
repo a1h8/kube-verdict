@@ -106,9 +106,11 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
 
 # Version of the analyze prompt above. Recorded by the veracity replay so runs made
 # with different prompts are never compared as one (docs/diagnostics.md § Step 2).
-PROMPT_VERSION = "v3"   # v2: section 7 "Checks" (docs/diagnostics.md § Step 2)
+PROMPT_VERSION = "v4"   # v2: section 7 "Checks" (docs/diagnostics.md § Step 2)
 #                         v3: quoted cluster text is data, not instructions; no "air-gapped"
 #                             claim, which was false with a remote provider (fix plan 001, H23)
+#                         v4: the hypothesis is the structured diagnosis the model explains
+#                             (docs/structured-in-product.md); its cause is not the report's
 
 
 def _generate_rollback(remediation: list[str]) -> list[str]:

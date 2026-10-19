@@ -91,10 +91,13 @@
   workflow's `index` step for every entry point.
 - [ ] **H17 — three "expected state" paths; the only real render-vs-live diff runs outside the
   workflow** (MCP tools). → one path, in the workflow (with F11).
-- [ ] **H4 — the product does not use the structured diagnosis.** `rca/diagnosis.py` is called only
+- [x] **H4 — the product does not use the structured diagnosis.** `rca/diagnosis.py` is called only
   by the measurement tools. → the workflow runs `extract_signals` + `diagnose`; its outcome is the
   report's diagnosis; the LLM, when enabled, words it. Spec: `docs/structured-in-product.md` (with H17, the two
-  engines and H5's abstention).
+  engines and H5's abstention). Done 2026-10-19 (rules 1–6): `diagnose` node, report = diagnosis,
+  abstention on a failed collector, the LLM explains and its disagreement is recorded,
+  `LLM_PROVIDER=none`, the gate scores the diagnosis (an abstention is reviewed), the Monte Carlo
+  out of the decision; the workflow's report equals the structured solver on the 19 cases.
 - [ ] **Two rule engines.** The old `RemediationEngine` still injects the hypothesis into the LLM
   prompt and backs the reasoning-path "rule" step; its rules claim a precise cause on a broad clue
   (any Pending pod, any "not found" event, H22) and propose fixed commands (`demo/charts/…`, H21).

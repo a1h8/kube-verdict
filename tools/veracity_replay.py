@@ -162,6 +162,11 @@ def solve_llm(case_name: str, client, run: int) -> dict:
         "fallbacks": sorted(k for k, v in stats.items() if isinstance(v, dict) and v.get("fallback")),
         "signals_mode": (stats.get("signals") or {}).get("mode"),
         "root_cause": report.get("root_cause", ""),
+        # docs/structured-in-product.md: the report's cause is the structured diagnosis; what
+        # the model adds is its explanation, graded on its own, and whether it disagreed
+        "explanation": report.get("explanation", ""),
+        "explanation_veracity": grade(report.get("explanation", ""), grading_expect(expect))["veracity"],
+        "llm_disagreement": state.get("llm_disagreement") or "",
         # docs/case-audit-001.md F8: what the model was sent and what it read
         "llm_calls": list(getattr(result.llm, "calls", [])),
         "num_ctx_max": getattr(client, "num_ctx_max", None),

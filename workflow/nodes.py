@@ -26,7 +26,6 @@ from decision.decision_engine import DecisionEngine
 from decision.models import IncidentReport
 from reasoning.beam_search import MAX_SWITCHES, should_switch_path
 from reasoning.monte_carlo import run_monte_carlo
-from reasoning.template_catalog import TemplateCatalog
 from remediation.blast_radius import (
     compute_blast_radius,
     compute_blast_radius_from_diff,
@@ -593,6 +592,88 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Structured diagnosis — docs/structured-in-product.md
+# ─────────────────────────────────────────────────────────────────────────────
+
+def diagnose_node(state: RCAState, config: RunnableConfig) -> dict:
+    """Typed signals → ranked diagnoses, or an abstention. The report's cause (rule 2).
+
+    A ``no_incident`` with a collector that reported a failure is ``insufficient_evidence``:
+    what could not be read is not known to be healthy (rule 3, fix plan H5)."""
+    from rca.diagnosis import diagnose
+    from rca.signals import extract_signals
+    graph, _ = _get_infra(config, state)
+    if graph is None:
+        return {}
+    try:
+        outcome = diagnose(extract_signals(graph))
+    except Exception as exc:  # noqa: BLE001 — a diagnosis failure is an abstention, not a crash
+        log.error("diagnose failed: %s", exc)
+        return {"diagnosis": {"outcome": "insufficient_evidence", "confidence": "LOW", "score": 0.0,
+                              "root_cause": f"Insufficient evidence: the diagnosis failed ({exc}).",
+                              "failed_collectors": ["diagnose"], "diagnoses": []}}
+    failures = _ingestion_failures(state)
+    abstention = outcome.outcome
+    root_cause = outcome.root_cause()
+    if abstention == "no_incident" and failures:
+        abstention = "insufficient_evidence"
+        root_cause = ("Insufficient evidence: no fault signal, but collection failed for "
+                      + ", ".join(failures) + " — what they hold is unknown.")
+    diagnosis = {
+        "outcome": abstention,
+        "root_cause": root_cause,
+        "confidence": outcome.confidence if abstention == "cause" else "LOW",
+        "score": round(outcome.diagnoses[0].score, 3) if abstention == "cause" else 0.0,
+        "failed_collectors": failures,
+        "diagnoses": [{"family": d.family, "cause": d.cause, "location": d.cause_location,
+                       "score": round(d.score, 3), "label": d.label, "rule": d.rule,
+                       "checks": list(d.checks), "signal_ids": list(d.signal_ids)}
+                      for d in outcome.diagnoses],
+    }
+    log.info("diagnose: %s — %s", abstention, root_cause[:120])
+    return {"diagnosis": diagnosis}
+
+
+def _location_name(location: str) -> str:
+    return location.rsplit("/", 1)[-1].lower()
+
+
+def _report_from_diagnosis(state: RCAState, llm_report: dict | None) -> tuple[dict, str]:
+    """The report: the diagnosis decides, the LLM (if any) explains and proposes (rule 4).
+
+    Returns (report_dict, disagreement). The LLM disagrees when its root cause names none of
+    the reported diagnoses' locations."""
+    diag = state.get("diagnosis") or {}
+    reported = diag.get("diagnoses") or []
+    report = dict(llm_report or {})
+    llm_cause = str(report.get("root_cause") or "")
+    disagreement = ""
+    if llm_report is not None and reported and not any(
+            _location_name(d["location"]) in llm_cause.lower() for d in reported):
+        disagreement = (f"the LLM named another cause ({llm_cause[:200]!r}); "
+                        f"the structured diagnosis stands")
+    report.update({
+        "query":       state.get("query", ""),
+        "root_cause":  diag.get("root_cause", ""),
+        "affected":    [d["location"] for d in reported],
+        "confidence":  diag.get("confidence", "LOW"),
+        "diagnostics": [{"command": c, "source": "rule", "hypothesis": d["rule"],
+                         "affected": d["location"], "purpose": "", "confirms_if": "",
+                         "refutes_if": ""} for d in reported for c in d.get("checks", [])]
+                       + list(report.get("diagnostics") or []),
+        "diagnosis":   diag,
+        "explanation": llm_cause,
+        "llm_disagreement": disagreement,
+    })
+    report.setdefault("summary", diag.get("root_cause", ""))
+    report.setdefault("remediation", [])
+    report.setdefault("rollback", [])
+    if llm_report is None:
+        report["summary"] = diag.get("root_cause", "")
+    return report, disagreement
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Signal analysis (PatchTST)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -637,401 +718,33 @@ def signal_analysis_node(state: RCAState, config: RunnableConfig) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Hypothesis generation (LLM-based — uses cluster evidence)
+# Hypotheses — the ranked structured diagnoses
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _parse_hypotheses(raw: str) -> list[str]:
-    """
-    Flexible parser for LLM hypothesis output.
-    Tries in order:
-      1. Explicit H1:/H2:/H3: format
-      2. Numbered list  1. / 2. / 3.
-      3. Bullet list    - / * / •
-    Returns stripped, non-empty strings only.
-    """
-    patterns = [
-        re.compile(r"^H\d+[:.]\s*(.+)", re.IGNORECASE),   # H1: ... or H1. ...
-        re.compile(r"^\d+[.)]\s+(.+)"),                     # 1. ... or 1) ...
-        re.compile(r"^[-*•]\s+(.+)"),                       # - ... or * ...
-    ]
-    for pat in patterns:
-        results = []
-        for line in raw.splitlines():
-            m = pat.match(line.strip())
-            if m:
-                text = m.group(1).strip()
-                if len(text) > 10:  # skip spuriously short matches
-                    results.append(text)
-        if results:
-            return results
-    return []
-
-
-def _graph_snapshot(graph) -> str:
-    """Compact cluster snapshot for the hypothesis prompt — entity states + drifts."""
-    lines: list[str] = []
-    for entity in graph.entities():
-        kind = getattr(entity.kind, "value", entity.kind)
-        ns   = entity.namespace or ""
-        name = entity.name
-        ann  = getattr(entity, "annotations", {}) or {}
-        sigs: list[str] = []
-
-        for cs in (getattr(entity, "container_statuses", None) or []):
-            s = cs.get("state", "")
-            if s in ("CrashLoopBackOff", "OOMKilled", "Error"):
-                sigs.append(
-                    f"container={cs.get('name','')} state={s} "
-                    f"restarts={cs.get('restart_count','?')}"
-                )
-
-        phase = (
-            ann.get("status.phase")
-            or getattr(entity, "status_phase", None)
-            or getattr(entity, "phase", None)
-        )
-        if phase in ("Pending", "Failed"):
-            sigs.append(f"phase={phase}")
-
-        if kind == "Deployment":
-            r  = getattr(entity, "replicas", None)
-            rr = getattr(entity, "ready_replicas", None)
-            if r and rr is not None and int(rr) < int(r):
-                sigs.append(f"degraded={rr}/{r} replicas ready")
-
-        crits = [v for k, v in ann.items() if k.startswith("drift.") and "critical" in str(v)]
-        if crits:
-            sigs.append(f"critical_drifts={len(crits)}")
-
-        anchor_keys = [
-            k[len("anchor."):] for k, v in ann.items()
-            if k.startswith("anchor.") and "[manifest]" in str(v)
-        ]
-        if anchor_keys:
-            sigs.append(f"anchor_violations={','.join(anchor_keys[:3])}")
-
-        if sigs:
-            lines.append(f"  {kind} {ns}/{name}: {'; '.join(sigs)}")
-
-    return "\n".join(lines) if lines else "  (no obvious unhealthy signals detected)"
-
-
-def _build_hypothesis_context(graph, store, query: str) -> tuple[str, list[dict]]:
-    """
-    Build a pre-ranked evidence block to anchor hypothesis ordering.
-
-    Uses deterministic rule-based scoring (RemediationEngine), active policy
-    violations, manifest anchor drift, and FAISS example matches so the LLM
-    ranks H1/H2/H3 based on ALL available signals — not just raw entity states.
-
-    Returns:
-        evidence_block  — formatted string injected into the hypothesize prompt
-        rule_sources    — serialisable list of rule hits stored in state for UI
-    """
-    from ontology.entities import ResourceKind, PolicyViolation
-    from rca.remediation_engine import RemediationEngine
-
-    sections: list[str] = []
-    rule_sources: list[dict] = []
-
-    # ── 1. Rule-based diagnostics (deterministic, weight-ordered) ─────────────
-    rule_hyps = RemediationEngine().score(graph)[:5]
-    if rule_hyps:
-        block = "DETERMINISTIC RULE EVIDENCE (ordered by diagnostic weight):\n"
-        for h in rule_hyps:
-            block += f"  [{h.weight:.2f}] {h.symptom}  →  {h.affected}\n"
-            if h.evidence:
-                block += f"         corroborated by: {', '.join(h.evidence[:2])}\n"
-        sections.append(block)
-        rule_sources = [
-            {
-                "rule_id":  h.rule_id,
-                "symptom":  h.symptom,
-                "affected": h.affected,
-                "weight":   round(h.weight, 2),
-                "evidence": h.evidence,
-            }
-            for h in rule_hyps
-        ]
-
-    # ── 2. Policy violations (OPA / Kyverno FAIL) ─────────────────────────────
-    policy_fails = [
-        e for e in graph.entities(ResourceKind.POLICY_VIOLATION)
-        if isinstance(e, PolicyViolation) and e.is_fail
-    ]
-    if policy_fails:
-        block = f"POLICY VIOLATIONS — {len(policy_fails)} FAIL rule(s):\n"
-        for p in policy_fails[:3]:
-            block += f"  - {p.to_text()[:120]}\n"
-        sections.append(block)
-
-    # ── 3. Anchor violations (manifest declared ≠ live observed) ──────────────
-    anchor_lines: list[str] = []
-    for entity in graph.entities():
-        ann = getattr(entity, "annotations", {}) or {}
-        for k, v in ann.items():
-            if k.startswith("anchor.") and "[manifest]" in str(v):
-                kind_str = getattr(entity.kind, "value", str(entity.kind))
-                anchor_lines.append(
-                    f"{kind_str}/{entity.namespace}/{entity.name}: "
-                    f"{k[len('anchor.'):]}  (declared≠observed)"
-                )
-    if anchor_lines:
-        block = f"ANCHOR VIOLATIONS — declared ≠ observed ({len(anchor_lines)}):\n"
-        for a in anchor_lines[:5]:
-            block += f"  - {a}\n"
-        sections.append(block)
-
-    # ── 4. Similar past incidents from knowledge base (FAISS examples) ─────────
-    if store is not None:
-        try:
-            hits = store.hybrid_search(query, top_k=6)
-            ex_hits = [h for h in hits if h["uid"].startswith("example:")][:2]
-            if ex_hits:
-                block = "SIMILAR RESOLVED INCIDENTS (knowledge base):\n"
-                for h in ex_hits:
-                    block += f"  (score={h['score']:.2f}) {h['text'][:200]}\n"
-                sections.append(block)
-        except Exception as exc:
-            log.debug("_build_hypothesis_context: example search failed: %s", exc)
-
-    # ── 5. Ontology causal chains (graph traversal — topology-aware) ───────────
-    from dedup.bfs import find_unhealthy
-    from ontology.relationships import RelationshipType
-
-    _CAUSAL_RELS = {
-        RelationshipType.USES_PVC:           "uses PVC",
-        RelationshipType.BINDS_PV:           "binds PV",
-        RelationshipType.MOUNTS_SECRET:      "mounts Secret",
-        RelationshipType.MOUNTS_CONFIGMAP:   "mounts ConfigMap",
-        RelationshipType.DRIFTS_FROM:        "drifts from HelmRelease",
-        RelationshipType.MANAGED_BY_HELM:    "managed by HelmRelease",
-        RelationshipType.HAS_ALERT:          "has firing alert",
-        RelationshipType.HAS_TRACE:          "has error trace",
-        RelationshipType.EXPOSES:            "exposed by Service",
-        RelationshipType.USES_SERVICE_ACCOUNT: "uses ServiceAccount",
-    }
-
-    seeds = find_unhealthy(graph)
-    chain_lines: list[str] = []
-    for seed in seeds[:6]:
-        kind_str = getattr(seed.kind, "value", str(seed.kind))
-        state_str = (
-            getattr(seed, "phase", "")
-            or (seed.annotations or {}).get("status.phase", "unhealthy")
-        )
-        header = f"{kind_str}/{seed.namespace}/{seed.name} [{state_str}]"
-        children: list[str] = []
-        for rel_type, rel_label in _CAUSAL_RELS.items():
-            neighbours = graph.neighbors(seed.uid, rel_type=rel_type)
-            for nb in neighbours[:2]:
-                nb_kind = getattr(nb.kind, "value", str(nb.kind))
-                nb_phase = getattr(nb, "phase", "") or (nb.annotations or {}).get("status.phase", "")
-                nb_state = f" [{nb_phase}]" if nb_phase else ""
-                # Flag if the linked entity itself looks problematic
-                flag = ""
-                if nb_phase in ("Pending", "Failed", "CrashLoopBackOff"):
-                    flag = " ← LIKELY CAUSE"
-                elif nb_kind in ("Secret", "ConfigMap") and nb_phase == "":
-                    flag = " ← check exists"
-                children.append(
-                    f"    → {rel_label} → {nb_kind}/{nb.namespace}/{nb.name}{nb_state}{flag}"
-                )
-        if children:
-            chain_lines.append(header)
-            chain_lines.extend(children)
-
-    if chain_lines:
-        block = "ONTOLOGY CAUSAL CHAINS (graph traversal):\n"
-        for line in chain_lines:
-            block += f"  {line}\n"
-        sections.append(block)
-
-    return "\n\n".join(sections), rule_sources
-
-
-_ANCHOR_FIELD_HYPOTHESES: list[tuple[str, str]] = [
-    ("spec.replicas",           "Replica count drift — deployment scaling mismatch"),
-    (".image",                  "Container image drift — wrong tag deployed"),
-    ("resources.limits.memory", "Memory resource drift — OOM/throttling risk"),
-    ("resources.limits.cpu",    "CPU resource drift — throttling/starvation risk"),
-    ("resources.requests",      "Resource request drift — scheduling affected"),
-    ("spec.template",           "Pod template drift — rolling update may stall"),
-    ("env.",                    "Environment variable drift — misconfiguration"),
-    ("volumeMounts",            "Volume mount drift — storage misconfiguration"),
-    ("containers.",             "Container spec drift — deployment mismatch"),
-    ("serviceAccountName",      "ServiceAccount drift — RBAC/identity mismatch"),
-    ("imagePullPolicy",         "Image pull policy drift — stale image may be used"),
-    ("port",                    "Port configuration drift — traffic routing broken"),
-]
-
-
-def _anchor_hit_to_hypothesis(text: str) -> str | None:
-    """Map an anchor violation search hit to a testable hypothesis string."""
-    for field_fragment, hypothesis in _ANCHOR_FIELD_HYPOTHESES:
-        if field_fragment in text:
-            return hypothesis
-    return None
 
 
 def hypothesize_node(state: RCAState, config: RunnableConfig) -> dict:
     """
-    Generate up to MAX_PATHS root-cause hypotheses ordered by probability.
-
-    Retrieval-first approach — the LLM is only a last-resort filler:
-
-      Phase 1 — KB examples (FAISS):  proven past resolutions, score > 0.55.
-                  Hypothesis: field extracted directly → weight = score + 1.0
-      Phase 2 — RemediationEngine:    deterministic rule hits, weight-ordered.
-      Phase 3 — Ontology chains:      Pod→PVC Pending, Pod→Secret missing …
-                  structural graph evidence, boosted if dependency is unhealthy.
-      Phase 4 — LLM fallback:         only fills remaining slots if < MAX_PATHS
-                  gathered from the above, using all evidence as context.
-
-    H1 = highest-probability path, H2/H3 = fallbacks explored if H1 is LOW.
+    The paths to explain are the ranked structured diagnoses (docs/structured-in-product.md,
+    rule 7): H1 = the top diagnosis, H2/H3 the next ones. The old RemediationEngine, the
+    ontology chains, the template catalog and the LLM fill-in no longer make hypotheses — the
+    first claimed precise causes on broad clues (fix plan H22), the last let the model decide.
+    An abstention gives no path.
     """
-    from dedup.bfs import find_unhealthy
-    from ontology.relationships import RelationshipType
-    from rca.remediation_engine import RemediationEngine
-
-    graph, store = _get_infra(config, state)
-    if graph is None:
-        return {}
-
-    query = state.get("query", "")
-
-    # (weight, hypothesis_text, source_tag)
-    pool: list[tuple[float, str, str]] = []
-
-    # ── Phase 1 + 2b: KB examples + anchor violations (single hybrid_search) ────
-    # example: UIDs → proven resolutions; anchor: UIDs → manifest drift hypotheses
-    if store is not None:
-        try:
-            hits = store.hybrid_search(query, top_k=10)
-            for h in hits:
-                uid = h["uid"]
-                if uid.startswith("example:"):
-                    # cosine score preferred; rrf_score as fallback (different scale)
-                    score = float(h.get("score", h.get("rrf_score", 0.0)))
-                    if score < 0.55:
-                        continue
-                    for line in h["text"].splitlines():
-                        if line.startswith("Hypothesis:"):
-                            hyp_text = line[11:].strip()
-                            if len(hyp_text) > 15:
-                                pool.append((score + 1.0, hyp_text, "example"))
-                            break
-                elif uid.startswith("anchor:"):
-                    # anchor hits are SOURCE_WEIGHTS-boosted (×1.6) by hybrid_search
-                    hyp = _anchor_hit_to_hypothesis(h["text"])
-                    if hyp:
-                        pool.append((0.88, hyp, "anchor"))
-        except Exception as exc:
-            log.debug("hypothesize: KB/anchor search failed: %s", exc)
-
-    # ── Phase 2: RemediationEngine (deterministic, weight-ordered) ─────────────
-    rule_hyps = RemediationEngine().score(graph)
-    rule_sources: list[dict] = []
-    for h in rule_hyps[:5]:
-        pool.append((h.weight, f"{h.symptom} affecting {h.affected}", "rule"))
-        rule_sources.append({
-            "rule_id":  h.rule_id,
-            "symptom":  h.symptom,
-            "affected": h.affected,
-            "weight":   round(h.weight, 2),
-            "evidence": h.evidence,
-        })
-
-    # ── Phase 3: Ontology causal chains (graph topology) ─────────────────────
-    # Relationship → (human-readable label, base weight)
-    _CAUSAL: list[tuple[RelationshipType, str, float]] = [
-        (RelationshipType.USES_PVC,         "PVC dependency failure",           0.85),
-        (RelationshipType.MOUNTS_SECRET,    "missing Secret dependency",        0.82),
-        (RelationshipType.MOUNTS_CONFIGMAP, "missing ConfigMap dependency",     0.80),
-        (RelationshipType.DRIFTS_FROM,      "Helm chart drift from declared",   0.78),
-        (RelationshipType.EXPOSES,          "Service exposure broken",          0.65),
-        (RelationshipType.USES_SERVICE_ACCOUNT, "ServiceAccount issue",         0.60),
-    ]
-    for seed in find_unhealthy(graph)[:4]:
-        kind_str = getattr(seed.kind, "value", str(seed.kind))
-        for rel_type, rel_desc, base_w in _CAUSAL:
-            for nb in graph.neighbors(seed.uid, rel_type=rel_type):
-                nb_kind  = getattr(nb.kind, "value", str(nb.kind))
-                nb_phase = (
-                    getattr(nb, "phase", "")
-                    or (nb.annotations or {}).get("status.phase", "")
-                )
-                weight   = base_w + (0.10 if nb_phase in ("Pending", "Failed") else 0.0)
-                suffix   = f" is {nb_phase}" if nb_phase else ""
-                hyp = (
-                    f"{rel_desc}: {kind_str}/{seed.name} "
-                    f"→ {nb_kind}/{nb.name}{suffix}"
-                )
-                pool.append((weight, hyp, "ontology"))
-
-    # ── Phase 2.5: Template catalog (community runbooks) ─────────────────────
-    try:
-        catalog = TemplateCatalog()
-        for m in catalog.match(query, top_k=2):
-            if m.score >= 0.25:
-                hyp = f"{m.template.title}: {m.template.root_cause_pattern}"
-                pool.append((0.70 + m.score * 0.30, hyp, "template"))
-    except Exception as exc:
-        log.debug("hypothesize: template_catalog failed: %s", exc)
-
-    # ── Dedup + rank ──────────────────────────────────────────────────────────
-    seen_hyps: set[str] = set()
-    ordered: list[str] = []
-    for _w, hyp, _src in sorted(pool, key=lambda x: x[0], reverse=True):
-        if hyp not in seen_hyps and len(hyp) > 15:
-            seen_hyps.add(hyp)
-            ordered.append(hyp)
-
-    # ── Phase 4: LLM fills remaining slots ────────────────────────────────────
-    llm = _get_llm(config)
-    if len(ordered) < MAX_PATHS:
-        snapshot = _graph_snapshot(graph)
-        evidence_block, _ = _build_hypothesis_context(graph, store, query)
-        needed = MAX_PATHS - len(ordered)
-        existing = "\n".join(f"  - {h}" for h in ordered) if ordered else "  (none yet)"
-
-        prompt = (
-            f"Kubernetes SRE expert. The following hypotheses were already identified "
-            f"from deterministic evidence:\n{existing}\n\n"
-            f"CLUSTER SNAPSHOT:\n{snapshot}\n\n"
-            + (f"\n{evidence_block}\n\n" if evidence_block else "")
-            + f"INCIDENT QUERY: {query}\n\n"
-            f"Generate exactly {needed} ADDITIONAL distinct hypothesis(es) "
-            f"not already listed above, in order of likelihood.\n"
-            f"Reply with ONLY {needed} line(s), one per line, no numbering, no prefix.\n"
-        )
-        try:
-            _t0 = time.perf_counter()
-            raw = llm.generate(prompt)
-            telemetry.record_llm_call_duration(time.perf_counter() - _t0, node="hypothesize")
-            for h in _parse_hypotheses(raw):
-                if h not in seen_hyps and len(ordered) < MAX_PATHS:
-                    seen_hyps.add(h)
-                    ordered.append(h)
-        except Exception as exc:
-            log.warning("hypothesize: LLM fill-in failed (%s)", exc)
-
-    if not ordered:
-        log.info("hypothesize: no hypotheses from any source — single-path fallback")
-        return {}
-
-    final = ordered[:MAX_PATHS]
+    diag = state.get("diagnosis") or {}
+    reported = diag.get("diagnoses") or []
+    if not reported:
+        log.info("hypothesize: %s — no path to explain", diag.get("outcome", "no diagnosis"))
+        return {"hypothesis_sources": []}
+    final = [d["cause"] for d in reported[:MAX_PATHS]]
     first, *rest = final
-    llm_used = len(pool) < MAX_PATHS
-    log.info(
-        "hypothesize: %d path(s) computed; sources: rules=%d pool=%d llm_fill=%s",
-        len(final), len(rule_sources), len(pool), llm_used,
-    )
+    log.info("hypothesize: %d path(s) from the structured diagnosis", len(final))
     return {
         "current_hypothesis": first,
         "candidate_paths":    rest,
         "reasoning_history":  [],
-        "hypothesis_sources": rule_sources,
+        "hypothesis_sources": [{"rule_id": d["rule"], "family": d["family"],
+                                "affected": d["location"], "weight": d["score"],
+                                "evidence": d["signal_ids"]} for d in reported[:MAX_PATHS]],
     }
 
 
@@ -1178,6 +891,14 @@ def analyze_node(state: RCAState, config: RunnableConfig) -> dict:
     if graph is None or store is None:
         return {"error": "analyze_node: graph or store missing from config"}
 
+    llm = _get_llm(config)
+    if llm is None:
+        # LLM_PROVIDER=none: the report is the structured diagnosis (spec rule 5)
+        report_dict, _ = _report_from_diagnosis(state, None)
+        log.info("analyze: no LLM — report = structured diagnosis (%s)", report_dict["confidence"])
+        return {"raw_analysis": "", "report_dict": report_dict,
+                "confidence": report_dict["confidence"], "llm_disagreement": ""}
+
     query      = state.get("query", "")
     hypothesis = state.get("current_hypothesis") or ""
     retry      = state.get("retry_count", 0)
@@ -1190,22 +911,30 @@ def analyze_node(state: RCAState, config: RunnableConfig) -> dict:
     )
 
     ctx_builder = ContextBuilder(graph, store, bfs_max_depth=bfs_depth)
-    llm = _get_llm(config)
     analyzer = RCAAnalyzer(graph=graph, store=store, llm=llm)
     analyzer._ctx_builder = ctx_builder
 
     report = analyzer.analyze(focused_query)
-    confidence = normalize_label(report.confidence)   # "MEDIUM:" → MEDIUM (H20)
+    llm_label = normalize_label(report.confidence)   # "MEDIUM:" → MEDIUM (H20)
+    llm_dict = report.to_dict()
+    llm_dict["llm_confidence"] = llm_label           # recorded, not used by the gate (rule 6)
+    report_dict, disagreement = (_report_from_diagnosis(state, llm_dict)
+                                 if state.get("diagnosis") else (llm_dict, ""))
+    confidence = (normalize_label(str(report_dict.get("confidence") or ""))
+                  if state.get("diagnosis") else llm_label)
+    if disagreement:
+        log.warning("analyze: %s", disagreement)
 
     log.info(
-        "analyze: confidence=%s  retry=%d  hypothesis='%s'  chunks=%d",
-        confidence, retry, (hypothesis or "—")[:60], report.context.total_chunks,
+        "analyze: confidence=%s (llm=%s)  retry=%d  hypothesis='%s'  chunks=%d",
+        confidence, llm_label, retry, (hypothesis or "—")[:60], report.context.total_chunks,
     )
     return {
-        "raw_analysis": report.raw_analysis,
-        "report_dict":  report.to_dict(),
-        "confidence":   confidence,
-        "kube_version": report.kube_version,
+        "raw_analysis":     report.raw_analysis,
+        "report_dict":      report_dict,
+        "confidence":       confidence,
+        "kube_version":     report.kube_version,
+        "llm_disagreement": disagreement,
     }
 
 
@@ -1524,7 +1253,6 @@ def _exec_dry_run(cmd: str) -> tuple[str, str, int]:
         return cmd, f"[dry-run not supported for '{tool}' — review manually]", 0
 
 
-
 def _drifts_from_evidence(rows: list[dict]) -> tuple[list, list[str]]:
     """Flatten grouped render-vs-live drift rows into duck-typed drift objects.
 
@@ -1621,8 +1349,8 @@ def log_policy_decision_node(state: RCAState) -> dict:
     Pre-router node: build the canonical IncidentReport, run the DecisionEngine,
     log the decision, and write _verdict_edge so verdict_router stays a pure reader.
 
-    Score source: the LLM diagnosis confidence label (HIGH/MEDIUM/LOW/""), mapped
-    to a gate score by the DecisionEngine.
+    Score source: the structured diagnosis' score (docs/structured-in-product.md, rule 6);
+    the LLM label's mapping only when no diagnosis ran.
     """
     report = IncidentReport.from_report_dict(state.get("report_dict"))
     # state["confidence"] is the authoritative LLM label for this run.
@@ -1635,19 +1363,35 @@ def log_policy_decision_node(state: RCAState) -> dict:
     # fall back to the workflow-level namespace list if blast_radius didn't extract any.
     br_namespaces = br.get("namespaces") or []
     namespace = br_namespaces[0] if br_namespaces else (state.get("namespaces") or [""])[0]
-    mc           = state.get("mc_result") or {}
-    mc_win_rate  = float(mc.get("win_rate", 1.0))
+    # The Monte Carlo varies the old pre-LLM score; it no longer decides (spec "Not in this
+    # spec"): recorded in mc_result, not passed to the gate.
+    mc_win_rate  = 1.0
     max_hit      = bool(state.get("max_switches_reached", False))
+    # The gate scores the structured diagnosis (spec rule 6); an abstention scores 0.
+    diag = state.get("diagnosis")
+    diag_score = float(diag.get("score", 0.0)) if diag else None
 
-    result = _DECISION_ENGINE.decide(
-        report,
-        risk=risk,
-        rollback_available=rollback_ok,
-        namespace=namespace,
-        mc_win_rate=mc_win_rate,
-        max_switches_reached=max_hit,
-        command_count=br.get("command_count"),
-    )
+    if diag and diag.get("outcome") != "cause":
+        # An abstention has no action to score: nothing to approve and nothing to block — the
+        # operator reviews the finding (the h022 decision of 2026-10-12; spec rule 6)
+        from decision.models import DecisionResult
+        from decision.policy_gate import Verdict
+        result = DecisionResult(
+            verdict=Verdict.HUMAN_REVIEW,
+            reasons=[f"{diag.get('outcome')}: no cause diagnosed — nothing to apply, the operator reviews"],
+            score=0.0, risk=risk, rollback_available=rollback_ok, namespace=namespace,
+            mc_win_rate=mc_win_rate, max_switches_reached=max_hit)
+    else:
+        result = _DECISION_ENGINE.decide(
+            report,
+            risk=risk,
+            rollback_available=rollback_ok,
+            namespace=namespace,
+            mc_win_rate=mc_win_rate,
+            max_switches_reached=max_hit,
+            command_count=br.get("command_count"),
+            score=diag_score,
+        )
     verdict = result.verdict.value  # "AUTO" | "HUMAN_REVIEW" | "NO_GO"
     edge    = result.edge           # "auto" | "human_review" | "no_go"
 
@@ -1877,7 +1621,14 @@ def log_confidence_decision_node(state: RCAState) -> dict:
         and not beam_max_hit
     )
 
-    if confidence == "LOW":
+    if state.get("diagnosis"):
+        # the structured diagnosis sets the confidence: retrying the LLM or switching path
+        # cannot change it (docs/structured-in-product.md, rules 2 and 7)
+        edge   = "review"
+        reason = (f"confidence={confidence or 'UNKNOWN'} set by the structured diagnosis "
+                  f"({(state['diagnosis'] or {}).get('outcome', '?')}) — forwarding to review"
+                  + (f"; ingestion failures: {failures}" if failures else ""))
+    elif confidence == "LOW":
         if declining and candidates:
             edge   = "next_path"
             reason = (

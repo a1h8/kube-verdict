@@ -44,7 +44,10 @@ collect … index ──► diagnose ──► (llm) word ──► blast_radius
    remediation command is proposed (the policy gate's "nothing to apply — never AUTO" holds).
    This is the "nothing" of the comparison LLM vs no LLM vs sLLM.
 6. **The policy gate scores the diagnosis**, not the LLM's label: `score` = the top diagnosis'
-   score (0 for an abstention). The LLM's own label is recorded, unused by the gate.
+   score. The LLM's own label is recorded, unused by the gate. An abstention has no action to
+   score: the verdict is `HUMAN_REVIEW` — nothing to approve and nothing to block, the operator
+   reviews the finding (the h022 decision of 2026-10-12, `expected_verdict`). *Amended
+   2026-10-19: the first version scored an abstention 0, which made it `NO_GO`.*
 7. **One engine.** `RemediationEngine` no longer feeds the prompt, the LOW fallback, the
    hypotheses or the reasoning-path "rule" step; the structured diagnoses replace it there. Its
    rule-specific remediation templates (H21) are removed with it. The confidence router's

@@ -15,4 +15,4 @@ def test_no_air_gapped_claim():
 
 
 def test_the_prompt_version_moved():                  # runs recorded with v2 are not compared as one
-    assert PROMPT_VERSION == "v3"
+    assert PROMPT_VERSION == "v4"

@@ -184,11 +184,16 @@ anchor          AnchorEngine → K8s schema + rendered manifests → anchor.*
   │
 index           embed entities → FAISSStore
   │             + index_anchor_violations() → doc_source="anchor" entries (×1.6 weight)
-signal_analysis PatchTST anomaly detection → signal.* annotations
+signal_analysis PatchTST anomaly detection → signal.* annotations (measured series only)
   │
-hypothesize     Evidence-first — LLM only fills remaining slots (see below)
+diagnose        typed signals → ranked structured diagnoses, or an abstention
+  │             (docs/structured-in-product.md): the report's cause and confidence
+hypothesize     the paths are the ranked diagnoses (no LLM-made hypothesis)
   │
 example_lookup  hybrid_search → score ≥ 0.65 → skip analyze loop (known fix)
+  │             Since 2026-10-19 the analyze step words the diagnosis (LLM_PROVIDER=none: no LLM);
+  │             the confidence router goes straight to review when a diagnosis ran, the gate
+  │             scores the diagnosis, and the retry / next-path loop below runs only without one.
   ├─ "skip"  ──────────────────────────────────────────────────► select_best
   └─ "analyze"
        │

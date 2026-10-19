@@ -102,6 +102,7 @@ from workflow.nodes import (
     gitops_node,
     human_review_node,
     human_router,
+    diagnose_node,
     hypothesize_node,
     index_node,
     ingest_node,
@@ -150,6 +151,7 @@ def build_graph(checkpointer=None) -> StateGraph:
     builder.add_node("anchor",           anchor_node)
     builder.add_node("index",            index_node)
     builder.add_node("signal_analysis",  signal_analysis_node)
+    builder.add_node("diagnose",         diagnose_node)
     builder.add_node("hypothesize",      hypothesize_node)
     builder.add_node("analyze",          analyze_node)
     builder.add_node("increment_retry",  _increment_retry)
@@ -175,7 +177,8 @@ def build_graph(checkpointer=None) -> StateGraph:
     builder.add_edge("gitops",          "anchor")
     builder.add_edge("anchor",          "index")
     builder.add_edge("index",           "signal_analysis")
-    builder.add_edge("signal_analysis", "hypothesize")
+    builder.add_edge("signal_analysis", "diagnose")
+    builder.add_edge("diagnose",        "hypothesize")
     builder.add_edge("hypothesize",     "example_lookup")
     builder.add_conditional_edges(
         "example_lookup",

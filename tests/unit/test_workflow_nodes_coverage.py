@@ -30,15 +30,10 @@ from workflow.nodes import (
     save_example_node,
     _get_infra,
     _get_llm,
-    _graph_snapshot,
-    _build_hypothesis_context,
     _rerank_candidates,
-    _parse_hypotheses,
     _exec_dry_run,
     _nested_get,
-    _anchor_hit_to_hypothesis,
     _extract_example_field,
-    _ANCHOR_FIELD_HYPOTHESES,
 )
 from workflow.state import RCAState
 
@@ -382,28 +377,6 @@ def test_dry_run_node_with_no_remediation():
 
 
 # ---------------------------------------------------------------------------
-# _parse_hypotheses
-# ---------------------------------------------------------------------------
-
-def test_parse_hypotheses_extracts_h_prefix_lines():
-    raw = "H1: Pod app CrashLoopBackOff\nH2: PVC stuck Pending\nH3: image pull error"
-    result = _parse_hypotheses(raw)
-    assert len(result) == 3
-    assert "CrashLoopBackOff" in result[0]
-
-
-def test_parse_hypotheses_empty_returns_empty():
-    assert _parse_hypotheses("") == []
-
-
-def test_parse_hypotheses_no_hX_prefix_returns_lines():
-    raw = "everything looks fine\nno issues detected"
-    result = _parse_hypotheses(raw)
-    # Falls back to non-empty lines
-    assert isinstance(result, list)
-
-
-# ---------------------------------------------------------------------------
 # _exec_dry_run
 # ---------------------------------------------------------------------------
 
@@ -436,33 +409,6 @@ def test_nested_get_missing_key_returns_none():
 
 def test_nested_get_empty_path():
     assert _nested_get({"x": 1}, "") is None
-
-
-# ---------------------------------------------------------------------------
-# _anchor_hit_to_hypothesis
-# ---------------------------------------------------------------------------
-
-def test_anchor_hit_replicas():
-    text = "ANCHOR VIOLATION: Deployment/prod/api field=spec.replicas 3 [manifest] vs 1"
-    assert _anchor_hit_to_hypothesis(text) == "Replica count drift — deployment scaling mismatch"
-
-
-def test_anchor_hit_image():
-    text = "ANCHOR VIOLATION: Pod/prod/api-xyz field=containers.0.image v1.0 [manifest] vs v1.1"
-    result = _anchor_hit_to_hypothesis(text)
-    assert result is not None
-
-def test_anchor_hit_unknown_field_returns_none():
-    text = "ANCHOR VIOLATION: Deployment/prod/api field=unknownField xyz [manifest] vs abc"
-    assert _anchor_hit_to_hypothesis(text) is None
-
-
-def test_anchor_field_map_covers_all_entries():
-    # Each entry in _ANCHOR_FIELD_HYPOTHESES should produce a non-empty hypothesis
-    for field_fragment, hypothesis in _ANCHOR_FIELD_HYPOTHESES:
-        text = f"ANCHOR VIOLATION: Pod/ns/name field={field_fragment} x [manifest] vs y"
-        result = _anchor_hit_to_hypothesis(text)
-        assert result == hypothesis, f"field_fragment={field_fragment!r} gave {result!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -517,72 +463,6 @@ def test_get_llm_falls_back_to_build_llm_client():
     with patch("llm.build_llm_client", return_value=mock_llm):
         result = _get_llm({"configurable": {}})
     assert result is mock_llm
-
-
-# ---------------------------------------------------------------------------
-# _graph_snapshot — entity signal paths (lines 479-513)
-# ---------------------------------------------------------------------------
-
-def test_graph_snapshot_with_unhealthy_entities(synthetic_graph):
-    result = _graph_snapshot(synthetic_graph)
-    assert isinstance(result, str)
-    # pod_bad has CrashLoopBackOff container status → covered
-    # deploy has degraded replicas → covered
-    # pvc has Pending phase → covered
-    assert "CrashLoopBackOff" in result or "degraded" in result or "phase=" in result
-
-
-def test_graph_snapshot_with_anchor_annotations():
-    """Cover anchor_keys section (lines 505-510)."""
-    from ontology.entities import Pod
-    graph = _empty_graph()
-    pod = Pod(
-        uid="pod-anchor-test", name="api-anchor", namespace="production",
-        phase="Running",
-        annotations={"anchor.spec.replicas": "3 [manifest] observed=1"},
-    )
-    graph.add_entity(pod)
-    result = _graph_snapshot(graph)
-    assert "anchor_violations" in result
-
-
-def test_graph_snapshot_empty_graph_returns_fallback():
-    result = _graph_snapshot(_empty_graph())
-    assert "no obvious" in result
-
-
-# ---------------------------------------------------------------------------
-# _build_hypothesis_context — rule/anchor/causal-chain sections (lines 538-647)
-# ---------------------------------------------------------------------------
-
-def test_build_hypothesis_context_with_synthetic_graph(synthetic_graph):
-    evidence, rule_sources = _build_hypothesis_context(
-        synthetic_graph, None, "pod CrashLoopBackOff api deployment"
-    )
-    assert isinstance(evidence, str)
-    assert isinstance(rule_sources, list)
-
-
-def test_build_hypothesis_context_returns_rule_evidence(synthetic_graph):
-    evidence, rule_sources = _build_hypothesis_context(
-        synthetic_graph, None, "api pod crashed"
-    )
-    # Should produce some evidence text (rules or causal chains)
-    assert len(evidence) > 0
-
-
-def test_build_hypothesis_context_with_anchor_entity():
-    """Cover anchor_lines section (lines 568-582)."""
-    from ontology.entities import Pod
-    graph = _empty_graph()
-    pod = Pod(
-        uid="pod-anch", name="api", namespace="prod",
-        phase="Running",
-        annotations={"anchor.spec.replicas": "3 [manifest] observed=1"},
-    )
-    graph.add_entity(pod)
-    evidence, _ = _build_hypothesis_context(graph, None, "replica mismatch")
-    assert "ANCHOR VIOLATIONS" in evidence or "anchor" in evidence.lower()
 
 
 # ---------------------------------------------------------------------------

@@ -154,9 +154,9 @@ class Pod(K8sEntity):
     def is_starting(self) -> bool:
         """Running, every container running, never restarted: a pod coming up, not failing."""
         return self.phase == "Running" and bool(self.container_statuses) and all(
-            "running" in (cs.get("state") or {})
+            "running" in (cs.get("state") if isinstance(cs.get("state"), dict) else {})
             and not cs.get("restartCount")
-            and "terminated" not in (cs.get("lastState") or {})
+            and "terminated" not in (cs.get("lastState") if isinstance(cs.get("lastState"), dict) else {})
             for cs in self.container_statuses
         )
 

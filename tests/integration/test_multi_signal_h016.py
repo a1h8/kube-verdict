@@ -74,8 +74,12 @@ class TestDecoysAreDropped:
 
 
 class TestRunConcludes:
-    def test_reaches_high_with_a_verdict(self, run):
-        assert run.state["confidence"] == "HIGH"
+    def test_concludes_with_the_diagnosis_and_a_verdict(self, run):
+        # no structured family for connection exhaustion yet (reasoning-path P4): the diagnosis
+        # abstains, and the scripted LLM's HIGH answer cannot raise it
+        # (docs/structured-in-product.md)
+        assert run.state["diagnosis"]["outcome"] == "insufficient_evidence"
+        assert run.state["confidence"] == "LOW"
         assert run.state["verdict"] == "HUMAN_REVIEW"
         assert run.status == "AWAITING_REVIEW"
 
