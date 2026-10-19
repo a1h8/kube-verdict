@@ -93,7 +93,8 @@
   workflow** (MCP tools). → one path, in the workflow (with F11).
 - [ ] **H4 — the product does not use the structured diagnosis.** `rca/diagnosis.py` is called only
   by the measurement tools. → the workflow runs `extract_signals` + `diagnose`; its outcome is the
-  report's diagnosis; the LLM, when enabled, words it.
+  report's diagnosis; the LLM, when enabled, words it. Spec: `docs/structured-in-product.md` (with H17, the two
+  engines and H5's abstention).
 - [ ] **Two rule engines.** The old `RemediationEngine` still injects the hypothesis into the LLM
   prompt and backs the reasoning-path "rule" step; its rules claim a precise cause on a broad clue
   (any Pending pod, any "not found" event, H22) and propose fixed commands (`demo/charts/…`, H21).
