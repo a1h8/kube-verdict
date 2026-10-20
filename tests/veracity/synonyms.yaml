@@ -14,6 +14,7 @@ missing:
   - doesn't exist
   - nonexistent
   - non-existent
+  - not present          # A4, 2026-10-20 (docs/case-audit-001.md)
 not found:
   - missing
   - absent
@@ -22,6 +23,7 @@ not found:
   - doesn't exist
   - not created
   - not been created
+  - not present          # A4
 forbidden:
   - not allowed
   - permission denied

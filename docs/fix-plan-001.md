@@ -169,14 +169,17 @@
   the case's release, builds `QUOTA_BLOCKS`, reads PolicyReports its own way, makes `drift.helm.*`
   and passes RoleBinding / NetworkPolicy lists production passes as `None`. → the loader builds
   what the collectors build, from the same code; the gaps that remain are listed per case.
-- [ ] **R1 — a replay child that dies leaves no trace** (`_run_in_child` ignores the exit code).
-  → the failure is printed and appended to `failures.jsonl`; `--resume` retries it.
-- [ ] **H7 — rates are computed on recorded runs, not expected ones.** → `REPORT.md` counts
-  expected runs; a missing run is a FAIL.
-- [ ] **Prompts are not recorded** — what the model read cannot be checked afterwards. → each run
-  stores its prompt.
-- [ ] **A4 — "not present" is not accepted for "missing"** (found reading the 2026-10-17 mistral
-  answers, h004). → dated amendment to `tests/veracity/synonyms.yaml`, re-grade.
+- [x] **R1 — a replay child that dies leaves no trace** (`_run_in_child` ignores the exit code).
+  → the failure is printed and appended to `failures.jsonl`; `--resume` retries it. Done
+  2026-10-20: exit code, timeout and a missing record are printed and kept in `failures.jsonl`.
+- [x] **H7 — rates are computed on recorded runs, not expected ones.** → `REPORT.md` counts
+  expected runs; a missing run is a FAIL. Done 2026-10-20: a run expected and not recorded is
+  `MISSING`, counted as a FAIL.
+- [x] **Prompts are not recorded** — what the model read cannot be checked afterwards. → each run
+  stores its prompt. Done 2026-10-20: each LLM run stores its prompts (`prompts`).
+- [x] **A4 — "not present" is not accepted for "missing"** (found reading the 2026-10-17 mistral
+  answers, h004). → dated amendment to `tests/veracity/synonyms.yaml`, re-grade. Done 2026-10-20:
+  h004 0/3 → 3/3 on the 2026-10-17 runs, nothing else moves.
 
 ## 4. Cases and claims
 

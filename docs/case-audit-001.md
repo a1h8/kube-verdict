@@ -187,6 +187,12 @@ change: the rule (every concept required) is unchanged.
   The cause concepts become `memory` · `drift|512mi|declared` (h003) and
   `memory|oom` · `drift|1gi|declared` (h024, second cause).
 
+- **A4 — h004** (2026-10-20) `not present` accepted for `missing` (`tests/veracity/synonyms.yaml`,
+  under `missing` and `not found`). The three mistral answers of 2026-10-17 say "ConfigMap
+  `api-gateway-config` and Secret `db-credentials` which are not present in the cluster" — the
+  cause, worded otherwise. Re-graded on those runs: h004 0/3 → 3/3, no other case changes
+  (31/57 → 34/57); without the amendment nothing changes (control).
+
 Not amended: h006 (the answers name a network/DNS problem, never the NetworkPolicy — the
 symptom) and h010 (the answers follow the fixture's node-CPU message; the fixture is fixed
 in correction 2).
