@@ -98,10 +98,13 @@
   abstention on a failed collector, the LLM explains and its disagreement is recorded,
   `LLM_PROVIDER=none`, the gate scores the diagnosis (an abstention is reviewed), the Monte Carlo
   out of the decision; the workflow's report equals the structured solver on the 19 cases.
-- [ ] **Two rule engines.** The old `RemediationEngine` still injects the hypothesis into the LLM
+- [x] **Two rule engines.** The old `RemediationEngine` still injects the hypothesis into the LLM
   prompt and backs the reasoning-path "rule" step; its rules claim a precise cause on a broad clue
   (any Pending pod, any "not found" event, H22) and propose fixed commands (`demo/charts/…`, H21).
-  → the structured diagnosis replaces it there.
+  → the structured diagnosis replaces it there. Done 2026-10-20: no hypothesis, no LOW fallback and no command
+  from it in the product (`tests/unit/test_one_engine.py`); the reasoning-path rule step grades
+  the structured diagnoses (P4 for h007 / h008 and P6 fixed). It stays the `rules` replay
+  baseline and the Streamlit UI's bonus panel.
 - [x] **H20 — the product reads the LLM's raw confidence word** (`MEDIUM:`), the measurement the
   normalised one. → one normaliser for both.
 

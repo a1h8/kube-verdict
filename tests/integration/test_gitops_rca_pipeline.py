@@ -11,7 +11,8 @@ Chain:
   RemediationEngine → scores the annotated graph (all 7 rules exercised)
   LokiSource        → patched requests.get → LokiLog nodes added to graph
   ContextBuilder    → drift + events + logs all appear in context window
-  RCAAnalyzer       → mock LLM (LOW confidence) → _apply_rule_fallback enriches report
+  RCAAnalyzer       → mock LLM (LOW confidence) — no rule-based enrichment since
+                      docs/structured-in-product.md; the structured diagnosis reads the graph
 """
 from __future__ import annotations
 
@@ -1038,7 +1039,7 @@ class TestContextBuilderWithAllSignals:
 # 8. Full RCA pipeline: LOW confidence → rule fallback enriches report
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestFullRCAPipelineWithRuleFallback:
+class TestFullRCAPipelineNoRuleFallback:
     @pytest.fixture
     def report(self, drifted_graph, mock_llm_low) -> RCAReport:
         store = FAISSStore(embedder=Embedder())
@@ -1052,54 +1053,13 @@ class TestFullRCAPipelineWithRuleFallback:
     def test_returns_rca_report(self, report):
         assert isinstance(report, RCAReport)
 
-    def test_low_confidence_triggers_fallback(self, report):
-        assert "rule-assisted" in report.confidence
-
-    def test_fallback_summary_non_empty(self, report):
-        assert len(report.summary) > 10
-
-    def test_fallback_root_cause_non_empty(self, report):
-        assert len(report.root_cause) > 10
-
-    def test_fallback_affected_contains_all_scenarios(self, report):
-        affected = " ".join(report.affected)
-        # At least 3 of the 5 failing services should appear
-        found = sum(
-            1 for name in ("analytics-worker", "ml-inference", "notification-service",
-                           "payment-service", "gpu-worker")
-            if name in affected
-        )
-        assert found >= 3
-
-    def test_fallback_remediation_has_kubectl_commands(self, report):
-        kubectl_cmds = [c for c in report.remediation + [d.command for d in report.diagnostics]
-                        if c.startswith("kubectl")]
-        assert len(kubectl_cmds) >= 5
-
-    def test_fallback_remediation_has_helm_upgrade(self, report):
-        helm_cmds = [c for c in report.remediation if "helm upgrade" in c]
-        assert len(helm_cmds) >= 1
-
-    def test_fallback_remediation_has_rule_headers(self, report):
-        # a header groups a rule's actions; rules with only checks show up as diagnostics
-        headers = [c for c in report.remediation if c.startswith("[rule:")]
-        assert len(headers) >= 1
-        assert len({d.hypothesis for d in report.diagnostics}) >= 3
-
-    def test_fallback_confidence_contains_weight(self, report):
-        import re
-        assert re.search(r"w=\d+\.\d+", report.confidence)
-
-    def test_to_dict_complete(self, report):
-        d = report.to_dict()
-        assert d["confidence"] != ""
-        assert len(d["remediation"]) > 0
-        assert d["context_stats"]["seeds"] >= 1
+    def test_a_low_answer_is_not_enriched_by_the_old_engine(self, report):
+        # docs/structured-in-product.md, rule 7: no rule-based LOW fallback in the product
+        assert not any(line.startswith("[rule:") for line in report.remediation)
+        assert not any("demo/charts/" in line for line in report.remediation)
 
     def test_report_serializes_to_json(self, report):
-        d = report.to_dict()
-        payload = json.dumps(d)
-        assert len(payload) > 100
+        assert len(json.dumps(report.to_dict())) > 100
 
     def test_llm_called_once(self, drifted_graph, mock_llm_low):
         store = FAISSStore(embedder=Embedder())
@@ -1108,22 +1068,13 @@ class TestFullRCAPipelineWithRuleFallback:
         analyzer.analyze("test query")
         mock_llm_low.generate.assert_called_once()
 
-    def test_rule_fallback_applied_directly(self, drifted_graph):
-        """Verify _apply_rule_fallback alone populates all decision fields."""
-        from rca.analyzer import RCAReport, _apply_rule_fallback
-        from rca.context_builder import ContextWindow
-        ctx = ContextWindow(seeds=[], drift=[], events=[], helm=[], related=[],
-                            traces=[], logs=[])
-        report = RCAReport(query="q", kube_version="1.29", context=ctx,
-                           raw_analysis="")
-        report.confidence = "LOW"
-        result = _apply_rule_fallback(report, drifted_graph)
-
-        assert result.summary != ""
-        assert result.root_cause != ""
-        assert len(result.affected) >= 3
-        assert len(result.remediation) >= 5
-        assert "rule-assisted" in result.confidence
+    def test_the_structured_diagnosis_reads_the_drifted_graph(self, drifted_graph):
+        from rca.diagnosis import diagnose
+        from rca.signals import extract_signals
+        ss = extract_signals(drifted_graph)
+        provenances = {s.attr("provenance") for s in ss.of("drift.config")}
+        assert "edited-outside-helm" in provenances
+        assert diagnose(ss).diagnoses
 
 
 # ─────────────────────────────────────────────────────────────────────────────

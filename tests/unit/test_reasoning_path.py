@@ -16,12 +16,7 @@ from tools.reasoning_path import STEPS, cases_with_path, evaluate
 
 KNOWN: dict[tuple[str, str], str] = {
     ("h007_hpa_no_metrics", "seeds"): "P3: the fixture has no Deployment, HPA or metrics-server",
-    ("h007_hpa_no_metrics", "rule"): "P4: no rule for HPA metrics unavailable",
-    ("h008_init_container_fail", "rule"): "P4/P6: no init-container rule; pending_unschedulable fires instead",
     ("h016_multi_signal", "rule"): "P4: no connection-exhaustion rule (P5 fixed 2026-10-18, H26)",
-    ("h003_oomkilled", "rule"): "two engines (H4): the old RemediationEngine reads drift.* only, not the declared/applied comparisons",
-    ("h009_liveness_probe_loop", "rule"): "two engines (H4): the old RemediationEngine reads drift.* only, not the declared/applied comparisons",
-    ("h024_multi_cause", "rule"): "two engines (H4): the old RemediationEngine reads drift.* only, not the declared/applied comparisons",
 }
 
 

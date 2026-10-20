@@ -176,6 +176,10 @@ native cases ──► run_case(real model) ──► grade() ──► tests/ve
 
 ## What an LLM run grades (2026-10-19)
 
+The `rules` solver keeps grading the old `RemediationEngine`, which no longer runs in the
+product (`docs/structured-in-product.md`, rule 7): it is the historical baseline, not the
+product's answer — `structured` is.
+
 Since `docs/structured-in-product.md` the report's cause is the structured diagnosis; an LLM run
 grades the same `root_cause` as the structured solver plus what the model adds:
 `explanation_veracity` (its own text, graded with the same cause concepts) and

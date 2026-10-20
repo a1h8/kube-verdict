@@ -12,5 +12,5 @@
   "confidence_score_min": 0.38,
   "fallback_expected": false,
   "notes": "Liveness probe timeout is 1s but search indexing takes up to 5s. values.yaml declares timeoutSeconds=5 but helm upgrade was run with --set livenessProbe.timeoutSeconds=1. Pod restarts continuously despite being healthy. Fix: restore timeoutSeconds=5.",
-  "reasoning_path": {"seeds_include": ["Pod/production/search-service-*"], "seeds_exclude": [], "cause": {"object": "HelmRelease/production/search-service"}, "evidence": [{"section": "drift", "marker": "livenessProbe.timeoutSeconds"}], "rule": {"id": "helm_drift", "affected": "*search-service*"}, "decoy_rules": ["crashloop_db"], "signals_expected": ["probe.liveness_failed", "drift.config"], "signals_forbidden": []}
+  "reasoning_path": {"seeds_include": ["Pod/production/search-service-*"], "seeds_exclude": [], "cause": {"object": "HelmRelease/production/search-service"}, "evidence": [{"section": "drift", "marker": "livenessProbe.timeoutSeconds"}], "rule": {"id": "config.drift", "affected": "*/production/search-service"}, "decoy_rules": ["container.crash"], "signals_expected": ["probe.liveness_failed", "drift.config"], "signals_forbidden": []}
 }
