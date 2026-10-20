@@ -89,8 +89,10 @@
   (examples, docs) persists.
 - [x] **H39 — resolved incidents and documents are indexed only by the UI.** → indexed by the
   workflow's `index` step for every entry point.
-- [ ] **H17 — three "expected state" paths; the only real render-vs-live diff runs outside the
-  workflow** (MCP tools). → one path, in the workflow (with F11).
+- [x] **H17 — three "expected state" paths; the only real render-vs-live diff runs outside the
+  workflow** (MCP tools). → one path, in the workflow (with F11). Done 2026-10-20: the MCP `helm_drift` and
+  `expected_state_drift` run the workflow's comparisons (`docs/three-states.md`); without an
+  applied state the result is labelled `declared-vs-live`.
 - [x] **H4 — the product does not use the structured diagnosis.** `rca/diagnosis.py` is called only
   by the measurement tools. → the workflow runs `extract_signals` + `diagnose`; its outcome is the
   report's diagnosis; the LLM, when enabled, words it. Spec: `docs/structured-in-product.md` (with H17, the two
