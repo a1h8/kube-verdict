@@ -158,8 +158,7 @@ def test_otel_node_empty_when_no_graph(monkeypatch):
     monkeypatch.setattr(cfg, "OTEL_ENABLED", True)
     monkeypatch.setattr(cfg, "LOKI_ENABLED", False)
     result = otel_node(_state(), _config())  # no graph
-    # node returns {} when no graph
-    assert result == {} or result.get("ingestion_stats", {}).get("otel", {}).get("skipped")
+    assert result == {}                                     # no graph: nothing to collect into (H6)
 
 
 # otel_node writes separate `otel` (traces) and `loki` (logs) entries, each with its
@@ -325,7 +324,7 @@ def test_gitops_node_fallback_on_error(monkeypatch):
 
 def test_anchor_node_empty_when_no_graph():
     result = anchor_node(_state(), _config())
-    assert result == {} or "anchor" not in result.get("ingestion_stats", {})
+    assert result == {}                                     # H6: one expected result
 
 
 def test_anchor_node_runs_with_empty_graph():
@@ -351,8 +350,7 @@ def test_index_node_runs_with_empty_graph():
     graph = _empty_graph()
     with patch("vectorstore.store.FAISSStore.save"):  # avoid file I/O
         result = index_node(_state(), _config(graph=graph))
-    # index_node returns {} on success
-    assert result == {} or "error" not in result
+    assert result == {}                                     # success: the store is cached, no error (H6)
 
 
 # ---------------------------------------------------------------------------
@@ -373,7 +371,7 @@ def test_signal_analysis_node_fallback_on_error():
 def test_dry_run_node_with_no_remediation():
     state = _state(remediation=[])
     result = dry_run_node(state, _config())
-    assert result.get("dry_run_results", []) == [] or result == {}
+    assert result == {}                                     # nothing to dry-run (H6)
 
 
 # ---------------------------------------------------------------------------

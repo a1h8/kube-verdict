@@ -193,12 +193,13 @@
   the plugin descriptions say the live cluster is diffed; `SECURITY.md` says no data leaves the
   machine (remote LLM providers, the embedding download and the GitHub API do); the system prompt
   says "air-gapped" whatever the provider; `docs/configuration.md` says the database can be a
-  Postgres URL (it is always SQLite). → aligned with what the code does.
-- [ ] **H6 — tests that cannot fail**: `test_hybrid_pipeline_005.py::test_any_hypothesis_fires`
+  Postgres URL (it is always SQLite). → aligned with what the code does. Done 2026-10-20 (README
+  too): what leaves the machine is stated per provider; `tests/unit/test_public_claims.py`.
+- [x] **H6 — tests that cannot fail**: `test_hybrid_pipeline_005.py::test_any_hypothesis_fires`
   (prints only), `test_workflow.py:1007` and `test_workflow_nodes_coverage.py:372` (accept any
   result), the human-review tests (assert the decision, not the path, H18), the anchor tests (call
   nodes by hand with one shared config, H10). → real assertions.
-- [ ] **Dead code**: `VECTOR_STORE_TYPE` is read nowhere; `reasoning/beam_search.py`'s selection
+- [x] **Dead code**: `VECTOR_STORE_TYPE` is read nowhere; `reasoning/beam_search.py`'s selection
   functions have no caller and its NO_GO condition needs 3 path switches where at most 2 exist. →
   removed.
 

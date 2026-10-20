@@ -1366,7 +1366,7 @@ def log_policy_decision_node(state: RCAState) -> dict:
     # The Monte Carlo varies the old pre-LLM score; it no longer decides (spec "Not in this
     # spec"): recorded in mc_result, not passed to the gate.
     mc_win_rate  = 1.0
-    max_hit      = bool(state.get("max_switches_reached", False))
+    max_hit      = False   # the "beam exhausted" NO_GO was unreachable — removed (dead code)
     # The gate scores the structured diagnosis (spec rule 6); an abstention scores 0.
     diag = state.get("diagnosis")
     diag_score = float(diag.get("score", 0.0)) if diag else None
@@ -1696,7 +1696,6 @@ def log_confidence_decision_node(state: RCAState) -> dict:
         "_confidence_edge":       edge,
         "path_confidence_history": conf_history,
         "beam_switches_used":     new_beam_switches,
-        "max_switches_reached":   new_beam_switches >= MAX_SWITCHES,
     }
 
 

@@ -170,7 +170,6 @@ OLLAMA_NUM_CTX_MAX: int = _int("OLLAMA_NUM_CTX_MAX", 8192)
 OLLAMA_NUM_PREDICT: int = _int("OLLAMA_NUM_PREDICT", 512)
 
 # ── Vector store ───────────────────────────────────────────────────────────────
-VECTOR_STORE_TYPE: str = os.getenv("VECTOR_STORE_TYPE", "faiss")
 VECTOR_STORE_PATH: Path = Path(os.getenv("VECTOR_STORE_PATH", "./data/index.faiss"))
 EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 

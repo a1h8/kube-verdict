@@ -62,7 +62,6 @@ class RCAState(TypedDict, total=False):
     verdict: str                # "AUTO" | "HUMAN_REVIEW" | "NO_GO"
     verdict_reasons: list[str]  # policy_gate reasons list
     beam_switches_used: int     # how many hypothesis-path switches beam search performed
-    max_switches_reached: bool  # True when beam search hit MAX_SWITCHES
 
     # ── Control flow ──────────────────────────────────────────────────────────
     retry_count: int            # how many times analyze has been retried on current path

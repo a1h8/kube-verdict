@@ -941,9 +941,10 @@ class TestExampleLookup:
         }
         result = save_example_node(
             state, {"configurable": {"graph": synthetic_graph, "store": store, "example_dir": tmp_path}})
-        assert "ingestion_stats" in result or result == {} or "save_example" in (result.get("ingestion_stats") or {})
+        # docs/fix-plan-001.md H6: the node reports the id of what it saved
         saved = list(tmp_path.glob("*.json"))
         assert len(saved) == 1
+        assert result["ingestion_stats"]["save_example"]["id"] in saved[0].read_text()
         assert json.loads(saved[0].read_text())["root_cause"] == "memory limit too low"
 
 
