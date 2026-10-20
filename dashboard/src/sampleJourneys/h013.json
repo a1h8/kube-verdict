@@ -34,7 +34,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-20T03:18:07.440591+00:00"
+      "ts": "2026-10-20T03:18:16.671530+00:00"
     },
     {
       "router": "policy",
@@ -49,7 +49,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-20T03:18:07.443207+00:00"
+      "ts": "2026-10-20T03:18:16.674309+00:00"
     }
   ],
   "ingestion_stats": {
@@ -95,7 +95,7 @@
   "report": {
     "query": "why is checkout-api slow",
     "kube_version": "unknown",
-    "timestamp": "2026-10-20T03:18:07.436359+00:00",
+    "timestamp": "2026-10-20T03:18:16.666835+00:00",
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
     "affected": [],
     "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
@@ -306,7 +306,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-20T03:18:07.440591+00:00"
+        "ts": "2026-10-20T03:18:16.671530+00:00"
       },
       {
         "router": "policy",
@@ -321,7 +321,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-20T03:18:07.443207+00:00"
+        "ts": "2026-10-20T03:18:16.674309+00:00"
       }
     ],
     "hypothesis_sources": []

@@ -199,7 +199,17 @@ def _build_logql(pod_name: str, namespace: str, pod_label: str = "k8s_pod_name",
     return f'{{{pod_label}="{pod_name}"}}'
 
 
+# klog, the log format of every client-go program (controllers, operators, exporters): a
+# severity letter then MMDD — "E0514 11:01:00.000000 …". Its error lines carry no "error" word
+# and were read as info, then dropped by the signals (docs/fix-plan-001.md, H50).
+_KLOG = re.compile(r"^\s*([EWIF])\d{4} \d{2}:\d{2}:\d{2}")
+_KLOG_LEVEL = {"E": "error", "F": "error", "W": "warn", "I": "info"}
+
+
 def _detect_level(line: str) -> str:
+    m = _KLOG.match(line)
+    if m:
+        return _KLOG_LEVEL[m.group(1)]
     lower = line.lower()
     for level, keywords in _LEVEL_KEYWORDS:
         if any(kw in lower for kw in keywords):
