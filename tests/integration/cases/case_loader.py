@@ -63,16 +63,13 @@ from typing import Any
 
 import yaml
 
-from ingestion.anchor_engine import AnchorEngine
 from ingestion.helm_drift import HelmDriftDetector
-from ingestion.chart_parser import flatten_values
 from ingestion.loki_source import LokiSource
 from ingestion.otel_backend import OtelBackend, in_namespace
 from ingestion.otel_collector import OtelCollector
 from ingestion.prometheus_collector import PrometheusCollector
 from ontology.entities import (
     Deployment, HelmRelease, K8sEvent, Namespace, Pod,
-    PolicyViolation, ResourceQuota,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
@@ -129,7 +126,7 @@ def load_case(case_dir: Path) -> dict:
 def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
     """
     Build an OntologyGraph from a loaded native case dict.
-    Runs HelmDriftDetector + AnchorEngine on the result.
+    Runs HelmDriftDetector on the result; the workflow's own nodes do the rest.
 
     ``wire_signals=False`` builds the Kubernetes-only graph: the Prometheus /
     Loki / OTel fixtures are left for the workflow's own collector nodes to
@@ -171,23 +168,29 @@ def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
         _wire_loki_logs(graph, case.get("loki_streams", []))
 
     # ── 4. Events ───────────────────────────────────────────────────────────
+    # linked to the object they are about, as K8sCollector._collect_events does (HAS_EVENT):
+    # the loader built no such edge, so the graph walk never reached an event (H14)
+    from ingestion.k8s_collector import K8sCollector
     for evt_raw in case["observed"].get("events", []):
         evt = _event_from_kubectl(evt_raw)
         graph.add_entity(evt)
+        involved = K8sCollector._find_by_name(graph, evt.involved_name, evt.namespace, evt.involved_kind)
+        if involved:
+            graph.add_edge(Edge(involved.uid, evt.uid, RelationshipType.HAS_EVENT))
 
-    # ── 5. ResourceQuotas ──────────────────────────────────────────────────
-    for rq_raw in case["observed"].get("resource_quotas", []):
-        rq = _resource_quota_from_kubectl(rq_raw)
-        if rq is None:
-            continue
-        graph.add_entity(rq)
-        if rq.namespace:
-            ns_entity = _find_entity(graph, "Namespace", rq.namespace, "")
-            if ns_entity is None:
-                ns_entity = Namespace(uid=f"ns-{rq.namespace}", name=rq.namespace)
-                graph.add_entity(ns_entity)
-            if rq.exhausted_resources or rq.near_limit_resources:
-                graph.add_edge(Edge(rq.uid, ns_entity.uid, RelationshipType.QUOTA_BLOCKS))
+    # ── 5. Namespaces — as K8sCollector does: one Namespace, IN_NAMESPACE from each object.
+    # ResourceQuotas are not typed live (fix plan: "Not in this PR"), so the loader builds no
+    # ResourceQuota and no QUOTA_BLOCKS edge either (H14, F6): the fixture's quota.yaml stays
+    # as data, as the live discovery would carry it.
+    for ns_name in sorted({e.namespace for e in graph.entities() if e.namespace}):
+        ns_entity = _find_entity(graph, "Namespace", ns_name, "")
+        if ns_entity is None:
+            ns_entity = Namespace(uid=f"ns-{ns_name}", name=ns_name)
+            graph.add_entity(ns_entity)
+        for e in list(graph.entities()):
+            if e.namespace == ns_name and e.kind.value in ("Pod", "Deployment", "StatefulSet",
+                                                           "DaemonSet", "Service"):
+                graph.add_edge(Edge(e.uid, ns_entity.uid, RelationshipType.IN_NAMESPACE))
 
     # ── 6. Value drift: values.yaml vs helm/release.json — not made here ───
     # Production has no path that compares a values file to the deployed values (the GitOps
@@ -218,17 +221,18 @@ def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
                 release_uid=helm_release.uid, namespace=ns)
 
     # ── 7. Policy violations ─────────────────────────────────────────────
+    # read by the production PolicyCollector's own parser, not a loader copy (H14)
+    from ingestion.policy_collector import PolicyCollectResult, PolicyCollector
+    policy = PolicyCollector.__new__(PolicyCollector)
+    policy_result = PolicyCollectResult()
     for report in case.get("policy_reports", []):
-        _ingest_policy_report(report, graph)
+        policy._process_report(report, graph, policy_result)
 
     # ── 8. Helm drift detection (pod OOMKilled, replica mismatch…) ─────────
     HelmDriftDetector().detect_all(graph)
 
-    # ── 9. Anchors from declared Helm values ────────────────────────────────
-    try:
-        AnchorEngine().annotate(graph)
-    except Exception:
-        pass  # AnchorEngine is best-effort in test context
+    # ── 9. Anchors: made by the workflow's own anchor node on this graph. The loader's call
+    # here was to a method that does not exist, inside `except: pass` — it never ran (H14).
 
     # ── 10. Missing deployment dependencies ─────────────────────────────────
     _detect_missing_deps(graph, case["observed"])
@@ -482,76 +486,6 @@ def fixture_loki_query(streams: list[dict]):
     return _query
 
 
-def _ingest_policy_report(report: dict, graph: OntologyGraph) -> None:
-    """Parse a PolicyReport and add PolicyViolation entities to the graph."""
-    meta      = report.get("metadata", {})
-    report_ns = meta.get("namespace", "")
-    source    = _detect_policy_source(report)
-
-    for item in report.get("results", []):
-        r = item.get("result", "").lower()
-        if r not in ("fail", "warn", "error"):
-            continue
-
-        policy   = item.get("policy", "")
-        rule     = item.get("rule", "")
-        message  = item.get("message", "")
-        severity = item.get("severity", "")
-
-        resources = item.get("resources") or []
-        if not resources:
-            # Cluster-scoped or single resource reference
-            res_ref = item.get("resource")
-            if isinstance(res_ref, dict):
-                resources = [res_ref]
-
-        for res_ref in resources:
-            r_kind = res_ref.get("kind", "")
-            r_name = res_ref.get("name", "")
-            r_ns   = res_ref.get("namespace", "") or report_ns
-
-            slug = "-".join(
-                p.lower().replace("/", "_").replace(".", "-")
-                for p in [policy, rule, r_kind, r_ns or "cluster", r_name]
-            )
-            uid = f"policy-violation-{slug}"[:128]
-
-            violation = PolicyViolation(
-                uid=uid,
-                name=f"{policy}/{rule}",
-                namespace=r_ns or None,
-                policy=policy,
-                rule=rule,
-                result=r,
-                message=message,
-                severity=severity,
-                source=source,
-                resource_kind=r_kind,
-                resource_name=r_name,
-                resource_namespace=r_ns,
-            )
-            graph.add_entity(violation)
-
-            # Correlate with existing graph entity
-            entity = _find_entity(graph, r_kind, r_name, r_ns)
-            if entity is not None:
-                ann_prefix = f"policy.{policy}"
-                entity.annotations[f"{ann_prefix}.result"]   = r
-                entity.annotations[f"{ann_prefix}.severity"] = severity
-                entity.annotations[f"{ann_prefix}.rule"]     = rule
-                entity.annotations[f"{ann_prefix}.message"]  = message[:200]
-                entity.annotations[f"{ann_prefix}.source"]   = source
-                existing = {
-                    e.target_uid
-                    for e in graph._adj.get(entity.uid, [])
-                    if e.rel_type == RelationshipType.HAS_POLICY_VIOLATION
-                }
-                if uid not in existing:
-                    graph.add_edge(
-                        Edge(entity.uid, uid, RelationshipType.HAS_POLICY_VIOLATION)
-                    )
-
-
 # ---------------------------------------------------------------------------
 # Missing deployment dependency detection
 # ---------------------------------------------------------------------------
@@ -578,12 +512,14 @@ def _detect_missing_deps(graph: OntologyGraph, observed: dict) -> None:
                 if subj.get("kind", "").lower() == "serviceaccount":
                     bound.add(subj.get("name", ""))
 
+    # RoleBindings and NetworkPolicies are not collected live (K8sCollector passes None), so
+    # their checks are skipped here too: missing.rbac.* / netpol.* existed only offline (H14,
+    # docs/test-cases.md § Live parity, divergence 1b)
+    del bound
     present = Present(
         configmaps=names("configmaps"),
         pvcs=names("pvcs"),
         serviceaccounts=names("serviceaccounts"),
-        bound_serviceaccounts=bound,
-        networkpolicies=observed.get("networkpolicies", []),
         messages=[ev.get("message", "") for ev in observed.get("events", [])],
     )
     for pod_raw in observed.get("pods", []):
@@ -683,25 +619,6 @@ def _pod_from_kubectl(raw: dict) -> Pod:
     )
 
 
-def _resource_quota_from_kubectl(raw: dict) -> ResourceQuota | None:
-    meta = raw.get("metadata", {})
-    name = meta.get("name", "")
-    ns = meta.get("namespace", "")
-    if not name:
-        return None
-    spec = raw.get("spec", {})
-    status = raw.get("status", {})
-    uid = meta.get("uid") or f"resourcequota-{ns}-{name}"
-    return ResourceQuota(
-        uid=uid,
-        name=name,
-        namespace=ns or None,
-        labels=meta.get("labels", {}),
-        hard=spec.get("hard", {}),
-        used=status.get("used", {}),
-    )
-
-
 def _event_from_kubectl(raw: dict) -> K8sEvent:
     meta     = raw.get("metadata", {})
     involved = raw.get("involvedObject", {})
@@ -738,25 +655,6 @@ def _parse_ts(ts_str: str | None) -> datetime | None:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _detect_policy_source(report: dict) -> str:
-    labels = report.get("metadata", {}).get("labels", {})
-    if "app.kubernetes.io/managed-by" in labels:
-        mgr = labels["app.kubernetes.io/managed-by"].lower()
-        if "kyverno" in mgr:
-            return "kyverno"
-    for k in labels:
-        if "kyverno" in k.lower():
-            return "kyverno"
-        if "gatekeeper" in k.lower():
-            return "gatekeeper"
-    annotations = report.get("metadata", {}).get("annotations", {})
-    if any("kyverno" in k.lower() for k in annotations):
-        return "kyverno"
-    source = labels.get("source", "")
-    if source:
-        return source.lower()
-    return "unknown"
 
 
 def _find_entity(graph: OntologyGraph, kind: str, name: str, namespace: str):

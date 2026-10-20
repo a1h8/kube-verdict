@@ -167,10 +167,11 @@
 
 ## 3. Measurement
 
-- [ ] **H14 — the replay never runs the production collectors**; the loader links every object to
+- [x] **H14 — the replay never runs the production collectors**; the loader links every object to
   the case's release, builds `QUOTA_BLOCKS`, reads PolicyReports its own way, makes `drift.helm.*`
   and passes RoleBinding / NetworkPolicy lists production passes as `None`. → the loader builds
-  what the collectors build, from the same code; the gaps that remain are listed per case.
+  what the collectors build, from the same code; the gaps that remain are listed per case. Done 2026-10-20: the gaps
+  left are listed in `docs/test-cases.md` § Live parity; replay 15/19 unchanged.
 - [x] **R1 — a replay child that dies leaves no trace** (`_run_in_child` ignores the exit code).
   → the failure is printed and appended to `failures.jsonl`; `--resume` retries it. Done
   2026-10-20: exit code, timeout and a missing record are printed and kept in `failures.jsonl`.
