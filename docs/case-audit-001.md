@@ -248,3 +248,26 @@ loader now runs the production comparisons on files that say what each state is:
 - Structured replay: 11/19 → **15/19**; h002, h003, h009, h024 pass through A. Their
   reasoning-path "rule" step stays a strict xfail: the old `RemediationEngine` reads `drift.*`
   only (two engines, H4).
+
+## Corrections 2 and 3 — the fixtures (2026-10-20)
+
+Applied as the per-case table decided; each case measured before and after (structured replay).
+
+| Case | Change | Before → after |
+|---|---|---|
+| h005 | The `forbidden` lines leave the events — Kubernetes emits no Event when an application's own API call is denied — and become the pod's logs (`loki/streams.json`, client-go klog lines). | PASS → **FAIL** |
+| h006 | The event that named the cause ("UDP/53 egress blocked", under a `BackOff` reason) is removed; the probe event is what kubelet writes for an HTTP probe (`statuscode: 503`); the DNS and database timeouts are the application's logs. | FAIL → FAIL |
+| h010 | One cause, the quota: no Pending pod (the quota rejects the pod at creation), the replicaset controller's `FailedCreate` with a `generateName` prefix, a Deployment at 0/2 with its `ReplicaFailure` condition. | FAIL → FAIL |
+| h002 | **Not changed.** The 401 is not a second cause: the deploy forced a private tag (`--set image.tag=v2.1.0-private`) the pull secret cannot read; one causal chain, its root the tag, graded as such since correction 1. | PASS → PASS |
+| h011 | **Retired** to `tests/integration/cases_retired/` (README there). | PASS → — |
+
+Structured replay: 15/19 → **13/18**. What the corrections exposed:
+
+- **H50 (fixed)**: klog error lines (`E0514 …`), the format of every client-go program, were
+  read as `info` and dropped by the signals.
+- **H49 (open)**: logs are read only for pods that are failing or not ready (`needs_telemetry`).
+  An application whose pod is Ready but whose work fails — h005 — is invisible: the product says
+  `no_incident`. Proved: with the pod's logs read, h005's diagnosis is `rbac` on
+  `ServiceAccount/monitoring/audit-exporter-sa`.
+- h006 and h010 fail for the reason now named in their cases: NetworkPolicies and
+  ResourceQuotas are not collected live, and no structured family reads them.

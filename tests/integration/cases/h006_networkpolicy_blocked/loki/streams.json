@@ -1,0 +1,71 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "order-service-6f9b8c7d5-q4r2s",
+      "k8s_namespace_name": "production",
+      "k8s_container_name": "order-service"
+    },
+    "values": [
+      [
+        "1778760005000000000",
+        "level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760010000000000",
+        "level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760015000000000",
+        "level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\""
+      ],
+      [
+        "1778760035000000000",
+        "level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760040000000000",
+        "level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760045000000000",
+        "level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\""
+      ],
+      [
+        "1778760065000000000",
+        "level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760070000000000",
+        "level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760075000000000",
+        "level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\""
+      ],
+      [
+        "1778760095000000000",
+        "level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760100000000000",
+        "level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760105000000000",
+        "level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\""
+      ],
+      [
+        "1778760125000000000",
+        "level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760130000000000",
+        "level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\""
+      ],
+      [
+        "1778760135000000000",
+        "level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\""
+      ]
+    ]
+  }
+]

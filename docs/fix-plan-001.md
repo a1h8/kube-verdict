@@ -12,6 +12,7 @@
 > **Measured after F11 (2026-10-18): 11/19** — the 10/19 above, plus h012 now graded through the
 > production render-vs-live path. **After H48: 15/19**, every drift found by the production
 > comparisons on fixtures that say what Git declared and what Helm applied.
+> **After H14 and the fixture corrections: 13/18** (h011 retired; h005 exposes H49).
 >
 > H9–H46 were added on 2026-10-18 by a file-by-file pass over every module; the order below is the
 > order of the commits.
@@ -188,8 +189,15 @@
 
 - [x] **D2.1 — h016's replica drift is attached to the wrong Deployment** (catalog-api, the decoy).
   → release-to-workload matching fixed (H26).
-- [ ] **Fixtures from the audit:** h002 and h010 (two causes each), h005 (RBAC denial as an Event
-  Kubernetes never emits), h006 (a kubelet message that names the cause); **h011** retired.
+- [x] **Fixtures from the audit:** h002 and h010 (two causes each), h005 (RBAC denial as an Event
+  Kubernetes never emits), h006 (a kubelet message that names the cause); **h011** retired. Done 2026-10-20
+  (`docs/case-audit-001.md` § Corrections 2 and 3): h005, h006, h010 corrected, h002 kept with
+  the reason, h011 retired; structured replay 13/18.
+- [x] **H50 — klog error lines were read as `info`** and dropped by the signals (found correcting
+  h005). → the klog severity letter is read (`tests/unit/test_klog_level.py`).
+- [ ] **H49 — an application whose pod is Ready but whose work fails is invisible**: logs are
+  read only for failing or not-ready pods, so h005 reads `no_incident`. To decide: read the logs
+  of the workload the query names, or of every pod of the namespace within a budget.
 - [x] **F10 — `make demo` prints fixed verdict lines** and computes its own diff. → it prints what
   the diagnosis computes. Done 2026-10-20: `demo/real_run.py` runs the
   workflow (`LLM_PROVIDER=none`) and prints its state only.

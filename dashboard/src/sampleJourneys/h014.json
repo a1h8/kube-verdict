@@ -46,7 +46,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-20T03:18:17.488627+00:00"
+      "ts": "2026-10-20T03:18:26.372711+00:00"
     },
     {
       "router": "policy",
@@ -61,7 +61,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-20T03:18:17.491656+00:00"
+      "ts": "2026-10-20T03:18:26.376682+00:00"
     }
   ],
   "ingestion_stats": {
@@ -107,7 +107,7 @@
   "report": {
     "query": "why is billing-gateway not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-20T03:18:17.487886+00:00",
+    "timestamp": "2026-10-20T03:18:26.371741+00:00",
     "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
     "affected": [
       "Issuer/production/letsencrypt-prod"
@@ -406,7 +406,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-20T03:18:17.488627+00:00"
+        "ts": "2026-10-20T03:18:26.372711+00:00"
       },
       {
         "router": "policy",
@@ -421,7 +421,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-20T03:18:17.491656+00:00"
+        "ts": "2026-10-20T03:18:26.376682+00:00"
       }
     ],
     "hypothesis_sources": [
