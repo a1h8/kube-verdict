@@ -140,10 +140,12 @@
   h002 / h003 / h009 / h024 / h012 found by A with their provenance (`docs/case-audit-001.md`
   § Correction F11 / H48). h002, h003, h009, h024 (their
   drifts were made by the loader) are strict xfails naming F11/H48.
-- [ ] **H1 — `env.*` is never written in production**: the GitOps env diff is blind live, and the
+- [x] **H1 — `env.*` is never written in production**: the GitOps env diff is blind live, and the
   database checks built from `env.DB_HOST` never appear. → read env from the live containers.
   Half done with H48: the differ reads env from the live containers. Open: `RemediationEngine`'s
   database checks still read an `env.DB_HOST` annotation no collector writes (two engines, H4).
+  Closed 2026-10-20: the only reader of `env.*` left is the old `RemediationEngine`, out of the
+  product since the one-engine change (`tests/unit/test_one_engine.py`).
 - [x] **H5 — collection failures read as absence.** `ingestion/helm_collector.py:203`,
   `ingestion/git_provider.py:114,120`, the K8s collector's listings other than ConfigMaps / PVCs /
   ServiceAccounts (H24), metrics-server, and the discovery's refused groups and CRDs (logged at
@@ -187,9 +189,10 @@
   → release-to-workload matching fixed (H26).
 - [ ] **Fixtures from the audit:** h002 and h010 (two causes each), h005 (RBAC denial as an Event
   Kubernetes never emits), h006 (a kubelet message that names the cause); **h011** retired.
-- [ ] **F10 — `make demo` prints fixed verdict lines** and computes its own diff. → it prints what
-  the diagnosis computes.
-- [ ] **H8 — public claims outside the README**: `SKILL.md` (twice) says "air-gapped by default";
+- [x] **F10 — `make demo` prints fixed verdict lines** and computes its own diff. → it prints what
+  the diagnosis computes. Done 2026-10-20: `demo/real_run.py` runs the
+  workflow (`LLM_PROVIDER=none`) and prints its state only.
+- [x] **H8 — public claims outside the README**: `SKILL.md` (twice) says "air-gapped by default";
   the plugin descriptions say the live cluster is diffed; `SECURITY.md` says no data leaves the
   machine (remote LLM providers, the embedding download and the GitHub API do); the system prompt
   says "air-gapped" whatever the provider; `docs/configuration.md` says the database can be a

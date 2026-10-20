@@ -1,7 +1,7 @@
 {
   "name": "kube-verdict",
   "version": "0.1.4",
-  "description": "Anchor-by-render root-cause analysis for Kubernetes incidents — reconstructs the expected state from Helm/GitOps rendered manifests, diffs it against the live cluster, and turns declared-vs-observed drift into a ranked diagnosis with remediation commands, a rollback plan and a confidence score. Runs air-gapped via local Ollama.",
+  "description": "Anchor-by-render root-cause analysis for Kubernetes incidents — compares what Git declares, what Helm applied and the live cluster, and turns each drift into a ranked structured diagnosis; an LLM, when configured, explains it and proposes remediation with a rollback plan. Local inference via Ollama by default; a remote provider receives the prompt.",
   "author": { "name": "a1h8" },
   "mcpServers": {
     "kube-verdict": {

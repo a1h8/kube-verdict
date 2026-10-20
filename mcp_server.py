@@ -54,7 +54,8 @@ _TOOLS = [
             "Run a full root-cause analysis on a Kubernetes namespace. "
             "Correlates pod events, Helm drift, and anchor violations into a "
             "ranked diagnosis with remediation commands and confidence score. "
-            "Works air-gapped (Ollama / Mistral, no external calls)."
+            "Inference runs locally via Ollama by default; with a remote LLM_PROVIDER the "
+            "prompt leaves the machine (docs/configuration.md)."
         ),
         inputSchema={
             "type": "object",

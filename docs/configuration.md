@@ -114,7 +114,7 @@ Applied as a score multiplier in `FAISSStore.hybrid_search()`. Override any sour
 
 | Variable | Default | Description |
 |---|---|---|
-| `KUBEWHISPERER_DB` | `kubeverdict.db` | Path to the SQLite database. Stores session metadata, LangGraph checkpoints, and raw entity texts for FAISS reconstruction. Swap for a Postgres URL when scaling beyond a single pod. |
+| `KUBEWHISPERER_DB` | `kubeverdict.db` | Path to the SQLite database. Stores session metadata and LangGraph checkpoints. Always SQLite: a Postgres URL is read as a file name (no other backend is implemented). |
 
 ## Runtime
 

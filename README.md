@@ -17,7 +17,7 @@ git clone https://github.com/a1h8/kube-verdict && cd kube-verdict
 make demo
 ```
 
-`make demo` walks through the render-vs-live evidence of a committed fixture (`h012`): the `helm template` expected state, the live Deployment, the declared-vs-live gap (512Mi declared, 128Mi deployed) and the hypotheses of the rule engine. It is an illustration, not the measured pipeline: the gap is computed by the demo script, and the closing verdict lines are written by the script. The measured pipeline runs the GitOps collector's own diff on the same fixture and reads its drift ([fix-plan-001.md](docs/fix-plan-001.md) F11, H28). The measured path is the structured diagnosis (`python tools/veracity_replay.py --solver structured`).
+`make demo` runs the product's own workflow offline, without an LLM (`LLM_PROVIDER=none`), on a committed fixture (`h012`) and prints only what it computed: the drift between what Git declares and what Helm applied, the structured diagnosis, its confidence and the policy verdict ([fix-plan-001.md](docs/fix-plan-001.md) F10). The measured path is the same diagnosis (`python tools/veracity_replay.py --solver structured`).
 
 📺 **[▶ Watch the 35-second demo](demo/kubeverdict-short.mp4)** — incident → evidence → verdict → human gate.
 
@@ -259,7 +259,7 @@ pip install -r requirements.txt
 
 cp .env.example .env
 # Edit .env: KUBECONFIG, LLM_PROVIDER, KUBE_NAMESPACES
-# LLM_PROVIDER=ollama  → ollama pull mistral  (local, no data leaves infra)
+# LLM_PROVIDER=ollama  → ollama pull mistral  (local: no prompt leaves your infrastructure)
 # LLM_PROVIDER=groq    → set GROQ_API_KEY     (fast, free tier)
 # LLM_PROVIDER=anthropic|openai|google → set corresponding API key
 
@@ -355,7 +355,7 @@ cwd = "/path/to/kube-verdict"
 
 ### Air-gapped clusters
 
-All three tools run fully offline — Ollama + Mistral, no data leaves your infrastructure:
+The three tools run offline with a local Ollama (or `LLM_PROVIDER=none`, no model) once the embedding model below is pre-seeded; a remote `LLM_PROVIDER` would receive the prompt:
 
 ```bash
 ollama serve &          # local LLM on port 11434
