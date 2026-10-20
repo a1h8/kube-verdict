@@ -174,6 +174,42 @@ native cases ──► run_case(real model) ──► grade() ──► tests/ve
    same corpus (`docs/scenarios-v2.md` § Solvers). If `rules` already passes tier A, the
    LLM adds wording there, not diagnosis.
 
+## Comparison — structured alone vs LLM vs sLLM (protocol fixed 2026-10-20, before any run)
+
+Asked on 2026-10-18; runs after fix plan 001 is closed and the new full diagnosis is done.
+Everything below is fixed now; a change after the first run is a dated amendment.
+
+**Configurations**, one commit, one frozen case list (the native cases after the audit's
+fixture corrections), `EXAMPLE_LOOKUP_DISABLED=1`, stub store:
+
+| Name | `--solver` | Model | Runs per case |
+|---|---|---|---|
+| none | `structured` (= `LLM_PROVIDER=none`, `tests/unit/test_structured_in_product.py`) | — | 1 (deterministic) |
+| LLM | `llm:mistral` | mistral 7.2B Q4_K_M | 3 |
+| sLLM | `llm:qwen2.5:3b-instruct` | qwen2.5 3.1B Q4_K_M | 3 |
+
+**Tables** (`tools/compare_solvers.py`, generated from the records, never hand-written):
+
+1. *Per configuration*, over all expected runs (a missing run is a FAIL, H7):
+   report correct (%) · explanation correct (%) · LLM disagrees with the diagnosis (%) ·
+   remediation proposed (% of diagnosed runs with ≥ 1 command) · remediation without an
+   irreversible command (%) · missing runs · median wall s · median prompt tokens read.
+2. *Per tier* (A / B / C): the same columns.
+3. *Per case*: report and explanation, `x/3` per configuration.
+
+"Report correct" is the same for the three configurations by construction (the diagnosis
+decides); the columns that can differ are the explanation, the disagreement and the remediation
+— that is what an LLM adds or breaks.
+
+**Decision rules, fixed now:**
+- The LLM is worth running as explainer if, on the diagnosed runs, its explanation is correct
+  in ≥ 80 % and it disagrees in ≤ 10 %; otherwise `LLM_PROVIDER=none` is the recommended default.
+- The sLLM is preferred to the LLM if its explanation-correct rate is within 5 points of the
+  LLM's, its disagreement rate is not higher, and its median wall time is lower.
+- Negative controls, every configuration: h022 and h026 stay `no_incident`; a run with the
+  case's collector cut is never more confident than the connected run. A configuration that
+  fails a control is reported as failing, whatever its rates.
+
 ## What an LLM run grades (2026-10-19)
 
 The `rules` solver keeps grading the old `RemediationEngine`, which no longer runs in the

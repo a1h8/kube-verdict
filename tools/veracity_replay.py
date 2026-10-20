@@ -172,6 +172,11 @@ def solve_llm(case_name: str, client, run: int) -> dict:
         # what the model was actually sent, verbatim: without it, what it read could not be
         # checked afterwards (docs/fix-plan-001.md, "prompts are not recorded")
         "prompts": list(getattr(result.llm, "analyze_prompts", [])),
+        # what the LLM proposed, and which of it has no way back (docs/veracity-replay.md
+        # § Comparison: "remediation proposed", "without an irreversible command")
+        "remediation": list(report.get("remediation") or []),
+        "unrecoverable": list((state.get("blast_radius") or {}).get("unrecoverable") or []),
+        "outcome": (state.get("diagnosis") or {}).get("outcome"),
         "num_ctx_max": getattr(client, "num_ctx_max", None),
     })
     return record

@@ -230,5 +230,8 @@ dependency lockfile.
 
 ## Measurement after the PR
 
+The comparison none / LLM / sLLM and its decision rules are fixed in
+`docs/veracity-replay.md` § Comparison (2026-10-20), before any run.
+
 Block B, on the merged code: rules, structured, mistral × 3, qwen2.5:3b × 3, the 19 native cases;
 a block counts only when complete (`docs/veracity-replay.md`).
