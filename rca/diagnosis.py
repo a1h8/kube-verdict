@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 from rca.signals import Signal, SignalSet
 
-RULES_VERSION = "rules/4"   # bump when a rule, a weight or a threshold changes (2: quota, connections; 3: netpol; 4: slo.dependency — docs/failing-cases-002.md)
+RULES_VERSION = "rules/5"   # bump when a rule, a weight or a threshold changes (2: quota, connections; 3: netpol; 4: slo.dependency — docs/failing-cases-002.md; 5: an explained failure strengthens no other drift, P7)
 REPORT_MIN = 0.5            # a diagnosis below this is not reported
 GENERIC_CAP = 0.4           # a generic rule (drift alone, crash alone) never reaches REPORT_MIN
 BASE, STRENGTH, CONTRA = 0.5, 0.15, 0.3
@@ -399,10 +399,13 @@ def _connections_exhausted(ss: SignalSet) -> list[Diagnosis]:
     return out
 
 
-def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
+def _config_drift(ss: SignalSet, explained: set[str], explained_subjects: set[str] = frozenset()) -> list[Diagnosis]:
     """A configuration drift alone is generic; it is reported when a workload of the same
-    release is failing and no more specific rule already used that drift."""
-    faults = [s for s in ss.signals if s.kind not in CONTEXT_KINDS | {"drift.config"}]
+    release is failing and no more specific rule already used that drift. A failure a specific
+    rule already explains (its pod) does not strengthen another drift: h003's OOM, explained by
+    `oom.memory_drift`, used to lift the requests drift above it (fix plan P7)."""
+    faults = [s for s in ss.signals if s.kind not in CONTEXT_KINDS | {"drift.config"}
+              and ss.subject(s) not in explained_subjects]
     out = []
     for d in ss.of("drift.config"):
         if d.payload_ref in explained:
@@ -459,7 +462,8 @@ def diagnose(ss: SignalSet) -> Outcome:
         found += rule(ss)
     explained_drifts = {s.payload_ref for d in found for s in d.supports if s.kind == "drift.config"}
     explained_pods = {ss.subject(s) for d in found for s in d.supports}
-    found += _config_drift(ss, explained_drifts)
+    explained_faults = {ss.subject(s) for d in found for s in d.supports if s.kind != "drift.config"}
+    found += _config_drift(ss, explained_drifts, explained_faults)
     found += _crash(ss, explained_pods)
     found.sort(key=lambda d: (-d.score, d.rule, d.cause_location))
     reported = []

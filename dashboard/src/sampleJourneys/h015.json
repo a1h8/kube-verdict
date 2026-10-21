@@ -47,7 +47,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-21T05:44:40.712023+00:00"
+      "ts": "2026-10-21T05:45:01.841414+00:00"
     },
     {
       "router": "policy",
@@ -62,7 +62,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-21T05:44:40.715654+00:00"
+      "ts": "2026-10-21T05:45:01.844228+00:00"
     }
   ],
   "ingestion_stats": {
@@ -108,7 +108,7 @@
   "report": {
     "query": "why is inventory-api not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-21T05:44:40.711198+00:00",
+    "timestamp": "2026-10-21T05:45:01.840655+00:00",
     "summary": "inventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.",
     "affected": [
       "outside:etcd"
@@ -401,7 +401,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-21T05:44:40.712023+00:00"
+        "ts": "2026-10-21T05:45:01.841414+00:00"
       },
       {
         "router": "policy",
@@ -416,7 +416,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-21T05:44:40.715654+00:00"
+        "ts": "2026-10-21T05:45:01.844228+00:00"
       }
     ],
     "hypothesis_sources": [
