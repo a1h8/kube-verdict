@@ -130,6 +130,8 @@ def _resolve_api_token() -> str | None:
 
 
 API_TOKEN: str | None = _resolve_api_token()
+# Webhook alerts: at most this many investigations at once, one per alert identity (H53)
+WEBHOOK_MAX_RUNNING: int = _int("WEBHOOK_MAX_RUNNING", 4)
 
 # Per-identity JWT / OIDC auth (preferred over the shared secret above). When
 # OIDC_JWKS_URL is set, bearer tokens are verified against the provider's JWKS

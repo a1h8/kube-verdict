@@ -46,7 +46,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-21T05:42:51.907492+00:00"
+      "ts": "2026-10-21T05:43:18.720364+00:00"
     },
     {
       "router": "policy",
@@ -61,7 +61,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-21T05:42:51.910184+00:00"
+      "ts": "2026-10-21T05:43:18.723198+00:00"
     }
   ],
   "ingestion_stats": {
@@ -107,7 +107,7 @@
   "report": {
     "query": "why is billing-gateway not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-21T05:42:51.906676+00:00",
+    "timestamp": "2026-10-21T05:43:18.719537+00:00",
     "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
     "affected": [
       "Issuer/production/letsencrypt-prod"
@@ -214,18 +214,6 @@
       "command_count": 1,
       "rollback_available": true,
       "method": "command-heuristic"
-    },
-    "decision": {
-      "verdict": "HUMAN_REVIEW",
-      "reasons": [
-        "score 0.64 < 0.85 AUTO threshold",
-        "namespace 'production' is production — always HUMAN_REVIEW minimum"
-      ],
-      "score": 0.64,
-      "risk": "LOW",
-      "rollback_available": true,
-      "namespace": "production",
-      "mc_win_rate": 1.0
     },
     "raw_analysis": "### 1. Summary\nbilling-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.\n\n### 2. Affected resources\n- Deployment/production/billing-gateway — 0/2 Ready\n\n### 3. Root cause\nThe pods log \"x509: certificate has expired\"; the cert-manager issuer letsencrypt-prod cannot reach its ACME endpoint, so the certificate was not renewed.\n\n### 4. Causal chain\n1. ACME issuer cannot register its account.\n2. The mTLS certificate expires without renewal.\n3. TLS handshake to payments-backend fails, /ready returns 503.\n\n### 5. Remediation\nhelm upgrade billing-gateway ./chart -n production --set certManager.issuer=letsencrypt-prod-http01\n\n### 6. Confidence\nHIGH — the x509 expiry log line names the cause directly.\n",
     "llm_confidence": "HIGH",
@@ -406,7 +394,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-21T05:42:51.907492+00:00"
+        "ts": "2026-10-21T05:43:18.720364+00:00"
       },
       {
         "router": "policy",
@@ -421,7 +409,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-21T05:42:51.910184+00:00"
+        "ts": "2026-10-21T05:43:18.723198+00:00"
       }
     ],
     "hypothesis_sources": [

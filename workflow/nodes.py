@@ -646,6 +646,10 @@ def _report_from_diagnosis(state: RCAState, llm_report: dict | None) -> tuple[di
     diag = state.get("diagnosis") or {}
     reported = diag.get("diagnoses") or []
     report = dict(llm_report or {})
+    # the LLM report's own `decision` re-ran the gate on the pre-LLM context score and could
+    # contradict the workflow's verdict (h013: NO_GO beside HUMAN_REVIEW); the verdict is the
+    # policy gate's, on the diagnosis (spec rule 6, fix plan H66)
+    report.pop("decision", None)
     llm_cause = str(report.get("root_cause") or "")
     disagreement = ""
     if llm_report is not None and reported and not any(

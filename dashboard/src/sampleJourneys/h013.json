@@ -48,7 +48,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-21T05:42:51.047025+00:00"
+      "ts": "2026-10-21T05:43:17.847417+00:00"
     },
     {
       "router": "policy",
@@ -63,7 +63,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-21T05:42:51.052801+00:00"
+      "ts": "2026-10-21T05:43:17.849792+00:00"
     }
   ],
   "ingestion_stats": {
@@ -109,7 +109,7 @@
   "report": {
     "query": "why is checkout-api slow",
     "kube_version": "unknown",
-    "timestamp": "2026-10-21T05:42:51.034270+00:00",
+    "timestamp": "2026-10-21T05:43:17.840816+00:00",
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
     "affected": [
       "outside:payments-gateway"
@@ -211,17 +211,6 @@
       "command_count": 1,
       "rollback_available": true,
       "method": "command-heuristic"
-    },
-    "decision": {
-      "verdict": "NO_GO",
-      "reasons": [
-        "score 0.42 < 0.6 minimum"
-      ],
-      "score": 0.42,
-      "risk": "LOW",
-      "rollback_available": true,
-      "namespace": "production",
-      "mc_win_rate": 1.0
     },
     "raw_analysis": "### 1. Summary\ncheckout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.\n\n### 2. Affected resources\n- Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing\n\n### 3. Root cause\nThe p99 latency (1.84s vs a 400ms SLO) comes from calls to payments-gateway; CPU, memory and restarts are flat, so the network path to the dependency is the cause, not the pod.\n\n### 4. Causal chain\n1. Calls from checkout-api to payments-gateway slow down.\n2. p99 latency breaches the 400ms SLO.\n3. Multi-window burn-rate alerts fire (14.4x fast, 6x slow).\n\n### 5. Remediation\nkubectl rollout restart deployment/checkout-api -n production\n\n### 6. Confidence\nHIGH — the burn-rate and latency alerts agree and isolate payments-gateway.\n",
     "llm_confidence": "HIGH",
@@ -406,7 +395,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-21T05:42:51.047025+00:00"
+        "ts": "2026-10-21T05:43:17.847417+00:00"
       },
       {
         "router": "policy",
@@ -421,7 +410,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-21T05:42:51.052801+00:00"
+        "ts": "2026-10-21T05:43:17.849792+00:00"
       }
     ],
     "hypothesis_sources": [

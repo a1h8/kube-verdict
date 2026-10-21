@@ -48,18 +48,18 @@ CREATE TABLE IF NOT EXISTS vector_store_docs (
 """
 
 
-def get_db() -> sqlite3.Connection:
-    """Open a new connection with WAL mode + row_factory."""
-    conn = sqlite3.connect(db_path(), check_same_thread=False, timeout=30)
+def get_db(path: str | None = None) -> sqlite3.Connection:
+    """Open a new connection with WAL mode + row_factory (*path*, else ``db_path()``)."""
+    conn = sqlite3.connect(path or db_path(), check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA foreign_keys=ON;")
     return conn
 
 
-def init_db() -> None:
+def init_db(path: str | None = None) -> None:
     """Create schema if it doesn't exist yet."""
-    conn = get_db()
+    conn = get_db(path)
     with conn:
         conn.executescript(_SESSION_DDL + _VECTOR_STORE_DDL)
     conn.close()

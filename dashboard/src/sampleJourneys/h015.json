@@ -47,7 +47,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-21T05:42:52.491170+00:00"
+      "ts": "2026-10-21T05:43:19.300024+00:00"
     },
     {
       "router": "policy",
@@ -62,7 +62,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-21T05:42:52.494357+00:00"
+      "ts": "2026-10-21T05:43:19.303339+00:00"
     }
   ],
   "ingestion_stats": {
@@ -108,7 +108,7 @@
   "report": {
     "query": "why is inventory-api not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-21T05:42:52.490488+00:00",
+    "timestamp": "2026-10-21T05:43:19.299374+00:00",
     "summary": "inventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.",
     "affected": [
       "outside:etcd"
@@ -213,18 +213,6 @@
       "command_count": 1,
       "rollback_available": true,
       "method": "command-heuristic"
-    },
-    "decision": {
-      "verdict": "HUMAN_REVIEW",
-      "reasons": [
-        "score 0.68 < 0.85 AUTO threshold",
-        "namespace 'production' is production — always HUMAN_REVIEW minimum"
-      ],
-      "score": 0.68,
-      "risk": "LOW",
-      "rollback_available": true,
-      "namespace": "production",
-      "mc_win_rate": 1.0
     },
     "raw_analysis": "### 1. Summary\ninventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.\n\n### 2. Affected resources\n- Pod/production/inventory-api-7f9c8d6b5-x2qwe — Running, not Ready\n\n### 3. Root cause\nAfter an etcd compaction cycle, KV Range calls never recover (4.5–5.1s, \"required revision has been compacted\"), longer than the 2s readiness timeout.\n\n### 4. Causal chain\n1. etcd compaction starts.\n2. Range calls slow to ~5s and return DeadlineExceeded.\n3. The readiness probe (timeoutSeconds=2) keeps failing.\n\n### 5. Remediation\nhelm upgrade inventory-api ./chart -n production --set readinessProbe.timeoutSeconds=6\n\n### 6. Confidence\nHIGH — the error traces show the etcd Range latency directly.\n",
     "llm_confidence": "HIGH",
@@ -413,7 +401,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-21T05:42:52.491170+00:00"
+        "ts": "2026-10-21T05:43:19.300024+00:00"
       },
       {
         "router": "policy",
@@ -428,7 +416,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-21T05:42:52.494357+00:00"
+        "ts": "2026-10-21T05:43:19.303339+00:00"
       }
     ],
     "hypothesis_sources": [

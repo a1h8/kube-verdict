@@ -26,60 +26,62 @@ from api.signal_mapper import anomalous_signals, signal_to_namespaces, signal_to
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/webhook", tags=["webhook"])
 
+# One running investigation per alert identity, and a global cap: an alert storm used to start one
+# full investigation (cluster collection + LLM) per alert, all at once (docs/fix-plan-001.md H53).
+_running: dict[tuple, asyncio.Task] = {}
+
+
+def _start(key: tuple, query: str, namespaces: list[str] | None) -> str | None:
+    """Start an investigation for *key* unless one is running or the cap is reached."""
+    import config as cfg
+    from api.routes.sessions import _run_graph
+    for k in [k for k, t in _running.items() if t.done()]:
+        _running.pop(k, None)
+    if key in _running:
+        log.info("webhook: %s already under investigation — skipped", key)
+        return None
+    if len(_running) >= cfg.WEBHOOK_MAX_RUNNING:
+        log.warning("webhook: %d investigations running (cap) — %s skipped", len(_running), key)
+        return None
+    session_id = str(uuid.uuid4())
+    store.create(session_id)
+    initial_state = {"query": query, "namespaces": namespaces, "edge_log": []}
+    store.set_last_state(session_id, initial_state)
+    session = store.get_or_404(session_id)
+    task = asyncio.create_task(_run_graph(session, initial_state))
+    session.task = task
+    _running[key] = task
+    return session_id
+
 
 @router.post("/alertmanager", response_model=WebhookTriggered, status_code=202, dependencies=[Depends(require_auth)])
 async def alertmanager_webhook(payload: AlertmanagerPayload) -> WebhookTriggered:
-    from api.routes.sessions import _run_graph
-
     active = firing_alerts(payload.alerts)
     skipped = len(payload.alerts) - len(active)
-
     session_ids: list[str] = []
     for alert in active:
-        session_id = str(uuid.uuid4())
-        store.create(session_id)
-
-        initial_state = {
-            "query":      alert_to_query(alert),
-            "namespaces": alert_to_namespaces(alert),
-            "edge_log":   [],
-        }
-        store.set_last_state(session_id, initial_state)
-
-        session = store.get_or_404(session_id)
-        task = asyncio.create_task(_run_graph(session, initial_state))
-        session.task = task
-
+        namespaces = alert_to_namespaces(alert)
+        key = ("alert", alert.labels.get("alertname", ""), tuple(namespaces or ()))
+        session_id = _start(key, alert_to_query(alert), namespaces)
+        if session_id is None:
+            skipped += 1
+            continue
         log.info("webhook: started session %s for alert %s", session_id, alert.labels.get("alertname"))
         session_ids.append(session_id)
-
     return WebhookTriggered(session_ids=session_ids, skipped=skipped)
 
 
 @router.post("/signal", response_model=WebhookTriggered, status_code=202, dependencies=[Depends(require_auth)])
 async def signal_webhook(payload: SignalAlertPayload) -> WebhookTriggered:
-    from api.routes.sessions import _run_graph
-
     active = anomalous_signals(payload.alerts)
     skipped = len(payload.alerts) - len(active)
-
     session_ids: list[str] = []
     for alert in active:
-        session_id = str(uuid.uuid4())
-        store.create(session_id)
-
-        initial_state = {
-            "query":      signal_to_query(alert),
-            "namespaces": signal_to_namespaces(alert),
-            "edge_log":   [],
-        }
-        store.set_last_state(session_id, initial_state)
-
-        session = store.get_or_404(session_id)
-        task = asyncio.create_task(_run_graph(session, initial_state))
-        session.task = task
-
+        key = ("signal", alert.entity_uid, alert.metric_name)
+        session_id = _start(key, signal_to_query(alert), signal_to_namespaces(alert))
+        if session_id is None:
+            skipped += 1
+            continue
         log.info("webhook: started session %s for signal %s/%s", session_id, alert.entity_uid, alert.metric_name)
         session_ids.append(session_id)
-
     return WebhookTriggered(session_ids=session_ids, skipped=skipped)

@@ -131,3 +131,15 @@ def test_an_abstention_is_reviewed_never_blocked_nor_auto():
     state = {"diagnosis": {"outcome": "no_incident", "score": 0.0}, "report_dict": {},
              "blast_radius": {"risk": "LOW", "rollback_available": True, "command_count": 0}}
     assert log_policy_decision_node(state)["verdict"] == "HUMAN_REVIEW"
+
+
+def test_the_report_carries_no_verdict_of_its_own():                          # fix plan H66
+    # the LLM report's `decision` re-ran the gate on the pre-LLM score (h013: NO_GO beside the
+    # workflow's HUMAN_REVIEW); the only verdict is the policy gate's
+    llm = _llm("api runs out of memory: its limit was lowered to 128Mi.")
+    llm.analyze.return_value.to_dict.return_value["decision"] = {"verdict": "NO_GO", "score": 0.42}
+    state = _diagnosed(_oom_graph())
+    with patch("workflow.nodes.RCAAnalyzer", return_value=llm), patch("workflow.nodes.ContextBuilder"):
+        out = analyze_node(state, _cfg(_oom_graph(), llm=MagicMock()))
+    assert "decision" not in out["report_dict"]
+    assert out["report_dict"]["remediation"]                    # control: the rest of the LLM report stays
