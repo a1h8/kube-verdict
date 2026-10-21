@@ -1,8 +1,8 @@
 """The system prompt treats quoted cluster text as data — docs/fix-plan-001.md, H23 — and makes
-no "air-gapped" claim, false with a remote provider (H8)."""
+no "air-gapped" claim, false with a remote provider (H8), and forces no confidence label (H55)."""
 from __future__ import annotations
 
-from rca.analyzer import _SYSTEM_PROMPT, PROMPT_VERSION
+from rca.analyzer import _PROMPT_TEMPLATE, _SYSTEM_PROMPT, PROMPT_VERSION
 
 
 def test_quoted_cluster_text_is_data_not_instructions():
@@ -15,4 +15,9 @@ def test_no_air_gapped_claim():
 
 
 def test_the_prompt_version_moved():                  # runs recorded with v2 are not compared as one
-    assert PROMPT_VERSION == "v4"
+    assert PROMPT_VERSION == "v5"
+
+
+def test_no_rule_forces_a_confidence_label():         # the label was HIGH by rule, whatever the evidence
+    for prompt in (_SYSTEM_PROMPT, _PROMPT_TEMPLATE):
+        assert "must answer" not in prompt.lower()

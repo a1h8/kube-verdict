@@ -183,3 +183,14 @@ class TestStreamGenerate:
         with patch("requests.post", return_value=mock_resp):
             tokens = list(client.stream_generate("prompt"))
         assert tokens == ["hi"]
+
+    def test_streams_at_the_temperature_generate_uses(self, client):      # fix plan H62
+        mock_resp = MagicMock()
+        mock_resp.iter_lines.return_value = iter([json.dumps({"response": "x", "done": True}).encode()])
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        with patch("requests.post", return_value=mock_resp) as post:
+            list(client.stream_generate("prompt"))
+        streamed = post.call_args.kwargs["json"]["options"]["temperature"]
+        import inspect
+        assert streamed == inspect.signature(client.generate).parameters["temperature"].default

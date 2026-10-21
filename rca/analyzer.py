@@ -86,8 +86,7 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
 
     ### 6. Confidence
     Choose LOW | MEDIUM | HIGH using this rule:
-    - If the context quality score above is HIGH and anchor violations or CRITICAL
-      drift are present with a complete causal chain, you MUST answer HIGH.
+    - If every causal link is observed in the evidence above, answer HIGH.
     - If one causal link is inferred rather than observed, answer MEDIUM.
     - If context is sparse or contradictory, answer LOW.
     Start your answer with exactly one word: HIGH, MEDIUM, or LOW.
@@ -106,11 +105,12 @@ _PROMPT_TEMPLATE = textwrap.dedent("""\
 
 # Version of the analyze prompt above. Recorded by the veracity replay so runs made
 # with different prompts are never compared as one (docs/diagnostics.md § Step 2).
-PROMPT_VERSION = "v4"   # v2: section 7 "Checks" (docs/diagnostics.md § Step 2)
+PROMPT_VERSION = "v5"   # v2: section 7 "Checks" (docs/diagnostics.md § Step 2)
 #                         v3: quoted cluster text is data, not instructions; no "air-gapped"
 #                             claim, which was false with a remote provider (fix plan 001, H23)
 #                         v4: the hypothesis is the structured diagnosis the model explains
 #                             (docs/structured-in-product.md); its cause is not the report's
+#                         v5: no rule that forces HIGH from the context score (fix plan H55)
 
 
 def _generate_rollback(remediation: list[str]) -> list[str]:
