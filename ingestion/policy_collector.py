@@ -344,10 +344,13 @@ def policy_fix_hints(graph: OntologyGraph) -> list[str]:
         source   = entity.source
 
         if source == "kyverno":
+            # `describe … | kyverno test .` piped a description into a command that reads a test
+            # directory; two read-only commands instead (fix plan H60)
+            ns_flag = f"-n {entity.resource_namespace}" if entity.resource_namespace else "-A"
             hints.append(
                 f"{resource}  policy={entity.policy} rule={entity.rule}  →  "
-                f"kubectl describe clusterpolicy {entity.policy} | "
-                f"kyverno test ."
+                f"kubectl describe clusterpolicy {entity.policy} ; "
+                f"kubectl get policyreport {ns_flag} -o wide"
             )
         elif source == "gatekeeper":
             hints.append(

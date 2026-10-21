@@ -2914,7 +2914,7 @@ def _render_proposed_changes(ctx, case_name: str, case_type: str) -> None:
                     st.caption(msg[:300])
                 if src == "kyverno":
                     p = policy.split("=")[-1] if "=" in policy else policy
-                    st.code(f"kubectl describe clusterpolicy {p}\nkyverno test .", language="bash")
+                    st.code(f"kubectl describe clusterpolicy {p}", language="bash")   # fix plan H60
                 else:
                     st.code(f"kubectl get constraint {policy} -o jsonpath='{{.status.violations}}'", language="bash")
                 st.markdown("---")
@@ -2976,14 +2976,11 @@ def _render_proposed_changes(ctx, case_name: str, case_type: str) -> None:
 
                 if source == "kyverno":
                     policy_name = policy.split("=")[-1] if "=" in policy else policy
+                    # read-only: the former local-test and annotate lines neither tested nor
+                    # fixed anything (fix plan H60)
                     st.code(
                         f"# Inspect the policy\n"
-                        f"kubectl describe clusterpolicy {policy_name}\n\n"
-                        f"# Test locally\n"
-                        f"kyverno test .\n\n"
-                        f"# Patch the violating resource\n"
-                        f"kubectl annotate {resource.replace('/', ' -n ')} "
-                        f"policies.kyverno.io/last-applied-patches-",
+                        f"kubectl describe clusterpolicy {policy_name}",
                         language="bash",
                     )
                 elif source == "gatekeeper":
