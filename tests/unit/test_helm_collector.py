@@ -66,6 +66,14 @@ class TestParseChart:
     def test_parse_version_semver(self):
         assert HelmCollector._parse_chart_version("my-chart-0.1.0") == "0.1.0"
 
+    def test_a_prerelease_version_is_not_cut(self):                  # fix plan H59
+        assert HelmCollector._parse_chart_name("app-1.2.3-rc1") == "app"
+        assert HelmCollector._parse_chart_version("app-1.2.3-rc1") == "1.2.3-rc1"
+        assert HelmCollector._parse_chart_version("app-1.2.3+build.5") == "1.2.3+build.5"
+
+    def test_a_number_in_the_chart_name_stays_in_the_name(self):     # control
+        assert HelmCollector._parse_chart_name("redis-7-cluster-2.0.1") == "redis-7-cluster"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # _run_json

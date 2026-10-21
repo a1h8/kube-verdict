@@ -47,7 +47,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-21T05:43:19.300024+00:00"
+      "ts": "2026-10-21T05:43:39.451399+00:00"
     },
     {
       "router": "policy",
@@ -62,7 +62,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-21T05:43:19.303339+00:00"
+      "ts": "2026-10-21T05:43:39.453884+00:00"
     }
   ],
   "ingestion_stats": {
@@ -108,7 +108,7 @@
   "report": {
     "query": "why is inventory-api not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-21T05:43:19.299374+00:00",
+    "timestamp": "2026-10-21T05:43:39.450664+00:00",
     "summary": "inventory-api stays NotReady because etcd Range calls take ~5s after a compaction and hit DeadlineExceeded.",
     "affected": [
       "outside:etcd"
@@ -162,7 +162,7 @@
         "Deployment/production/inventory-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.",
         "Deployment/production/inventory-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.",
         "Deployment/production/inventory-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.",
-        "Pod/production/inventory-api-7f9c8d6b5-x2qwe: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+        "Pod/production/inventory-api-7f9c8d6b5-x2qwe: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest",
         "Pod/production/inventory-api-7f9c8d6b5-x2qwe: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
         "Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
         "Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
@@ -401,7 +401,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-21T05:43:19.300024+00:00"
+        "ts": "2026-10-21T05:43:39.451399+00:00"
       },
       {
         "router": "policy",
@@ -416,7 +416,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-21T05:43:19.303339+00:00"
+        "ts": "2026-10-21T05:43:39.453884+00:00"
       }
     ],
     "hypothesis_sources": [

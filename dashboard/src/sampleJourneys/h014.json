@@ -46,7 +46,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-21T05:43:18.720364+00:00"
+      "ts": "2026-10-21T05:43:38.850246+00:00"
     },
     {
       "router": "policy",
@@ -61,7 +61,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-21T05:43:18.723198+00:00"
+      "ts": "2026-10-21T05:43:38.852733+00:00"
     }
   ],
   "ingestion_stats": {
@@ -107,7 +107,7 @@
   "report": {
     "query": "why is billing-gateway not ready",
     "kube_version": "unknown",
-    "timestamp": "2026-10-21T05:43:18.719537+00:00",
+    "timestamp": "2026-10-21T05:43:38.849482+00:00",
     "summary": "billing-gateway is not Ready because its mTLS certificate to payments-backend expired and was never renewed.",
     "affected": [
       "Issuer/production/letsencrypt-prod"
@@ -161,13 +161,13 @@
         "Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.",
         "Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.",
         "Deployment/production/billing-gateway: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.",
-        "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+        "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest",
         "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
         "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
         "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
         "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.",
         "Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.",
-        "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+        "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest",
         "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
         "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
         "Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
@@ -394,7 +394,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-21T05:43:18.720364+00:00"
+        "ts": "2026-10-21T05:43:38.850246+00:00"
       },
       {
         "router": "policy",
@@ -409,7 +409,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-21T05:43:18.723198+00:00"
+        "ts": "2026-10-21T05:43:38.852733+00:00"
       }
     ],
     "hypothesis_sources": [

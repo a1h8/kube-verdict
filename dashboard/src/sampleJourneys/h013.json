@@ -48,7 +48,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-21T05:43:17.847417+00:00"
+      "ts": "2026-10-21T05:43:37.986677+00:00"
     },
     {
       "router": "policy",
@@ -63,7 +63,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-21T05:43:17.849792+00:00"
+      "ts": "2026-10-21T05:43:37.989388+00:00"
     }
   ],
   "ingestion_stats": {
@@ -109,7 +109,7 @@
   "report": {
     "query": "why is checkout-api slow",
     "kube_version": "unknown",
-    "timestamp": "2026-10-21T05:43:17.840816+00:00",
+    "timestamp": "2026-10-21T05:43:37.980054+00:00",
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
     "affected": [
       "outside:payments-gateway"
@@ -163,7 +163,7 @@
         "Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.",
         "Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.",
         "Deployment/production/checkout-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.",
-        "Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+        "Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest",
         "Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.",
         "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.",
         "Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.",
@@ -395,7 +395,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-21T05:43:17.847417+00:00"
+        "ts": "2026-10-21T05:43:37.986677+00:00"
       },
       {
         "router": "policy",
@@ -410,7 +410,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-21T05:43:17.849792+00:00"
+        "ts": "2026-10-21T05:43:37.989388+00:00"
       }
     ],
     "hypothesis_sources": [

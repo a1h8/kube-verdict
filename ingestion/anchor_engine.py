@@ -98,6 +98,36 @@ class AnchorRecord:
 # Engine
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _container_images(entity: K8sEntity) -> dict[str, str]:
+    """Container name → image, from a workload's template or a pod's statuses."""
+    out: dict[str, str] = {}
+    for c in list(getattr(entity, "containers", None) or []) + list(getattr(entity, "container_statuses", None) or []):
+        if isinstance(c, dict) and c.get("name") and c.get("image"):
+            out.setdefault(c["name"], c["image"])
+    return out
+
+
+def _default_pull_policy(image: str) -> str:
+    """Kubernetes' default: `Always` for `:latest` or an image without a tag, else `IfNotPresent`."""
+    if "@" in image:
+        return "IfNotPresent"
+    last = image.rsplit("/", 1)[-1]
+    tag = last.split(":", 1)[1] if ":" in last else ""
+    return "Always" if tag in ("", "latest") else "IfNotPresent"
+
+
+def _pull_policy_records(entity: K8sEntity, meta: FieldMeta) -> list[AnchorRecord]:
+    """One imagePullPolicy anchor per container, its default following the tag — the schema's
+    single `IfNotPresent` was wrong for `:latest` and untagged images (fix plan H61)."""
+    out = []
+    for name, image in _container_images(entity).items():
+        default = _default_pull_policy(image)
+        rec = AnchorRecord.from_schema(entity, f"container.{name}.imagePullPolicy", meta)
+        rec.declared_value = rec.k8s_default = default
+        out.append(rec)
+    return out
+
+
 class AnchorEngine:
     """
     Collects declared-value anchors from two generic sources and writes them
@@ -178,6 +208,9 @@ class AnchorEngine:
             if not fields:
                 fields = schema_for_kind(kind)
             for fp, meta in fields.items():
+                if fp == "container.*.imagePullPolicy" and _container_images(entity):
+                    records.extend(_pull_policy_records(entity, meta))
+                    continue
                 # Only write schema anchors if there's a default or valid values
                 if meta.k8s_default or meta.valid_values:
                     records.append(AnchorRecord.from_schema(entity, fp, meta))

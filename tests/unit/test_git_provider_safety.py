@@ -14,12 +14,12 @@ TOKEN = "ghp_NOT_A_REAL_TOKEN_123"
 
 @pytest.fixture
 def clone(tmp_path):
-    repo = tmp_path / "clones" / "infra"
+    provider = LocalGitProvider("https://git.example/acme/infra.git", clone_dir=tmp_path / "clones")
+    repo = provider._repo_dir()
     (repo / ".git").mkdir(parents=True)
     (repo / "values.yaml").write_text("replicaCount: 3\n")
     (tmp_path / "outside.yaml").write_text("private: s3cr3t\n")
     (repo / "link.yaml").symlink_to(tmp_path / "outside.yaml")
-    provider = LocalGitProvider("https://git.example/acme/infra.git", clone_dir=tmp_path / "clones")
     return provider
 
 
@@ -60,3 +60,12 @@ def test_a_failed_clone_does_not_log_the_token(tmp_path, caplog):
 def test_no_token_for_a_non_http_url(tmp_path):
     provider = LocalGitProvider("file:///srv/repo", token=TOKEN, clone_dir=tmp_path)
     assert all(TOKEN not in v for v in provider._git_env().values())
+
+
+def test_two_repositories_with_the_same_name_do_not_share_a_checkout(tmp_path):   # fix plan H58
+    a = LocalGitProvider("https://git.example/team-a/infra.git", clone_dir=tmp_path)
+    b = LocalGitProvider("https://git.example/team-b/infra.git", clone_dir=tmp_path)
+    c = LocalGitProvider("https://git.example/team-a/infra.git", branch="release", clone_dir=tmp_path)
+    assert len({a._repo_dir(), b._repo_dir(), c._repo_dir()}) == 3
+    again = LocalGitProvider("https://git.example/team-a/infra.git", clone_dir=tmp_path)
+    assert again._repo_dir() == a._repo_dir()                                      # control: stable

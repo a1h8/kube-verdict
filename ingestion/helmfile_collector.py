@@ -227,9 +227,9 @@ class HelmfileCollector:
     @staticmethod
     def _helmfile_available() -> bool:
         try:
-            subprocess.run(["helmfile", "version"], capture_output=True, check=True)
+            subprocess.run(["helmfile", "version"], capture_output=True, check=True, timeout=30)
             return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
             return False
 
     # ------------------------------------------------------------------

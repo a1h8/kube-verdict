@@ -331,7 +331,10 @@ def metrics_node(state: RCAState, config: RunnableConfig) -> dict:
         )
         count = collector.collect(graph)
         log.info("metrics-server: %d pod(s) annotated", count)
-        return _stats(state, "metrics", {"pods_annotated": count, "fallback": False})
+        stat = {"pods_annotated": count, "fallback": bool(collector.last_error)}   # fix plan H52
+        if collector.last_error:
+            stat["error"] = collector.last_error
+        return _stats(state, "metrics", stat)
     except Exception as exc:
         log.warning("metrics-server node failed (%s) — continuing without metrics data", exc)
         return _stats(state, "metrics", {"fallback": True, "error": str(exc)})

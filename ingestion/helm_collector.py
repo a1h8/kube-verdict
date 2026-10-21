@@ -45,6 +45,10 @@ def _safe_name(value: str, field: str) -> str:
 # Fixed, non-value tokens we ever emit in a helm argv: the binary, sub-commands,
 # and the exact set of flags/literal values. Anything outside this set must be an
 # RFC-1123 name (or a value validated in __init__) to reach the exec.
+# `helm list`'s chart column is `<name>-<semver>`; the version may hold a `-` (`1.2.3-rc1`), so the
+# split is at the first `-` followed by a semver, not at the last `-` (fix plan H59)
+_CHART_STRING = re.compile(r"^(?P<name>.+?)-(?P<version>v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?)$")
+_HELM_TIMEOUT_S = 60    # every helm call is bounded (docs/fix-plan-001.md H56)
 _HELM_FIXED_TOKENS = frozenset({
     "helm", "list", "get", "values", "notes", "manifest", "repo",
     "--output", "json",
@@ -261,7 +265,10 @@ class HelmCollector:
                 continue
             if not _SAFE_K8S_NAME.fullmatch(token):
                 raise ValueError(f"unsafe helm argument: {token!r}")
-        out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=_HELM_TIMEOUT_S)
+        except subprocess.TimeoutExpired as exc:     # a hung helm used to block the investigation (H56)
+            raise subprocess.CalledProcessError(-1, cmd, stderr=f"timed out after {exc.timeout:.0f}s") from exc
         return out.stdout
 
     def _fail(self, what: str) -> None:
@@ -308,10 +315,16 @@ class HelmCollector:
 
     @staticmethod
     def _parse_chart_name(chart_string: str) -> str:
+        m = _CHART_STRING.match(chart_string)
+        if m:
+            return m["name"]
         parts = chart_string.rsplit("-", 1)
         return parts[0] if len(parts) == 2 else chart_string
 
     @staticmethod
     def _parse_chart_version(chart_string: str) -> str:
+        m = _CHART_STRING.match(chart_string)
+        if m:
+            return m["version"]
         parts = chart_string.rsplit("-", 1)
         return parts[-1] if len(parts) == 2 else ""

@@ -141,6 +141,20 @@ def test_metrics_node_fallback_on_error(monkeypatch):
     assert result["ingestion_stats"]["metrics"]["fallback"] is True
 
 
+def test_metrics_node_reports_a_refused_listing(monkeypatch):                # fix plan H52
+    import config as cfg
+    monkeypatch.setattr(cfg, "METRICS_SERVER_ENABLED", True)
+    collector = MagicMock(last_error="ns=prod: 403 Forbidden")
+    collector.collect.return_value = 0
+    with patch("ingestion.metrics_server_collector.MetricsServerCollector", return_value=collector):
+        stat = metrics_node(_state(), _config(graph=_empty_graph()))["ingestion_stats"]["metrics"]
+    assert stat["fallback"] is True and "403" in stat["error"]
+    collector.last_error = None                                                 # control
+    with patch("ingestion.metrics_server_collector.MetricsServerCollector", return_value=collector):
+        stat = metrics_node(_state(), _config(graph=_empty_graph()))["ingestion_stats"]["metrics"]
+    assert stat["fallback"] is False
+
+
 # ---------------------------------------------------------------------------
 # otel_node — skip (both disabled) + skip (no graph)
 # ---------------------------------------------------------------------------

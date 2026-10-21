@@ -201,8 +201,11 @@ class ChartParser:
         if repo:
             cmd += ["--repo", repo]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
             return yaml.safe_load(result.stdout)
+        except subprocess.TimeoutExpired:                     # fix plan H56
+            log.warning("helm show %s %s timed out", subcommand, chart_ref)
+            return None
         except subprocess.CalledProcessError as exc:
             log.warning("helm show %s %s failed: %s", subcommand, chart_ref, exc.stderr.strip())
             return None
