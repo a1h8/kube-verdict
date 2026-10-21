@@ -218,6 +218,80 @@
   functions have no caller and its NO_GO condition needs 3 path switches where at most 2 exist. →
   removed.
 
+## 6. Remaining findings of the file-by-file pass (2026-10-21)
+
+Items the pass recorded as minor or suspect; each suspect was checked before being listed.
+
+- [x] **H51 — a remediation line can read a Secret through the UI's manual panel.** The panel
+  runs `kubectl get` (H46), and the Secret filter `_SECRET_READ` only matches
+  `get secret … -o yaml`, not `get -o yaml secret …`. → `get` / `describe` of Secrets refused in
+  the panel; the filter matches either order.
+  *Done: a `get` of Secrets with an output that prints their data (`-o yaml|json|jsonpath|
+  template`), in any argument order, is refused in the panel and filtered from the checks;
+  `describe secret` (sizes only, no values) and `get secrets` (names) stay allowed.*
+- [x] **H52 — a metrics-server failure reads as "no metrics"** (warning, `fallback: false`; H5
+  family). → `last_error` and `fallback: true`.
+  *Done: a refused or failed listing sets `last_error`; the node reports `fallback: true`
+  with it. A cluster that returns no pod metrics is not a failure.*
+- [x] **H53 — every webhook alert starts a full investigation, with no limit.** → at most one
+  running investigation per (alert name, namespace), and a global cap.
+  *Done: one running investigation per alert identity (alert name + namespaces; signal: entity +
+  metric), `WEBHOOK_MAX_RUNNING` (4) in all; a skipped alert counts in `skipped`.*
+- [x] **H54 — the UI renders edge-log reasons as HTML**; some carry model-produced text (a
+  namespace taken from a command, a dry-run command). → escaped.
+- [x] **H55 — the prompt still tells the model to answer HIGH from the pre-LLM score**, a
+  label nothing decides on since the structured diagnosis. → the instruction is removed.
+  *Done: prompt `v5`; runs recorded with `v4` are not compared with `v5` runs.*
+- [x] **H56 — `helm` calls have no timeout**: a hung `helm` blocks the ingest. → a timeout,
+  reported as a failure.
+  *Done: helm 60 s, git 120 s, `helmfile version` 30 s; a timeout is a recorded failure; a
+  timed-out pull keeps the checkout and says it may be stale.*
+- [x] **H57 — every field of every discovered object (CRDs) is sent to the LLM**, a remote one
+  included. → only kind, name, namespace, labels and status conditions.
+  *Done: kind, apiVersion, name, namespace, labels, `status.phase` and each condition's
+  type / status / reason; no spec, no condition message.*
+- [x] **H58 — two Git repositories with the same name share one clone directory.** → the
+  directory is derived from the whole URL.
+  *Done: `<name>-<sha256(url#branch)[:12]>`; existing clones are cloned again once.*
+- [x] **H59 — `_parse_chart_name` cuts at the last `-`** (`app-1.2.3-rc1` → `app-1.2.3`). →
+  semver-aware split.
+- [x] **H60 — `policy_fix_hints` proposes `kubectl describe clusterpolicy X | kyverno test .`**,
+  a command that does not do what it says. → read-only checks only.
+  *Done: `describe clusterpolicy` + `get policyreport`; the UI's two Kyverno panels lose the
+  local-test line and a broken `kubectl annotate` write.*
+- [x] **H61 — the schema anchors declare `imagePullPolicy: IfNotPresent` for every image**;
+  Kubernetes defaults to `Always` for `:latest` or no tag. → the default follows the tag.
+  *Done for Pods (the only kind whose schema has container fields): one anchor per container.*
+- [x] **H62 — `OllamaClient.stream_generate` sends no temperature** (Ollama's default, ~0.8)
+  where `generate` sends 0.1. → the same temperature.
+- [x] **H63 — `session_store` rewrites `os.environ["KUBEWHISPERER_DB"]`** (a global side
+  effect). → the path is passed, not written to the environment.
+- [x] **H64 — the raw manifests keep the database on the container's filesystem and use
+  `:latest` images.** → the database on the volume; pinned images.
+  *Done for kube-verdict (`v0.1.4`, the chart defaults to `v<appVersion>`; `KUBEWHISPERER_DB`
+  on `/data` in the chart too, where it was missing as well). `ollama/ollama` and
+  `curlimages/curl` stay `:latest` until a version is checked in the live run.*
+- [x] **H65 — with no seed, the context is every entity of the cluster.** → no seed, no
+  context expansion (the abstention says so).
+  *Done: no seed and no retrieval hit → no expansion (it was the whole cluster). Nothing is
+  added to the report: the diagnosis already abstains from the signals.*
+- [x] **P7 — a generic `config.drift` ranks above the specific `oom.memory_drift`** on h003 /
+  h012. → a drift used by a more specific rule is not reported again on its own.
+  *Done: the cause was not the drift but the failure — the OOM, explained by
+  `oom.memory_drift`, strengthened another drift of the same Deployment (h003
+  `requests.memory`, h012 `spec.replicas`) to 0.65. A failure a specific rule explains no
+  longer strengthens a generic drift (`rules/5`). Structured replay 19/19, h009's
+  `config.drift` (0.8, its failure unexplained) unchanged. h024's confidence goes HIGH → MEDIUM:
+  its HIGH was the same double count (a generic drift at 0.8 above both real causes).*
+- [x] **H66 — the report carried a second verdict.** The LLM report's `decision` re-ran the
+  gate on the pre-LLM context score; on h013, once H65 stopped feeding it the whole cluster, it
+  read `NO_GO` (0.42) beside the workflow's `HUMAN_REVIEW`. Nothing read it, but the API returned
+  it. → dropped from the report; the verdict is the policy gate's, on the diagnosis (rule 6).
+  Found by the frozen journeys h013–h015, regenerated (their context loses the 3 entities the
+  no-seed fallback used to add).
+- Latent, recorded: `ChartStore._chart_dir` does not sanitise names before `rmtree` (no
+  production caller pushes); Kyverno's newer report API group — to check during the live run.
+
 ## 5. Live validation (once, at the end)
 
 - [ ] **H45 — the project's chart grants no Secrets**, where Helm 3 stores its releases, nor
