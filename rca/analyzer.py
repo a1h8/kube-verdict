@@ -413,8 +413,11 @@ def _parse_analysis(report: RCAReport) -> None:
 
 
 _MAX_LLM_CHECKS = 5
+# a `get` of Secrets with an output that prints their data, whatever the argument order
+# (`get secret x -o yaml`, `get -o yaml secret x`, `get secrets/x --output=json`) — fix plan H51
 _SECRET_READ = re.compile(
-    r"\bget\s+secrets?\b.*(-o|--output)[ =]?(yaml|json|jsonpath|go-template)", re.IGNORECASE)
+    r"\bget\b(?=.*\bsecrets?\b)(?=.*(?:-o|--output)[ =]?(?:yaml|json|jsonpath|go-template|template))",
+    re.IGNORECASE)
 
 
 def _parse_checks(block: str) -> list[Diagnostic]:

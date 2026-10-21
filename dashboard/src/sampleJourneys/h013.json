@@ -48,7 +48,7 @@
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-21T04:30:41.427784+00:00"
+      "ts": "2026-10-21T05:42:51.047025+00:00"
     },
     {
       "router": "policy",
@@ -63,7 +63,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-21T04:30:41.430912+00:00"
+      "ts": "2026-10-21T05:42:51.052801+00:00"
     }
   ],
   "ingestion_stats": {
@@ -109,7 +109,7 @@
   "report": {
     "query": "why is checkout-api slow",
     "kube_version": "unknown",
-    "timestamp": "2026-10-21T04:30:41.422670+00:00",
+    "timestamp": "2026-10-21T05:42:51.034270+00:00",
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
     "affected": [
       "outside:payments-gateway"
@@ -152,8 +152,8 @@
       "drift": 0,
       "events": 0,
       "helm": 1,
-      "related": 3,
-      "total": 22,
+      "related": 0,
+      "total": 19,
       "anchors": [
         "Deployment/production/checkout-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
         "Deployment/production/checkout-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -172,8 +172,8 @@
       ],
       "retrieval": {},
       "jaccard": {
-        "candidates": 3,
-        "kept": 3
+        "candidates": 0,
+        "kept": 0
       }
     },
     "events": [],
@@ -187,12 +187,12 @@
     "anchor_fixes": [],
     "policy_violations": [],
     "pre_llm_confidence": {
-      "score": 0.7,
-      "label": "HIGH",
+      "score": 0.42,
+      "label": "MEDIUM",
       "reasons": [
         "BFS depth 3/5 → 0.15",
-        "Jaccard diversity 100% → 0.25",
-        "TF-IDF features 3/20 → 0.03",
+        "Jaccard diversity 0% → 0.00",
+        "TF-IDF features 0/20 → 0.00",
         "Anchors matched 14 → 0.15",
         "Critical signals 4 → 0.12",
         "Helm drift items 0 → 0.00"
@@ -213,12 +213,11 @@
       "method": "command-heuristic"
     },
     "decision": {
-      "verdict": "HUMAN_REVIEW",
+      "verdict": "NO_GO",
       "reasons": [
-        "score 0.70 < 0.85 AUTO threshold",
-        "namespace 'production' is production — always HUMAN_REVIEW minimum"
+        "score 0.42 < 0.6 minimum"
       ],
-      "score": 0.7,
+      "score": 0.42,
       "risk": "LOW",
       "rollback_available": true,
       "namespace": "production",
@@ -407,7 +406,7 @@
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-21T04:30:41.427784+00:00"
+        "ts": "2026-10-21T05:42:51.047025+00:00"
       },
       {
         "router": "policy",
@@ -422,7 +421,7 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-21T04:30:41.430912+00:00"
+        "ts": "2026-10-21T05:42:51.052801+00:00"
       }
     ],
     "hypothesis_sources": [

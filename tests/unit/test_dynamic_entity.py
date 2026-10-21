@@ -143,13 +143,18 @@ class TestGenericEntityFromApiObject:
         assert "kind=CronTab" in text
         assert "namespace=prod" in text
 
-    def test_to_text_spec_fields_present(self):
+    def test_to_text_leaves_spec_and_status_values_out(self):          # fix plan H57
         obj = {
             "metadata": {"uid": "u1", "name": "r"},
-            "spec": {"replicas": 5},
+            "spec": {"replicas": 5, "connection": "postgres://u:hunter2@db"},
+            "status": {"phase": "Failed", "lastError": "auth hunter2 refused",
+                       "conditions": [{"type": "Ready", "status": "False", "reason": "AuthFailed",
+                                       "message": "password hunter2 rejected"}]},
         }
-        entity = GenericEntity.from_api_object(obj, self._info())
-        assert "spec.replicas=5" in entity.to_text()
+        text = GenericEntity.from_api_object(obj, self._info()).to_text()
+        assert "hunter2" not in text and "spec." not in text
+        assert "status.phase=Failed" in text                               # control
+        assert "condition.Ready=False(AuthFailed)" in text
 
     def test_to_text_api_version(self):
         obj = {"metadata": {"uid": "u1", "name": "r"}}

@@ -141,8 +141,10 @@ def expand_incident_context(
         all_uids.extend(extra_uids)
 
     if not all_uids:
-        log.warning("No seed UIDs — returning all entities as fallback")
-        return list(graph.entities())
+        # nothing to expand from: no context, not the whole cluster — every entity's text went to
+        # the LLM, a remote one included (fix plan H65); the diagnosis abstains on its own
+        log.info("No seed UIDs — no context expansion")
+        return []
 
     seen: set[str] = set()
     result: list[K8sEntity] = []

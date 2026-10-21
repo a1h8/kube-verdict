@@ -52,3 +52,26 @@ def test_the_ui_panel_calls_the_guard_before_running():
     panel = src[src.index("def _render_remediation_panel"):]
     panel = panel[:panel.index("\ndef ", 1)]
     assert panel.index("manual_apply_refusal(cmd)") < panel.index("subprocess.run(")
+
+
+# ── docs/fix-plan-001.md, H51 ─────────────────────────────────────────────────
+@pytest.mark.parametrize("cmd", [
+    "kubectl get secret db-creds -n prod -o yaml",
+    "kubectl get -o yaml secret db-creds -n prod",
+    "kubectl get secrets/db-creds -n prod --output=json",
+    "kubectl -n prod get secret db-creds -o jsonpath={.data.password}",
+])
+def test_a_secret_read_is_refused(cmd):
+    assert manual_apply_refusal(cmd) != ""
+
+
+def test_listing_secret_names_is_not_a_read():                                   # control
+    assert manual_apply_refusal("kubectl get secrets -n prod") == ""
+
+
+def test_the_ui_escapes_edge_log_text():
+    # docs/fix-plan-001.md H54: reasons carry model-produced text, rendered as HTML
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[2] / "ui" / "app.py").read_text()
+    block = src[src.index("Router decisions"):src.index("unsafe_allow_html=True")]
+    assert "_esc(str(reason))" in block and "{reason}" not in block

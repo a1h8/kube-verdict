@@ -683,12 +683,15 @@ def _render_rca():
                 snap     = entry.get("snapshot", {})
                 ts       = (entry.get("ts") or "")[:19].replace("T", " ")
 
+                # escaped: reasons carry text taken from model output (a namespace, a command) —
+                # docs/fix-plan-001.md H54
+                from html import escape as _esc
                 st.markdown(
                     f"<div style='background:{bg};border-radius:6px;"
                     f"padding:8px 12px;margin-bottom:6px'>"
-                    f"<b>Step {i}</b> &nbsp; {emoji} <code>{router}</code> → "
-                    f"<b>{edge}</b> &nbsp; <span style='color:#666;font-size:0.85em'>{ts}</span>"
-                    f"<br><span style='font-size:0.9em'>{reason}</span>"
+                    f"<b>Step {i}</b> &nbsp; {emoji} <code>{_esc(str(router))}</code> → "
+                    f"<b>{_esc(str(edge))}</b> &nbsp; <span style='color:#666;font-size:0.85em'>{_esc(ts)}</span>"
+                    f"<br><span style='font-size:0.9em'>{_esc(str(reason))}</span>"
                     f"</div>",
                     unsafe_allow_html=True,
                 )

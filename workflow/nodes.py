@@ -1141,6 +1141,9 @@ def manual_apply_refusal(cmd: str) -> str:
         return "empty command"
     tool, args = parts[0], parts[1:]
     if tool == "kubectl":
+        from rca.analyzer import _SECRET_READ
+        if _SECRET_READ.search(cmd):
+            return "it prints Secret data — kube-verdict reads no Secret (fix plan H51)"
         words, skip = [], False
         for a in args:
             if a == "--":
