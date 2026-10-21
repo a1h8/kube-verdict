@@ -74,6 +74,8 @@ class SignalSet:
     # Helm release), read from owner references, selectors and Helm labels — never from the
     # pod's name (docs/fix-plan-001.md, H25)
     workloads: dict[str, set[str]] = field(default_factory=dict)
+    # Deployment / StatefulSet fqn → desired replicas (a rule names the scale it reasons on)
+    replicas: dict[str, int] = field(default_factory=dict)
 
     def same_workload(self, pod: str, other: str) -> bool:
         return pod == other or other in self.workloads.get(pod, set())
@@ -170,6 +172,8 @@ _TRACE_PATTERNS: list[tuple[str, re.Pattern]] = [
     ("net.timeout", re.compile(r"DeadlineExceeded|deadline exceeded|timed out", re.I)),
 ]
 _ALERT_PATTERNS: list[tuple[str, re.Pattern]] = [
+    # per-upstream latency (RED / service-mesh client metrics): the slow dependency is a label
+    ("upstream.slow", re.compile(r"UpstreamLatency|DependencyLatency|UpstreamSlow", re.I)),
     ("slo.burn", re.compile(r"SLOErrorBudgetBurn|LatencySLOBreach|ErrorBudget", re.I)),
     ("db.connections_exhausted", re.compile(r"ConnectionsSaturated|TooManyConnections", re.I)),
     ("app.error_rate", re.compile(r"HighErrorRate|5xx", re.I)),
@@ -194,7 +198,7 @@ SIGNAL_KINDS: frozenset[str] = frozenset(
     | {k for k, _rx in _TRACE_PATTERNS + _ALERT_PATTERNS}
     | {"container.crashloop", "container.config_error", "image.pull_failed", "container.oom_killed",
        "restart.past", "pod.not_ready", "rollout.progressing", "rollout.stalled", "scheduling.failed",
-       "event.past", "drift.config", "rbac.unbound", "dependency.missing", "init.failed"})
+       "event.past", "drift.config", "rbac.unbound", "dependency.missing", "init.failed", "netpol.egress_blocked"})
 
 
 def _match(patterns, text: str):
@@ -261,6 +265,20 @@ def _healthy_now(graph: OntologyGraph) -> set[str]:
             if not p.is_unhealthy and not p.is_not_ready and p.container_statuses}
 
 
+def _pod_claims(graph: OntologyGraph, namespace: str | None, pod_name: str) -> list[str]:
+    """The PersistentVolumeClaims a pod mounts, from its spec (API camelCase or client snake_case)."""
+    pod = next((p for p in graph.entities(ResourceKind.POD)
+                if p.name == pod_name and p.namespace == namespace), None)
+    spec = ((pod.raw or {}).get("spec") or {}) if pod else {}
+    out = []
+    for v in spec.get("volumes") or []:
+        claim = v.get("persistentVolumeClaim") or v.get("persistent_volume_claim") or {}
+        name = claim.get("claimName") or claim.get("claim_name")
+        if name:
+            out.append(name)
+    return out
+
+
 def _from_events(graph: OntologyGraph, b: _Builder) -> None:
     healthy = _healthy_now(graph)
     for ev in graph.entities(ResourceKind.EVENT):
@@ -273,8 +291,14 @@ def _from_events(graph: OntologyGraph, b: _Builder) -> None:
         if ev.reason == "FailedScheduling":
             text = (ev.message or "").lower()
             cls = next((c for c, needle in _SCHEDULING_CLASSES if needle in text), "other")
+            observed = {"cls": cls}
+            if cls == "volume":
+                # name the claim: "its volume is bound to another node" — which one (S6)
+                claims = _pod_claims(graph, ev.namespace, ev.involved_name)
+                if claims:
+                    observed["pvc"] = ",".join(claims)
             b.add("scheduling.failed", "k8s_event", ev.uid, subjects, event_time=when,
-                  authored=authored, observed={"cls": cls})
+                  authored=authored, observed=observed)
             continue
         hit = _match(_EVENT_PATTERNS, ev.message)
         if hit and hit[0] in _LIFECYCLE and involved in healthy:
@@ -307,6 +331,10 @@ def _from_annotations(graph: OntologyGraph, b: _Builder) -> None:
                     b.add("drift.config", source, ref, [(e.fqn, "manifest_differ", 1.0)],
                           observed={"field": m.group("field"), "declared": m.group("declared"),
                                     "observed": m.group("observed"), "provenance": provenance})
+            elif key.startswith("netpol.") and key.endswith(".egress_blocked"):
+                # a NetworkPolicy selecting this pod allows no egress at all (S4)
+                b.add("netpol.egress_blocked", "k8s_status", ref, [(e.fqn, "readiness.detector", 1.0)],
+                      observed={"policy": key[len("netpol."):-len(".egress_blocked")]})
             elif key.startswith("missing.rbac."):
                 b.add("rbac.unbound", "k8s_status", ref, [(e.fqn, "readiness.detector", 1.0)],
                       observed={"serviceaccount": key[len("missing.rbac."):]})
@@ -354,8 +382,12 @@ def _from_alerts(graph: OntologyGraph, b: _Builder) -> None:
             b.out.unclassified["prometheus"] += 1
             continue
         owners = _graph_owners(graph, al.uid, RelationshipType.HAS_ALERT) or [al.fqn]
+        labels = al.alert_labels or {}
+        # the labels that name what the alert is about besides its workload: the database, the
+        # upstream a latency is measured towards (docs/failing-cases-002.md, S3 and S5)
+        about = {k: labels[k] for k in ("db", "upstream", "destination_service") if labels.get(k)}
         b.add(kind, "prometheus", al.uid, [(o, "prometheus.label_match", 0.9) for o in owners],
-              event_time=al.started_at, authored={"alert": al.alert_name, "severity": al.severity})
+              event_time=al.started_at, authored={"alert": al.alert_name, "severity": al.severity, **about})
 
 
 _CONTROLLERS = (ResourceKind.DEPLOYMENT, ResourceKind.STATEFULSET, ResourceKind.DAEMONSET)
@@ -401,6 +433,8 @@ def extract_signals(graph: OntologyGraph) -> SignalSet:
         extractor(graph, b)
     out = b.out
     out.workloads = _workloads(graph)
+    out.replicas = {e.fqn: e.replicas for k in (ResourceKind.DEPLOYMENT, ResourceKind.STATEFULSET)
+                    for e in graph.entities(k)}
     first_subject = {}
     for e in out.edges:
         first_subject.setdefault(e.signal_id, e.entity)

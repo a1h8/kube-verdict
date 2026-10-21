@@ -110,10 +110,18 @@ class TestPodsAreRunningButNotReady:
         assert deployment.ready_replicas == 0
 
     def test_logs_exist_only_thanks_to_the_readiness_aware_gate(self, monkeypatch):
-        """Loki targets pods only; under the old phase-only selection nothing is fetched."""
+        """Loki targets pods only; under the old phase-only selection nothing is fetched — with
+        the named-workload path (docs/failing-cases-002.md S1) switched off, to isolate the gate."""
         monkeypatch.setattr(Pod, "needs_telemetry", property(lambda self: self.is_unhealthy))
+        monkeypatch.setattr("ingestion.loki_source.pods_of_named_workloads", lambda graph, query: set())
         g = build_graph(load_case(CASE_DIR))
         assert list(g.entities(ResourceKind.LOKI_LOG)) == []
+
+    def test_the_named_workload_alone_also_reads_them(self, monkeypatch):
+        """S1: the query names billing-gateway, so its pods are read even under a phase-only gate."""
+        monkeypatch.setattr(Pod, "needs_telemetry", property(lambda self: self.is_unhealthy))
+        g = build_graph(load_case(CASE_DIR))
+        assert list(g.entities(ResourceKind.LOKI_LOG))
 
 
 class TestKubernetesShowsSymptomNotCause:

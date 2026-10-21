@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+# The scheduler's own message. The two other events of the first version said what no component
+# writes ("bound to node … which is cordoned and being drained", a StatefulSet
+# "ProgressDeadlineExceeded"): removed (docs/failing-cases-002.md, S6).
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: kafka-2.scheduling.failed.001
+    namespace: data
+    uid: evt-data-kafka-pvc-001
+  type: Warning
+  reason: FailedScheduling
+  message: "0/3 nodes are available: 1 node(s) had volume node affinity conflict, 2 node(s) were unschedulable."
+  involvedObject:
+    kind: Pod
+    name: kafka-2
+    namespace: data
+  count: 72
+  firstTimestamp: "2026-05-14T09:00:00Z"
+  lastTimestamp: "2026-05-14T13:00:00Z"

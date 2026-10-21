@@ -75,11 +75,11 @@ class TestDecoysAreDropped:
 
 class TestRunConcludes:
     def test_concludes_with_the_diagnosis_and_a_verdict(self, run):
-        # no structured family for connection exhaustion yet (reasoning-path P4): the diagnosis
-        # abstains, and the scripted LLM's HIGH answer cannot raise it
-        # (docs/structured-in-product.md)
-        assert run.state["diagnosis"]["outcome"] == "insufficient_evidence"
-        assert run.state["confidence"] == "LOW"
+        # the connection-exhaustion family (docs/failing-cases-002.md S3) names the database
+        diag = run.state["diagnosis"]
+        assert diag["outcome"] == "cause"
+        assert (diag["diagnoses"][0]["rule"], diag["diagnoses"][0]["location"]) == \
+            ("db.connections_exhausted", "outside:postgres-primary")
         assert run.state["verdict"] == "HUMAN_REVIEW"
         assert run.status == "AWAITING_REVIEW"
 
@@ -93,4 +93,7 @@ def test_cutting_one_collector_removes_only_its_signal(signal):
         assert signal.marker not in prompt
         for other in others:
             assert other.marker in prompt
-    assert cut.state["confidence"] != "HIGH"
+    # losing a collector never makes the diagnosis more confident; the Postgres error lines in
+    # the logs already say "connections exhausted", so cutting the alert alone may cost nothing
+    connected = run_case("h016").state["diagnosis"]["score"]
+    assert cut.state["diagnosis"]["score"] <= connected

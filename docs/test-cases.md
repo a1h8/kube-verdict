@@ -859,7 +859,7 @@ Gaps that remain, per case — what live collection would add that the fixtures 
 | Gap | Cases | Effect |
 |---|---|---|
 | no ReplicaSet objects (the owner chain is read from `pod-template-hash`, H25) | all | the walk reaches the Deployment only through its selector |
-| RoleBindings and NetworkPolicies not collected live ("Not in this PR") | h005, h006 | no `rbac.unbound` / NetworkPolicy evidence; h005 passes on its event alone (to correct: Kubernetes emits no such event) |
+| RoleBindings and NetworkPolicies not collected live ("Not in this PR") | h005, h006 | no `rbac.unbound`; NetworkPolicies collected since `docs/failing-cases-002.md` S4; h005's evidence is its logs (S1) |
 | ResourceQuotas, LimitRanges, HPAs not typed live ("Not in this PR") | h007, h010 | no quota or HPA object in the graph |
 | no live Deployment in the fixture | h002, h009 | comparison B reports nothing about it (a kind not listed is unknown, not missing) |
 

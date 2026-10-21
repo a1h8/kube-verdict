@@ -259,7 +259,7 @@ Applied as the per-case table decided; each case measured before and after (stru
 | h006 | The event that named the cause ("UDP/53 egress blocked", under a `BackOff` reason) is removed; the probe event is what kubelet writes for an HTTP probe (`statuscode: 503`); the DNS and database timeouts are the application's logs. | FAIL → FAIL |
 | h010 | One cause, the quota: no Pending pod (the quota rejects the pod at creation), the replicaset controller's `FailedCreate` with a `generateName` prefix, a Deployment at 0/2 with its `ReplicaFailure` condition. | FAIL → FAIL |
 | h002 | **Not changed.** The 401 is not a second cause: the deploy forced a private tag (`--set image.tag=v2.1.0-private`) the pull secret cannot read; one causal chain, its root the tag, graded as such since correction 1. | PASS → PASS |
-| h011 | **Retired** to `tests/integration/cases_retired/` (README there). | PASS → — |
+| h011 | Retired to `tests/integration/cases_retired/`, then **restored** on 2026-10-21 ("analyse the failing cases, do not remove them"): see `docs/failing-cases-002.md` S6. | PASS → — → PASS |
 
 Structured replay: 15/19 → **13/18**. What the corrections exposed:
 
@@ -271,3 +271,15 @@ Structured replay: 15/19 → **13/18**. What the corrections exposed:
   `ServiceAccount/monitoring/audit-exporter-sa`.
 - h006 and h010 fail for the reason now named in their cases: NetworkPolicies and
   ResourceQuotas are not collected live, and no structured family reads them.
+
+### After `docs/failing-cases-002.md` (2026-10-21)
+
+- **h011 restored and corrected.** Its PASS was for a wrong cause ("the PVC does not exist"):
+  the fixture had no PVC, and two event messages were invented. Now: the Bound claim
+  `data-kafka-2` (`kube/pvc.yaml`), the scheduler's own message only, cause concepts
+  `volume|pvc|persistentvolumeclaim|data-kafka-2` · `bound to another node|node affinity|cordon`.
+- **h013**: the `LatencySLOBreach` description stated the answer ("points at the network path to
+  the dependency rather than at the pod") — removed; the slow upstream is now an
+  `UpstreamLatencyHigh{upstream="payments-gateway"}` alert, what a RED / mesh setup exposes.
+- h016's `reasoning_path.rule` is `db.connections_exhausted` on `*postgres-primary*`, from its
+  declared cause.

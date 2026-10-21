@@ -29,7 +29,7 @@ from tests.integration.cases.case_loader import build_graph, load_case
 CASES_ROOT = Path(__file__).parent / "cases"
 CASE_DIR = CASES_ROOT / "h013_slo_error_budget_burn"
 
-FIRING_NAMES = {"SLOErrorBudgetBurnFast", "SLOErrorBudgetBurnSlow", "LatencySLOBreach"}
+FIRING_NAMES = {"SLOErrorBudgetBurnFast", "SLOErrorBudgetBurnSlow", "LatencySLOBreach", "UpstreamLatencyHigh"}
 
 
 class _StubStore:
@@ -79,10 +79,10 @@ def ctx(graph):
 class TestFixtureLoadingAndCollectorFiltering:
     def test_fixture_declares_five_raw_alerts(self):
         raw = json.loads((CASE_DIR / "prometheus" / "alerts.json").read_text())
-        assert len(raw) == 5
+        assert len(raw) == 6     # + UpstreamLatencyHigh (docs/failing-cases-002.md S5)
         assert {"labels", "annotations", "state", "activeAt"} <= set(raw[0])
 
-    def test_only_the_three_correlated_firing_alerts_become_nodes(self, alerts):
+    def test_only_the_four_correlated_firing_alerts_become_nodes(self, alerts):
         assert {a.alert_name for a in alerts} == FIRING_NAMES
 
     def test_all_nodes_are_firing(self, alerts):
@@ -132,7 +132,7 @@ class TestGraphWiring:
 
 class TestContextWindowSurfacesAlerts:
     def test_alerts_section_populated(self, ctx):
-        assert len(ctx.alerts) == 3
+        assert len(ctx.alerts) == 4
 
     def test_critical_alert_comes_first(self, ctx):
         assert "SLOErrorBudgetBurnFast" in ctx.alerts[0]
@@ -140,7 +140,7 @@ class TestContextWindowSurfacesAlerts:
 
     def test_prompt_block_carries_the_slo_evidence(self, ctx):
         prompt = ctx.to_prompt_block()
-        assert "Firing Prometheus alerts (3)" in prompt
+        assert "Firing Prometheus alerts (4)" in prompt
         assert "14.4x" in prompt          # burn rate from the Fast alert summary
         assert "1.84s" in prompt          # p99 from the latency alert
         assert "payments-gateway" in prompt  # the dependency the latency is isolated to

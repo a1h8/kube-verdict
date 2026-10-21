@@ -13,6 +13,8 @@
 > production render-vs-live path. **After H48: 15/19**, every drift found by the production
 > comparisons on fixtures that say what Git declared and what Helm applied.
 > **After H14 and the fixture corrections: 13/18** (h011 retired; h005 exposes H49).
+> **After `docs/failing-cases-002.md`: 19/19** — h011 restored, four families added, each
+> checked on one case plus controls (not yet evidence that they generalise).
 >
 > H9–H46 were added on 2026-10-18 by a file-by-file pass over every module; the order below is the
 > order of the commits.
@@ -195,9 +197,10 @@
   the reason, h011 retired; structured replay 13/18.
 - [x] **H50 — klog error lines were read as `info`** and dropped by the signals (found correcting
   h005). → the klog severity letter is read (`tests/unit/test_klog_level.py`).
-- [ ] **H49 — an application whose pod is Ready but whose work fails is invisible**: logs are
+- [x] **H49 — an application whose pod is Ready but whose work fails is invisible**: logs are
   read only for failing or not-ready pods, so h005 reads `no_incident`. To decide: read the logs
   of the workload the query names, or of every pod of the namespace within a budget.
+  Done 2026-10-21 (option chosen: the workload the query names, `docs/failing-cases-002.md` S1).
 - [x] **F10 — `make demo` prints fixed verdict lines** and computes its own diff. → it prints what
   the diagnosis computes. Done 2026-10-20: `demo/real_run.py` runs the
   workflow (`LLM_PROVIDER=none`) and prints its state only.

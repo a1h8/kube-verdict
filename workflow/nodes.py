@@ -397,7 +397,7 @@ def otel_node(state: RCAState, config: RunnableConfig) -> dict:
                 max_logs_per_pod=cfg.LOKI_MAX_LOGS_PER_POD,
                 pod_label=cfg.LOKI_POD_LABEL, namespace_label=cfg.LOKI_NAMESPACE_LABEL,
             )
-            count = loki.collect(graph)
+            count = loki.collect(graph, query=state.get("query", ""))
             if loki.last_error:
                 log.warning("loki: query failed (%s) — %d log(s) collected",
                             loki.last_error, count)

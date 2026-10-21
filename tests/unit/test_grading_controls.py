@@ -29,6 +29,9 @@ CONTROLS: dict[str, tuple[str, str]] = {
              "The api-gateway pods are stuck in CreateContainerConfigError."),
     "h005": ("The service account audit-exporter-sa has no ClusterRoleBinding granting it list and watch.",
              "audit-exporter-sa is forbidden from listing pods."),
+    "h011": ("kafka-2 cannot be scheduled: its PersistentVolumeClaim data-kafka-2 is bound to another node "
+             "(volume node affinity conflict).",
+             "The PersistentVolumeClaim data-kafka-2 does not exist; kafka-2 is Pending."),
     "h006": ("A NetworkPolicy denies all egress from order-service.",
              "The order-service readiness probe times out connecting to the database."),
     "h007": ("metrics-server returns no pod metrics, so the HPA cannot compute a replica count.",

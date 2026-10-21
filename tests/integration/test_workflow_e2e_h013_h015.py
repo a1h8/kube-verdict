@@ -97,11 +97,11 @@ class TestVerdict:
         assert all("fixture-replay" in d["output"] for d in r.state["dry_run_results"])
 
 
-def test_h013_abstains_and_the_llm_cannot_make_it_a_cause():
+def test_h013_names_the_slow_dependency():
+    # docs/failing-cases-002.md S5: an SLO burn with a slow upstream and healthy pods
     r = run_case("h013")
-    assert r.state["diagnosis"]["outcome"] == "insufficient_evidence"
-    assert r.state["verdict"] == "HUMAN_REVIEW"                 # nothing to approve, nothing to block
-    assert r.state["report_dict"]["confidence"] == "LOW"
+    top = r.state["diagnosis"]["diagnoses"][0]
+    assert (top["rule"], top["location"]) == ("slo.dependency", "outside:payments-gateway")
     assert r.state["report_dict"]["explanation"]          # the LLM's own text is kept, as text
 
 

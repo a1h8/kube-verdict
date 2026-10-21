@@ -72,7 +72,7 @@ class LokiSource:
         # what did arrive, so callers that only read the count keep working.
         self.last_error: str | None = None
 
-    def collect(self, graph: OntologyGraph) -> int:
+    def collect(self, graph: OntologyGraph, query: str = "") -> int:
         """
         Fetch error/warn logs for pods that need telemetry (phase-unhealthy or
         running-but-not-ready) and wire them into the graph.
@@ -86,10 +86,13 @@ class LokiSource:
         log_count = 0
         seen_log_uids: set[str] = set()
 
-        # Snapshot to avoid mutating the dict while iterating
+        # Snapshot to avoid mutating the dict while iterating. Pods that need telemetry, plus
+        # the pods of a workload the query names: an application whose pod is Ready but whose
+        # work fails was invisible (docs/fix-plan-001.md H49, docs/failing-cases-002.md S1).
+        named = pods_of_named_workloads(graph, query)
         unhealthy_pods = [
             e for e in list(graph.entities(ResourceKind.POD))
-            if isinstance(e, Pod) and e.needs_telemetry
+            if isinstance(e, Pod) and (e.needs_telemetry or e.uid in named)
         ]
 
         for entity in unhealthy_pods:
@@ -190,6 +193,26 @@ class LokiSource:
 
 # a line Loki keeps in the first query (RE2, case-insensitive)
 _ERROR_LINE = r"(?i)(error|fatal|panic|exception|fail|refused|denied|timeout|timed out)"
+
+
+def pods_of_named_workloads(graph: OntologyGraph, query: str) -> set[str]:
+    """UIDs of the pods of every Deployment / StatefulSet / DaemonSet / Helm release whose name
+    the query contains as a word ("audit-exporter keeps crashing" → the audit-exporter pods)."""
+    if not query:
+        return set()
+    words = set(re.findall(r"[a-z0-9][a-z0-9.-]*[a-z0-9]", query.lower()))
+    from ingestion.helm_collector import belongs_to_release
+    controllers = [e for k in (ResourceKind.DEPLOYMENT, ResourceKind.STATEFULSET, ResourceKind.DAEMONSET)
+                   for e in graph.entities(k) if e.name.lower() in words]
+    releases = [e for e in graph.entities(ResourceKind.HELM_RELEASE) if e.name.lower() in words]
+    out = set()
+    for pod in graph.entities(ResourceKind.POD):
+        labels = pod.labels or {}
+        if any(c.namespace == pod.namespace and c.selector
+               and all(labels.get(k) == v for k, v in c.selector.items()) for c in controllers) \
+                or any(r.namespace == pod.namespace and belongs_to_release(pod, r.name) for r in releases):
+            out.add(pod.uid)
+    return out
 
 
 def _build_logql(pod_name: str, namespace: str, pod_label: str = "k8s_pod_name",

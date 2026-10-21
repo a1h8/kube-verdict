@@ -69,7 +69,7 @@ from ingestion.otel_backend import OtelBackend, in_namespace
 from ingestion.otel_collector import OtelCollector
 from ingestion.prometheus_collector import PrometheusCollector
 from ontology.entities import (
-    Deployment, HelmRelease, K8sEvent, Namespace, Pod,
+    Deployment, HelmRelease, K8sEvent, Namespace, PersistentVolumeClaim, Pod,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
@@ -165,7 +165,19 @@ def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
         _wire_prometheus_alerts(graph, case.get("prometheus_alerts", []))
 
         # ── 3d. Loki log streams (fixture) ─────────────────────────────────
-        _wire_loki_logs(graph, case.get("loki_streams", []))
+        _wire_loki_logs(graph, case.get("loki_streams", []), case["expect"].get("query", ""))
+
+    # ── 3e. PersistentVolumeClaims — built as K8sCollector._collect_pvcs builds them
+    for pvc_raw in case["observed"].get("pvcs", []):
+        meta, spec = pvc_raw.get("metadata", {}), pvc_raw.get("spec", {})
+        graph.add_entity(PersistentVolumeClaim(
+            uid=meta.get("uid") or f"pvc:{meta.get('namespace', '')}/{meta.get('name', '')}",
+            name=meta.get("name", ""), namespace=meta.get("namespace"), labels=meta.get("labels", {}),
+            requested_storage=((spec.get("resources") or {}).get("requests") or {}).get("storage", ""),
+            access_modes=spec.get("accessModes") or [],
+            status_phase=(pvc_raw.get("status") or {}).get("phase", "Pending"),
+            storage_class=spec.get("storageClassName") or "", volume_name=spec.get("volumeName") or "",
+            raw=pvc_raw))
 
     # ── 4. Events ───────────────────────────────────────────────────────────
     # linked to the object they are about, as K8sCollector._collect_events does (HAS_EVENT):
@@ -445,7 +457,7 @@ def _load_loki_streams(loki_dir: Path) -> list[dict]:
     return streams
 
 
-def _wire_loki_logs(graph: OntologyGraph, streams: list[dict]) -> None:
+def _wire_loki_logs(graph: OntologyGraph, streams: list[dict], query: str = "") -> None:
     """Serve fixture log streams to the real LokiSource.collect().
 
     Only the private _query is replaced. Like Loki it matches the LogQL label
@@ -460,7 +472,7 @@ def _wire_loki_logs(graph: OntologyGraph, streams: list[dict]) -> None:
 
     source = LokiSource(url="http://fixture.invalid")
     source._query = fixture_loki_query(streams)
-    source.collect(graph)
+    source.collect(graph, query=query)       # the workload the query names is read too (S1)
 
 
 def fixture_loki_query(streams: list[dict]):
@@ -520,6 +532,7 @@ def _detect_missing_deps(graph: OntologyGraph, observed: dict) -> None:
         configmaps=names("configmaps"),
         pvcs=names("pvcs"),
         serviceaccounts=names("serviceaccounts"),
+        networkpolicies=observed.get("networkpolicies", []),     # collected live since S4
         messages=[ev.get("message", "") for ev in observed.get("events", [])],
     )
     for pod_raw in observed.get("pods", []):

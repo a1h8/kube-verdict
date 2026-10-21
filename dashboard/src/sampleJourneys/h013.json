@@ -5,43 +5,57 @@
   "status": "AWAITING_REVIEW",
   "query": "why is checkout-api slow",
   "kube_version": "unknown",
-  "confidence": "LOW",
+  "confidence": "MEDIUM",
   "verdict": "HUMAN_REVIEW",
   "verdict_reasons": [
-    "insufficient_evidence: no cause diagnosed — nothing to apply, the operator reviews"
+    "score 0.65 < 0.85 AUTO threshold",
+    "namespace 'production' is production — always HUMAN_REVIEW minimum"
   ],
-  "current_hypothesis": null,
+  "current_hypothesis": "checkout-api burns its SLO because its calls to payments-gateway are slow: the dependency, or the network path to it, adds the latency; checkout-api's own pods are healthy.",
   "candidate_paths": [],
   "reasoning_history": [],
-  "hypothesis_sources": [],
+  "hypothesis_sources": [
+    {
+      "rule_id": "slo.dependency",
+      "family": "dependency-latency",
+      "affected": "outside:payments-gateway",
+      "weight": 0.65,
+      "evidence": [
+        "a92e9aa1b1b92cf1",
+        "fd8d98ccb6d2001e",
+        "b75e367f198a3aa6",
+        "ddda02bd93aceb70"
+      ]
+    }
+  ],
   "path_confidence_history": [
-    "LOW"
+    "MEDIUM"
   ],
   "edge_log": [
     {
       "router": "confidence",
       "edge_taken": "review",
-      "reason": "confidence=LOW set by the structured diagnosis (insufficient_evidence) — forwarding to review",
+      "reason": "confidence=MEDIUM set by the structured diagnosis (cause) — forwarding to review",
       "snapshot": {
-        "confidence": "LOW",
+        "confidence": "MEDIUM",
         "retry_count": 0,
         "max_retries": 2,
         "candidates_remaining": 0,
         "ingestion_failures": [],
         "path_conf_history": [
-          "LOW"
+          "MEDIUM"
         ],
         "declining": false,
         "beam_switches": 0
       },
-      "ts": "2026-10-20T03:18:35.309559+00:00"
+      "ts": "2026-10-21T04:30:41.427784+00:00"
     },
     {
       "router": "policy",
       "edge_taken": "human_review",
-      "reason": "HUMAN_REVIEW: insufficient_evidence: no cause diagnosed — nothing to apply, the operator reviews",
+      "reason": "HUMAN_REVIEW: score 0.65 < 0.85 AUTO threshold; namespace 'production' is production — always HUMAN_REVIEW minimum",
       "snapshot": {
-        "score": 0.0,
+        "score": 0.65,
         "risk": "LOW",
         "rollback_available": true,
         "namespace": "production",
@@ -49,7 +63,7 @@
         "max_switches_reached": false,
         "verdict": "HUMAN_REVIEW"
       },
-      "ts": "2026-10-20T03:18:35.313010+00:00"
+      "ts": "2026-10-21T04:30:41.430912+00:00"
     }
   ],
   "ingestion_stats": {
@@ -61,7 +75,7 @@
       "skipped": true
     },
     "prometheus": {
-      "alerts": 3,
+      "alerts": 4,
       "fallback": false,
       "uncorrelated": 1,
       "out_of_scope": 0
@@ -95,10 +109,12 @@
   "report": {
     "query": "why is checkout-api slow",
     "kube_version": "unknown",
-    "timestamp": "2026-10-20T03:18:35.304762+00:00",
+    "timestamp": "2026-10-21T04:30:41.422670+00:00",
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
-    "affected": [],
-    "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+    "affected": [
+      "outside:payments-gateway"
+    ],
+    "root_cause": "checkout-api burns its SLO because its calls to payments-gateway are slow: the dependency, or the network path to it, adds the latency; checkout-api's own pods are healthy.",
     "causal_chain": [
       "Calls from checkout-api to payments-gateway slow down.",
       "p99 latency breaches the 400ms SLO.",
@@ -107,18 +123,37 @@
     "remediation": [
       "kubectl rollout restart deployment/checkout-api -n production"
     ],
-    "diagnostics": [],
+    "diagnostics": [
+      {
+        "command": "kubectl get pods -n production -l app.kubernetes.io/name=payments-gateway -o wide",
+        "source": "rule",
+        "hypothesis": "slo.dependency",
+        "affected": "outside:payments-gateway",
+        "purpose": "",
+        "confirms_if": "",
+        "refutes_if": ""
+      },
+      {
+        "command": "kubectl top pods -n production",
+        "source": "rule",
+        "hypothesis": "slo.dependency",
+        "affected": "outside:payments-gateway",
+        "purpose": "",
+        "confirms_if": "",
+        "refutes_if": ""
+      }
+    ],
     "rollback": [
       "kubectl rollout undo deployment/checkout-api -n production"
     ],
-    "confidence": "LOW",
+    "confidence": "MEDIUM",
     "context_stats": {
       "seeds": 0,
       "drift": 0,
       "events": 0,
       "helm": 1,
       "related": 3,
-      "total": 21,
+      "total": 22,
       "anchors": [
         "Deployment/production/checkout-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.",
         "Deployment/production/checkout-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.",
@@ -146,19 +181,20 @@
     "alerts": [
       "kind=PrometheusAlert name=SLOErrorBudgetBurnFast severity=critical state=firing namespace=production summary='checkout-api is burning its 30d error budget 14.4x too fast (1h/5m windows)' description='At this rate 2% of the 30-day error budget is consumed every hour and the whole budget is gone in ~2 days. SLI (requests answered successfully within 1s) is 92.8% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=1h/5m burn_rate=14.4 activeAt=2026-05-21T09:12:11.481Z",
       "kind=PrometheusAlert name=SLOErrorBudgetBurnSlow severity=warning state=firing namespace=production summary='checkout-api is burning its 30d error budget 6x too fast (6h/30m windows)' description='5% of the 30-day error budget was consumed in the last 6 hours - a sustained degradation, not a blip. SLI is 97.0% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=6h/30m burn_rate=6 activeAt=2026-05-21T08:41:03.117Z",
-      "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s. The increase is isolated to calls to upstream=payments-gateway; CPU, memory and restart counts on checkout-api are flat, which points at the network path to the dependency rather than at the pod.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
+      "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z",
+      "kind=PrometheusAlert name=UpstreamLatencyHigh severity=warning state=firing namespace=production summary='checkout-api p99 latency of calls to payments-gateway is 1.71s (baseline 120ms)' description='histogram_quantile(0.99, sum by (le, upstream) (rate(http_client_request_duration_seconds_bucket{deployment=\"checkout-api\"}[5m]))) = 1.71s for upstream=payments-gateway; other upstreams flat.' namespace=production deployment=checkout-api upstream=payments-gateway quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
     ],
     "anchor_fixes": [],
     "policy_violations": [],
     "pre_llm_confidence": {
-      "score": 0.67,
-      "label": "MEDIUM",
+      "score": 0.7,
+      "label": "HIGH",
       "reasons": [
         "BFS depth 3/5 → 0.15",
         "Jaccard diversity 100% → 0.25",
         "TF-IDF features 3/20 → 0.03",
         "Anchors matched 14 → 0.15",
-        "Critical signals 3 → 0.09",
+        "Critical signals 4 → 0.12",
         "Helm drift items 0 → 0.00"
       ]
     },
@@ -179,10 +215,10 @@
     "decision": {
       "verdict": "HUMAN_REVIEW",
       "reasons": [
-        "score 0.67 < 0.85 AUTO threshold",
+        "score 0.70 < 0.85 AUTO threshold",
         "namespace 'production' is production — always HUMAN_REVIEW minimum"
       ],
-      "score": 0.67,
+      "score": 0.7,
       "risk": "LOW",
       "rollback_available": true,
       "namespace": "production",
@@ -191,22 +227,42 @@
     "raw_analysis": "### 1. Summary\ncheckout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.\n\n### 2. Affected resources\n- Deployment/production/checkout-api — 3/3 Ready, SLO burn-rate alerts firing\n\n### 3. Root cause\nThe p99 latency (1.84s vs a 400ms SLO) comes from calls to payments-gateway; CPU, memory and restarts are flat, so the network path to the dependency is the cause, not the pod.\n\n### 4. Causal chain\n1. Calls from checkout-api to payments-gateway slow down.\n2. p99 latency breaches the 400ms SLO.\n3. Multi-window burn-rate alerts fire (14.4x fast, 6x slow).\n\n### 5. Remediation\nkubectl rollout restart deployment/checkout-api -n production\n\n### 6. Confidence\nHIGH — the burn-rate and latency alerts agree and isolate payments-gateway.\n",
     "llm_confidence": "HIGH",
     "diagnosis": {
-      "outcome": "insufficient_evidence",
-      "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
-      "confidence": "LOW",
-      "score": 0.0,
+      "outcome": "cause",
+      "root_cause": "checkout-api burns its SLO because its calls to payments-gateway are slow: the dependency, or the network path to it, adds the latency; checkout-api's own pods are healthy.",
+      "confidence": "MEDIUM",
+      "score": 0.65,
       "failed_collectors": [],
-      "diagnoses": []
+      "diagnoses": [
+        {
+          "family": "dependency-latency",
+          "cause": "checkout-api burns its SLO because its calls to payments-gateway are slow: the dependency, or the network path to it, adds the latency; checkout-api's own pods are healthy.",
+          "location": "outside:payments-gateway",
+          "score": 0.65,
+          "label": "MEDIUM",
+          "rule": "slo.dependency",
+          "checks": [
+            "kubectl get pods -n production -l app.kubernetes.io/name=payments-gateway -o wide",
+            "kubectl top pods -n production"
+          ],
+          "signal_ids": [
+            "a92e9aa1b1b92cf1",
+            "fd8d98ccb6d2001e",
+            "b75e367f198a3aa6",
+            "ddda02bd93aceb70"
+          ]
+        }
+      ]
     },
     "explanation": "The p99 latency (1.84s vs a 400ms SLO) comes from calls to payments-gateway; CPU, memory and restarts are flat, so the network path to the dependency is the cause, not the pod.",
-    "llm_disagreement": ""
+    "llm_disagreement": "the LLM named another cause ('The p99 latency (1.84s vs a 400ms SLO) comes from calls to payments-gateway; CPU, memory and restarts are flat, so the network path to the dependency is the cause, not the pod.'); the structured diagnosis stands"
   },
   "events": [],
   "traces": [],
   "alerts": [
     "kind=PrometheusAlert name=SLOErrorBudgetBurnFast severity=critical state=firing namespace=production summary='checkout-api is burning its 30d error budget 14.4x too fast (1h/5m windows)' description='At this rate 2% of the 30-day error budget is consumed every hour and the whole budget is gone in ~2 days. SLI (requests answered successfully within 1s) is 92.8% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=1h/5m burn_rate=14.4 activeAt=2026-05-21T09:12:11.481Z",
     "kind=PrometheusAlert name=SLOErrorBudgetBurnSlow severity=warning state=firing namespace=production summary='checkout-api is burning its 30d error budget 6x too fast (6h/30m windows)' description='5% of the 30-day error budget was consumed in the last 6 hours - a sustained degradation, not a blip. SLI is 97.0% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=6h/30m burn_rate=6 activeAt=2026-05-21T08:41:03.117Z",
-    "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s. The increase is isolated to calls to upstream=payments-gateway; CPU, memory and restart counts on checkout-api are flat, which points at the network path to the dependency rather than at the pod.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
+    "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z",
+    "kind=PrometheusAlert name=UpstreamLatencyHigh severity=warning state=firing namespace=production summary='checkout-api p99 latency of calls to payments-gateway is 1.71s (baseline 120ms)' description='histogram_quantile(0.99, sum by (le, upstream) (rate(http_client_request_duration_seconds_bucket{deployment=\"checkout-api\"}[5m]))) = 1.71s for upstream=payments-gateway; other upstreams flat.' namespace=production deployment=checkout-api upstream=payments-gateway quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
   ],
   "anchor_fixes": [],
   "policy_violations": [],
@@ -228,8 +284,10 @@
   ],
   "blast_radius": {
     "risk": "LOW",
-    "summary": "ns: production",
-    "resources": [],
+    "summary": "1 resource(s) — ns: production",
+    "resources": [
+      "outside:payments-gateway"
+    ],
     "namespaces": [
       "production"
     ],
@@ -237,14 +295,17 @@
     "command_count": 1
   },
   "incident_report": {
-    "severity": "LOW",
-    "confidence": "LOW",
-    "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
-    "impact": [],
+    "severity": "MEDIUM",
+    "confidence": "MEDIUM",
+    "root_cause": "checkout-api burns its SLO because its calls to payments-gateway are slow: the dependency, or the network path to it, adds the latency; checkout-api's own pods are healthy.",
+    "impact": [
+      "outside:payments-gateway"
+    ],
     "evidence": [
       "kind=PrometheusAlert name=SLOErrorBudgetBurnFast severity=critical state=firing namespace=production summary='checkout-api is burning its 30d error budget 14.4x too fast (1h/5m windows)' description='At this rate 2% of the 30-day error budget is consumed every hour and the whole budget is gone in ~2 days. SLI (requests answered successfully within 1s) is 92.8% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=1h/5m burn_rate=14.4 activeAt=2026-05-21T09:12:11.481Z",
       "kind=PrometheusAlert name=SLOErrorBudgetBurnSlow severity=warning state=firing namespace=production summary='checkout-api is burning its 30d error budget 6x too fast (6h/30m windows)' description='5% of the 30-day error budget was consumed in the last 6 hours - a sustained degradation, not a blip. SLI is 97.0% against a 99.5% objective.' namespace=production deployment=checkout-api slo=checkout-availability window=6h/30m burn_rate=6 activeAt=2026-05-21T08:41:03.117Z",
-      "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s. The increase is isolated to calls to upstream=payments-gateway; CPU, memory and restart counts on checkout-api are flat, which points at the network path to the dependency rather than at the pod.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
+      "kind=PrometheusAlert name=LatencySLOBreach severity=warning state=firing namespace=production summary='checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)' description='histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s.' namespace=production deployment=checkout-api slo=checkout-latency quantile=p99 activeAt=2026-05-21T08:57:40.902Z",
+      "kind=PrometheusAlert name=UpstreamLatencyHigh severity=warning state=firing namespace=production summary='checkout-api p99 latency of calls to payments-gateway is 1.71s (baseline 120ms)' description='histogram_quantile(0.99, sum by (le, upstream) (rate(http_client_request_duration_seconds_bucket{deployment=\"checkout-api\"}[5m]))) = 1.71s for upstream=payments-gateway; other upstreams flat.' namespace=production deployment=checkout-api upstream=payments-gateway quantile=p99 activeAt=2026-05-21T08:57:40.902Z"
     ],
     "remediation": [
       "kubectl rollout restart deployment/checkout-api -n production"
@@ -252,24 +313,64 @@
     "rollback": [
       "kubectl rollout undo deployment/checkout-api -n production"
     ],
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "command": "kubectl get pods -n production -l app.kubernetes.io/name=payments-gateway -o wide",
+        "source": "rule",
+        "hypothesis": "slo.dependency",
+        "affected": "outside:payments-gateway",
+        "purpose": "",
+        "confirms_if": "",
+        "refutes_if": ""
+      },
+      {
+        "command": "kubectl top pods -n production",
+        "source": "rule",
+        "hypothesis": "slo.dependency",
+        "affected": "outside:payments-gateway",
+        "purpose": "",
+        "confirms_if": "",
+        "refutes_if": ""
+      }
+    ]
   },
   "review_payload": {
     "summary": "checkout-api is burning its SLO error budget at 14.4x because calls to payments-gateway got slow.",
-    "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+    "root_cause": "checkout-api burns its SLO because its calls to payments-gateway are slow: the dependency, or the network path to it, adds the latency; checkout-api's own pods are healthy.",
     "remediation": [
       "kubectl rollout restart deployment/checkout-api -n production"
     ],
-    "diagnostics": [],
-    "confidence": "LOW",
+    "diagnostics": [
+      {
+        "command": "kubectl get pods -n production -l app.kubernetes.io/name=payments-gateway -o wide",
+        "source": "rule",
+        "hypothesis": "slo.dependency",
+        "affected": "outside:payments-gateway",
+        "purpose": "",
+        "confirms_if": "",
+        "refutes_if": ""
+      },
+      {
+        "command": "kubectl top pods -n production",
+        "source": "rule",
+        "hypothesis": "slo.dependency",
+        "affected": "outside:payments-gateway",
+        "purpose": "",
+        "confirms_if": "",
+        "refutes_if": ""
+      }
+    ],
+    "confidence": "MEDIUM",
     "kube_version": "unknown",
-    "current_hypothesis": "",
+    "current_hypothesis": "checkout-api burns its SLO because its calls to payments-gateway are slow: the dependency, or the network path to it, adds the latency; checkout-api's own pods are healthy.",
     "reasoning_history": [],
     "paths_explored": 1,
     "blast_radius": {
       "risk": "LOW",
-      "summary": "ns: production",
-      "resources": [],
+      "summary": "1 resource(s) — ns: production",
+      "resources": [
+        "outside:payments-gateway"
+      ],
       "namespaces": [
         "production"
       ],
@@ -293,27 +394,27 @@
       {
         "router": "confidence",
         "edge_taken": "review",
-        "reason": "confidence=LOW set by the structured diagnosis (insufficient_evidence) — forwarding to review",
+        "reason": "confidence=MEDIUM set by the structured diagnosis (cause) — forwarding to review",
         "snapshot": {
-          "confidence": "LOW",
+          "confidence": "MEDIUM",
           "retry_count": 0,
           "max_retries": 2,
           "candidates_remaining": 0,
           "ingestion_failures": [],
           "path_conf_history": [
-            "LOW"
+            "MEDIUM"
           ],
           "declining": false,
           "beam_switches": 0
         },
-        "ts": "2026-10-20T03:18:35.309559+00:00"
+        "ts": "2026-10-21T04:30:41.427784+00:00"
       },
       {
         "router": "policy",
         "edge_taken": "human_review",
-        "reason": "HUMAN_REVIEW: insufficient_evidence: no cause diagnosed — nothing to apply, the operator reviews",
+        "reason": "HUMAN_REVIEW: score 0.65 < 0.85 AUTO threshold; namespace 'production' is production — always HUMAN_REVIEW minimum",
         "snapshot": {
-          "score": 0.0,
+          "score": 0.65,
           "risk": "LOW",
           "rollback_available": true,
           "namespace": "production",
@@ -321,10 +422,23 @@
           "max_switches_reached": false,
           "verdict": "HUMAN_REVIEW"
         },
-        "ts": "2026-10-20T03:18:35.313010+00:00"
+        "ts": "2026-10-21T04:30:41.430912+00:00"
       }
     ],
-    "hypothesis_sources": []
+    "hypothesis_sources": [
+      {
+        "rule_id": "slo.dependency",
+        "family": "dependency-latency",
+        "affected": "outside:payments-gateway",
+        "weight": 0.65,
+        "evidence": [
+          "a92e9aa1b1b92cf1",
+          "fd8d98ccb6d2001e",
+          "b75e367f198a3aa6",
+          "ddda02bd93aceb70"
+        ]
+      }
+    ]
   },
   "error": null
 }

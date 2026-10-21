@@ -87,6 +87,7 @@ class K8sCollector:
 
         self._core = k8s_client.CoreV1Api(self._api_client)
         self._apps = k8s_client.AppsV1Api(self._api_client)
+        self._netpol_api = k8s_client.NetworkingV1Api(self._api_client)
 
         # Ingress API depends on server version
         if self.kube_version.supports_networking_v1_ingress:
@@ -157,6 +158,7 @@ class K8sCollector:
             self._collect_pvcs(graph, ns)
             self._collect_serviceaccounts(graph, ns)
             self._collect_events(graph, ns)
+            self._collect_networkpolicies(ns)
             # after everything a pod can reference is in the graph
             self._link_pod_dependencies(graph, ns)
             self._annotate_missing_dependencies(graph, ns)
@@ -336,6 +338,9 @@ class K8sCollector:
             configmaps=names("configmaps", "ConfigMap"),
             pvcs=names("pvcs", "PersistentVolumeClaim"),
             serviceaccounts=names("serviceaccounts", "ServiceAccount"),
+            # listed per namespace (docs/failing-cases-002.md S4); None when the listing failed
+            # None when not listed (refused, or not set up): unknown, never "no policy"
+            networkpolicies=getattr(self, "_netpols", {}).get(namespace),
             messages=[e.message for e in graph.entities(ResourceKind.EVENT)
                       if e.namespace == namespace],
         )
@@ -345,6 +350,20 @@ class K8sCollector:
             entity = pods.get((meta.get("namespace"), meta.get("name")))
             if entity is not None:
                 entity.annotations.update(detect_missing(api_pod, present))
+
+    def _collect_networkpolicies(self, namespace: str) -> None:
+        """NetworkPolicies of the namespace, API-shaped, for the readiness detector (S4)."""
+        self.__dict__.setdefault("_netpols", {})
+        api = getattr(self, "_netpol_api", None)
+        if api is None:
+            return                                   # not set up: unknown, never "none"
+        try:
+            items = api.list_namespaced_network_policy(namespace).items
+        except ApiException as exc:
+            log.warning("Cannot list networkpolicies in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "networkpolicies"))
+            return
+        self._netpols[namespace] = [self._api_client.sanitize_for_serialization(i) for i in items]
 
     def _collect_deployments(self, graph: OntologyGraph, namespace: str) -> None:
         try:

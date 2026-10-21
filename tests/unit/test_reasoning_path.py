@@ -16,7 +16,6 @@ from tools.reasoning_path import STEPS, cases_with_path, evaluate
 
 KNOWN: dict[tuple[str, str], str] = {
     ("h007_hpa_no_metrics", "seeds"): "P3: the fixture has no Deployment, HPA or metrics-server",
-    ("h016_multi_signal", "rule"): "P4: no connection-exhaustion rule (P5 fixed 2026-10-18, H26)",
 }
 
 
