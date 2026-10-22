@@ -921,7 +921,7 @@ def analyze_node(state: RCAState, config: RunnableConfig) -> dict:
     analyzer = RCAAnalyzer(graph=graph, store=store, llm=llm)
     analyzer._ctx_builder = ctx_builder
 
-    report = analyzer.analyze(focused_query)
+    report = analyzer.analyze(focused_query, alert_text=state.get("alert_text", ""))
     llm_label = normalize_label(report.confidence)   # "MEDIUM:" → MEDIUM (H20)
     llm_dict = report.to_dict()
     llm_dict["llm_confidence"] = llm_label           # recorded, not used by the gate (rule 6)

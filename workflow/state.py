@@ -11,6 +11,7 @@ class RCAState(TypedDict, total=False):
     """
     # ── Inputs ────────────────────────────────────────────────────────────────
     query: str                  # incident description
+    alert_text: str             # an alert's own words (webhook), quoted in the prompt as data
     kubeconfig: str | None
     kube_context: str | None
     namespaces: list[str]

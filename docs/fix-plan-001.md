@@ -323,13 +323,17 @@ item says how it was checked; the fix comes with a test that fails on today's co
   workflow; the dead persistence removed and the mock with it.
   *Decided 2026-10-22: documented as UI-only; the dead persistence and its mock removed. Indexing
   enterprise documents in the workflow would be a new capability, not a correction.*
-- [ ] **H71 — a webhook alert's text becomes the incident query**, in the operator's question
+- [x] **H71 — a webhook alert's text becomes the incident query**, in the operator's question
   slot rather than as alert text; an alert without a namespace label investigates every
   namespace. The H53 key (alert name + namespaces) merges two resources' alerts in one
   namespace. → the alert text passed as quoted alert evidence, the query built from labels; no
   namespace → refused or the configured default; the key's choice written down.
   *Decided 2026-10-22: no namespace label → the configured `KUBE_NAMESPACES`; when that is empty,
   the alert is refused and counted in `skipped`.*
+  *Done: the query holds sanitized labels only; the summary and description go to a quoted
+  "Alert text" section of the prompt (v6). No namespace → `KUBE_NAMESPACES` (a signal first
+  reads its `Kind/namespace/name` entity), refused when empty. The key is (alert name, resource,
+  namespaces).*
 - [ ] **H72 — the verdict envelope and the sample journey describe the previous pipeline**: the
   envelope's docstring gives the old label → score map and it has no `outcome`, no
   `llm_disagreement`; for an abstention its next step speaks of "applying the proposed

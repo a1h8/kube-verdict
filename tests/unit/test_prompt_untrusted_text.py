@@ -15,7 +15,7 @@ def test_no_air_gapped_claim():
 
 
 def test_the_prompt_version_moved():                  # runs recorded with v2 are not compared as one
-    assert PROMPT_VERSION == "v5"
+    assert PROMPT_VERSION == "v6"
 
 
 def test_no_rule_forces_a_confidence_label():         # the label was HIGH by rule, whatever the evidence
