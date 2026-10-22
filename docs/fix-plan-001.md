@@ -365,6 +365,7 @@ item says how it was checked; the fix comes with a test that fails on today's co
 - Dead code, recorded: `ontology/version.py` (no caller). Latent: `git clone` receives the
   repository URL without `--` (an option-shaped URL is parsed as an option; tried, nothing ran).
   → `--` and an URL that starts with `-` refused.
+  *Done for `git clone`: `--` before the URL, an URL starting with `-` refused before git runs.*
 
 ## 5. Live validation (once, at the end)
 

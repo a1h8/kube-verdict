@@ -117,7 +117,11 @@ class LocalGitProvider(GitProvider):
                 self.last_error = f"git pull failed, the checkout may be stale: {result.stderr.strip()[:200]}"
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            cmd = ["git", "clone", "--depth=1", "--branch", self.branch, self.repo_url, str(dest)]
+            # `--` ends the options: an URL shaped like an option (`--upload-pack=…`) is never
+            # parsed as one, and is refused before git runs (fix plan, section 7)
+            cmd = ["git", "clone", "--depth=1", "--branch", self.branch, "--", self.repo_url, str(dest)]
+            if self.repo_url.startswith("-"):
+                raise subprocess.CalledProcessError(2, cmd, stderr="repository URL starts with '-': refused")
             try:
                 subprocess.run(cmd, capture_output=True, text=True, check=True, env=self._git_env(),
                                timeout=_GIT_TIMEOUT_S)

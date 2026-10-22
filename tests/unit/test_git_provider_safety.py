@@ -69,3 +69,19 @@ def test_two_repositories_with_the_same_name_do_not_share_a_checkout(tmp_path): 
     assert len({a._repo_dir(), b._repo_dir(), c._repo_dir()}) == 3
     again = LocalGitProvider("https://git.example/team-a/infra.git", clone_dir=tmp_path)
     assert again._repo_dir() == a._repo_dir()                                      # control: stable
+
+
+def test_the_url_comes_after_the_end_of_options(tmp_path):                       # fix plan, section 7
+    provider = LocalGitProvider("https://git.example/acme/infra.git", clone_dir=tmp_path)
+    with patch("ingestion.git_provider.subprocess.run") as run:
+        provider._ensure_cloned()
+    argv = run.call_args.args[0]
+    assert argv.index("--") == argv.index("https://git.example/acme/infra.git") - 1
+
+
+def test_an_option_shaped_url_is_refused_before_git_runs(tmp_path):
+    provider = LocalGitProvider("--upload-pack=touch /tmp/pwned", clone_dir=tmp_path)
+    with patch("ingestion.git_provider.subprocess.run") as run:
+        assert provider.local_path() is None
+    run.assert_not_called()
+    assert "starts with '-'" in provider.last_error
