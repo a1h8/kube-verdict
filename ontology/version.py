@@ -83,7 +83,8 @@ class KubeVersion:
 def detect_version(api_client: k8s_client.ApiClient) -> KubeVersion:
     """
     Fetches /version from the API server and returns a KubeVersion.
-    Falls back to (1, 0) if the endpoint is unreachable (air-gap, permissions).
+    Falls back to 1.19, marked ``v1.19.0-unknown``, if the endpoint is unreachable (air-gap,
+    permissions).
     """
     version_api = k8s_client.VersionApi(api_client)
     try:
