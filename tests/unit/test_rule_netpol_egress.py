@@ -27,7 +27,8 @@ def _outcome(policy, dns_failure=True):
     pod = Pod(uid="p", name="orders-1", namespace="prod", phase="Running", labels={"app": "orders"},
               container_statuses=[{"name": "c", "ready": False, "state": {"running": {}}}])
     pod.annotations.update(detect_missing(POD_API, Present(networkpolicies=[policy])))
-    g = OntologyGraph(); g.add_entity(pod)
+    g = OntologyGraph()
+    g.add_entity(pod)
     if dns_failure:
         g.add_entity(LokiLog(uid="l", name="l", namespace="prod", pod_name="orders-1", level="error",
                              log_line='err="dial tcp: lookup db.prod.svc.cluster.local: i/o timeout"'))
@@ -51,7 +52,8 @@ def test_a_blocking_policy_with_nothing_failing_is_no_incident():               
 
 def test_the_collector_lists_networkpolicies_and_records_a_refusal():
     c = K8sCollector.__new__(K8sCollector)
-    c._listing_failed = set(); c._api_client = k8s.ApiClient()
+    c._listing_failed = set()
+    c._api_client = k8s.ApiClient()
     c._netpol_api = MagicMock()
     c._netpol_api.list_namespaced_network_policy.return_value.items = [k8s.V1NetworkPolicy(
         metadata=k8s.V1ObjectMeta(name="restrict", namespace="prod"),

@@ -25,9 +25,12 @@ def test_a_refused_pod_listing_is_a_listing_failure():
 
 
 def _ingest(listing_failures=(), helm_failures=()):
-    k8s = MagicMock(); k8s.collect.return_value = OntologyGraph(); k8s.kube_version = None
+    k8s = MagicMock()
+    k8s.collect.return_value = OntologyGraph()
+    k8s.kube_version = None
     k8s.listing_failures = list(listing_failures)
-    helm = MagicMock(); helm.failures = list(helm_failures)
+    helm = MagicMock()
+    helm.failures = list(helm_failures)
     pol = MagicMock(last_error=None)
     pol.collect.return_value = MagicMock(fail_count=0, audit_count=0, mutation_webhooks=0)
     with patch("ingestion.K8sCollector", return_value=k8s), \
@@ -81,10 +84,13 @@ def test_a_refused_crd_listing_is_recorded_by_discovery():
 
 
 def test_discovery_refusals_are_their_own_failure():
-    k8s = MagicMock(); k8s.collect.return_value = OntologyGraph(); k8s.kube_version = None
+    k8s = MagicMock()
+    k8s.collect.return_value = OntologyGraph()
+    k8s.kube_version = None
     k8s.listing_failures = []
     k8s._discovery.failures = ["Certificate at /apis/x: 403"]
-    helm = MagicMock(); helm.failures = []
+    helm = MagicMock()
+    helm.failures = []
     pol = MagicMock(last_error=None)
     pol.collect.return_value = MagicMock(fail_count=0, audit_count=0, mutation_webhooks=0)
     with patch("ingestion.K8sCollector", return_value=k8s), \

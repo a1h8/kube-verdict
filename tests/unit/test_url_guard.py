@@ -40,7 +40,7 @@ def test_a_non_http_scheme_is_refused(url):
     "0.0.0.0",
 ])
 def test_a_non_public_address_is_refused(addr):
-    assert "non-public" in fetch_refusal(f"http://wiki.internal/page", _resolves_to(addr))
+    assert "non-public" in fetch_refusal("http://wiki.internal/page", _resolves_to(addr))
 
 
 def test_one_private_answer_among_public_ones_is_refused():

@@ -10,7 +10,9 @@ from workflow.nodes import _get_infra, ingest_node
 
 
 def _ingest(graph, thread_id="session-1"):
-    k8s = MagicMock(); k8s.collect.return_value = graph; k8s.kube_version = None
+    k8s = MagicMock()
+    k8s.collect.return_value = graph
+    k8s.kube_version = None
     policy = MagicMock(last_error=None)
     policy.collect.return_value = MagicMock(fail_count=0, audit_count=0, mutation_webhooks=0)
     with patch("ingestion.K8sCollector", return_value=k8s), \

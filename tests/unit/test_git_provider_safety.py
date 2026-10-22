@@ -2,7 +2,6 @@
 never goes in a URL, an argv or an error message)."""
 from __future__ import annotations
 
-import subprocess
 from unittest.mock import patch
 
 import pytest

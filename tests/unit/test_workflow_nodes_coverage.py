@@ -317,7 +317,8 @@ def test_gitops_node_fallback_on_error(monkeypatch):
     monkeypatch.setattr(cfg, "GIT_REPOS", [{"url": "https://github.com/acme/charts.git"},
                                            {"url": "https://git.example/acme/infra.git"}])
     graph = _empty_graph()
-    ok = MagicMock(); ok.collect.return_value = []
+    ok = MagicMock()
+    ok.collect.return_value = []
 
     def make(url, **_):
         if "github" in url:

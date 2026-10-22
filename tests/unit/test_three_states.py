@@ -35,7 +35,8 @@ def _graph(applied, live_memory="512Mi", live_image="ghcr.io/acme/api:1", live_r
 
 
 def _run_a(g, declared):
-    renderer = MagicMock(); renderer.render.return_value = [declared]
+    renderer = MagicMock()
+    renderer.render.return_value = [declared]
     c = GitopsCollector(MagicMock(), renderer=renderer)
     c._resolve_chart = lambda release: ("/repo/charts/api", None)
     c.collect(g)

@@ -25,7 +25,8 @@ def _graph(live_memory):
 
 
 def _run(graph, applied):
-    store = MagicMock(); store.versions.return_value = ["1.0.0"]
+    store = MagicMock()
+    store.versions.return_value = ["1.0.0"]
     store.get.return_value = MagicMock(name="api", version="1.0.0", render_type="helm")
     with patch("knowledge.chart_indexer.ChartIndexer.render", return_value=[_manifest("512Mi")]):
         _, items = _rendered_expected_drift(graph, "api", None, "prod", store, applied)

@@ -3,7 +3,6 @@
 Controls that can fail are marked. The workflow runs offline on the native cases."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -76,7 +75,8 @@ def _llm(root_cause):
     report.to_dict.return_value = {"root_cause": root_cause, "summary": "s",
                                    "remediation": ["kubectl rollout restart deployment/api -n prod"],
                                    "confidence": "HIGH", "diagnostics": []}
-    analyzer = MagicMock(); analyzer.analyze.return_value = report
+    analyzer = MagicMock()
+    analyzer.analyze.return_value = report
     return analyzer
 
 

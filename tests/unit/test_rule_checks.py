@@ -16,7 +16,6 @@ from rca.remediation_engine import _ALL_RULES, RemediationEngine
 
 # the old engine's fixture graph (moved from test_analyzer_fallback.py with the LOW fallback)
 def _demo_graph() -> OntologyGraph:
-    from ontology.entities import K8sEvent
     g = OntologyGraph()
 
     # payment-service → CrashLoopBackOff + DB connection refused

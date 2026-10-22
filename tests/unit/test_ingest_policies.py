@@ -12,7 +12,9 @@ from workflow.nodes import _ingestion_failures, ingest_node
 
 def _run_ingest(policy_collector, thread_id):
     graph = OntologyGraph()
-    k8s = MagicMock(); k8s.collect.return_value = graph; k8s.kube_version = None
+    k8s = MagicMock()
+    k8s.collect.return_value = graph
+    k8s.kube_version = None
     with patch("ingestion.K8sCollector", return_value=k8s), \
             patch("ingestion.HelmCollector", return_value=MagicMock()), \
             patch("ingestion.HelmDriftDetector", return_value=MagicMock(detect_all=MagicMock(return_value=0))), \

@@ -34,9 +34,13 @@ def test_a_low_llm_answer_gets_no_rule_made_remediation():
     from rca.analyzer import RCAAnalyzer
     g = OntologyGraph()
     g.add_entity(Pod(uid="p", name="api-1", namespace="prod", phase="Pending"))   # old engine fired here
-    llm = MagicMock(); llm.is_available.return_value = True; llm.model_is_pulled.return_value = True
+    llm = MagicMock()
+    llm.is_available.return_value = True
+    llm.model_is_pulled.return_value = True
     llm.generate.return_value = "## 6. Confidence\nLOW\n"
-    store = MagicMock(); store.hybrid_search.return_value = []; store.search.return_value = []
+    store = MagicMock()
+    store.hybrid_search.return_value = []
+    store.search.return_value = []
     report = RCAAnalyzer(graph=g, store=store, llm=llm).analyze("why")
     assert report.remediation == []
     assert not any("[rule:" in line for line in report.remediation)        # control is the old file

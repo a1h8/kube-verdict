@@ -20,7 +20,8 @@ def _outcome(upstream=True, pod_ready=True):
                      container_statuses=[{"name": "c", "ready": pod_ready, "restartCount": 0 if pod_ready else 5,
                                           "state": {"running": {}} if pod_ready else
                                           {"waiting": {"reason": "CrashLoopBackOff"}}}]))
-    g.add_entity(_alert("a1", "SLOErrorBudgetBurnFast")); g.add_edge(Edge("d", "a1", R.HAS_ALERT))
+    g.add_entity(_alert("a1", "SLOErrorBudgetBurnFast"))
+    g.add_edge(Edge("d", "a1", R.HAS_ALERT))
     if upstream:
         g.add_entity(_alert("a2", "UpstreamLatencyHigh", upstream="payments-gateway"))
         g.add_edge(Edge("d", "a2", R.HAS_ALERT))

@@ -501,7 +501,9 @@ class TestAnchorNode:
         b = StateGraph(RCAState)
         b.add_node("gitops", gitops_node)
         b.add_node("anchor", anchor_node)
-        b.add_edge(START, "gitops"); b.add_edge("gitops", "anchor"); b.add_edge("anchor", END)
+        b.add_edge(START, "gitops")
+        b.add_edge("gitops", "anchor")
+        b.add_edge("anchor", END)
         with patch("ingestion.git_provider.make_provider", return_value=fake_provider) as mk, \
              patch("ingestion.gitops_collector.GitopsCollector", return_value=fake_collector), \
              patch("ingestion.anchor_engine.AnchorEngine.collect", return_value=[]) as collect:

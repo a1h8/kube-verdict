@@ -26,7 +26,8 @@ def test_a_decorated_high_scores_as_high():
 def test_analyze_node_stores_the_bare_label():
     report = MagicMock(confidence="LOW: the context is sparse", raw_analysis="x")
     report.context.total_chunks = 0
-    analyzer = MagicMock(); analyzer.analyze.return_value = report
+    analyzer = MagicMock()
+    analyzer.analyze.return_value = report
     with patch("workflow.nodes.RCAAnalyzer", return_value=analyzer), \
             patch("workflow.nodes.ContextBuilder"):
         out = analyze_node({"query": "q"}, {"configurable": {"graph": MagicMock(), "store": MagicMock(),

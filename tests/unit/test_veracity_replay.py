@@ -154,12 +154,12 @@ def test_a_missing_run_counts_as_a_fail():
     case = vr.native_cases()[0]
     records = [_rec(case, vr.tier_of(case, {}), "PASS", run=1)]
     report = vr.render_report(records, "h", expected={"llm": [(case, 1), (case, 2)]})
-    row = next(l for l in report.splitlines() if l.startswith(f"| {case} "))
+    row = next(line for line in report.splitlines() if line.startswith(f"| {case} "))
     cells = [c.strip() for c in row.split("|")[2:-1]]
     assert cells[0] == "1/2" and cells[1] == "1"
     # control: without the expected runs, the lost run vanished from the denominator
     old = vr.render_report(records, "h")
-    assert [c.strip() for c in next(l for l in old.splitlines() if l.startswith(f"| {case} ")).split("|")[2:-1]][0] == "1/1"
+    assert [c.strip() for c in next(line for line in old.splitlines() if line.startswith(f"| {case} ")).split("|")[2:-1]][0] == "1/1"
 
 
 def test_a_child_that_dies_is_recorded(tmp_path, monkeypatch):
@@ -175,7 +175,8 @@ def test_a_child_that_records_its_run_is_not_a_failure(tmp_path, monkeypatch):  
 
     def ok(*a, **k):
         p = vr.record_path(tmp_path, "llm", "h001_x", 2)
-        p.parent.mkdir(parents=True); p.write_text("{}")
+        p.parent.mkdir(parents=True)
+        p.write_text("{}")
         return sp.CompletedProcess(a, 0)
     monkeypatch.setattr(vr.subprocess, "run", ok)
     vr._run_in_child("llm:m", "h001_x", 2, tmp_path)
