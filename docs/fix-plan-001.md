@@ -349,9 +349,12 @@ item says how it was checked; the fix comes with a test that fails on today's co
   *Done: `knowledge/url_guard.py` — http(s) only, every resolved address must be global, each
   redirect checked again, the token dropped on a redirect to another host. Not covered: a DNS
   answer that changes between the check and the fetch.*
-- [ ] **H75 — the UI can rewrite a graded case's expectations from a run's output**
+- [x] **H75 — the UI can rewrite a graded case's expectations from a run's output**
   (`update_expect_from_sim`, `recalibrate_all` on native cases). → limited to synthetic cases;
   graded expectations change only through the case audit.
+  *Done: `update_expect_from_sim` refuses a case under `tests/integration/cases/`,
+  `recalibrate_all` skips it, the UI hides the button. The old code proposed three changes on
+  h003, `confidence: MEDIUM → HIGH` among them.*
 - [ ] **H76 — tooling**: `scripts/init-k3s.sh --image` is silently ignored (its `sed` pattern no
   longer exists) and it applies the on-demand Job the manifest says to skip; `make test` runs
   the tests marked as needing Ollama and a cluster; the Scaleway terraform does not pin the

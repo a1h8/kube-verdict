@@ -1847,7 +1847,9 @@ def _render_integration_tests(demo_mode: bool = False):  # noqa: C901
         render_tree, write_json,
     )
     from tests.integration.use_cases.proposal_engine import generate_proposals
-    from tools.case_contract import update_expect_from_sim, update_input_from_sim, recalibrate_all
+    from tools.case_contract import (
+        is_graded_case, recalibrate_all, update_expect_from_sim, update_input_from_sim,
+    )
     from rca.analyzer import RCAAnalyzer
     from llm import build_llm_client
     from vectorstore.embedder import Embedder
@@ -2399,7 +2401,9 @@ def _render_integration_tests(demo_mode: bool = False):  # noqa: C901
                         use_container_width=True,
                     )
                 with ac2:
-                    if st.button("📋 Update expect.json", use_container_width=True, key=f"{scope}_upd_expect"):
+                    if is_graded_case(case_dir):
+                        st.caption("Graded case: expect.json changes only through the case audit.")
+                    elif st.button("📋 Update expect.json", use_container_width=True, key=f"{scope}_upd_expect"):
                         _, changes = update_expect_from_sim(case_dir, payload, dry_run=True)
                         if changes:
                             with st.expander("Changes preview", expanded=True):
