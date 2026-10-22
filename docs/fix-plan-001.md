@@ -292,6 +292,72 @@ Items the pass recorded as minor or suspect; each suspect was checked before bei
 - Latent, recorded: `ChartStore._chart_dir` does not sanitise names before `rmtree` (no
   production caller pushes); Kyverno's newer report API group — to check during the live run.
 
+## 7. Modules not read before (2026-10-21)
+
+A read of the modules the file-by-file pass had not covered (signals, `PatchBuilder`, enterprise
+docs, the API models and mappers, the rest of the UI, scripts, terraform, the dashboard). Each
+item says how it was checked; the fix comes with a test that fails on today's code.
+
+- [ ] **H67 — the PatchTST detector calls every normal series anomalous** (measured). The score
+  divides the error on the last window by the error on training windows the model has just fit:
+  white noise scores ~47 (`critical`), a clean sine ~2.7 (`warning`). With Prometheus enabled,
+  every pod's text carries `signal.anomaly=…critical` into the LLM context and the index. → a
+  held-out baseline (windows not trained on), a fixed seed; test: normal series (noise, sine,
+  constant) → `normal`, a final spike → anomalous.
+- [ ] **H68 — the Prometheus source hides failures and drops series** (measured). A failed query
+  reads as "no data" (logged at debug, no `fallback`); series of different lengths fail
+  `np.vstack` and the whole metric is dropped; memory is averaged across containers instead of
+  summed. A 7-day detection costs ~6.6 s, run on every pod of the graph with no cap. → a
+  reported failure, aligned series summed per pod, the analysis limited to seeds with a budget,
+  no training on synthetic series whose results are discarded (H43).
+- [ ] **H69 — `PatchBuilder` misreads `--set`** (measured against `helm`). Two releases are merged
+  into one patch, `1.10` becomes `1.1` (Helm keeps the string), `--set-string` is coerced,
+  `a=1,b=2` and list indexes are not parsed. No production caller yet. → Helm's typing (integers
+  and booleans only), one patch per release, the comma and index forms, or the module removed
+  until it is wired.
+  *Decided 2026-10-22: fixed, not removed (phase 1 of `docs/pr-mr-first.md`, kept for the GitOps
+  path).*
+- [ ] **H70 — enterprise documents reach only the UI's own pipeline**; the vector-store
+  persistence (`persist_texts`, `rebuild_from_db`, `vector_store_docs`) has no production caller
+  and a test mocks it as if `index_node` called it. → documented as UI-only, or indexed by the
+  workflow; the dead persistence removed and the mock with it.
+  *Decided 2026-10-22: documented as UI-only; the dead persistence and its mock removed. Indexing
+  enterprise documents in the workflow would be a new capability, not a correction.*
+- [ ] **H71 — a webhook alert's text becomes the incident query**, in the operator's question
+  slot rather than as alert text; an alert without a namespace label investigates every
+  namespace. The H53 key (alert name + namespaces) merges two resources' alerts in one
+  namespace. → the alert text passed as quoted alert evidence, the query built from labels; no
+  namespace → refused or the configured default; the key's choice written down.
+  *Decided 2026-10-22: no namespace label → the configured `KUBE_NAMESPACES`; when that is empty,
+  the alert is refused and counted in `skipped`.*
+- [ ] **H72 — the verdict envelope and the sample journey describe the previous pipeline**: the
+  envelope's docstring gives the old label → score map and it has no `outcome`, no
+  `llm_disagreement`; for an abstention its next step speaks of "applying the proposed
+  remediation". `api/sample_journey.py` is hand-written and shows hypothesis retries on the
+  LLM's label. → the envelope carries the outcome and the disagreement; the sample is a
+  generated journey.
+- [ ] **H73 — an API caller can choose the kubeconfig file and the context** (`RunRequest`), on
+  an API without authentication by default. → the fields refused by the API (server
+  configuration only), or an allow-list of contexts.
+  *Decided 2026-10-22: the fields are refused (422); the kubeconfig and the context are server
+  configuration only.*
+- [ ] **H74 — the UI's "Fetch from URL" reads any URL scheme and address** (checked:
+  `file://` is read). → `http(s)` only, private and link-local addresses refused, the token sent
+  only to the host it was entered for.
+- [ ] **H75 — the UI can rewrite a graded case's expectations from a run's output**
+  (`update_expect_from_sim`, `recalibrate_all` on native cases). → limited to synthetic cases;
+  graded expectations change only through the case audit.
+- [ ] **H76 — tooling**: `scripts/init-k3s.sh --image` is silently ignored (its `sed` pattern no
+  longer exists) and it applies the on-demand Job the manifest says to skip; `make test` runs
+  the tests marked as needing Ollama and a cluster; the Scaleway terraform does not pin the
+  Kubernetes version. → each fixed.
+- [ ] **H77 — the dashboard presents the structured diagnoses as the former engine's
+  hypotheses** and shows neither an abstention nor the LLM's disagreement. → the ranked
+  diagnoses, the outcome and the disagreement shown as such.
+- Dead code, recorded: `ontology/version.py` (no caller). Latent: `git clone` receives the
+  repository URL without `--` (an option-shaped URL is parsed as an option; tried, nothing ran).
+  → `--` and an URL that starts with `-` refused.
+
 ## 5. Live validation (once, at the end)
 
 - [ ] **H45 — the project's chart grants no Secrets**, where Helm 3 stores its releases, nor
