@@ -14,8 +14,9 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
+from api.models import refuse_server_only_fields
 from api.oidc import require_auth
 from api.verdict_contract import VerdictEnvelope
 from services.investigation_service import run_investigation
@@ -31,7 +32,8 @@ class InvestigateRequest(BaseModel):
     environment: str | None = None
     signal: str | None = None
     namespaces: list[str] | None = None
-    kube_context: str | None = None
+
+    _refuse_server_only = model_validator(mode="before")(refuse_server_only_fields)
 
 
 def _effective_query(body: InvestigateRequest) -> str:
@@ -53,7 +55,6 @@ async def investigate(body: InvestigateRequest) -> VerdictEnvelope:
     final_state = await run_investigation(
         query=_effective_query(body),
         namespaces=namespaces,
-        kube_context=body.kube_context,
         thread_id=session_id,
     )
     return VerdictEnvelope.from_state(

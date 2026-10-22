@@ -26,7 +26,7 @@ decision — without letting an LLM act on its own.
 | Input | Status |
 |-------|--------|
 | `namespace` + free-text `query` | ✅ |
-| `kubeconfig` / `kube_context` (read-only) | ✅ |
+| Cluster: server configuration (`KUBECONFIG` / `KUBE_CONTEXT`); `kubeconfig` / `kube_context` in a request are refused (`422`) | ✅ |
 | Alertmanager alert payload (labels / annotations) | ✅ (webhook) |
 | Structured `service` / `environment` | 🎯 |
 | GitOps repo / chart / release reference | 🎯 |

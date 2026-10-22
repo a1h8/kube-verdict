@@ -336,11 +336,13 @@ item says how it was checked; the fix comes with a test that fails on today's co
   remediation". `api/sample_journey.py` is hand-written and shows hypothesis retries on the
   LLM's label. → the envelope carries the outcome and the disagreement; the sample is a
   generated journey.
-- [ ] **H73 — an API caller can choose the kubeconfig file and the context** (`RunRequest`), on
+- [x] **H73 — an API caller can choose the kubeconfig file and the context** (`RunRequest`), on
   an API without authentication by default. → the fields refused by the API (server
   configuration only), or an allow-list of contexts.
   *Decided 2026-10-22: the fields are refused (422); the kubeconfig and the context are server
   configuration only.*
+  *Done: `RunRequest` and `InvestigateRequest` refuse both fields (422); the routes no longer
+  put them in the state, so the workflow reads `KUBECONFIG` / `KUBE_CONTEXT`.*
 - [ ] **H74 — the UI's "Fetch from URL" reads any URL scheme and address** (checked:
   `file://` is read). → `http(s)` only, private and link-local addresses refused, the token sent
   only to the host it was entered for.

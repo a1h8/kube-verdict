@@ -173,8 +173,6 @@ async def run_session(session_id: str, body: RunRequest) -> SessionState:
     initial_state = {
         "query":        body.query,
         "namespaces":   body.namespaces,
-        "kubeconfig":   body.kubeconfig,
-        "kube_context": body.kube_context,
         "edge_log":     [],
     }
     store.set_last_state(session_id, initial_state)
