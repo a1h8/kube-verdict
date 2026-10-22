@@ -8,7 +8,11 @@ Tables
 ------
 sessions          — API session metadata + last_state snapshot
 checkpoints       — LangGraph thread checkpoints (managed by SqliteSaver)
-vector_store_docs — Raw entity texts for FAISS index reconstruction (Option B)
+
+There is no vector-store table: each investigation builds its index from what it collected
+and the knowledge base (docs/fix-plan-001.md, H40). The former ``vector_store_docs`` table and
+its reconstruction path had no production caller (H70); a database that still has the table
+keeps it, unused.
 """
 from __future__ import annotations
 import os
@@ -33,19 +37,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 """
 
-# ON CONFLICT (uid) DO UPDATE is valid in both SQLite ≥3.24 and PostgreSQL.
-_VECTOR_STORE_DDL = """
-CREATE TABLE IF NOT EXISTS vector_store_docs (
-    uid          TEXT PRIMARY KEY,
-    name         TEXT NOT NULL,
-    kind         TEXT NOT NULL,
-    namespace    TEXT,
-    text         TEXT NOT NULL,
-    kube_version TEXT NOT NULL DEFAULT '',
-    doc_source   TEXT NOT NULL DEFAULT 'cluster',
-    indexed_at   TEXT NOT NULL
-);
-"""
 
 
 def get_db(path: str | None = None) -> sqlite3.Connection:
@@ -61,5 +52,5 @@ def init_db(path: str | None = None) -> None:
     """Create schema if it doesn't exist yet."""
     conn = get_db(path)
     with conn:
-        conn.executescript(_SESSION_DDL + _VECTOR_STORE_DDL)
+        conn.executescript(_SESSION_DDL)
     conn.close()

@@ -330,12 +330,17 @@ item says how it was checked; the fix comes with a test that fails on today's co
   `warnings`; checked against `helm template` on five flag sets. Correction to the diagnosis:
   PatchBuilder does have a production caller, the MCP tool `propose_patch` (which can open a
   draft PR).*
-- [ ] **H70 — enterprise documents reach only the UI's own pipeline**; the vector-store
+- [x] **H70 — enterprise documents reach only the UI's own pipeline**; the vector-store
   persistence (`persist_texts`, `rebuild_from_db`, `vector_store_docs`) has no production caller
   and a test mocks it as if `index_node` called it. → documented as UI-only, or indexed by the
   workflow; the dead persistence removed and the mock with it.
   *Decided 2026-10-22: documented as UI-only; the dead persistence and its mock removed. Indexing
   enterprise documents in the workflow would be a new capability, not a correction.*
+  *Done for the persistence: `persist_texts`, `rebuild_from_db`, `persistence/vector_store_repo.py`
+  and the `vector_store_docs` table removed, with the mocks that simulated them. Retracted: the
+  first half of the finding was wrong — since H39, `index_node` indexes the enterprise documents
+  (`DocIndexer(...).index_all(DocStore())`) in every investigation, whatever the door; only
+  adding one goes through the UI. Nothing is documented as "UI-only".*
 - [x] **H71 — a webhook alert's text becomes the incident query**, in the operator's question
   slot rather than as alert text; an alert without a namespace label investigates every
   namespace. The H53 key (alert name + namespaces) merges two resources' alerts in one

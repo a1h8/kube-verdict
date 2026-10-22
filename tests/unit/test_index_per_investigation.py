@@ -32,14 +32,13 @@ def _run(graph, examples=0):
             patch("workflow.nodes.Embedder", FakeEmbedder), \
             patch("knowledge.ExampleIndexer", return_value=ex_indexer) as ex_cls, \
             patch("knowledge.DocIndexer") as doc_cls, \
-            patch("vectorstore.store.FAISSStore.save") as save, \
-            patch("vectorstore.store.FAISSStore.persist_texts") as persist:
+            patch("vectorstore.store.FAISSStore.save") as save:
         doc_cls.return_value.index_all.return_value = 0
         cfg = {"configurable": {"thread_id": "session-1"}}
         state = ingest_node({"namespaces": ["prod"]}, cfg)
         index_node(state, cfg)
         store = _get_infra(cfg, state)[1]
-    return store, ex_cls, doc_cls, save, persist
+    return store, ex_cls, doc_cls, save
 
 
 def _texts(store):
@@ -54,11 +53,10 @@ def test_the_second_investigation_does_not_see_the_first_cluster():
 
 
 def test_the_knowledge_base_is_indexed_and_nothing_is_saved():
-    _, ex_cls, doc_cls, save, persist = _run(_graph("api"), examples=2)
+    _, ex_cls, doc_cls, save = _run(_graph("api"), examples=2)
     ex_cls.return_value.index_all.assert_called_once()
     doc_cls.return_value.index_all.assert_called_once()
     save.assert_not_called()
-    persist.assert_not_called()
 
 
 def test_the_api_loads_no_store_and_passes_none():

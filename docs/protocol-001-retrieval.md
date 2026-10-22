@@ -108,4 +108,7 @@ incident memory is drawn from C1 or C2.
 
 ## Amendments
 
-*(none)*
+- **2026-10-22 — "Code needed", item 2.** `index_node` no longer writes the index (`save()`,
+  since `docs/fix-plan-001.md` H40) and `persist_texts` no longer exists (H70): each
+  investigation builds its index in memory. Item 2 holds by construction; no protocol rule
+  changes.
