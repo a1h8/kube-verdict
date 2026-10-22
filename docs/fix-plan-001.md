@@ -318,13 +318,18 @@ item says how it was checked; the fix comes with a test that fails on today's co
   summed per pod (averaged for a ratio), `container!=""`; the seeds only, `SIGNAL_MAX_ENTITIES`
   (10), the rest counted; the workflow no longer trains on synthetic series (the UI keeps them).
   Structured replay 0.1 s per case instead of 1.5 s.*
-- [ ] **H69 — `PatchBuilder` misreads `--set`** (measured against `helm`). Two releases are merged
+- [x] **H69 — `PatchBuilder` misreads `--set`** (measured against `helm`). Two releases are merged
   into one patch, `1.10` becomes `1.1` (Helm keeps the string), `--set-string` is coerced,
   `a=1,b=2` and list indexes are not parsed. No production caller yet. → Helm's typing (integers
   and booleans only), one patch per release, the comma and index forms, or the module removed
   until it is wired.
   *Decided 2026-10-22: fixed, not removed (phase 1 of `docs/pr-mr-first.md`, kept for the GitOps
   path).*
+  *Done: Helm's typing (integers, booleans, null), `--set-string`, unescaped commas, list
+  indexes, `--set=`, one release per patch, a scalar replaced by a mapping reported in
+  `warnings`; checked against `helm template` on five flag sets. Correction to the diagnosis:
+  PatchBuilder does have a production caller, the MCP tool `propose_patch` (which can open a
+  draft PR).*
 - [ ] **H70 — enterprise documents reach only the UI's own pipeline**; the vector-store
   persistence (`persist_texts`, `rebuild_from_db`, `vector_store_docs`) has no production caller
   and a test mocks it as if `index_node` called it. → documented as UI-only, or indexed by the
