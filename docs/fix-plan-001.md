@@ -376,9 +376,12 @@ item says how it was checked; the fix comes with a test that fails on today's co
   longer exists) and it applies the on-demand Job the manifest says to skip; `make test` runs
   the tests marked as needing Ollama and a cluster; the Scaleway terraform does not pin the
   Kubernetes version. → each fixed.
-- [ ] **H77 — the dashboard presents the structured diagnoses as the former engine's
+- [x] **H77 — the dashboard presents the structured diagnoses as the former engine's
   hypotheses** and shows neither an abstention nor the LLM's disagreement. → the ranked
   diagnoses, the outcome and the disagreement shown as such.
+  *Done: a "Structured diagnosis" panel (outcome, collectors that could not be read, ranked
+  diagnoses with their rule, the LLM's disagreement and its explanation, marked as not deciding)
+  replaces the panel that called them RemediationEngine rule hits.*
 - Dead code, recorded: `ontology/version.py` (no caller). Latent: `git clone` receives the
   repository URL without `--` (an option-shaped URL is parsed as an option; tried, nothing ran).
   → `--` and an URL that starts with `-` refused.
