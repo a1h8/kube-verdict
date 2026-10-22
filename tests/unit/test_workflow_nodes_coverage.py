@@ -372,7 +372,10 @@ def test_index_node_runs_with_empty_graph():
 # ---------------------------------------------------------------------------
 
 def test_signal_analysis_node_fallback_on_error():
+    # a seed, so the analysis runs: without one nothing is analysed (fix plan H68)
+    from ontology.entities import Pod
     graph = _empty_graph()
+    graph.add_entity(Pod(uid="Pod/prod/api-0", name="api-0", namespace="prod", phase="Pending"))
     with patch("signals.analyzer.SignalAnalyzer.analyze", side_effect=RuntimeError("no data")):
         result = signal_analysis_node(_state(), _config(graph=graph))
     assert result["ingestion_stats"]["signals"]["fallback"] is True

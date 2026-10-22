@@ -45,6 +45,10 @@ class SignalAnalyzer:
     prometheus_source: Optional PrometheusMetricSource for real time series.
                        When provided, synthetic generation is skipped for any
                        entity/metric that returns data from Prometheus.
+    synthetic_fallback: Generate synthetic history when there is no measured one. The
+                       workflow turns it off: a synthetic result is never evidence (H43), so
+                       training on it was only cost (docs/fix-plan-001.md, H68). The UI and
+                       the demos keep it.
     """
 
     def __init__(
@@ -52,25 +56,29 @@ class SignalAnalyzer:
         detector: PatchTSTDetector | None = None,
         history_length: int = _DEFAULT_HISTORY,
         prometheus_source=None,   # PrometheusMetricSource | None
+        synthetic_fallback: bool = True,
     ) -> None:
         self.detector = detector or PatchTSTDetector()
         self.history_length = history_length
         self.prometheus_source = prometheus_source
+        self.synthetic_fallback = synthetic_fallback
 
     # ─────────────────────────────────────────────────────────────────────────
     # Public API
     # ─────────────────────────────────────────────────────────────────────────
 
-    def analyze(self, graph: OntologyGraph) -> list[AnomalyResult]:
+    def analyze(self, graph: OntologyGraph, only: set[str] | None = None) -> list[AnomalyResult]:
         """
         Run signal analysis over every entity in the graph.
 
         Returns a flat list of AnomalyResult, one per (entity, metric, horizon).
         When a PrometheusMetricSource is available, real multi-horizon time series
         are used; otherwise synthetic history is generated from current state.
-        Entities receive `signal.<metric>.<horizon>` annotations.
+        Entities receive `signal.<metric>.<horizon>` annotations. ``only`` limits the analysis
+        to those entity uids.
         """
         results: list[AnomalyResult] = []
+        self._only = only
 
         if self.prometheus_source is not None:
             horizon_segments = self._collect_real_segments(graph)
@@ -85,7 +93,7 @@ class SignalAnalyzer:
                     hs.horizon, result.entity_uid, result.metric_name,
                     result.severity, result.score, result.method,
                 )
-        else:
+        elif self.synthetic_fallback:
             for segment in self._collect_synthetic_segments(graph):
                 result = self.detector.detect(segment)
                 result.synthetic = segment.synthetic
@@ -114,6 +122,10 @@ class SignalAnalyzer:
     # Signal derivation
     # ─────────────────────────────────────────────────────────────────────────
 
+    def _wanted(self, entity) -> bool:
+        only = getattr(self, "_only", None)
+        return only is None or entity.uid in only
+
     def _collect_real_segments(self, graph: OntologyGraph):
         """Fetch multi-horizon segments from Prometheus for all relevant entities."""
         from signals.prometheus_source import HorizonSegment
@@ -121,29 +133,29 @@ class SignalAnalyzer:
         segments: list[HorizonSegment] = []
 
         for pod in graph.entities(ResourceKind.POD):
-            if pod.namespace:
+            if pod.namespace and self._wanted(pod):
                 fetched = src.pod_segments(pod.uid, pod.name, pod.namespace)
                 segments.extend(fetched)
-                if not fetched:
+                if not fetched and self.synthetic_fallback:
                     # Prometheus returned nothing — fall back to synthetic for this pod
                     segments.extend(self._synthetic_pod_segments(pod))
 
         for dep in graph.entities(ResourceKind.DEPLOYMENT):
-            if dep.namespace and dep.replicas > 0:
+            if dep.namespace and dep.replicas > 0 and self._wanted(dep):
                 fetched = src.deployment_segments(dep.uid, dep.name, dep.namespace)
                 segments.extend(fetched)
-                if not fetched:
+                if not fetched and self.synthetic_fallback:
                     segments.extend(self._synthetic_deployment_segments(dep))
 
         for sts in graph.entities(ResourceKind.STATEFULSET):
-            if sts.namespace and sts.replicas > 0:
+            if sts.namespace and sts.replicas > 0 and self._wanted(sts):
                 fetched = src.statefulset_segments(sts.uid, sts.name, sts.namespace)
                 segments.extend(fetched)
-                if not fetched:
+                if not fetched and self.synthetic_fallback:
                     segments.extend(self._synthetic_statefulset_segments(sts))
 
         for event in graph.entities(ResourceKind.EVENT):
-            if event.is_warning and event.count > 1:
+            if event.is_warning and event.count > 1 and self.synthetic_fallback and self._wanted(event):
                 segments.extend(self._synthetic_event_segments(event))
 
         return segments

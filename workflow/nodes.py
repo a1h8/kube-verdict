@@ -698,6 +698,7 @@ def signal_analysis_node(state: RCAState, config: RunnableConfig) -> dict:
         return {}
 
     try:
+        from dedup.bfs import find_unhealthy
         from signals.analyzer import SignalAnalyzer
         prom_source = None
         if cfg.PROMETHEUS_ENABLED:
@@ -707,18 +708,28 @@ def signal_analysis_node(state: RCAState, config: RunnableConfig) -> dict:
                 token=cfg.PROMETHEUS_TOKEN,
                 timeout=cfg.PROMETHEUS_TIMEOUT,
             )
-        analyzer = SignalAnalyzer(prometheus_source=prom_source)
-        results = analyzer.analyze(graph)
+        # Measured history only, for the seeds, within a budget (fix plan H68): every pod of the
+        # graph used to be analysed, and synthetic series were trained on then discarded (H43)
+        seeds = [e.uid for e in find_unhealthy(graph)]
+        wanted = seeds[:cfg.SIGNAL_MAX_ENTITIES]
+        analyzer = SignalAnalyzer(prometheus_source=prom_source, synthetic_fallback=False)
+        results = analyzer.analyze(graph, only=set(wanted)) if wanted else []
         anomalous = [r for r in results if r.is_anomalous and not r.synthetic]
-        mode = analyzer.last_mode
+        mode = analyzer.last_mode if wanted else "none"
+        errors = prom_source.errors if prom_source is not None else []
         log.info(
-            "signal_analysis[%s]: %d metrics analysed, %d anomalous",
-            mode, len(results), len(anomalous),
+            "signal_analysis[%s]: %d metrics analysed on %d/%d seeds, %d anomalous, %d failed queries",
+            mode, len(results), len(wanted), len(seeds), len(anomalous), len(errors),
         )
-        return _stats(state, "signals", {
+        entry = {
             "total": len(results), "anomalous": len(anomalous),
-            "synthetic": analyzer.last_synthetic, "mode": mode, "fallback": False,
-        })
+            "synthetic": analyzer.last_synthetic if wanted else 0, "mode": mode,
+            "entities": len(wanted), "over_budget": len(seeds) - len(wanted),
+            "fallback": bool(errors),
+        }
+        if errors:
+            entry["error"] = f"{len(errors)} Prometheus queries failed; first: {errors[0]}"
+        return _stats(state, "signals", entry)
     except Exception as exc:
         log.warning("signal_analysis failed (%s) — continuing without signal data", exc)
         return _stats(state, "signals", {"fallback": True, "error": str(exc)})

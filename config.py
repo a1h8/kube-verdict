@@ -113,6 +113,9 @@ PROMETHEUS_ENABLED: bool = os.getenv("PROMETHEUS_ENABLED", "false").lower() == "
 PROMETHEUS_URL: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 PROMETHEUS_TOKEN: str | None = os.getenv("PROMETHEUS_TOKEN") or None
 PROMETHEUS_TIMEOUT: int = _int("PROMETHEUS_TIMEOUT", 30)
+# Entities whose metric history is analysed (seeds first): each costs 9 range queries and up to
+# ~20 s of CPU training, and every pod of the graph used to be analysed (fix plan H68)
+SIGNAL_MAX_ENTITIES: int = _int("SIGNAL_MAX_ENTITIES", 10)
 
 # ── API auth ──────────────────────────────────────────────────────────────────
 # Shared-secret bearer gate for mutating / IDP endpoints. This is NOT OIDC/JWT

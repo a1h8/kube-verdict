@@ -308,12 +308,16 @@ item says how it was checked; the fix comes with a test that fails on today's co
   trained on; normalised on history only; a fixed seed. Rule fixed first, three designs (in the
   test): normal ≤ 1.47, spike ≥ 18.1; on unseen data seeds normal ≤ 1.57, spike ≥ 18.2. PatchTST
   now needs 128 points: the short and medium horizons use the z-score.*
-- [ ] **H68 — the Prometheus source hides failures and drops series** (measured). A failed query
+- [x] **H68 — the Prometheus source hides failures and drops series** (measured). A failed query
   reads as "no data" (logged at debug, no `fallback`); series of different lengths fail
   `np.vstack` and the whole metric is dropped; memory is averaged across containers instead of
   summed. A 7-day detection costs ~6.6 s, run on every pod of the graph with no cap. → a
   reported failure, aligned series summed per pod, the analysis limited to seeds with a budget,
   no training on synthetic series whose results are discarded (H43).
+  *Done: failed queries recorded and reported as `fallback`; series aligned on timestamps,
+  summed per pod (averaged for a ratio), `container!=""`; the seeds only, `SIGNAL_MAX_ENTITIES`
+  (10), the rest counted; the workflow no longer trains on synthetic series (the UI keeps them).
+  Structured replay 0.1 s per case instead of 1.5 s.*
 - [ ] **H69 — `PatchBuilder` misreads `--set`** (measured against `helm`). Two releases are merged
   into one patch, `1.10` becomes `1.1` (Helm keeps the string), `--set-string` is coerced,
   `a=1,b=2` and list indexes are not parsed. No production caller yet. → Helm's typing (integers
