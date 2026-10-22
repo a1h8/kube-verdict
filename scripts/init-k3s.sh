@@ -18,6 +18,7 @@
 # Usage:
 #   sudo bash scripts/init-k3s.sh
 #   sudo bash scripts/init-k3s.sh --image ghcr.io/your-org/kubeverdict:v1.0.0
+#   bash scripts/init-k3s.sh [--image <image>] --print-manifest   # render only, install nothing
 #
 set -euo pipefail
 
@@ -25,10 +26,39 @@ set -euo pipefail
 K3S_VERSION="${K3S_VERSION:-v1.30.0+k3s1}"
 NAMESPACE="kubeverdict"
 MANIFESTS_DIR="$(cd "$(dirname "$0")/../k8s" && pwd)"
-IMAGE="${1:-}"  # optional: --image <registry/image:tag>
-
 log()  { echo "[$(date '+%H:%M:%S')] $*"; }
 die()  { echo "ERROR: $*" >&2; exit 1; }
+
+IMAGE=""
+PRINT_ONLY=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --image) [[ $# -ge 2 ]] || die "--image needs a value"; IMAGE="$2"; shift 2 ;;
+        --print-manifest) PRINT_ONLY=true; shift ;;
+        *) die "unknown argument: $1" ;;
+    esac
+done
+
+# The KubeVerdict manifest as applied: the on-demand Job left out (the manifest says it is a
+# template, not to apply), and the image replaced when --image is given. The former `sed` matched
+# an image the manifest no longer had, so --image was ignored without a word (fix plan H76).
+render_manifest() {
+    awk 'BEGIN { RS = "\n---\n"; ORS = "\n---\n" } !/name: kubeverdict-ondemand/' \
+        "${MANIFESTS_DIR}/kubeverdict.yaml" > "${RENDERED}"
+    if [[ -n "${IMAGE}" ]]; then
+        grep -Eq 'image:[[:space:]]*[^[:space:]]*kube-verdict:' "${RENDERED}" \
+            || die "no kube-verdict image in ${MANIFESTS_DIR}/kubeverdict.yaml to replace"
+        sed -E -i "s|(image:[[:space:]]*)[^[:space:]]*kube-verdict:[^[:space:]]*|\1${IMAGE}|" "${RENDERED}"
+    fi
+}
+
+RENDERED="$(mktemp)"
+trap 'rm -f "${RENDERED}"' EXIT
+render_manifest
+if [[ "${PRINT_ONLY}" == true ]]; then
+    cat "${RENDERED}"
+    exit 0
+fi
 
 # ── 1. Install K3s ───────────────────────────────────────────────────────────
 if ! command -v k3s &>/dev/null; then
@@ -69,20 +99,8 @@ kubectl apply -f "${MANIFESTS_DIR}/rbac.yaml"
 log "Applying Ollama (Deployment + PVC + Service)…"
 kubectl apply -f "${MANIFESTS_DIR}/ollama.yaml"
 
-# Patch image if provided
-if [[ -n "${IMAGE}" && "${IMAGE}" != "--image" ]]; then
-    ACTUAL_IMAGE="${IMAGE}"
-elif [[ "$#" -ge 2 && "$1" == "--image" ]]; then
-    ACTUAL_IMAGE="$2"
-fi
-
-if [[ -n "${ACTUAL_IMAGE:-}" ]]; then
-    log "Patching KubeVerdict image to ${ACTUAL_IMAGE}…"
-    sed "s|ghcr.io/your-org/kubeverdict:latest|${ACTUAL_IMAGE}|g" \
-        "${MANIFESTS_DIR}/kubeverdict.yaml" | kubectl apply -f -
-else
-    kubectl apply -f "${MANIFESTS_DIR}/kubeverdict.yaml"
-fi
+log "Applying KubeVerdict${IMAGE:+ (image ${IMAGE})}…"
+kubectl apply -f "${RENDERED}"
 
 # ── 4. Wait for Ollama, then pull Mistral ────────────────────────────────────
 log "Waiting for Ollama Deployment to be ready…"

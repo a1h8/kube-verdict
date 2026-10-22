@@ -382,10 +382,15 @@ item says how it was checked; the fix comes with a test that fails on today's co
   *Done: `update_expect_from_sim` refuses a case under `tests/integration/cases/`,
   `recalibrate_all` skips it, the UI hides the button. The old code proposed three changes on
   h003, `confidence: MEDIUM → HIGH` among them.*
-- [ ] **H76 — tooling**: `scripts/init-k3s.sh --image` is silently ignored (its `sed` pattern no
+- [x] **H76 — tooling**: `scripts/init-k3s.sh --image` is silently ignored (its `sed` pattern no
   longer exists) and it applies the on-demand Job the manifest says to skip; `make test` runs
   the tests marked as needing Ollama and a cluster; the Scaleway terraform does not pin the
   Kubernetes version. → each fixed.
+  *Done: `init-k3s.sh` parses `--image` and refuses an unknown argument, replaces the
+  manifest's kube-verdict image (and stops if there is none), leaves out the on-demand Job, and
+  has a render-only `--print-manifest`; its test runs with a PATH that has no curl, kubectl or
+  k3s. `make test` uses the CI's selection. The Scaleway version is a required variable (not
+  checked with terraform: not installed here).*
 - [x] **H77 — the dashboard presents the structured diagnoses as the former engine's
   hypotheses** and shows neither an abstention nor the LLM's disagreement. → the ranked
   diagnoses, the outcome and the disagreement shown as such.
