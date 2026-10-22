@@ -343,9 +343,12 @@ item says how it was checked; the fix comes with a test that fails on today's co
   configuration only.*
   *Done: `RunRequest` and `InvestigateRequest` refuse both fields (422); the routes no longer
   put them in the state, so the workflow reads `KUBECONFIG` / `KUBE_CONTEXT`.*
-- [ ] **H74 — the UI's "Fetch from URL" reads any URL scheme and address** (checked:
+- [x] **H74 — the UI's "Fetch from URL" reads any URL scheme and address** (checked:
   `file://` is read). → `http(s)` only, private and link-local addresses refused, the token sent
   only to the host it was entered for.
+  *Done: `knowledge/url_guard.py` — http(s) only, every resolved address must be global, each
+  redirect checked again, the token dropped on a redirect to another host. Not covered: a DNS
+  answer that changes between the check and the fetch.*
 - [ ] **H75 — the UI can rewrite a graded case's expectations from a run's output**
   (`update_expect_from_sim`, `recalibrate_all` on native cases). → limited to synthetic cases;
   graded expectations change only through the case audit.

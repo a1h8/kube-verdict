@@ -972,6 +972,8 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
     import urllib.request
     from html.parser import HTMLParser
 
+    from knowledge.url_guard import fetch_refusal, guarded_opener
+
     class _Extractor(HTMLParser):
         def __init__(self) -> None:
             super().__init__()
@@ -996,6 +998,11 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
         def text(self) -> str:
             return "\n".join(self._buf)
 
+    refusal = fetch_refusal(url)
+    if refusal:
+        return f"[fetch error: {refusal}]"
+    opener = guarded_opener(url)
+
     try:
         headers: dict[str, str] = {"User-Agent": "KubeVerdict/1.0"}
         if token:
@@ -1009,7 +1016,7 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
             base = url.split("/wiki/")[0]
             api_url = f"{base}/wiki/rest/api/content/{page_id}?expand=body.storage,title"
             req = urllib.request.Request(api_url, headers={**headers, "Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=20) as resp:
+            with opener.open(req, timeout=20) as resp:
                 import json
                 data  = json.loads(resp.read())
                 title = data.get("title", "")
@@ -1021,7 +1028,7 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
 
         # Generic HTML fetch
         req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=20) as resp:
+        with opener.open(req, timeout=20) as resp:
             ct = resp.headers.get("Content-Type", "")
             raw = resp.read()
 
