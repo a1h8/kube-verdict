@@ -132,3 +132,18 @@ def test_frozen_vitrine_fixture_matches_the_code(key):
     assert _strip_volatile(frozen) == _strip_volatile(fresh), (
         f"{Path(OUT_DIR, key + '.json')} is stale — run tools/freeze_journey_fixtures.py"
     )
+
+
+def test_the_api_sample_matches_the_code():
+    """api/sample_state.json (POST /sessions/sample) is generated from an offline h014 run, never
+    hand-written (docs/fix-plan-001.md, H72). Regenerate with ``tools/freeze_journey_fixtures.py``."""
+    import json
+
+    from tools.freeze_journey_fixtures import SAMPLE_PATH, sample
+
+    frozen = json.loads(SAMPLE_PATH.read_text())
+    assert frozen["source"] == "fixture-replay"
+    fresh = json.loads(json.dumps(sample()))
+    assert _strip_volatile(frozen) == _strip_volatile(fresh), (
+        f"{SAMPLE_PATH} is stale — run tools/freeze_journey_fixtures.py"
+    )

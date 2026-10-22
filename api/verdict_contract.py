@@ -8,10 +8,15 @@ of truth. It reuses the workflow state produced by
 ``verdict_summary``) and the already-computed policy verdict / blast radius /
 gate score. Nothing here re-derives a decision — it only reshapes one.
 
-Honesty notes (see roadmap / decision-engine audit):
-  * ``confidence_score`` is the deterministic diagnosis-label → gate-score map
-    (HIGH=0.85, MEDIUM=0.65, LOW=0.62, missing=0.20), surfaced as computed by
-    the DecisionEngine — it is not an independent calibrated probability.
+The cause is the structured diagnosis (docs/structured-in-product.md): ``outcome`` says
+whether one was found (``cause``) or why not (``no_incident``, ``insufficient_evidence``),
+``diagnoses`` ranks them, and ``llm_disagreement`` records an LLM explanation that named
+another cause (docs/fix-plan-001.md, H72).
+
+Honesty notes:
+  * ``confidence_score`` is the score the policy gate used: the top diagnosis's rule score
+    (0 for an abstention), read from the gate's edge_log entry — a rule weight, not a
+    calibrated probability.
   * ``blast_radius`` is a heuristic over remediation command strings, not a
     rendered-vs-live diff.
 """
@@ -25,6 +30,16 @@ from pydantic import BaseModel, Field
 class EvidenceItem(BaseModel):
     source: str  # event | alert | trace | policy | anchor
     detail: str
+
+
+class RankedDiagnosis(BaseModel):
+    """One structured diagnosis, as ranked by the rules."""
+    family: str
+    cause: str
+    location: str = ""
+    score: float = 0.0
+    label: str = ""
+    rule: str = ""
 
 
 class RemediationAction(BaseModel):
@@ -88,7 +103,17 @@ def _pull_request(state: dict[str, Any]) -> "PullRequestRef | None":
     )
 
 
-def _next_steps(policy: str | None, reasons: list[str]) -> list[str]:
+def _next_steps(policy: str | None, reasons: list[str], diagnosis: dict[str, Any]) -> list[str]:
+    outcome = diagnosis.get("outcome")
+    if outcome == "no_incident":
+        return ["No incident diagnosed: nothing to apply."] + list(reasons)
+    if outcome == "insufficient_evidence":
+        failed = diagnosis.get("failed_collectors") or []
+        first = ("Not enough evidence to name a cause: restore " + ", ".join(failed)
+                 + " and investigate again." if failed
+                 else "Not enough evidence to name a cause: run the checks, or investigate again "
+                      "with more context.")
+        return [first] + list(reasons)
     if policy == "AUTO":
         return ["Remediation is eligible for automated apply — verify in target context first."]
     if policy == "NO_GO":
@@ -106,6 +131,10 @@ class VerdictEnvelope(BaseModel):
     environment: str | None = None
 
     root_cause: str = ""
+    outcome: Literal["cause", "no_incident", "insufficient_evidence"] | None = None
+    diagnoses: list[RankedDiagnosis] = Field(default_factory=list)
+    failed_collectors: list[str] = Field(default_factory=list)
+    llm_disagreement: str = ""           # the LLM explanation named another cause
     confidence_label: str = ""           # HIGH | MEDIUM | LOW | "" (no analysis)
     confidence_score: float | None = None
     policy: Literal["AUTO", "HUMAN_REVIEW", "NO_GO"] | None = None
@@ -128,6 +157,7 @@ class VerdictEnvelope(BaseModel):
         environment: str | None = None,
     ) -> "VerdictEnvelope":
         report = state.get("report_dict") or {}
+        diagnosis = state.get("diagnosis") or report.get("diagnosis") or {}
         br = state.get("blast_radius") or {}
         reasons = list(state.get("verdict_reasons") or [])
         policy = state.get("verdict") or None
@@ -141,6 +171,13 @@ class VerdictEnvelope(BaseModel):
             namespace=namespace,
             environment=environment,
             root_cause=report.get("root_cause") or "",
+            outcome=(diagnosis.get("outcome")
+                     if diagnosis.get("outcome") in ("cause", "no_incident", "insufficient_evidence")
+                     else None),
+            diagnoses=[RankedDiagnosis(**{k: d[k] for k in RankedDiagnosis.model_fields if k in d})
+                       for d in diagnosis.get("diagnoses") or [] if d.get("family") and d.get("cause")],
+            failed_collectors=list(diagnosis.get("failed_collectors") or []),
+            llm_disagreement=str(state.get("llm_disagreement") or report.get("llm_disagreement") or ""),
             confidence_label=state.get("confidence") or report.get("confidence") or "",
             confidence_score=_gate_score(state),
             policy=policy if policy in ("AUTO", "HUMAN_REVIEW", "NO_GO") else None,
@@ -152,5 +189,5 @@ class VerdictEnvelope(BaseModel):
                 commands=rollback_cmds,
             ) if rollback_cmds or br else None,
             pull_request=_pull_request(state),
-            next_steps=_next_steps(policy, reasons),
+            next_steps=_next_steps(policy, reasons, diagnosis),
         )

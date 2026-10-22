@@ -158,8 +158,9 @@ async def test_sample_session_journey(client):
     assert body["verdict"] == "HUMAN_REVIEW"
     assert body["verdict_reasons"]
     assert body["edge_log"], "sample must show a decision timeline"
-    assert body["reasoning_history"], "sample must show eliminated paths"
-    assert body["blast_radius"]["risk"] == "MEDIUM"
+    # a generated run (H72): the structured diagnosis decides, as in the product
+    assert body["report"]["diagnosis"]["outcome"] == "cause"
+    assert body["report"]["diagnosis"]["diagnoses"][0]["rule"] == "cert.expired"
     # and it is retrievable via the polled /state endpoint
     r2 = await client.get(f"/api/v1/sessions/{body['session_id']}/state")
     assert r2.json()["verdict"] == "HUMAN_REVIEW"

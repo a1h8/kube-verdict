@@ -342,12 +342,17 @@ item says how it was checked; the fix comes with a test that fails on today's co
   "Alert text" section of the prompt (v6). No namespace → `KUBE_NAMESPACES` (a signal first
   reads its `Kind/namespace/name` entity), refused when empty. The key is (alert name, resource,
   namespaces).*
-- [ ] **H72 — the verdict envelope and the sample journey describe the previous pipeline**: the
+- [x] **H72 — the verdict envelope and the sample journey describe the previous pipeline**: the
   envelope's docstring gives the old label → score map and it has no `outcome`, no
   `llm_disagreement`; for an abstention its next step speaks of "applying the proposed
   remediation". `api/sample_journey.py` is hand-written and shows hypothesis retries on the
   LLM's label. → the envelope carries the outcome and the disagreement; the sample is a
   generated journey.
+  *Done: the envelope carries `outcome`, the ranked `diagnoses`, `failed_collectors` and
+  `llm_disagreement`; an abstention's next step proposes no remediation; `confidence_score` is
+  documented as the gate's score (the top diagnosis's). `POST /sessions/sample` serves
+  `api/sample_state.json`, generated from an offline h014 run by `tools/freeze_journey_fixtures.py`
+  and checked against the code.*
 - [x] **H73 — an API caller can choose the kubeconfig file and the context** (`RunRequest`), on
   an API without authentication by default. → the fields refused by the API (server
   configuration only), or an allow-list of contexts.
