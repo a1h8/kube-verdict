@@ -298,12 +298,16 @@ A read of the modules the file-by-file pass had not covered (signals, `PatchBuil
 docs, the API models and mappers, the rest of the UI, scripts, terraform, the dashboard). Each
 item says how it was checked; the fix comes with a test that fails on today's code.
 
-- [ ] **H67 — the PatchTST detector calls every normal series anomalous** (measured). The score
+- [x] **H67 — the PatchTST detector calls every normal series anomalous** (measured). The score
   divides the error on the last window by the error on training windows the model has just fit:
   white noise scores ~47 (`critical`), a clean sine ~2.7 (`warning`). With Prometheus enabled,
   every pod's text carries `signal.anomaly=…critical` into the LLM context and the index. → a
   held-out baseline (windows not trained on), a fixed seed; test: normal series (noise, sine,
   constant) → `normal`, a final spike → anomalous.
+  *Done: the worst recent forecast (half a context) against the worst held-out one, never
+  trained on; normalised on history only; a fixed seed. Rule fixed first, three designs (in the
+  test): normal ≤ 1.47, spike ≥ 18.1; on unseen data seeds normal ≤ 1.57, spike ≥ 18.2. PatchTST
+  now needs 128 points: the short and medium horizons use the z-score.*
 - [ ] **H68 — the Prometheus source hides failures and drops series** (measured). A failed query
   reads as "no data" (logged at debug, no `fallback`); series of different lengths fail
   `np.vstack` and the whole metric is dropped; memory is averaged across containers instead of
