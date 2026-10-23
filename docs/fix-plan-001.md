@@ -187,6 +187,26 @@
   answers, h004). → dated amendment to `tests/veracity/synonyms.yaml`, re-grade. Done 2026-10-20:
   h004 0/3 → 3/3 on the 2026-10-17 runs, nothing else moves.
 
+- [ ] **H79 — rules fixed before any run that no code applies** (read-only pass over
+  `docs/veracity-replay.md` § Comparison and `docs/protocol-001-retrieval.md`, 2026-10-23). Each
+  is written; none is enforced or recorded:
+  - the collector-cut control (defined by `docs/veracity-replay.md` § Amendment 2026-10-23):
+    no cut for the `raw:` and `context:` solvers, no `--cut` in the replay;
+  - the hashes of `tools/veracity.py` and `tests/veracity/synonyms.yaml` in every run;
+  - the model's digest (only its name is recorded);
+  - a run that read fewer tokens than it was sent is **invalid**, not a FAIL: the refusal works
+    from an estimate, and a prompt the estimate undercounts is truncated by Ollama without an
+    error. Detected when the tokens read plus `num_predict` reach `num_ctx`;
+  - a run that reads or writes a store outside its temporary directories is invalid: the
+    stores are pointed there, but nothing checks it after the run;
+  - each record names its configuration (C0–C3), store, examples setting and corpus hash;
+  - records go to `<model>-prompt_<v>-store_<store>-examples_<on|off>/`; `--out` is free today;
+  - protocol 001's results split into cases whose family the corpus covers and cases it does
+    not;
+  - an empty answer is a FAIL (it is, through `grade("")`, but no test says so).
+  → each enforced in the replay or in `tools/compare_solvers.py`, with a test that fails without
+  it, before the first run.
+
 ## 4. Cases and claims
 
 - [x] **D2.1 — h016's replica drift is attached to the wrong Deployment** (catalog-api, the decoy).
@@ -430,19 +450,27 @@ item says how it was checked; the fix comes with a test that fails on today's co
   release at all (the three-state comparison would never run live); C, a ClusterRole on
   `secrets` (every Secret of the cluster).*
 
+- [ ] **H80 — steps of the live run written nowhere but in the protocols.** → listed in the
+  live-run spec, in this order, each checked before the first measured run: Ollama alone on the
+  cluster, the hourly CronJob suspended (and resumed after, both with an explicit go); h016's
+  prompt measured with each model's tokenizer under the 16 384-token ceiling
+  (`docs/veracity-replay.md` § Amendment 2026-10-22); the models' digests recorded; protocol
+  001's positive control h001 re-run once when it fails, then recorded invalid.
+
 ## Not in this PR (open work, not corrections)
 
 HPAs, ResourceQuotas, LimitRanges, NetworkPolicies and RoleBindings collected live as typed objects
 (needed for the HPA case of F9, F6 and h005/h006 live); Monte Carlo out of the decision path; a
 dependency lockfile.
 
-## Measurement after the PR
+## Measurement before the merge
 
 The comparison none / LLM / sLLM and its decision rules are fixed in
 `docs/veracity-replay.md` § Comparison (2026-10-20), before any run.
 
-Block B, on the merged code: rules, structured, mistral × 3, qwen2.5:3b × 3, the 19 native cases;
-a block counts only when complete (`docs/veracity-replay.md`).
+Block B, on the head of this PR before it is merged (the commit is recorded in every run):
+rules, structured, mistral × 3, qwen2.5:3b × 3, the 19 native cases; a block counts only when
+complete (`docs/veracity-replay.md`).
 Amended 2026-10-22 (`docs/veracity-replay.md`, § Amendment 2026-10-22): the block also runs the
 model on the raw artifacts (raw:mistral × 3, raw:qwen2.5:3b × 3) and on the pipeline's context
 without the diagnosis (context:mistral × 3, context:qwen2.5:3b × 3), with their decision rules.

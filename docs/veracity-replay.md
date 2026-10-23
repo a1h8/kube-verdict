@@ -297,6 +297,37 @@ generalises — an out-of-sample benchmark can.
 for raw-LLM, ≈ 3 h for ctx-LLM, ≈ 1.5–2 h each for raw-sLLM and ctx-sLLM — about 10 h on top of
 the three configurations above (≈ 4.5 h), so the whole block runs overnight, resumable.
 
+### Amendment 2026-10-23 — the collector-cut control, defined
+
+Written before any run of the comparison. The negative control "a run with the case's collector
+cut is never more confident than the connected run" (2026-10-20) named no collector and no run;
+no code applied it. It is defined here; no threshold of this section changes.
+
+- **The case's collector** is the one `docs/test-cases.md` § *Broadened offline coverage* §3
+  already cuts: an HTTP backend the investigation reads and can lose while it keeps running —
+  Prometheus, Loki or OTel — for which the case has fixtures. Six cases have one: h005, h006,
+  h014 (Loki), h013 (Prometheus), h015 (OTel), and h016 (all three, each cut in turn: three cut
+  runs). The 13 others carry their evidence in `kube/`, `helm/` and `chart/`: cutting the
+  Kubernetes API leaves no investigation, and the replay has no cut for Helm or Git. The control
+  does not apply to them, and the report says so case by case; it is not extended to them later
+  without a dated amendment.
+- **The cut**, per configuration, on the same commit and cases:
+  - `structured`, `llm:`, `context:`: `run_case(key, cut=<collector>)` — the backend is made
+    unreachable (`requests.get` raises `ConnectionError` in the collector's module), so the real
+    collector code reports `fallback: true`, as in production;
+  - `raw:`: the collector's directory (`prometheus/`, `loki/`, `otel/`) is left out of the raw
+    input; nothing else changes.
+- **Runs:** one cut run per case, collector and configuration — 8 per configuration (one for
+  each of the five single-collector cases, three for h016), recorded like the others with the
+  cut collector named in the record.
+- **The check:** the cut run's confidence label is compared with the **median** label of the
+  case's connected runs (its single run for `structured`), with no label < LOW < MEDIUM < HIGH.
+  A cut run above that median fails the control; a configuration with one failing cut run fails
+  the control, whatever its rates (rule of 2026-10-20). A cut run that still names the case's
+  cause is reported, not failed: some causes are visible from the Kubernetes objects alone.
+- **Cost, estimated:** 8 runs × 6 model configurations ≈ 2 to 2.5 h on the CPU-only pod, on top
+  of the block; `structured` cut runs are offline and deterministic.
+
 ## What an LLM run grades (2026-10-19)
 
 The `rules` solver keeps grading the old `RemediationEngine`, which no longer runs in the
