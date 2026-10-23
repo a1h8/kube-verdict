@@ -198,14 +198,29 @@
     from an estimate, and a prompt the estimate undercounts is truncated by Ollama without an
     error. Detected when the tokens read plus `num_predict` reach `num_ctx`;
   - a run that reads or writes a store outside its temporary directories is invalid: the
-    stores are pointed there, but nothing checks it after the run;
-  - each record names its configuration (C0–C3), store, examples setting and corpus hash;
-  - records go to `<model>-prompt_<v>-store_<store>-examples_<on|off>/`; `--out` is free today;
+    stores are pointed there for the `raw:` and `context:` solvers only — `llm` and
+    `structured` run where they are started, and on the AUTO path `save_example` writes the
+    case's answer into `./data/examples`, the incident base the corpus must keep clean — and
+    nothing checks it after the run. A check after the run sees writes only; reads leave no
+    reliable trace and are prevented by the isolation, not detected;
+  - each record names its configuration (C0–C3), store, examples setting and corpus hash, the
+    commit it ran on, a hash of the case's fixtures and `expect.json`, and the `num_predict`
+    and temperature of each model call;
+  - records go to a directory named after the run (`docs/veracity-replay.md` § Amendment
+    2026-10-23, records); `--out` is free today;
   - protocol 001's results split into cases whose family the corpus covers and cases it does
     not;
   - an empty answer is a FAIL (it is, through `grade("")`, but no test says so).
   → each enforced in the replay or in `tools/compare_solvers.py`, with a test that fails without
   it, before the first run.
+
+- [ ] **H81 — the test suite writes the real database and store directories.** Run from an
+  empty directory, `make ci` leaves `kubeverdict.db` (sessions written by
+  `tests/unit/test_webhook_alert_text.py` and `tests/unit/test_api_kube_target.py`; created by
+  `tests/unit/test_session_routes_auth.py`), `kubeverdict-checkpoints.db`, `data/docs/` and
+  `data/charts/` in it: paths relative to where the suite runs, as the example store was before
+  #129. → an autouse fixture points the database and the stores at the test's temporary
+  directory, and a guard test fails when the suite writes in its working directory.
 
 ## 4. Cases and claims
 
@@ -452,9 +467,10 @@ item says how it was checked; the fix comes with a test that fails on today's co
 
 - [ ] **H80 — steps of the live run written nowhere but in the protocols.** → listed in the
   live-run spec, in this order, each checked before the first measured run: Ollama alone on the
-  cluster, the hourly CronJob suspended (and resumed after, both with an explicit go); h016's
-  prompt measured with each model's tokenizer under the 16 384-token ceiling
-  (`docs/veracity-replay.md` § Amendment 2026-10-22); the models' digests recorded; protocol
+  cluster, the hourly CronJob suspended (and resumed after, both with an explicit go); every
+  prompt of the `raw:` and `context:` configurations measured with each model's tokenizer
+  (Ollama's own, the one the runs use) under its ceiling (`docs/veracity-replay.md`
+  § Amendment 2026-10-23, records); the models' digests recorded; protocol
   001's positive control h001 re-run once when it fails, then recorded invalid.
 
 ## Not in this PR (open work, not corrections)
@@ -468,7 +484,7 @@ dependency lockfile.
 The comparison none / LLM / sLLM and its decision rules are fixed in
 `docs/veracity-replay.md` § Comparison (2026-10-20), before any run.
 
-Block B, on the head of this PR before it is merged (the commit is recorded in every run):
+Block B, on the head of this PR before it is merged (the commit recorded in every run, H79):
 rules, structured, mistral × 3, qwen2.5:3b × 3, the 19 native cases; a block counts only when
 complete (`docs/veracity-replay.md`).
 Amended 2026-10-22 (`docs/veracity-replay.md`, § Amendment 2026-10-22): the block also runs the

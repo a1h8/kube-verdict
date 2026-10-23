@@ -328,6 +328,37 @@ no code applied it. It is defined here; no threshold of this section changes.
 - **Cost, estimated:** 8 runs × 6 model configurations ≈ 2 to 2.5 h on the CPU-only pod, on top
   of the block; `structured` cut runs are offline and deterministic.
 
+### Amendment 2026-10-23 — what every run records, and where
+
+Written before any run of the comparison, after a read-only pass that found rules no code
+applied (`docs/fix-plan-001.md` H79, H81). No threshold changes.
+
+- **Isolation, every solver.** The 2026-10-22 rule "no real store is read or written" is
+  extended from the `raw:` and `context:` configurations to all of them: `structured` and `llm:`
+  also run in a temporary directory with the example and chart stores pointed inside it. On the
+  AUTO path `save_example` writes the run's answer into the example store; run where the replay
+  was started, it would write a case's answer into the incident base. A check after each run
+  marks it invalid if a real store or database changed; it sees writes only — a read leaves no
+  reliable trace, and reads are prevented by the isolation, not detected.
+- **Recorded in every run:** the commit, a hash of the case's fixtures and `expect.json` (the
+  frozen case list is checked, not assumed), the hashes of `tools/veracity.py` and
+  `tests/veracity/synonyms.yaml`, the model's digest, and for each model call `num_ctx`, the
+  estimate, the tokens read, `num_predict` and the temperature.
+- **Truncated runs.** A run whose tokens read plus `num_predict` reach `num_ctx` may have been
+  cut by Ollama without an error; it is recorded **invalid**, not FAIL, and reported apart.
+- **Token sizes, measured.** The size estimate (2.7 characters per token) was calibrated on
+  mistral and the analyze prompt only, never on raw YAML nor on qwen2.5. Offline, every
+  `context:` and `llm:` prompt fits under 8 192 tokens by the estimate (the largest, h016, with
+  about 11 % of margin); the raw ones are unknown. Before the first run, every prompt of the
+  `raw:` and `context:` configurations is measured with each model's own tokenizer, through the
+  Ollama that runs them — not h016 alone as written on 2026-10-22.
+- **Records.** Each configuration writes to
+  `tests/veracity/replay-baselines/<solver>[-<model>]-prompt_<v>-store_<store>-examples_<on|off>/`,
+  model and prompt left out for the solvers that have none (`structured`, `rules`). The solver
+  is in the name because `llm:mistral` and `context:mistral` share a model and a prompt version
+  (v6): without it, their records would share a directory and one report would overwrite the
+  other (`docs/protocol-001-retrieval.md`, amendment of the same day).
+
 ## What an LLM run grades (2026-10-19)
 
 The `rules` solver keeps grading the old `RemediationEngine`, which no longer runs in the

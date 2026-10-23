@@ -174,3 +174,13 @@ incident memory is drawn from C1 or C2.
     enterprise-document part of the vector search is not measured, and claimed nowhere.
   - **Cost, estimated:** C2, about 3 h for mistral and 1.5 h for qwen; C3 the same once the
     corpus exists. C0 and C1 come from the comparison.
+
+- **2026-10-23 — "Code needed", items 3 and 4; the store rule.** Written before any run.
+  Item 4's directory becomes
+  `tests/veracity/replay-baselines/<solver>[-<model>]-prompt_<v>-store_<store>-examples_<on|off>/`:
+  C1 (`context:`) and the product's `llm:` path share a model and a prompt version, and would
+  share a directory. Item 3 also records the commit and a hash of each case's fixtures. "A valid
+  run reads and writes no real store" holds for C0 as for C1–C3, and is checked after each run
+  for writes; reads are prevented by the isolation, not detected. Detail:
+  `docs/veracity-replay.md` § Amendment 2026-10-23, what every run records. No decision rule
+  changes.
