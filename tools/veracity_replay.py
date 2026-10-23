@@ -7,21 +7,23 @@ Runs each case through the same offline workflow as the CI tests
 (``workflow_harness.run_case``: real collectors on fixtures, real LangGraph
 workflow), but answered by a real model instead of ``ScriptedLLM``. No cluster
 is touched. Every run is graded with ``tools.veracity.grade`` and recorded as
-``tests/veracity/replay/<solver>/<case>/run_<n>.json``; ``REPORT.md`` is
-rewritten after each run.
+``<out>/<solver>/<case>/run_<n>.json``; ``REPORT.md`` is rewritten after each run. ``<out>``
+defaults to ``tests/veracity/replay-baselines/<run name>`` (``run_dir_name``,
+docs/veracity-replay.md § Amendment 2026-10-23); another name needs ``--out-free``.
 
 Usage::
 
     python tools/veracity_replay.py --solver rules
     python tools/veracity_replay.py --solver llm --runs 3 --resume
     python tools/veracity_replay.py --solver llm:mistral --cases h013,h014
-    python tools/veracity_replay.py --solver raw:mistral --out <dir>      # the model on the raw files
-    python tools/veracity_replay.py --solver context:mistral --out <dir>  # on the context, no diagnosis
+    python tools/veracity_replay.py --solver raw:mistral       # the model on the raw files
+    python tools/veracity_replay.py --solver context:mistral   # on the context, no diagnosis
 """
 from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -38,7 +40,8 @@ sys.path.insert(0, str(ROOT))
 from tools.veracity import grade, normalize_label  # noqa: E402
 
 CASES_ROOT = ROOT / "tests/integration/cases"
-REPLAY_DIR = ROOT / "tests/veracity/replay"
+REPLAY_BASELINES = ROOT / "tests/veracity/replay-baselines"
+GRADING_FILES = ("tools/veracity.py", "tests/veracity/synonyms.yaml")
 GRADING_KEYS = ("root_cause_concepts", "root_cause_concepts_all",
                 "root_cause_contains", "root_cause_contains_all",
                 "root_cause_must_not_contain", "expected_outcome", "expected_verdict")
@@ -81,6 +84,116 @@ def native_cases() -> list[str]:
 
 def _key(case_name: str) -> str:
     return case_name.split("_", 1)[0]
+
+
+# ── what every run records, and where (docs/veracity-replay.md § Amendment 2026-10-23) ──
+
+def _sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def grading_hashes() -> dict[str, str]:
+    return {rel: _sha256((ROOT / rel).read_bytes()) for rel in GRADING_FILES}
+
+
+def case_hash(case_name: str) -> str:
+    """Every file of the case (fixtures, ``expect.json``), path and content: the frozen case list
+    is checked, not assumed."""
+    case_dir = CASES_ROOT / case_name
+    h = hashlib.sha256()
+    for path in sorted((p for p in case_dir.rglob("*") if p.is_file()),
+                       key=lambda p: p.relative_to(case_dir).as_posix()):
+        h.update(path.relative_to(case_dir).as_posix().encode() + b"\0" + path.read_bytes() + b"\0")
+    return h.hexdigest()
+
+
+def commit_id() -> str:
+    """HEAD, with ``-dirty`` when the tree has uncommitted changes; ``unknown`` outside git."""
+    try:
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True,
+                              text=True, check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT,
+                               capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+    return head + ("-dirty" if dirty else "")
+
+
+def configuration(solver: str, store: str = "stub", examples: str = "off") -> dict:
+    """The run's place in docs/protocol-001-retrieval.md (C0–C3) and its settings."""
+    if solver == "structured":
+        config = "C0"
+    elif solver == "context":
+        config = "C1" if store == "stub" else "C3" if examples == "on" else "C2"
+    else:
+        config = solver
+    return {"config": config, "store": store, "examples": examples, "corpus_hash": None,
+            "cut": None}
+
+
+def run_dir_name(solver: str, model: str, prompt: str | None,
+                 store: str = "stub", examples: str = "off") -> str:
+    """``<solver>[-<model>]-prompt_<v>-store_<store>-examples_<on|off>``; no model or prompt for
+    the solvers without one. ``:`` and ``/`` of a model name become ``_``."""
+    parts = [solver]
+    if solver not in ("structured", "rules"):
+        parts += [re.sub(r"[:/]", "_", model), f"prompt_{prompt}"]
+    return "-".join(parts + [f"store_{store}", f"examples_{examples}"])
+
+
+def out_dir_error(out_dir: Path, name: str) -> str:
+    """Why ``out_dir`` is not this run's directory ("" when it is): its name must be ``name``,
+    or ``name`` followed by ``-`` and a suffix (a date)."""
+    if out_dir.name == name or out_dir.name.startswith(name + "-"):
+        return ""
+    return f"--out must be named {name}[-<suffix>], got {out_dir.name} (or pass --out-free)"
+
+
+def truncated_calls(calls: list[dict]) -> list[int]:
+    """Calls whose tokens read plus ``num_predict`` reach ``num_ctx``: Ollama may have cut them
+    without an error, so the run is invalid, not a FAIL."""
+    return [i for i, c in enumerate(calls)
+            if c.get("prompt_tokens_read") is not None and c.get("num_ctx")
+            and c["prompt_tokens_read"] + (c.get("num_predict") or 0) >= c["num_ctx"]]
+
+
+_DB_NAMES = ("kubeverdict.db", "kubeverdict-checkpoints.db")
+
+
+def watched_stores(cwd: Path | None = None) -> list[Path]:
+    """The real stores and databases a run could write: ``./data`` and the databases where the
+    replay was started and in the repository, and whatever the environment points at."""
+    import config as cfg
+    cwd = cwd or Path.cwd()
+    paths = [base / "data" for base in (cwd, ROOT)]
+    dbs = [base / n for base in (cwd, ROOT) for n in _DB_NAMES]
+    if os.environ.get("KUBEWHISPERER_DB"):
+        db = Path(os.environ["KUBEWHISPERER_DB"])
+        dbs += [db, db.with_name(db.name.replace(".db", "-checkpoints.db"))]
+    paths += [db.with_name(db.name + sfx) for db in dbs for sfx in ("", "-wal", "-shm")]
+    for key in ("KUBEVERDICT_EXAMPLE_DIR", "KUBEVERDICT_CHART_DIR"):
+        if os.environ.get(key):
+            paths.append(Path(os.environ[key]))
+    index = Path(cfg.VECTOR_STORE_PATH)
+    paths += [index, index.with_suffix(".meta.pkl")]
+    return sorted({(p if p.is_absolute() else cwd / p).resolve() for p in paths})
+
+
+def fingerprint(paths: list[Path]) -> dict[str, tuple]:
+    """(kind, size, mtime) of every file and directory under ``paths``; absent ones are left out."""
+    out = {}
+    for root in paths:
+        items = [root, *root.rglob("*")] if root.is_dir() else [root] if root.exists() else []
+        for item in items:
+            st = item.stat()
+            out[str(item)] = (item.is_dir(), 0 if item.is_dir() else st.st_size, st.st_mtime_ns)
+    return out
+
+
+def store_changes(before: dict[str, tuple], after: dict[str, tuple]) -> list[str]:
+    """What was created, changed or removed between two fingerprints. Writes only: a read leaves
+    no reliable trace, so reads are prevented by ``isolated_stores``, not detected."""
+    return sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
 
 
 # ── solvers ─────────────────────────────────────────────────────────────────────
@@ -315,20 +428,26 @@ def solve_context(case_name: str, client, run: int) -> dict:
 
 @contextlib.contextmanager
 def isolated_stores():
-    """No real store read or written during a run (docs/veracity-replay.md § Amendment
-    2026-10-22): ``./data/docs`` and ``./data/examples`` are relative paths, so the run works
-    in an empty temporary directory, with the example and chart stores pointed inside it."""
+    """No real store read or written during a run, whatever the solver (docs/veracity-replay.md
+    § Amendments 2026-10-22 and 2026-10-23): ``./data/docs``, ``./data/examples`` and the
+    database are relative paths, so the run works in an empty temporary directory, with the
+    example and chart stores, the database and the vector index pointed inside it."""
+    import config as cfg
     previous_cwd = os.getcwd()
-    keys = ("KUBEVERDICT_EXAMPLE_DIR", "KUBEVERDICT_CHART_DIR")
+    previous_index = cfg.VECTOR_STORE_PATH
+    keys = ("KUBEVERDICT_EXAMPLE_DIR", "KUBEVERDICT_CHART_DIR", "KUBEWHISPERER_DB")
     previous_env = {k: os.environ.get(k) for k in keys}
     with tempfile.TemporaryDirectory(prefix="kv-replay-") as tmp:
         os.environ["KUBEVERDICT_EXAMPLE_DIR"] = str(Path(tmp) / "data/examples")
         os.environ["KUBEVERDICT_CHART_DIR"] = str(Path(tmp) / "data/charts")
+        os.environ["KUBEWHISPERER_DB"] = str(Path(tmp) / "kubeverdict.db")
+        cfg.VECTOR_STORE_PATH = Path(tmp) / "data/index.faiss"
         os.chdir(tmp)
         try:
             yield Path(tmp)
         finally:
             os.chdir(previous_cwd)
+            cfg.VECTOR_STORE_PATH = previous_index
             for k, v in previous_env.items():
                 if v is None:
                     os.environ.pop(k, None)
@@ -378,8 +497,8 @@ def render_report(records: list[dict], header: str = "",
         rows = [r for r in records if r["solver"] == solver]
         model = ", ".join(sorted({r["model"] for r in rows if r["model"]})) or "—"
         lines += [f"## {solver} ({model})", "",
-                  "| Tier / case | Pass | Missing | Answerable | Model errors | Overconfident | False alarms | Mean wall s |",
-                  "|---|---|---|---|---|---|---|---|"]
+                  "| Tier / case | Pass | Missing | Answerable | Model errors | Overconfident | False alarms | Mean wall s | Invalid |",
+                  "|---|---|---|---|---|---|---|---|---|"]
         groups: list[tuple[str, list[dict]]] = []
         for tier in TIERS:
             tier_rows = [r for r in rows if r["tier"] == tier]
@@ -389,7 +508,8 @@ def render_report(records: list[dict], header: str = "",
             for case in sorted({r["case"] for r in tier_rows}):
                 groups.append((case, [r for r in tier_rows if r["case"] == case]))
         for label, rs in groups:
-            passed = sum(r["veracity"] == "PASS" for r in rs)
+            # an invalid run (truncated, a store touched) is never a pass; it is counted apart
+            passed = sum(r["veracity"] == "PASS" and not r.get("invalid") for r in rs)
             ans = [r for r in rs if r.get("answerable") is not None]
             model_err = sum(r["veracity"] == "FAIL" and r.get("answerable") is True for r in rs)
             over = sum(r["veracity"] == "FAIL" and (r.get("confidence") or "").upper() == "HIGH"
@@ -400,7 +520,8 @@ def render_report(records: list[dict], header: str = "",
             missing = sum(r["veracity"] == "MISSING" for r in rs)
             lines.append(f"| {label} | {_rate(passed, len(rs))} | {missing} | "
                          f"{_rate(sum(bool(r['answerable']) for r in ans), len(ans))} | "
-                         f"{model_err} | {over} | {false_alarms} | {wall:.1f} |")
+                         f"{model_err} | {over} | {false_alarms} | {wall:.1f} | "
+                         f"{sum(bool(r.get('invalid')) for r in rs)} |")
         lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -471,7 +592,7 @@ def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
     """
     timeout = int(os.environ.get("REPLAY_RUN_TIMEOUT", "1800"))
     cmd = [sys.executable, str(Path(__file__).resolve()), "--solver", solver,
-           "--cases", _key(case_name), "--child-run", str(run), "--out", str(out_dir)]
+           "--cases", _key(case_name), "--child-run", str(run), "--out", str(out_dir), "--out-free"]
     # the child's exit code and its record are both checked: a child that died (OOM-killed,
     # crash at import) used to leave nothing at all (fix plan R1)
     try:
@@ -488,6 +609,16 @@ def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
                         "child exited 0 but wrote no record")
 
 
+def _invalid(record: dict, touched: list[str]) -> list[str]:
+    """Why the run is invalid — not a FAIL (docs/veracity-replay.md § Amendment 2026-10-23)."""
+    reasons = []
+    if cut := truncated_calls(record.get("llm_calls") or []):
+        reasons.append(f"truncated: call(s) {cut} read + num_predict reached num_ctx")
+    if touched:
+        reasons.append("store_touched: " + ", ".join(touched[:5]))
+    return reasons
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Grade a real model or the rules on the native cases")
     ap.add_argument("--solver", help="rules | structured | llm[:<model>] | raw:<model> | context:<model>")
@@ -496,7 +627,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--cases", default="", help="comma-separated keys, e.g. h001,h014 (default: all)")
     ap.add_argument("--runs", type=int, default=3, help="runs per case for llm (rules: always 1)")
     ap.add_argument("--resume", action="store_true", help="skip runs already recorded")
-    ap.add_argument("--out", default=str(REPLAY_DIR), help=argparse.SUPPRESS)
+    ap.add_argument("--out", default=None,
+                    help="records directory (default: tests/veracity/replay-baselines/<run name>)")
+    ap.add_argument("--out-free", action="store_true",
+                    help="accept an --out whose name is not the run's name (trials only)")
     # internal: run exactly one (case, run) in this process — the parent's watchdog child
     ap.add_argument("--child-run", type=int, default=0, help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
@@ -509,7 +643,6 @@ def main(argv: list[str] | None = None) -> int:
     if not args.solver:
         ap.error("--solver is required (or --regrade DIR)")
 
-    out_dir = Path(args.out).resolve()   # resolved: raw and context runs change directory
     solver, _, model = args.solver.partition(":")
     if solver not in ("rules", "structured", *MODEL_SOLVERS):
         ap.error("--solver must be rules, structured, llm[:<model>], raw:<model> or context:<model>")
@@ -533,6 +666,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Model {client.model} not pulled — nothing written.", file=sys.stderr)
             return 2
 
+    from rca.analyzer import PROMPT_VERSION
+    prompt = RAW_PROMPT_VERSION if solver == "raw" else PROMPT_VERSION if client else None
+    name = run_dir_name(solver, client.model if client else "", prompt)
+    # resolved: every run changes directory (isolated_stores)
+    out_dir = Path(args.out).resolve() if args.out else REPLAY_BASELINES / name
+    if not args.out_free and (error := out_dir_error(out_dir, name)):
+        ap.error(error)
+    digest = getattr(client, "model_digest", None)
+    meta = {"commit": commit_id(), "grading_hashes": grading_hashes(),
+            "model_digest": digest() if digest else "", **configuration(solver)}
+    watched = watched_stores()        # taken where the replay was started, before any chdir
+
     # never read data/examples/ during a replay; restored after, so a caller in the
     # same process (the test suite) does not inherit it
     previous = os.environ.get("EXAMPLE_LOOKUP_DISABLED")
@@ -548,18 +693,19 @@ def main(argv: list[str] | None = None) -> int:
                 if solver in MODEL_SOLVERS and not args.child_run:
                     _run_in_child(args.solver, case_name, run, out_dir)
                     continue
+                before = fingerprint(watched)
                 try:
-                    if solver in ("raw", "context"):
-                        with isolated_stores():
-                            record = (solve_raw if solver == "raw" else solve_context)(
-                                case_name, client, run)
-                    else:
+                    with isolated_stores():
                         record = (solve_rules(case_name) if solver == "rules"
                                   else solve_structured(case_name) if solver == "structured"
+                                  else solve_raw(case_name, client, run) if solver == "raw"
+                                  else solve_context(case_name, client, run) if solver == "context"
                                   else solve_llm(case_name, client, run))
                 except Exception as exc:  # one failed run must not stop an hours-long replay
                     _record_failure(out_dir, solver, case_name, run, f"{type(exc).__name__}: {exc}")
                     continue
+                record.update(meta, case_hash=case_hash(case_name),
+                              invalid=_invalid(record, store_changes(before, fingerprint(watched))))
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
                 print(f"{case_name} run {run}: {record['veracity']} — {record['reason']}")

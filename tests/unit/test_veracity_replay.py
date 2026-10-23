@@ -48,7 +48,7 @@ def test_every_native_case_has_a_query_that_does_not_give_the_answer():
 
 @pytest.mark.parametrize("key,expected", [("h004", "PASS"), ("h022", "PASS")])
 def test_rules_solver_end_to_end(tmp_path, key, expected):
-    assert vr.main(["--solver", "rules", "--cases", key, "--out", str(tmp_path)]) == 0
+    assert vr.main(["--solver", "rules", "--cases", key, "--out", str(tmp_path), "--out-free"]) == 0
     records = vr.load_records(tmp_path)
     assert len(records) == 1
     record = records[0]
@@ -60,10 +60,10 @@ def test_rules_solver_end_to_end(tmp_path, key, expected):
 
 
 def test_resume_skips_recorded_runs(tmp_path):
-    vr.main(["--solver", "rules", "--cases", "h004", "--out", str(tmp_path)])
+    vr.main(["--solver", "rules", "--cases", "h004", "--out", str(tmp_path), "--out-free"])
     path = next(tmp_path.glob("rules/*/run_1.json"))
     path.write_text(json.dumps({**json.loads(path.read_text()), "marker": True}))
-    vr.main(["--solver", "rules", "--cases", "h004", "--resume", "--out", str(tmp_path)])
+    vr.main(["--solver", "rules", "--cases", "h004", "--resume", "--out", str(tmp_path), "--out-free"])
     assert json.loads(path.read_text())["marker"] is True
 
 
@@ -84,9 +84,9 @@ def test_report_counts():
     report = vr.render_report(records, "header")
     rows = {line.split("|")[1].strip(): [c.strip() for c in line.split("|")[2:-1]]
             for line in report.splitlines() if line.startswith("| ") and "---" not in line}
-    assert rows["**Tier A**"] == ["1/2", "0", "2/2", "1", "1", "0", "2.0"]
-    assert rows["**Tier B**"] == ["0/1", "0", "0/1", "0", "0", "0", "2.0"]
-    assert rows["**Tier C**"] == ["0/1", "0", "—", "0", "0", "1", "2.0"]
+    assert rows["**Tier A**"] == ["1/2", "0", "2/2", "1", "1", "0", "2.0", "0"]
+    assert rows["**Tier B**"] == ["0/1", "0", "0/1", "0", "0", "0", "2.0", "0"]
+    assert rows["**Tier C**"] == ["0/1", "0", "—", "0", "0", "1", "2.0", "0"]
     assert "header" in report
 
 
@@ -101,13 +101,13 @@ def test_llm_solver_refuses_without_ollama(tmp_path, monkeypatch):
             return False
 
     monkeypatch.setattr("llm.ollama_client.OllamaClient", Down)
-    assert vr.main(["--solver", "llm", "--out", str(tmp_path)]) == 2
+    assert vr.main(["--solver", "llm", "--out", str(tmp_path), "--out-free"]) == 2
     assert not list(tmp_path.iterdir())
 
 
 def test_replay_does_not_leak_example_lookup_disabled(tmp_path, monkeypatch):
     monkeypatch.delenv("EXAMPLE_LOOKUP_DISABLED", raising=False)
-    vr.main(["--solver", "rules", "--cases", "h004", "--out", str(tmp_path)])
+    vr.main(["--solver", "rules", "--cases", "h004", "--out", str(tmp_path), "--out-free"])
     import os
     assert "EXAMPLE_LOOKUP_DISABLED" not in os.environ
 

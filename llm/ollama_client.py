@@ -70,12 +70,15 @@ class OllamaClient:
             )
         return estimated, num_ctx
 
-    def _record(self, estimated: int, num_ctx: int, body: dict) -> None:
+    def _record(self, estimated: int, num_ctx: int, body: dict, temperature: float) -> None:
         read = body.get("prompt_eval_count")
         self.last_call = {
             "num_ctx": num_ctx,
             "estimated_prompt_tokens": estimated,
             "prompt_tokens_read": read,
+            # what was asked, beside what was read: both can be overridden (OLLAMA_NUM_PREDICT)
+            "num_predict": self.num_predict,
+            "temperature": temperature,
             "answer_tokens": body.get("eval_count"),
             "prompt_eval_s": round((body.get("prompt_eval_duration") or 0) / 1e9, 1),
             "answer_s": round((body.get("eval_duration") or 0) / 1e9, 1),
@@ -100,6 +103,25 @@ class OllamaClient:
         except requests.RequestException as exc:
             log.warning("Cannot list Ollama models: %s", exc)
             return []
+
+    def model_digest(self) -> str:
+        """The digest Ollama lists for this model; "" when it cannot be read.
+
+        Exact name first, then ``<model>:latest``, then the first ``<model>:<tag>``.
+        """
+        try:
+            resp = requests.get(f"{self.url}{_TAGS_PATH}", timeout=5)
+            resp.raise_for_status()
+            models = resp.json().get("models", [])
+        except requests.RequestException as exc:
+            log.warning("Cannot read the model digest: %s", exc)
+            return ""
+        for match in (lambda n: n == self.model, lambda n: n == f"{self.model}:latest",
+                      lambda n: n.startswith(f"{self.model}:")):
+            for m in models:
+                if match(m.get("name", "")):
+                    return m.get("digest", "")
+        return ""
 
     def model_is_pulled(self) -> bool:
         available = self.list_models()
@@ -141,7 +163,7 @@ class OllamaClient:
             )
             resp.raise_for_status()
             body = resp.json()
-            self._record(estimated, num_ctx, body)
+            self._record(estimated, num_ctx, body, temperature)
             return body.get("response", "").strip()
         except requests.Timeout:
             raise TimeoutError(
@@ -183,7 +205,7 @@ class OllamaClient:
             )
             resp.raise_for_status()
             body = resp.json()
-            self._record(estimated, num_ctx, body)
+            self._record(estimated, num_ctx, body, temperature)
             return body["message"]["content"].strip()
         except requests.Timeout:
             raise TimeoutError(
@@ -225,7 +247,7 @@ class OllamaClient:
                         if token:
                             yield token
                         if chunk.get("done"):
-                            self._record(estimated, num_ctx, chunk)
+                            self._record(estimated, num_ctx, chunk, temperature)
                             break
         except requests.RequestException as exc:
             raise RuntimeError(f"Ollama stream failed: {exc}") from exc

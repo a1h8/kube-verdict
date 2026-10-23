@@ -118,6 +118,11 @@ def test_raw_grades_the_models_own_cause():
     assert vr.solve_raw("h003_oomkilled", FakeLLM(WRONG_ANSWER), 1)["veracity"] == "FAIL"  # control
 
 
+def test_an_empty_answer_is_a_fail():
+    assert vr.solve_raw("h003_oomkilled", FakeLLM(answer=""), 1)["veracity"] == "FAIL"
+    assert vr.solve_raw("h003_oomkilled", FakeLLM(), 1)["veracity"] == "PASS"            # control
+
+
 def test_a_prompt_that_does_not_fit_is_a_graded_fail():
     record = vr.solve_raw("h016_multi_signal", FakeLLM(num_ctx_max=4096), 1)
     assert record["veracity"] == "FAIL" and record["did_not_fit"]
@@ -186,7 +191,7 @@ def test_a_raw_run_through_main_writes_its_record_and_nothing_else(tmp_path, mon
                         lambda model=None, timeout=None, num_ctx_max=None: FakeLLM())
     out = tmp_path / "out"
     assert vr.main(["--solver", "raw:fake", "--cases", "h003", "--child-run", "1",
-                    "--out", str(out)]) == 0
+                    "--out", str(out), "--out-free"]) == 0
     record = json.loads((out / "raw/h003_oomkilled/run_1.json").read_text())
     assert record["veracity"] == "PASS"
     assert list(work.iterdir()) == []                 # no ./data written where it ran

@@ -212,15 +212,28 @@
     not;
   - an empty answer is a FAIL (it is, through `grade("")`, but no test says so).
   → each enforced in the replay or in `tools/compare_solvers.py`, with a test that fails without
-  it, before the first run.
+  it, before the first run. *Partly done 2026-10-23* (`tests/unit/test_run_records.py`): every
+  record carries the commit (`-dirty` when the tree is), the case hash, the grading hashes, the
+  model digest, `num_predict` and temperature per call, its configuration, store, examples,
+  corpus hash and cut; a truncated run or one that wrote a real store is recorded `invalid` and
+  never counted as a pass; every solver runs isolated; the records directory must carry the
+  run's name (`:` and `/` of a model name written `_`) unless `--out-free`; an empty answer is
+  tested as a FAIL. Left: the cut (`--cut`), `tools/compare_solvers.py` reading `invalid`, and
+  the corpus split (with the corpus).
 
-- [ ] **H81 — the test suite writes the real database and store directories.** Run from an
+- [x] **H81 — the test suite writes the real database and store directories.** Run from an
   empty directory, `make ci` leaves `kubeverdict.db` (sessions written by
   `tests/unit/test_webhook_alert_text.py` and `tests/unit/test_api_kube_target.py`; created by
   `tests/unit/test_session_routes_auth.py`), `kubeverdict-checkpoints.db`, `data/docs/` and
   `data/charts/` in it: paths relative to where the suite runs, as the example store was before
   #129. → an autouse fixture points the database and the stores at the test's temporary
   directory, and a guard test fails when the suite writes in its working directory.
+  Done 2026-10-23: the stores, the database and the vector index point at one temp dir from
+  `pytest_configure` — a fixture was too late: collecting `tests/integration/api/` opened
+  `./kubeverdict.db`, pytest inspecting the attributes of `api.session_store`'s lazy `store`
+  proxy (found by the guard). The run fails when a real store changed
+  (`tests/conftest.py`); `tests/unit/test_no_real_store.py` runs the former writers from an
+  empty directory and fails without the isolation. `make ci` leaves nothing behind.
 
 ## 4. Cases and claims
 
