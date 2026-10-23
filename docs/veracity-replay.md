@@ -230,27 +230,37 @@ What each comparison isolates, on the same model:
 - **structured against raw** — the three together.
 
 **Raw input, fixed now.**
-- Every fixture file the collectors read for the case (`kube/`, `helm/`, `chart/`, `policy/`,
-  `prometheus/`, `loki/`, `otel/`), each under a header naming its path relative to the case
-  (`kube/pod.yaml`), in sorted order. Never `expect.json`, never `rendered/` (an output of the
-  pipeline), never the case's directory name (it names the cause).
-- YAML is parsed and written back, so its comments are dropped: some name the cause (h004,
-  h006, h010), and the collectors never read them. The data is the data the collectors read.
+- The fixture files under `kube/`, `helm/`, `chart/`, `policy/`, `prometheus/`, `loki/`,
+  `otel/`, each under a header naming its path relative to the case (`kube/pod.yaml`), in
+  sorted order — nothing else in the case directory: never `expect.json`, never a `README.md`
+  (h012's explains the case), never the case's directory name (it names the cause).
+- Never `rendered/`: it is Git's `helm template` of the case's chart, which the loader reads
+  instead of rendering. The raw model receives `chart/` and `helm/`, the sources of that
+  render; rendering is a step of the pipeline being compared.
+- YAML is parsed and written back, so its comments are dropped: comments name the cause in at
+  least 9 cases (h004, h005, h006, h010, h011, h012, h024, and the negative h022 and h026), and
+  the collectors never read them. The data is the data the collectors read.
 - The query is the case's `query`, as for the other configurations.
 - One fixed prompt (in the code, versioned like the analyze prompt): an SRE is asked for the
   root cause, the affected resources, a remediation and a LOW / MEDIUM / HIGH confidence, and
   told to answer "no incident" when nothing is wrong; the answer uses the analyze prompt's
   section headers, so the same parser and `grade()` read it.
 - No retrieval, no examples, the same Ollama, temperature 0.1, `num_predict` 512. The context
-  ceiling is 16 384 tokens for the raw configurations (h016's artifacts are about 7 800 tokens,
-  measured before any run); a prompt that still does not fit is recorded `did_not_fit` and
-  counts as a FAIL.
+  ceiling is 16 384 tokens for the raw configurations (h016, the largest case, is measured with
+  the model's tokenizer before the first run; estimates give 5 300 to 7 800 tokens). A prompt
+  that still does not fit is recorded as a run, FAIL, reason `did_not_fit`, with its size — not
+  as a lost run.
+- No real store is read or written: `DocStore` and the example store point at empty temporary
+  directories (`./data/docs` and `./data/examples` are relative paths), and no run reaches
+  `save_example`. The same holds for the context configurations.
 
 **Context input, fixed now.** The case goes through the same collectors and graph as the other
 configurations; the model gets the analyze prompt (v6) built by `ContextBuilder` — unhealthy
 entities, drift with its provenance, events, alerts, logs, traces, anchors, Helm releases — with
 the case's query alone: no `HYPOTHESIS TO INVESTIGATE`, no structured diagnosis, no rule output
-anywhere in the prompt. Its own root cause is graded, not the report's. Same Ollama, temperature,
+anywhere in the prompt. The prompt keeps `anchor_fix_hints` and `policy_fix_hints`: they come
+from the ontology's annotations and the policy reports, not from the rules, and are part of the
+context being measured. Its own root cause is graded, not the report's. Same Ollama, temperature,
 `num_predict` and context ceiling as the LLM configurations above.
 
 **Grading.** `grade()` on the answer's root cause, with the cases' cause concepts and expected

@@ -153,14 +153,24 @@ incident memory is drawn from C1 or C2.
     both models or is inconclusive for one and stays for the other; if the two models
     disagree outright (stays / leaves), the layer is inconclusive and the README says why.
   - **The corpus, beyond *Known limit*.** The legacy cases of `cases/` share most failure
-    families with the native cases, and three share their name (`001_crashloopbackoff`,
-    `002_imagepullbackoff`, `003_oomkilled`). Fixed now, checked by a script whose output
-    is published with the corpus: a record is excluded if its source is a legacy case with
-    the name of a native case, or if one of its symptoms appears verbatim (a log line, an
-    event message) in a native case's fixtures — otherwise retrieval could return the
-    case's own answer. A record of the same family is kept: recognising a known kind of
-    incident is what the memory is for. Results are also reported split into cases whose
+    families with the native cases, three share their name (`001_crashloopbackoff`,
+    `002_imagepullbackoff`, `003_oomkilled`), and several share a workload: `001` and h001
+    (payment-service), `002` and h002 (ml-inference), `019` and h011 (kafka); `009` and h005,
+    `010` and h006 name the same workload with another cause. Fixed now, checked by a script
+    whose output (every exclusion and its reason) is published with the corpus: a record is
+    excluded if its source is a legacy case with the name of a native case, if it names a
+    resource (workload, pod prefix, ConfigMap, Secret, Service, namespace other than
+    `default`) present in a native case's fixtures, or if one of its symptoms appears
+    verbatim (a log line, an event message) in a native case's fixtures — otherwise
+    retrieval could return the case's own answer. A record of the same family is kept:
+    recognising a known kind of incident is what the memory is for. Results are also reported split into cases whose
     family the corpus covers and cases it does not. Until the corpus exists, C3 and R0 are
     recorded as not measurable.
+  - **A valid run reads and writes no real store.** `DocStore` (`./data/docs`) and the
+    example store (`./data/examples`) point at temporary directories; C3 loads the committed
+    corpus there and nothing else. A run that reads or writes outside them is invalid.
+  - **C2 has no enterprise documents.** No document corpus exists, so C2 measures what
+    `index_node` builds from the investigation's graph, the anchors and the charts; the
+    enterprise-document part of the vector search is not measured, and claimed nowhere.
   - **Cost, estimated:** C2, about 3 h for mistral and 1.5 h for qwen; C3 the same once the
     corpus exists. C0 and C1 come from the comparison.
