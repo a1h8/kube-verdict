@@ -222,9 +222,13 @@
   <collector>|auto` runs one cut run per case and collector, under `cut-<collector>/`, apart
   from the connected runs (`CUT.md`); a cut the case has no fixtures for is refused. Structured,
   8 cut runs: none above its connected label (h005, h013, h014 MEDIUM → LOW, h015 HIGH → LOW,
-  h006 MEDIUM → MEDIUM, h016 HIGH → HIGH for each of its three collectors). Left:
-  `tools/compare_solvers.py` reading `invalid` and the cut runs, and the corpus split (with the
-  corpus).
+  h006 MEDIUM → MEDIUM, h016 HIGH → HIGH for each of its three collectors). *Tables done
+  2026-10-23* (`tests/unit/test_compare_solvers.py`): `tools/compare_solvers.py` reads the seven
+  configurations, never counts an invalid run as a pass, counts cases on 2 of 3, holds every
+  configuration to the negative, positive (context) and collector-cut controls — a configuration
+  without cut runs fails the last — and draws each decision of the comparison with its fixed
+  threshold, or says why it is not drawn (`docs/veracity-replay.md` § Amendment 2026-10-23, how
+  the tables read the controls). Left: the corpus split (with the corpus).
 
 - [x] **H81 — the test suite writes the real database and store directories.** Run from an
   empty directory, `make ci` leaves `kubeverdict.db` (sessions written by

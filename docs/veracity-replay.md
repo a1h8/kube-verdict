@@ -359,6 +359,28 @@ applied (`docs/fix-plan-001.md` H79, H81). No threshold changes.
   (v6): without it, their records would share a directory and one report would overwrite the
   other (`docs/protocol-001-retrieval.md`, amendment of the same day).
 
+### Amendment 2026-10-23 — how the tables read the controls
+
+Written before any run, with `tools/compare_solvers.py`. It fixes readings the rules above left
+open; no threshold changes.
+
+- **The label** compared by the collector-cut control is each record's `confidence`: the
+  structured diagnosis's for `structured`, the workflow's final label for `llm:`, the model's own
+  label for `raw:` and `context:`. The **median** of the connected runs is the lower median when
+  two runs are valid (`statistics.median_low`), so a lost run never raises it. A cut run that is
+  missing or invalid fails the control, as a missing run fails a case (H7).
+- **The negative controls** (h022 and h026 stay `no_incident`) are read at the case level, with
+  the 2-of-3 rule of every other case; the runs that named a cause are reported beside it.
+- **Protocol 001's positive control** (h001 passes at least 2 of 3) applies to the `context:`
+  configurations, its C1; a configuration that misses it is reported invalid — re-run once, then
+  recorded invalid — and no decision is drawn from it.
+- **A decision is not drawn** from a configuration that fails a control or is invalid: the table
+  says which control, whatever the rates. That is also how the clauses "no more false alarms on
+  h022 and h026" apply: one false alarm fails the negative control. "N more cases" is the
+  difference of the cases passed,
+  which equals protocol 001's net gain (cases only one passes minus cases only the other passes);
+  both sets are listed.
+
 ## What an LLM run grades (2026-10-19)
 
 The `rules` solver keeps grading the old `RemediationEngine`, which no longer runs in the
