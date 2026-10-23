@@ -35,6 +35,9 @@ class APIServerDiscovery:
         self._client = api_client
         self._core_api = k8s_client.CoreV1Api(api_client)
         self._apis_api = k8s_client.ApisApi(api_client)
+        # API groups and kinds that could not be read: what they hold is unknown, not absent
+        # (docs/fix-plan-001.md, H5 — these refusals were logged at debug level only)
+        self.failures: list[str] = []
 
     # ------------------------------------------------------------------
     # Discovery
@@ -47,6 +50,7 @@ class APIServerDiscovery:
         """
         skip = skip_kinds or set()
         resources: list[APIResourceInfo] = []
+        self.failures = []
 
         resources.extend(self._discover_core(skip))
         resources.extend(self._discover_api_groups(skip))
@@ -78,6 +82,7 @@ class APIServerDiscovery:
                 ))
         except ApiException as exc:
             log.warning("Failed to discover core API resources: %s", exc)
+            self.failures.append(f"core API discovery: {exc.status}")
         return result
 
     def _discover_api_groups(self, skip: set[str]) -> list[APIResourceInfo]:
@@ -87,19 +92,13 @@ class APIServerDiscovery:
             groups = self._apis_api.get_api_versions()
         except ApiException as exc:
             log.warning("Failed to list API groups: %s", exc)
+            self.failures.append(f"API groups: {exc.status}")
             return result
 
         for group in groups.groups:
             preferred = group.preferred_version
             group_name = group.name
             version = preferred.version
-
-            try:
-                k8s_client.CustomObjectsApi(
-                    self._client
-                ).get_api_resources.__func__  # not available this way
-            except Exception:
-                pass
 
             # Use the raw API to call /{group}/{version}
             try:
@@ -130,7 +129,8 @@ class APIServerDiscovery:
                         categories=list(r.get("categories") or []),
                     ))
             except ApiException as exc:
-                log.debug("Skipping group %s/%s: %s", group_name, version, exc.status)
+                log.warning("Skipping group %s/%s: %s", group_name, version, exc.status)
+                self.failures.append(f"group {group_name}/{version}: {exc.status}")
 
         return result
 
@@ -196,7 +196,8 @@ class APIServerDiscovery:
                 except Exception as exc:
                     log.debug("Could not parse %s object: %s", resource.kind, exc)
         except ApiException as exc:
-            log.debug("Cannot list %s at %s: %s", resource.kind, path, exc.status)
+            log.warning("Cannot list %s at %s: %s", resource.kind, path, exc.status)
+            self.__dict__.setdefault("failures", []).append(f"{resource.kind} at {path}: {exc.status}")
 
     # ------------------------------------------------------------------
     # Vocabulary summary

@@ -11,30 +11,13 @@ async def lifespan(app: FastAPI):
     from api.routes import sessions as sessions_mod
     from persistence.db import db_path
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-    import config as cfg
-    from vectorstore.store import FAISSStore
 
     init_store()
 
-    from persistence.db import init_db, get_db
-    from persistence.vector_store_repo import count_docs
+    from persistence.db import init_db
     init_db()
-
-    index_path = cfg.VECTOR_STORE_PATH
-    faiss_store = FAISSStore()
-    if index_path.exists():
-        # Option A — pre-built binary index, fastest path
-        faiss_store.load(index_path)
-        sessions_mod._faiss_store = faiss_store
-    else:
-        # Option B — rebuild from raw texts stored in DB
-        conn = get_db()
-        try:
-            if count_docs(conn) > 0:
-                faiss_store.rebuild_from_db(conn)
-                sessions_mod._faiss_store = faiss_store
-        finally:
-            conn.close()
+    # No vector store is loaded here: each investigation indexes the cluster it collects
+    # (docs/fix-plan-001.md, H40).
 
     cp_path = str(db_path()).replace(".db", "-checkpoints.db")
     async with AsyncSqliteSaver.from_conn_string(cp_path) as checkpointer:

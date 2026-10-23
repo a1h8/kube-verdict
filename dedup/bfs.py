@@ -22,6 +22,24 @@ _INCIDENT_RELS = {
     RelationshipType.USES_SERVICE_ACCOUNT,
     RelationshipType.MANAGED_BY_HELM,
     RelationshipType.HAS_EVENT,
+    # the evidence collectors attach to an entity (docs/fix-plan-001.md, H37)
+    RelationshipType.HAS_ALERT,
+    RelationshipType.HAS_TRACE,
+    RelationshipType.HAS_LOG,
+    RelationshipType.HAS_POLICY_VIOLATION,
+    RelationshipType.DRIFTS_FROM,
+    RelationshipType.BINDS_PV,
+}
+# Followed backwards: what owns, exposes, scales or constrains the entity reached. From a pod,
+# the walk used to reach only its Helm release — never its Deployment, Service, HPA or the
+# namespace's quota (H37). IN_NAMESPACE and MANAGED_BY_HELM are not here: backwards they
+# return every object of the namespace or of the release.
+_INCIDENT_RELS_BACKWARD = {
+    RelationshipType.OWNS,
+    RelationshipType.EXPOSES,
+    RelationshipType.SCALES,
+    RelationshipType.QUOTA_BLOCKS,
+    RelationshipType.LIMITS,
 }
 
 
@@ -57,8 +75,15 @@ def find_unhealthy(graph: OntologyGraph) -> list[K8sEntity]:
         elif entity.is_not_ready and not (entity.is_starting and _in_rollout(entity, rolling)):
             seeds.append(entity)
 
+    # A Deployment short of ready replicas is a seed when it is not available or one of its
+    # pods is a seed; a scale-up in progress with every pod coming up cleanly is not
+    # (docs/fix-plan-001.md, H38).
+    seed_pods = [s for s in seeds if s.kind == ResourceKind.POD]
     for entity in graph.entities(ResourceKind.DEPLOYMENT):
-        if entity.is_degraded:
+        if entity.is_degraded and (not entity.is_available or any(
+                p.namespace == entity.namespace and entity.selector
+                and all((p.labels or {}).get(k) == v for k, v in entity.selector.items())
+                for p in seed_pods)):
             seeds.append(entity)
 
     for entity in graph.entities(ResourceKind.STATEFULSET):
@@ -116,8 +141,10 @@ def expand_incident_context(
         all_uids.extend(extra_uids)
 
     if not all_uids:
-        log.warning("No seed UIDs — returning all entities as fallback")
-        return list(graph.entities())
+        # nothing to expand from: no context, not the whole cluster — every entity's text went to
+        # the LLM, a remote one included (fix plan H65); the diagnosis abstains on its own
+        log.info("No seed UIDs — no context expansion")
+        return []
 
     seen: set[str] = set()
     result: list[K8sEntity] = []
@@ -131,7 +158,8 @@ def expand_incident_context(
 
     # BFS expansion
     for uid in all_uids:
-        for neighbour in graph.bfs(uid, max_depth=depth, rel_types=_INCIDENT_RELS):
+        for neighbour in graph.bfs(uid, max_depth=depth, rel_types=_INCIDENT_RELS,
+                                   reverse_rel_types=_INCIDENT_RELS_BACKWARD):
             if neighbour.uid not in seen:
                 seen.add(neighbour.uid)
                 result.append(neighbour)

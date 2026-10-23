@@ -84,9 +84,9 @@ def test_report_counts():
     report = vr.render_report(records, "header")
     rows = {line.split("|")[1].strip(): [c.strip() for c in line.split("|")[2:-1]]
             for line in report.splitlines() if line.startswith("| ") and "---" not in line}
-    assert rows["**Tier A**"] == ["1/2", "2/2", "1", "1", "0", "2.0"]
-    assert rows["**Tier B**"] == ["0/1", "0/1", "0", "0", "0", "2.0"]
-    assert rows["**Tier C**"] == ["0/1", "—", "0", "0", "1", "2.0"]
+    assert rows["**Tier A**"] == ["1/2", "0", "2/2", "1", "1", "0", "2.0"]
+    assert rows["**Tier B**"] == ["0/1", "0", "0/1", "0", "0", "0", "2.0"]
+    assert rows["**Tier C**"] == ["0/1", "0", "—", "0", "0", "1", "2.0"]
     assert "header" in report
 
 
@@ -129,7 +129,9 @@ def test_hung_llm_run_is_killed_and_reported(tmp_path, monkeypatch, capsys):
     assert cmd[cmd.index("--child-run") + 1] == "2"
     assert cmd[cmd.index("--cases") + 1] == "h004"
     assert "process killed" in capsys.readouterr().err
-    assert not list(tmp_path.iterdir())
+    # no run record, but the failure is kept (docs/fix-plan-001.md, R1)
+    assert [p.name for p in tmp_path.iterdir()] == ["failures.jsonl"]
+    assert "process killed" in (tmp_path / "failures.jsonl").read_text()
 
 
 def test_regrade_rereads_records_without_touching_them(tmp_path):
@@ -144,3 +146,51 @@ def test_regrade_rereads_records_without_touching_them(tmp_path):
     report = (tmp_path / "REGRADED.md").read_text()
     assert "| h004_missing_configmap | 0/1 | 1/1 |" in report
     assert json.loads(path.read_text())["veracity"] == "FAIL"
+
+
+
+# ── docs/fix-plan-001.md, H7 and R1 ───────────────────────────────────────────
+def test_a_missing_run_counts_as_a_fail():
+    case = vr.native_cases()[0]
+    records = [_rec(case, vr.tier_of(case, {}), "PASS", run=1)]
+    report = vr.render_report(records, "h", expected={"llm": [(case, 1), (case, 2)]})
+    row = next(line for line in report.splitlines() if line.startswith(f"| {case} "))
+    cells = [c.strip() for c in row.split("|")[2:-1]]
+    assert cells[0] == "1/2" and cells[1] == "1"
+    # control: without the expected runs, the lost run vanished from the denominator
+    old = vr.render_report(records, "h")
+    assert [c.strip() for c in next(line for line in old.splitlines() if line.startswith(f"| {case} ")).split("|")[2:-1]][0] == "1/1"
+
+
+def test_a_child_that_dies_is_recorded(tmp_path, monkeypatch):
+    import subprocess as sp
+    monkeypatch.setattr(vr.subprocess, "run", lambda *a, **k: sp.CompletedProcess(a, 137))
+    vr._run_in_child("llm:m", "h001_x", 2, tmp_path)
+    lines = (tmp_path / "failures.jsonl").read_text().splitlines()
+    assert len(lines) == 1 and '"child exited with code 137"' in lines[0]
+
+
+def test_a_child_that_records_its_run_is_not_a_failure(tmp_path, monkeypatch):            # control
+    import subprocess as sp
+
+    def ok(*a, **k):
+        p = vr.record_path(tmp_path, "llm", "h001_x", 2)
+        p.parent.mkdir(parents=True)
+        p.write_text("{}")
+        return sp.CompletedProcess(a, 0)
+    monkeypatch.setattr(vr.subprocess, "run", ok)
+    vr._run_in_child("llm:m", "h001_x", 2, tmp_path)
+    assert not (tmp_path / "failures.jsonl").exists()
+
+
+def test_an_llm_run_records_its_prompts(monkeypatch):
+    # docs/fix-plan-001.md: what the model read must be checkable afterwards
+    from types import SimpleNamespace
+    case = vr.native_cases()[0]
+    expect = {"root_cause_contains": ["x"], "query": "q"}
+    run = SimpleNamespace(expect=expect, llm=SimpleNamespace(analyze_prompts=["PROMPT ONE"], calls=[]),
+                          state={"report_dict": {"root_cause": "x", "explanation": "x"},
+                                 "confidence": "LOW", "verdict": "HUMAN_REVIEW"})
+    monkeypatch.setattr("tests.integration.workflow_harness.run_case", lambda *a, **k: run)
+    record = vr.solve_llm(case, SimpleNamespace(model="m"), 1)
+    assert record["prompts"] == ["PROMPT ONE"]

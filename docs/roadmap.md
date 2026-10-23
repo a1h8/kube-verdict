@@ -25,7 +25,7 @@ under Next.
 - [x] **Beam search confidence routing** — `path_confidence_history` detects LOW × 2 → early path switch; `archive_path_node` re-ranks remaining candidates via hybrid_search on failed analysis text
 - [x] **RRF-on-anchors** — `index_anchor_violations()` indexes each manifest drift field as `doc_source="anchor"` (×1.6 weight); Phase 2b processes `anchor:` UIDs from hybrid_search into testable hypotheses
 - [x] **FastAPI REST API** — `POST /run`, `GET /state`, `GET /stream` (SSE), `POST /feedback`, `DELETE`; exposes `hypothesis_sources`, `path_confidence_history`, `edge_log` with `declining` flag
-- [x] **SQLite persistence** — sessions + LangGraph checkpoints survive restarts; FAISS index preloaded from `index.faiss` at startup (Option A) or rebuilt from raw texts in `vector_store_docs` without re-collecting from the cluster (Option B); SQL dialect compatible with PostgreSQL (`ON CONFLICT DO UPDATE`)
+- [x] **SQLite persistence** — sessions + LangGraph checkpoints survive restarts; FAISS index no longer preloaded at startup (2026-10-18, `docs/fix-plan-001.md` H40: a preloaded index made investigations search an earlier snapshot of the cluster); SQL dialect compatible with PostgreSQL (`ON CONFLICT DO UPDATE`)
 - [x] **LangGraph multi-path workflow** — hypothesize → analyze → retry / archive_path → select_best → dry_run → human_review
 - [x] **Alertmanager webhook** — receives Prometheus Alertmanager `POST /webhook` payloads; auto-triggers RCA session; maps alert `labels` to namespace + resource + query (`demo/demo_webhook.py`)
 - [x] **AnchorEngine** — manifest + schema anchors; `anchor_fix_hints()` generates `helm upgrade --set` commands; **anchor pivot table** in UI (declared → observed → status → fix)
@@ -82,8 +82,8 @@ Current state: basic LogQL range query against pods that need telemetry (phase-u
 What separates a validated prototype from a prod-grade deployment. Each item is a deterministic
 check that turns green when implemented.
 
-- [x] **Shared-secret bearer gate (interim)** — `KUBEVERDICT_API_TOKEN` guards the mutating session, webhook and `/investigate` routes (`api/auth.py`, constant-time compare); no-op when unset. This is *not* per-identity auth.
-- [x] **API auth — JWT / OIDC** — per-identity bearer auth on the session, webhook and `/investigate` routes; JWTs verified against the provider JWKS (RS256) with optional issuer/audience checks (`api/oidc.py`). Layers over the shared secret; `OIDC_REQUIRED=1` rejects any request without a valid JWT.
+- [x] **Shared-secret bearer gate (interim)** — `KUBEVERDICT_API_TOKEN` guards every session route (read, stream and delete included), the webhook and `/investigate` routes (`api/auth.py`, constant-time compare); no-op when unset. This is *not* per-identity auth.
+- [x] **API auth — JWT / OIDC** — per-identity bearer auth on the session, webhook and `/investigate` routes; JWTs verified against the provider JWKS (RS256) with required issuer and audience checks (`api/oidc.py`); the approver's subject is recorded with each decision. Layers over the shared secret; `OIDC_REQUIRED=1` rejects any request without a valid JWT.
 - [x] **Golden-scenario regression guard** — `tests/golden/` replays the h001–h010 decision fixtures and diffs verdict + blast-radius risk against a recorded `baseline.json`; CI fails on any drift (regenerate intentionally via `python -m tests.golden.update_baseline`)
 - [x] **Artifact Hub listing** — `helm/kube-verdict/artifacthub-repo.yml` + Chart.yaml `artifacthub.io/*` annotations so the chart is discoverable / verifiable
 - [x] **RBAC-aware scoping** — `K8sCollector` impersonates a tenant identity via apiserver `Impersonate-User`/`-Group` headers (`KUBE_IMPERSONATE_USER` / `_GROUPS`); analysis is scoped by the tenant's RBAC, not the collector's

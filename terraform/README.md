@@ -32,8 +32,10 @@ $(terraform output -raw get_credentials_command)
 ```sh
 cd terraform/scaleway
 terraform init
-terraform plan  -var="organization_id=<org-id>" -var="project_id=<project-id>"
-terraform apply -var="organization_id=<org-id>" -var="project_id=<project-id>"
+terraform plan  -var="organization_id=<org-id>" -var="project_id=<project-id>" \
+  -var="kubernetes_version=<version from: scw k8s version list>"
+terraform apply -var="organization_id=<org-id>" -var="project_id=<project-id>" \
+  -var="kubernetes_version=<version from: scw k8s version list>"
 # then:
 $(terraform output -raw get_kubeconfig_command)
 ```

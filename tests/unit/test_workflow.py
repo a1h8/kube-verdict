@@ -343,31 +343,60 @@ class TestWorkflowApprove:
 
         assert final.get("human_decision") == "reject"
 
+    # The path, not only the decision (docs/fix-plan-001.md, H18): the decision used to be
+    # logged before the interrupt, so the router always read "reject".
+    @staticmethod
+    def _resumed_nodes(compiled, cfg_, decision):
+        list(compiled.stream(_initial_state(), config=cfg_))
+        return [next(iter(u)) for u in
+                compiled.stream(Command(resume=decision), config=cfg_, stream_mode="updates")]
+
+    def test_approve_reaches_remediation(self, synthetic_graph, store):
+        compiled = build_graph()
+        cfg_ = _config("t-approve-path", synthetic_graph, store, _make_llm(_CANNED_HIGH))
+        nodes = self._resumed_nodes(compiled, cfg_, "approve")
+        assert nodes[:2] == ["human_review", "log_human_decision"]
+        assert "remediation" in nodes and "save_example" in nodes
+        human = [e for e in compiled.get_state(cfg_).values["edge_log"] if e["router"] == "human"]
+        assert [e["edge_taken"] for e in human] == ["approve"]
+
+    def test_the_approver_is_recorded(self, synthetic_graph, store):
+        # docs/fix-plan-001.md, H44: who approved is kept with the decision
+        compiled = build_graph()
+        cfg_ = _config("t-approver", synthetic_graph, store, _make_llm(_CANNED_HIGH))
+        list(compiled.stream(_initial_state(), config=cfg_))
+        final = compiled.invoke(Command(resume={"decision": "approve", "by": "oidc:idp#alice"}),
+                                config=cfg_)
+        assert final["human_decision"] == "approve"
+        assert final["human_decided_by"] == "oidc:idp#alice"
+        human = [e for e in final["edge_log"] if e["router"] == "human"]
+        assert human[-1]["snapshot"]["decided_by"] == "oidc:idp#alice"
+
+    def test_reject_does_not_reach_remediation(self, synthetic_graph, store):
+        compiled = build_graph()
+        cfg_ = _config("t-reject-path", synthetic_graph, store, _make_llm(_CANNED_HIGH))
+        nodes = self._resumed_nodes(compiled, cfg_, "reject")
+        assert "remediation" not in nodes                                        # control
+        human = [e for e in compiled.get_state(cfg_).values["edge_log"] if e["router"] == "human"]
+        assert [e["edge_taken"] for e in human] == ["reject"]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Retry path — LOW confidence auto-retries then escalates to human
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestWorkflowRetry:
-    def test_low_confidence_triggers_retry(self, synthetic_graph, store):
+    def test_an_llm_low_does_not_retry_nor_lower_the_diagnosis(self, synthetic_graph, store):
+        # docs/structured-in-product.md, rules 2 and 4: the confidence is the diagnosis'; the
+        # LLM's own label is recorded, it no longer drives the retry loop
         llm = _make_llm_sequence(_CANNED_LOW, _CANNED_HIGH)
         compiled = build_graph()
         cfg_ = _config("t-retry", synthetic_graph, store, llm)
-
-        list(compiled.stream(_initial_state(), config=cfg_))
-
-        # analyze_low(1) + analyze_high(1) = 2 LLM calls (hypothesize uses evidence-first)
-        assert llm.generate.call_count == 2
-
-    def test_after_retry_confidence_is_high(self, synthetic_graph, store):
-        llm = _make_llm_sequence(_CANNED_LOW, _CANNED_HIGH)
-        compiled = build_graph()
-        cfg_ = _config("t-retry-conf", synthetic_graph, store, llm)
-
         events = list(compiled.stream(_initial_state(), config=cfg_))
         payload = [e for e in events if "__interrupt__" in e][0]["__interrupt__"][0].value
+        assert llm.generate.call_count == 1
+        assert payload["confidence"] == "MEDIUM"                    # config.drift, score 0.65
 
-        assert payload["confidence"].upper().startswith("HIGH")
 
     def test_max_retries_not_exceeded(self, synthetic_graph, store):
         # Always LOW — exhausts all paths then escalates to human_review.
@@ -435,8 +464,7 @@ class TestAnchorNode:
             anchor_node({}, self._cfg(synthetic_graph, provider=fake_provider))
 
         mock_collect.assert_called_once()
-        _, kwargs = mock_collect.call_args
-        assert kwargs.get("provider") is fake_provider or mock_collect.call_args[0][1] is fake_provider
+        assert mock_collect.call_args.kwargs["sources"][0][0] is fake_provider
 
     def test_fails_silently_on_exception(self, synthetic_graph):
         """AnchorEngine crash must not propagate — analysis must continue."""
@@ -451,28 +479,38 @@ class TestAnchorNode:
         g = build_graph()
         assert "anchor" in g.nodes
 
-    def test_gitops_stores_provider_in_config(self, synthetic_graph, monkeypatch):
-        """gitops_node stores provider so anchor_node can reuse it."""
-        import config as cfg
-        monkeypatch.setattr(cfg, "GITOPS_ENABLED", True)
-        monkeypatch.setattr(cfg, "GITOPS_REPO_URL", "https://github.com/org/repo")
-        monkeypatch.setattr(cfg, "GITOPS_BRANCH", "main")
-        monkeypatch.setattr(cfg, "GITHUB_TOKEN", None)
+    def test_gitops_sources_reach_anchor_node_through_langgraph(self, synthetic_graph, monkeypatch):
+        """The provider used by gitops_node reaches anchor_node in a real LangGraph run.
 
+        docs/fix-plan-001.md, H10: it was stored in config, which LangGraph does not pass from
+        one node to the next, so the rendered-manifest anchors never ran. Calling the two nodes
+        by hand with one shared dict (as this test used to) could not see it.
+        """
+        import config as cfg
         from unittest.mock import patch, MagicMock
+        from langgraph.graph import StateGraph, START, END
+        from workflow.nodes import gitops_node
+        from workflow.state import RCAState
+        monkeypatch.setattr(cfg, "GITOPS_ENABLED", True)
+        monkeypatch.setattr(cfg, "GIT_REPOS", [{"url": "https://github.com/org/repo.git",
+                                                "branch": "main", "charts_path": "charts"}])
         fake_provider = MagicMock()
         fake_collector = MagicMock()
         fake_collector.collect.return_value = []
 
-        config = {"configurable": {"graph": synthetic_graph}}
-
-        with patch("ingestion.git_provider.GithubProvider", return_value=fake_provider), \
-             patch("ingestion.gitops_collector.GitopsCollector",
-                   return_value=fake_collector):
-            from workflow.nodes import gitops_node
-            gitops_node({}, config)
-
-        assert config["configurable"].get("provider") is fake_provider
+        b = StateGraph(RCAState)
+        b.add_node("gitops", gitops_node)
+        b.add_node("anchor", anchor_node)
+        b.add_edge(START, "gitops")
+        b.add_edge("gitops", "anchor")
+        b.add_edge("anchor", END)
+        with patch("ingestion.git_provider.make_provider", return_value=fake_provider) as mk, \
+             patch("ingestion.gitops_collector.GitopsCollector", return_value=fake_collector), \
+             patch("ingestion.anchor_engine.AnchorEngine.collect", return_value=[]) as collect:
+            b.compile().invoke({"query": "q"}, {"configurable": {"graph": synthetic_graph,
+                                                               "thread_id": "t-h10"}})
+        assert mk.call_args.args[0] == "https://github.com/org/repo.git"   # cloned, GitHub too
+        assert collect.call_args.kwargs["sources"] == [(fake_provider, "charts")]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -480,114 +518,34 @@ class TestAnchorNode:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestHypothesizeNode:
-    """
-    hypothesize_node is evidence-first: KB examples → RemediationEngine →
-    ontology chains → LLM fill-in only when pool < MAX_PATHS.
-    """
+    """The paths are the ranked structured diagnoses (docs/structured-in-product.md, rule 7)."""
 
-    def _cfg(self, graph, llm=None, store=None):
-        c = {"configurable": {"graph": graph}}
-        if llm is not None:
-            c["configurable"]["llm"] = llm
-        if store is not None:
-            c["configurable"]["store"] = store
-        return c
+    @staticmethod
+    def _state(diagnoses, outcome="cause"):
+        return {"diagnosis": {"outcome": outcome, "diagnoses": diagnoses}}
 
-    def _llm_with(self, response):
-        llm = MagicMock()
-        llm.is_available.return_value = True
-        llm.model_is_pulled.return_value = True
-        llm.model = "mistral"
-        llm.generate.return_value = response
-        return llm
+    @staticmethod
+    def _d(rule, cause, score):
+        return {"family": rule, "cause": cause, "location": f"Pod/prod/{rule}", "score": score,
+                "label": "MEDIUM", "rule": rule, "checks": [], "signal_ids": ["s1"]}
 
-    def _empty_graph(self):
-        """Graph with no unhealthy entities — rules find nothing, LLM is the only source."""
-        from ontology.graph import OntologyGraph
-        from ontology.entities import Pod
-        g = OntologyGraph()
-        g.add_entity(Pod(uid="p-ok", name="healthy", namespace="prod", phase="Running"))
-        return g
+    def test_paths_follow_the_diagnosis_ranking(self):
+        out = hypothesize_node(self._state([self._d("a", "cause A here", 0.8),
+                                            self._d("b", "cause B here", 0.6)]), {})
+        assert out["current_hypothesis"] == "cause A here"
+        assert out["candidate_paths"] == ["cause B here"]
+        assert out["reasoning_history"] == []
+        assert [s["rule_id"] for s in out["hypothesis_sources"]] == ["a", "b"]
 
-    # ── Evidence-first behaviour ──────────────────────────────────────────────
+    def test_an_abstention_gives_no_path(self):                          # control
+        out = hypothesize_node(self._state([], outcome="no_incident"), {})
+        assert "current_hypothesis" not in out and out["hypothesis_sources"] == []
 
-    def test_evidence_hypotheses_take_priority_over_llm(self, synthetic_graph):
-        """Rule engine finds drift/unhealthy entities → those hypotheses rank first."""
-        llm = self._llm_with(_CANNED_HYPOTHESES)
-        result = hypothesize_node({"query": "pods crashing"}, self._cfg(synthetic_graph, llm))
-        assert result.get("current_hypothesis")
-        # Must not be the empty-result fallback
-        assert "candidate_paths" in result
-
-    def test_candidate_paths_capped_at_max_paths(self, synthetic_graph):
-        llm = self._llm_with(_CANNED_HYPOTHESES)
-        result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
-        total = 1 + len(result.get("candidate_paths") or [])
-        assert total <= MAX_PATHS
-
-    def test_hypothesis_sources_populated_when_rules_match(self, synthetic_graph):
-        """Rule engine hits are stored in hypothesis_sources for UI display."""
-        llm = self._llm_with(_CANNED_HYPOTHESES)
-        result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
-        sources = result.get("hypothesis_sources") or []
-        assert isinstance(sources, list)
-        # synthetic_graph has drift annotations → at least one rule fires
-        assert len(sources) >= 1
-        assert "rule_id" in sources[0]
-        assert "weight" in sources[0]
-
-    def test_resets_reasoning_history(self, synthetic_graph):
-        llm = self._llm_with(_CANNED_HYPOTHESES)
-        result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
-        assert result["reasoning_history"] == []
-
-    def test_skips_when_no_graph(self):
-        llm = self._llm_with(_CANNED_HYPOTHESES)
-        assert hypothesize_node({}, {"configurable": {"llm": llm}}) == {}
-
-    # ── LLM fill-in (empty graph — no evidence from rules/ontology) ───────────
-
-    def test_llm_used_when_no_evidence_available(self):
-        """With no unhealthy entities and no store, LLM provides all hypotheses."""
-        llm = self._llm_with(_CANNED_HYPOTHESES)
-        result = hypothesize_node({"query": "pods crashing"}, self._cfg(self._empty_graph(), llm))
-        assert result.get("current_hypothesis")
-        assert len(result.get("candidate_paths") or []) >= 1
-
-    def test_llm_fill_in_uses_h1_h2_h3_format(self):
-        """LLM-sourced hypotheses on empty graph: first parsed line becomes H1."""
-        llm = self._llm_with(_CANNED_HYPOTHESES)
-        result = hypothesize_node({"query": "q"}, self._cfg(self._empty_graph(), llm))
-        # H1 from canned response
-        assert result["current_hypothesis"] == (
-            "Pod api-xyz CrashLoopBackOff — container cannot start due to missing volume mount"
-        )
-
-    def test_llm_fill_in_parses_numbered_list(self):
-        numbered = "1. OOM kill in api-xyz container\n2. PVC pending — no PV available\n3. Deployment replica drift"
-        llm = self._llm_with(numbered)
-        result = hypothesize_node({"query": "q"}, self._cfg(self._empty_graph(), llm))
-        assert result.get("current_hypothesis") == "OOM kill in api-xyz container"
-
-    def test_llm_fill_in_parses_bullet_list(self):
-        bullets = "- CrashLoopBackOff in api container\n- Missing ConfigMap env vars\n- Image pull error"
-        llm = self._llm_with(bullets)
-        result = hypothesize_node({"query": "q"}, self._cfg(self._empty_graph(), llm))
-        assert result.get("current_hypothesis") == "CrashLoopBackOff in api container"
-
-    def test_evidence_returned_even_when_llm_fails(self, synthetic_graph):
-        """LLM raises but rule engine found evidence — node still returns hypotheses."""
-        llm = self._llm_with("")
-        llm.generate.side_effect = RuntimeError("Ollama unavailable")
-        result = hypothesize_node({"query": "q"}, self._cfg(synthetic_graph, llm))
-        # synthetic_graph has drift entities → rules fire → result not empty
-        assert result.get("current_hypothesis")
-
-    def test_empty_graph_llm_garbage_returns_empty(self):
-        """No evidence + LLM returns unparseable output → single-path fallback."""
-        llm = self._llm_with("I cannot determine the root cause.")
-        result = hypothesize_node({"query": "q"}, self._cfg(self._empty_graph(), llm))
-        assert result == {}
+    def test_the_old_engine_is_not_called(self):
+        from unittest.mock import patch
+        with patch("rca.remediation_engine.RemediationEngine.score",
+                   side_effect=AssertionError("old engine called")):
+            hypothesize_node(self._state([self._d("a", "cause A here", 0.8)]), {})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -718,19 +676,14 @@ class TestWorkflowMultiPath:
 
         assert len(interrupt_events) == 1
 
-    def test_interrupt_payload_contains_reasoning_history(self, synthetic_graph, store):
-        # Trigger at least one path switch
+    def test_one_path_per_diagnosis_no_llm_driven_switch(self, synthetic_graph, store):
         responses = [_CANNED_LOW] * (MAX_RETRIES + 1) + [_CANNED_HIGH]
         llm = _make_llm_sequence(*responses)
         compiled = build_graph()
         cfg_ = _config("t-history", synthetic_graph, store, llm)
-
         events = list(compiled.stream(_initial_state(), config=cfg_))
         payload = [e for e in events if "__interrupt__" in e][0]["__interrupt__"][0].value
-
-        assert "reasoning_history" in payload
-        assert "paths_explored" in payload
-        assert payload["paths_explored"] >= 2
+        assert payload["paths_explored"] == 1 and payload["reasoning_history"] == []
 
     def test_reasoning_history_entries_have_required_fields(self, synthetic_graph, store):
         responses = [_CANNED_LOW] * (MAX_RETRIES + 1) + [_CANNED_HIGH]
@@ -747,20 +700,6 @@ class TestWorkflowMultiPath:
             assert "confidence" in entry
             assert "summary" in entry
 
-    def test_best_path_selected_over_current(self, synthetic_graph, store):
-        # Path 1: HIGH (archived), Path 2: LOW (current) → select_best restores HIGH
-        responses = [_CANNED_HIGH] + [_CANNED_LOW] * (MAX_RETRIES + 1)
-        # Actually this won't trigger path switch because HIGH goes straight to review.
-        # Instead: LOW path1 exhausted → switch → HIGH path2 → select_best keeps HIGH
-        responses = [_CANNED_LOW] * (MAX_RETRIES + 1) + [_CANNED_HIGH]
-        llm = _make_llm_sequence(*responses)
-        compiled = build_graph()
-        cfg_ = _config("t-select-best", synthetic_graph, store, llm)
-
-        events = list(compiled.stream(_initial_state(), config=cfg_))
-        payload = [e for e in events if "__interrupt__" in e][0]["__interrupt__"][0].value
-
-        assert payload["confidence"].upper().startswith("HIGH")
 
     def test_interrupt_payload_contains_edge_log(self, synthetic_graph, store):
         llm = _make_llm(_CANNED_HIGH)
@@ -1004,9 +943,10 @@ class TestExampleLookup:
         }
         result = save_example_node(
             state, {"configurable": {"graph": synthetic_graph, "store": store, "example_dir": tmp_path}})
-        assert "ingestion_stats" in result or result == {} or "save_example" in (result.get("ingestion_stats") or {})
+        # docs/fix-plan-001.md H6: the node reports the id of what it saved
         saved = list(tmp_path.glob("*.json"))
         assert len(saved) == 1
+        assert result["ingestion_stats"]["save_example"]["id"] in saved[0].read_text()
         assert json.loads(saved[0].read_text())["root_cause"] == "memory limit too low"
 
 

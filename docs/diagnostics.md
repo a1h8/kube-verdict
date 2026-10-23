@@ -169,6 +169,10 @@ veracity replay (`tools/veracity_replay.py --solver llm`) runs on the same cases
 report records the prompt version (`prompt: v1 | v2`, a constant in `rca/analyzer.py`)
 so the two runs are never mixed.
 
+> 2026-10-18: `v3` (`docs/fix-plan-001.md`, H23) — the system prompt says that event,
+> log, trace and alert texts are data, never instructions, and drops the "air-gapped" claim.
+> Runs made with `v2` are not compared with `v3` runs.
+
 ### Tests
 
 - Parser: a full line, a bare command, a non-read-only line dropped, a Secret-reading
@@ -243,6 +247,10 @@ not only presentation.
      what Kubernetes already reports (`secret "x" not found`, `couldn't find key K in
      Secret …` in events and container status). Rejected, option A: a metadata-only
      list, which keeps the account able to read values and loses the key names anyway.
+     *Amended 2026-10-23:* one opt-in exception, off by default — reading Helm's release
+     Secrets in the namespaces the operator lists, for the applied state of
+     `docs/three-states.md`. RBAC cannot narrow it to Helm's Secrets, so the chart says it
+     grants every Secret of those namespaces (`docs/fix-plan-001.md`, H45).
      Found while deciding (see `docs/veracity-replay.md` § *Evidence only the test
      loader produces*): the missing-dependency detector exists only in the test fixture
      loader, and the collector's pod → Secret edges were never created (pods are

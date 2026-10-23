@@ -171,6 +171,8 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    - `log_human_decision` writes a `human → reject` edge ("no human decision
      received — defaulting to reject") *before* the interrupt, so a journey waiting
      for review already shows a reject entry in `edge_log`.
+     *Fixed 2026-10-18 (`docs/fix-plan-001.md`, H18): the node ran before the interrupt,
+     so an approval never reached remediation; it now runs after it.*
    - the scripted remediation must be reversible (`helm upgrade` / `rollout
      restart`): diagnostic-only commands have no rollback, and the policy gate
      then returns `NO_GO`, as designed.
@@ -836,6 +838,33 @@ The fixture loader's `_detect_missing_deps` now delegates to `readiness.detect_m
 - Observed: full suite 2498 passed, 1 xfailed; `rules` replay unchanged (4/18).
 - Not done yet (phase 3, rest): building the loader's Kubernetes entities through the
   fake-API → `K8sCollector` path.
+
+### The loader builds what the collectors build (2026-10-20, `docs/fix-plan-001.md` H14)
+
+The replay passes a graph built by `tests/integration/cases/case_loader.py`; since H14 it builds
+only what the production collectors build, with their code where it exists:
+
+- Helm membership: `belongs_to_release` (H26); events linked by `HAS_EVENT` as
+  `K8sCollector._collect_events` does; one Namespace and `IN_NAMESPACE` edges; PolicyReports
+  read by `PolicyCollector._process_report`; the declared / applied / live comparisons
+  (`docs/three-states.md`); missing dependencies by `ingestion.readiness.detect_missing` with
+  what production knows.
+- Removed from the loader because production does not build them: the `drift.helm.*`
+  comparison of a values file with the deployed values (F11), RoleBinding and NetworkPolicy
+  lists passed to `detect_missing` (`missing.rbac.*`, `netpol.*`), the typed ResourceQuota and
+  its `QUOTA_BLOCKS` edge, and a call to `AnchorEngine.annotate` that did not exist.
+
+Gaps that remain, per case — what live collection would add that the fixtures do not hold:
+
+| Gap | Cases | Effect |
+|---|---|---|
+| no ReplicaSet objects (the owner chain is read from `pod-template-hash`, H25) | all | the walk reaches the Deployment only through its selector |
+| RoleBindings and NetworkPolicies not collected live ("Not in this PR") | h005, h006 | no `rbac.unbound`; NetworkPolicies collected since `docs/failing-cases-002.md` S4; h005's evidence is its logs (S1) |
+| ResourceQuotas, LimitRanges, HPAs not typed live ("Not in this PR") | h007, h010 | no quota or HPA object in the graph |
+| no live Deployment in the fixture | h002, h009 | comparison B reports nothing about it (a kind not listed is unknown, not missing) |
+
+Measured: structured replay 15/19 before and after; one diagnosis changes — h005's `rbac`
+score drops from 0.65 to 0.5 (its `rbac.unbound` signal was loader-only).
 
 ## h026 — negative: a healthy rolling update
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from decision.models import DecisionResult, IncidentReport
 from decision.policy_gate import evaluate as pg_evaluate
+from decision.labels import normalize_label
 
 # LLM diagnosis confidence label → policy-gate score.
 #   LOW / MEDIUM → HUMAN_REVIEW (operator decides)
@@ -27,7 +28,7 @@ class DecisionEngine:
 
     def score_for(self, confidence: str) -> float:
         """Map an LLM diagnosis confidence label to a policy-gate score."""
-        return _LLM_SCORE.get((confidence or "").upper(), _DEFAULT_SCORE)
+        return _LLM_SCORE.get(normalize_label(confidence), _DEFAULT_SCORE)   # "HIGH:" too (H20)
 
     def decide(
         self,
@@ -39,6 +40,7 @@ class DecisionEngine:
         mc_win_rate: float = 1.0,
         max_switches_reached: bool = False,
         command_count: int | None = None,
+        score: float | None = None,
     ) -> DecisionResult:
         """Classify a remediation given the report and its safety context.
 
@@ -46,7 +48,9 @@ class DecisionEngine:
         ``risk=HIGH`` (blast radius unknown) and ``rollback_available=False``
         both push away from AUTO.
         """
-        score = self.score_for(report.confidence)
+        # the structured diagnosis' score when given (docs/structured-in-product.md, rule 6);
+        # the LLM label's mapping otherwise
+        score = self.score_for(report.confidence) if score is None else score
         gate = pg_evaluate(
             score=score,
             risk=risk,

@@ -63,16 +63,13 @@ from typing import Any
 
 import yaml
 
-from ingestion.anchor_engine import AnchorEngine
 from ingestion.helm_drift import HelmDriftDetector
-from ingestion.chart_parser import flatten_values
 from ingestion.loki_source import LokiSource
 from ingestion.otel_backend import OtelBackend, in_namespace
 from ingestion.otel_collector import OtelCollector
 from ingestion.prometheus_collector import PrometheusCollector
 from ontology.entities import (
-    Deployment, HelmRelease, K8sEvent, Namespace, Pod,
-    PolicyViolation, ResourceQuota,
+    Deployment, HelmRelease, K8sEvent, Namespace, PersistentVolumeClaim, Pod,
 )
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
@@ -129,7 +126,7 @@ def load_case(case_dir: Path) -> dict:
 def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
     """
     Build an OntologyGraph from a loaded native case dict.
-    Runs HelmDriftDetector + AnchorEngine on the result.
+    Runs HelmDriftDetector on the result; the workflow's own nodes do the rest.
 
     ``wire_signals=False`` builds the Kubernetes-only graph: the Prometheus /
     Loki / OTel fixtures are left for the workflow's own collector nodes to
@@ -148,17 +145,17 @@ def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
     )
     graph.add_entity(helm_release)
 
-    # ── 2. Deployments ──────────────────────────────────────────────────────
-    for dep_raw in case["observed"].get("deployments", []):
-        dep = _deployment_from_kubectl(dep_raw)
-        graph.add_entity(dep)
-        graph.add_edge(Edge(dep.uid, helm_release.uid, RelationshipType.MANAGED_BY_HELM))
-
-    # ── 3. Pods ─────────────────────────────────────────────────────────────
-    for pod_raw in case["observed"].get("pods", []):
-        pod = _pod_from_kubectl(pod_raw)
-        graph.add_entity(pod)
-        graph.add_edge(Edge(pod.uid, helm_release.uid, RelationshipType.MANAGED_BY_HELM))
+    # ── 2. Deployments, 3. Pods ─────────────────────────────────────────────
+    # Linked to the case's release by the production rule (release-name annotation, else the
+    # instance label), not all of them: a decoy of another release is not its resource
+    # (docs/fix-plan-001.md, H26 / D2.1).
+    from ingestion.helm_collector import belongs_to_release
+    for raw, build in ([(d, _deployment_from_kubectl) for d in case["observed"].get("deployments", [])]
+                       + [(p, _pod_from_kubectl) for p in case["observed"].get("pods", [])]):
+        entity = build(raw)
+        graph.add_entity(entity)
+        if belongs_to_release(entity, helm_release.name):
+            graph.add_edge(Edge(entity.uid, helm_release.uid, RelationshipType.MANAGED_BY_HELM))
 
     if wire_signals:
         # ── 3b. OTel error traces (fixture) ────────────────────────────────
@@ -168,44 +165,86 @@ def build_graph(case: dict, wire_signals: bool = True) -> OntologyGraph:
         _wire_prometheus_alerts(graph, case.get("prometheus_alerts", []))
 
         # ── 3d. Loki log streams (fixture) ─────────────────────────────────
-        _wire_loki_logs(graph, case.get("loki_streams", []))
+        _wire_loki_logs(graph, case.get("loki_streams", []), case["expect"].get("query", ""))
+
+    # ── 3e. PersistentVolumeClaims — built as K8sCollector._collect_pvcs builds them
+    for pvc_raw in case["observed"].get("pvcs", []):
+        meta, spec = pvc_raw.get("metadata", {}), pvc_raw.get("spec", {})
+        graph.add_entity(PersistentVolumeClaim(
+            uid=meta.get("uid") or f"pvc:{meta.get('namespace', '')}/{meta.get('name', '')}",
+            name=meta.get("name", ""), namespace=meta.get("namespace"), labels=meta.get("labels", {}),
+            requested_storage=((spec.get("resources") or {}).get("requests") or {}).get("storage", ""),
+            access_modes=spec.get("accessModes") or [],
+            status_phase=(pvc_raw.get("status") or {}).get("phase", "Pending"),
+            storage_class=spec.get("storageClassName") or "", volume_name=spec.get("volumeName") or "",
+            raw=pvc_raw))
 
     # ── 4. Events ───────────────────────────────────────────────────────────
+    # linked to the object they are about, as K8sCollector._collect_events does (HAS_EVENT):
+    # the loader built no such edge, so the graph walk never reached an event (H14)
+    from ingestion.k8s_collector import K8sCollector
     for evt_raw in case["observed"].get("events", []):
         evt = _event_from_kubectl(evt_raw)
         graph.add_entity(evt)
+        involved = K8sCollector._find_by_name(graph, evt.involved_name, evt.namespace, evt.involved_kind)
+        if involved:
+            graph.add_edge(Edge(involved.uid, evt.uid, RelationshipType.HAS_EVENT))
 
-    # ── 5. ResourceQuotas ──────────────────────────────────────────────────
-    for rq_raw in case["observed"].get("resource_quotas", []):
-        rq = _resource_quota_from_kubectl(rq_raw)
-        if rq is None:
-            continue
-        graph.add_entity(rq)
-        if rq.namespace:
-            ns_entity = _find_entity(graph, "Namespace", rq.namespace, "")
-            if ns_entity is None:
-                ns_entity = Namespace(uid=f"ns-{rq.namespace}", name=rq.namespace)
-                graph.add_entity(ns_entity)
-            if rq.exhausted_resources or rq.near_limit_resources:
-                graph.add_edge(Edge(rq.uid, ns_entity.uid, RelationshipType.QUOTA_BLOCKS))
+    # ── 5. Namespaces — as K8sCollector does: one Namespace, IN_NAMESPACE from each object.
+    # ResourceQuotas are not typed live (fix plan: "Not in this PR"), so the loader builds no
+    # ResourceQuota and no QUOTA_BLOCKS edge either (H14, F6): the fixture's quota.yaml stays
+    # as data, as the live discovery would carry it.
+    for ns_name in sorted({e.namespace for e in graph.entities() if e.namespace}):
+        ns_entity = _find_entity(graph, "Namespace", ns_name, "")
+        if ns_entity is None:
+            ns_entity = Namespace(uid=f"ns-{ns_name}", name=ns_name)
+            graph.add_entity(ns_entity)
+        for e in list(graph.entities()):
+            if e.namespace == ns_name and e.kind.value in ("Pod", "Deployment", "StatefulSet",
+                                                           "DaemonSet", "Service"):
+                graph.add_edge(Edge(e.uid, ns_entity.uid, RelationshipType.IN_NAMESPACE))
 
-    # ── 6. Value drift: values.yaml vs helm/release.json ───────────────────
-    live_values = case["observed"].get("helm_release_values")
-    if live_values and case["helm_values"]:
-        _annotate_value_drift(graph, helm_release, case["helm_values"], live_values)
+    # ── 6. Value drift: values.yaml vs helm/release.json — not made here ───
+    # Production has no path that compares a values file to the deployed values (the GitOps
+    # render uses the deployed values, docs/fix-plan-001.md F11 / H48): a drift written here was
+    # evidence only the test could see. The fixture's helm/release.json stays as data.
+
+    # ── 6b. Declared → applied → live (docs/three-states.md), the production comparisons ──
+    # helm/manifest.yaml is what `helm get manifest` returns; rendered/declared.yaml (h012:
+    # rendered/expected.yaml) is Git's `helm template`. Both are renders of the case's chart/,
+    # checked by a helm-guarded test.
+    case_dir = Path(case["case_dir"])
+    applied_path = case_dir / "helm" / "manifest.yaml"
+    declared_path = next((p for p in (case_dir / "rendered" / "declared.yaml",
+                                      case_dir / "rendered" / "expected.yaml") if p.exists()), None)
+    if applied_path.exists():
+        from ingestion.manifest_differ import ManifestDiffer, compare_applied_to_live
+        helm_release.applied_manifest = [d for d in yaml.safe_load_all(applied_path.read_text())
+                                         if isinstance(d, dict) and d.get("kind")]
+        # a kind the fixture does not hold was not "listed": its objects are unknown, not missing
+        listed = {k for k, key in (("Deployment", "deployments"), ("StatefulSet", "statefulsets"),
+                                   ("Service", "services"), ("ConfigMap", "configmaps"))
+                  if case["observed"].get(key)}
+        compare_applied_to_live(graph, covered=lambda kind, _ns: kind in listed)   # B
+        if declared_path is not None:                                           # A
+            declared = [d for d in yaml.safe_load_all(declared_path.read_text()) if isinstance(d, dict)]
+            ManifestDiffer(track_orphans=False).diff_manifests(
+                declared, helm_release.applied_manifest, graph,
+                release_uid=helm_release.uid, namespace=ns)
 
     # ── 7. Policy violations ─────────────────────────────────────────────
+    # read by the production PolicyCollector's own parser, not a loader copy (H14)
+    from ingestion.policy_collector import PolicyCollectResult, PolicyCollector
+    policy = PolicyCollector.__new__(PolicyCollector)
+    policy_result = PolicyCollectResult()
     for report in case.get("policy_reports", []):
-        _ingest_policy_report(report, graph)
+        policy._process_report(report, graph, policy_result)
 
     # ── 8. Helm drift detection (pod OOMKilled, replica mismatch…) ─────────
     HelmDriftDetector().detect_all(graph)
 
-    # ── 9. Anchors from declared Helm values ────────────────────────────────
-    try:
-        AnchorEngine().annotate(graph)
-    except Exception:
-        pass  # AnchorEngine is best-effort in test context
+    # ── 9. Anchors: made by the workflow's own anchor node on this graph. The loader's call
+    # here was to a method that does not exist, inside `except: pass` — it never ran (H14).
 
     # ── 10. Missing deployment dependencies ─────────────────────────────────
     _detect_missing_deps(graph, case["observed"])
@@ -418,7 +457,7 @@ def _load_loki_streams(loki_dir: Path) -> list[dict]:
     return streams
 
 
-def _wire_loki_logs(graph: OntologyGraph, streams: list[dict]) -> None:
+def _wire_loki_logs(graph: OntologyGraph, streams: list[dict], query: str = "") -> None:
     """Serve fixture log streams to the real LokiSource.collect().
 
     Only the private _query is replaced. Like Loki it matches the LogQL label
@@ -433,7 +472,7 @@ def _wire_loki_logs(graph: OntologyGraph, streams: list[dict]) -> None:
 
     source = LokiSource(url="http://fixture.invalid")
     source._query = fixture_loki_query(streams)
-    source.collect(graph)
+    source.collect(graph, query=query)       # the workload the query names is read too (S1)
 
 
 def fixture_loki_query(streams: list[dict]):
@@ -443,87 +482,20 @@ def fixture_loki_query(streams: list[dict]):
     and answers newest-first; the time window is not applied (frozen fixtures).
     """
     def _query(logql: str, start_ns: int, end_ns: int) -> list[tuple[int, str]]:
-        wanted = dict(_LOGQL_MATCHER.findall(logql))
+        selector, _, line_filter = logql.partition(" |~ ")
+        wanted = dict(_LOGQL_MATCHER.findall(selector))
+        keep = re.compile(line_filter.strip("`").removeprefix("(?i)"), re.I) if line_filter else None
         rows = [
             (int(ts), line)
             for s in streams
             if all(s.get("stream", {}).get(k) == v for k, v in wanted.items())
             for ts, line in s.get("values", [])
+            if keep is None or keep.search(line)
         ]
         rows.sort(key=lambda r: r[0], reverse=True)
         return rows
 
     return _query
-
-
-def _ingest_policy_report(report: dict, graph: OntologyGraph) -> None:
-    """Parse a PolicyReport and add PolicyViolation entities to the graph."""
-    meta      = report.get("metadata", {})
-    report_ns = meta.get("namespace", "")
-    source    = _detect_policy_source(report)
-
-    for item in report.get("results", []):
-        r = item.get("result", "").lower()
-        if r not in ("fail", "warn", "error"):
-            continue
-
-        policy   = item.get("policy", "")
-        rule     = item.get("rule", "")
-        message  = item.get("message", "")
-        severity = item.get("severity", "")
-
-        resources = item.get("resources") or []
-        if not resources:
-            # Cluster-scoped or single resource reference
-            res_ref = item.get("resource")
-            if isinstance(res_ref, dict):
-                resources = [res_ref]
-
-        for res_ref in resources:
-            r_kind = res_ref.get("kind", "")
-            r_name = res_ref.get("name", "")
-            r_ns   = res_ref.get("namespace", "") or report_ns
-
-            slug = "-".join(
-                p.lower().replace("/", "_").replace(".", "-")
-                for p in [policy, rule, r_kind, r_ns or "cluster", r_name]
-            )
-            uid = f"policy-violation-{slug}"[:128]
-
-            violation = PolicyViolation(
-                uid=uid,
-                name=f"{policy}/{rule}",
-                namespace=r_ns or None,
-                policy=policy,
-                rule=rule,
-                result=r,
-                message=message,
-                severity=severity,
-                source=source,
-                resource_kind=r_kind,
-                resource_name=r_name,
-                resource_namespace=r_ns,
-            )
-            graph.add_entity(violation)
-
-            # Correlate with existing graph entity
-            entity = _find_entity(graph, r_kind, r_name, r_ns)
-            if entity is not None:
-                ann_prefix = f"policy.{policy}"
-                entity.annotations[f"{ann_prefix}.result"]   = r
-                entity.annotations[f"{ann_prefix}.severity"] = severity
-                entity.annotations[f"{ann_prefix}.rule"]     = rule
-                entity.annotations[f"{ann_prefix}.message"]  = message[:200]
-                entity.annotations[f"{ann_prefix}.source"]   = source
-                existing = {
-                    e.target_uid
-                    for e in graph._adj.get(entity.uid, [])
-                    if e.rel_type == RelationshipType.HAS_POLICY_VIOLATION
-                }
-                if uid not in existing:
-                    graph.add_edge(
-                        Edge(entity.uid, uid, RelationshipType.HAS_POLICY_VIOLATION)
-                    )
 
 
 # ---------------------------------------------------------------------------
@@ -552,12 +524,15 @@ def _detect_missing_deps(graph: OntologyGraph, observed: dict) -> None:
                 if subj.get("kind", "").lower() == "serviceaccount":
                     bound.add(subj.get("name", ""))
 
+    # RoleBindings and NetworkPolicies are not collected live (K8sCollector passes None), so
+    # their checks are skipped here too: missing.rbac.* / netpol.* existed only offline (H14,
+    # docs/test-cases.md § Live parity, divergence 1b)
+    del bound
     present = Present(
         configmaps=names("configmaps"),
         pvcs=names("pvcs"),
         serviceaccounts=names("serviceaccounts"),
-        bound_serviceaccounts=bound,
-        networkpolicies=observed.get("networkpolicies", []),
+        networkpolicies=observed.get("networkpolicies", []),     # collected live since S4
         messages=[ev.get("message", "") for ev in observed.get("events", [])],
     )
     for pod_raw in observed.get("pods", []):
@@ -611,6 +586,7 @@ def _deployment_from_kubectl(raw: dict) -> Deployment:
         name=meta.get("name", "unknown"),
         namespace=meta.get("namespace"),
         labels=meta.get("labels", {}),
+        k8s_annotations=dict(meta.get("annotations") or {}),
         replicas=spec.get("replicas", 0),
         ready_replicas=status.get("readyReplicas", 0),
         available_replicas=status.get("availableReplicas", 0),
@@ -643,6 +619,7 @@ def _pod_from_kubectl(raw: dict) -> Pod:
         name=meta.get("name", "unknown"),
         namespace=meta.get("namespace"),
         labels=meta.get("labels", {}),
+        k8s_annotations=dict(meta.get("annotations") or {}),
         phase=status.get("phase", "Unknown"),
         node_name=spec.get("nodeName", ""),
         restart_count=total_restarts,
@@ -652,25 +629,6 @@ def _pod_from_kubectl(raw: dict) -> Pod:
         owner_ref_kind=owner_kind,
         owner_ref_name=owner_name,
         raw=raw,
-    )
-
-
-def _resource_quota_from_kubectl(raw: dict) -> ResourceQuota | None:
-    meta = raw.get("metadata", {})
-    name = meta.get("name", "")
-    ns = meta.get("namespace", "")
-    if not name:
-        return None
-    spec = raw.get("spec", {})
-    status = raw.get("status", {})
-    uid = meta.get("uid") or f"resourcequota-{ns}-{name}"
-    return ResourceQuota(
-        uid=uid,
-        name=name,
-        namespace=ns or None,
-        labels=meta.get("labels", {}),
-        hard=spec.get("hard", {}),
-        used=status.get("used", {}),
     )
 
 
@@ -707,64 +665,9 @@ def _parse_ts(ts_str: str | None) -> datetime | None:
 
 
 # ---------------------------------------------------------------------------
-# Value drift: declared (values.yaml) vs live (helm get values)
-# ---------------------------------------------------------------------------
-
-def _annotate_value_drift(
-    graph: OntologyGraph,
-    release: HelmRelease,
-    declared: dict,
-    live: dict,
-) -> None:
-    """
-    Flat-compare declared values (values.yaml) vs live deployed values
-    (helm get values). Annotate the HelmRelease entity with discovered diffs.
-    """
-    flat_declared = flatten_values(declared)
-    flat_live     = flatten_values(live)
-
-    drift_count = 0
-    for key in flat_declared:
-        if key not in flat_live:
-            continue
-        d_val = str(flat_declared[key])
-        l_val = str(flat_live[key])
-        if d_val != l_val:
-            annotation_key = f"drift.helm.{key.replace('.', '_')}"
-            release.annotations[annotation_key] = (
-                f"field={key} declared='{d_val}' [values.yaml] "
-                f"observed='{l_val}' [helm-deployed] severity=warning"
-            )
-            drift_count += 1
-
-    if drift_count:
-        release.annotations["drift.helm.summary"] = (
-            f"{drift_count} value(s) differ between values.yaml and deployed release"
-        )
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _detect_policy_source(report: dict) -> str:
-    labels = report.get("metadata", {}).get("labels", {})
-    if "app.kubernetes.io/managed-by" in labels:
-        mgr = labels["app.kubernetes.io/managed-by"].lower()
-        if "kyverno" in mgr:
-            return "kyverno"
-    for k in labels:
-        if "kyverno" in k.lower():
-            return "kyverno"
-        if "gatekeeper" in k.lower():
-            return "gatekeeper"
-    annotations = report.get("metadata", {}).get("annotations", {})
-    if any("kyverno" in k.lower() for k in annotations):
-        return "kyverno"
-    source = labels.get("source", "")
-    if source:
-        return source.lower()
-    return "unknown"
 
 
 def _find_entity(graph: OntologyGraph, kind: str, name: str, namespace: str):

@@ -61,7 +61,6 @@ _CASE_QUERIES: dict[str, str] = {
     "h008_init_container_fail":    "backend pod stuck in Init, db-migrate container fails on start",
     "h009_liveness_probe_loop":    "search-service restarts every few minutes, liveness probe timing out",
     "h010_resource_quota_exceeded": "worker-service pod Pending, cannot be scheduled in staging namespace",
-    "h011_statefulset_pvc_stuck":  "kafka StatefulSet rolling update stuck on pod kafka-2",
 }
 
 

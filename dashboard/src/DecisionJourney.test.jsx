@@ -193,21 +193,50 @@ describe("DecisionJourney", () => {
     expect(screen.queryByText(/expected state \(helm template\) vs live/)).not.toBeInTheDocument();
   });
 
-  // ── B15: evidence behind the hypotheses (hypothesis_sources) ──────────────
-  it("renders the evidence panel with the rule hits and evidence lines behind each hypothesis", async () => {
+  // ── fix plan H77: the structured diagnosis, its outcome and the LLM's disagreement ────
+  const DIAGNOSED = {
+    ...SAMPLE,
+    report: {
+      ...SAMPLE.report,
+      diagnosis: {
+        outcome: "cause", failed_collectors: [],
+        diagnoses: [
+          { family: "certificate", rule: "cert.expired", location: "Issuer/production/letsencrypt-prod",
+            score: 0.65, label: "MEDIUM", cause: "The TLS certificate has expired." },
+          { family: "oom", rule: "oom.limit", location: "Deployment/production/api",
+            score: 0.5, label: "LOW", cause: "Memory limit too low." },
+        ],
+      },
+      llm_disagreement: "the LLM named another cause ('memory issue'); the structured diagnosis stands",
+      explanation: "memory issue",
+    },
+  };
+
+  it("renders the ranked diagnoses and the LLM's disagreement", async () => {
+    loadSample.mockResolvedValue({ session_id: "smp", state: DIAGNOSED });
+    render(<DecisionJourney />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
+    await screen.findByText("HUMAN REVIEW");
+
+    expect(screen.getByText(/Structured diagnosis/)).toBeInTheDocument();
+    expect(screen.getByText("cause diagnosed")).toBeInTheDocument();
+    expect(screen.getByText("cert.expired")).toBeInTheDocument();
+    expect(screen.getByText("Issuer/production/letsencrypt-prod")).toBeInTheDocument();
+    expect(screen.getByText(/#2/)).toBeInTheDocument();
+    expect(screen.getByText(/LLM disagreement/)).toBeInTheDocument();
+    expect(screen.getByText(/LLM explanation \(does not decide\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/RemediationEngine/)).not.toBeInTheDocument();
+  });
+
+  it("renders an abstention and the collectors that could not be read", async () => {
     loadSample.mockResolvedValue({
       session_id: "smp",
       state: {
         ...SAMPLE,
-        hypothesis_sources: [
-          {
-            rule_id: "cert-expired",
-            symptom: "readiness fails on every replica",
-            affected: "billing-gateway",
-            weight: 0.92,
-            evidence: ["x509: certificate has expired or is not yet valid"],
-          },
-        ],
+        report: { ...SAMPLE.report, diagnosis: {
+          outcome: "insufficient_evidence", diagnoses: [], failed_collectors: ["loki"],
+          root_cause: "Insufficient evidence: collection failed for loki." } },
       },
     });
     render(<DecisionJourney />);
@@ -215,20 +244,19 @@ describe("DecisionJourney", () => {
     fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
     await screen.findByText("HUMAN REVIEW");
 
-    expect(screen.getByText(/Evidence behind the hypotheses/)).toBeInTheDocument();
-    expect(screen.getByText("cert-expired")).toBeInTheDocument();
-    expect(screen.getByText("billing-gateway")).toBeInTheDocument();
-    expect(screen.getByText(/x509: certificate has expired/)).toBeInTheDocument();
+    expect(screen.getByText("insufficient evidence")).toBeInTheDocument();
+    expect(screen.getByText(/Could not read: loki/)).toBeInTheDocument();
+    expect(screen.queryByText(/LLM disagreement/)).not.toBeInTheDocument();
   });
 
-  it("hides the evidence panel when there are no hypothesis sources", async () => {
+  it("hides the diagnosis panel when the run has no diagnosis", async () => {
     loadSample.mockResolvedValue({ session_id: "smp", state: SAMPLE });
     render(<DecisionJourney />);
 
     fireEvent.click(screen.getByRole("button", { name: /Load sample/ }));
     await screen.findByText("HUMAN REVIEW");
 
-    expect(screen.queryByText(/Evidence behind the hypotheses/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Structured diagnosis/)).not.toBeInTheDocument();
   });
 
   it("renders a NO-GO verdict with its blocking reason", async () => {

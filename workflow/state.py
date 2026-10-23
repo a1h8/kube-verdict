@@ -11,6 +11,7 @@ class RCAState(TypedDict, total=False):
     """
     # ── Inputs ────────────────────────────────────────────────────────────────
     query: str                  # incident description
+    alert_text: str             # an alert's own words (webhook), quoted in the prompt as data
     kubeconfig: str | None
     kube_context: str | None
     namespaces: list[str]
@@ -53,17 +54,20 @@ class RCAState(TypedDict, total=False):
     edge_log: list[dict]        # [{router, edge_taken, reason, snapshot, ts}]
     _confidence_edge: str       # internal: pre-computed edge for confidence_router
     _human_edge: str            # internal: pre-computed edge for human_router
+    _infra_key: str             # internal: this run's entry in the graph/store cache (H9)
+    diagnosis: dict             # the structured diagnosis (docs/structured-in-product.md)
+    llm_disagreement: str       # set when the LLM's text names another cause than the diagnosis
 
     # ── Decision Engine (B6) ─────────────────────────────────────────────────
     mc_result: dict[str, Any]   # MCResult fields: win_rate, mean_score, std_score, is_stable, n_sims
     verdict: str                # "AUTO" | "HUMAN_REVIEW" | "NO_GO"
     verdict_reasons: list[str]  # policy_gate reasons list
     beam_switches_used: int     # how many hypothesis-path switches beam search performed
-    max_switches_reached: bool  # True when beam search hit MAX_SWITCHES
 
     # ── Control flow ──────────────────────────────────────────────────────────
     retry_count: int            # how many times analyze has been retried on current path
     human_decision: str         # "approve" | "reject" | ""
+    human_decided_by: str       # who answered the review (OIDC subject, "shared-token", …)
     _verdict_edge: str          # internal: pre-computed edge for verdict_router
     error: str
 

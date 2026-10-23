@@ -227,3 +227,20 @@ class TestMetricsServerCollectorCollect:
         c.collect(g)
         called_ns = {call.args[0] for call in c._fetch_namespace.call_args_list}
         assert called_ns == {"ns1", "ns2"}
+
+
+# ── fix plan H52: a refused listing is a failure, not "no metrics" ────────────
+
+class TestListingFailureReported:
+    def test_a_refused_listing_sets_last_error(self):
+        from kubernetes.client.exceptions import ApiException
+        c = _make_collector()
+        c._custom.list_namespaced_custom_object.side_effect = ApiException(status=403, reason="Forbidden")
+        assert c.collect(_graph_with_pod()) == 0
+        assert "403" in c.last_error
+
+    def test_a_cluster_without_pod_metrics_is_not_a_failure(self):            # control
+        c = _make_collector()
+        c._custom.list_namespaced_custom_object.return_value = {"items": []}
+        assert c.collect(_graph_with_pod()) == 0
+        assert c.last_error is None

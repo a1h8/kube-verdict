@@ -162,8 +162,21 @@ def solve_llm(case_name: str, client, run: int) -> dict:
         "fallbacks": sorted(k for k, v in stats.items() if isinstance(v, dict) and v.get("fallback")),
         "signals_mode": (stats.get("signals") or {}).get("mode"),
         "root_cause": report.get("root_cause", ""),
+        # docs/structured-in-product.md: the report's cause is the structured diagnosis; what
+        # the model adds is its explanation, graded on its own, and whether it disagreed
+        "explanation": report.get("explanation", ""),
+        "explanation_veracity": grade(report.get("explanation", ""), grading_expect(expect))["veracity"],
+        "llm_disagreement": state.get("llm_disagreement") or "",
         # docs/case-audit-001.md F8: what the model was sent and what it read
         "llm_calls": list(getattr(result.llm, "calls", [])),
+        # what the model was actually sent, verbatim: without it, what it read could not be
+        # checked afterwards (docs/fix-plan-001.md, "prompts are not recorded")
+        "prompts": list(getattr(result.llm, "analyze_prompts", [])),
+        # what the LLM proposed, and which of it has no way back (docs/veracity-replay.md
+        # § Comparison: "remediation proposed", "without an irreversible command")
+        "remediation": list(report.get("remediation") or []),
+        "unrecoverable": list((state.get("blast_radius") or {}).get("unrecoverable") or []),
+        "outcome": (state.get("diagnosis") or {}).get("outcome"),
         "num_ctx_max": getattr(client, "num_ctx_max", None),
     })
     return record
@@ -183,7 +196,25 @@ def _rate(n: int, d: int) -> str:
     return f"{n}/{d}" if d else "—"
 
 
-def render_report(records: list[dict], header: str = "") -> str:
+def _missing_records(records: list[dict], expected: dict[str, list[tuple[str, int]]] | None) -> list[dict]:
+    """A record per expected run that was not recorded: it counts, as a FAIL (fix plan H7)."""
+    have = {(r["solver"], r["case"], r["run"]) for r in records}
+    out = []
+    for solver, runs in (expected or {}).items():
+        for case_name, run in runs:
+            if (solver, case_name, run) not in have:
+                expect = json.loads((CASES_ROOT / case_name / "expect.json").read_text())
+                rec = _base_record(case_name, expect, solver, "", run)
+                rec.update(veracity="MISSING", reason="run not recorded", answerable=None)
+                out.append(rec)
+    return out
+
+
+def render_report(records: list[dict], header: str = "",
+                  expected: dict[str, list[tuple[str, int]]] | None = None) -> str:
+    """Rates over the *expected* runs when they are given: a run that was lost is a FAIL, not a
+    smaller denominator (fix plan H7)."""
+    records = list(records) + _missing_records(records, expected)
     lines = ["# Veracity replay report", ""]
     if header:
         lines += [header, ""]
@@ -193,8 +224,8 @@ def render_report(records: list[dict], header: str = "") -> str:
         rows = [r for r in records if r["solver"] == solver]
         model = ", ".join(sorted({r["model"] for r in rows if r["model"]})) or "—"
         lines += [f"## {solver} ({model})", "",
-                  "| Tier / case | Pass | Answerable | Model errors | Overconfident | False alarms | Mean wall s |",
-                  "|---|---|---|---|---|---|---|"]
+                  "| Tier / case | Pass | Missing | Answerable | Model errors | Overconfident | False alarms | Mean wall s |",
+                  "|---|---|---|---|---|---|---|---|"]
         groups: list[tuple[str, list[dict]]] = []
         for tier in TIERS:
             tier_rows = [r for r in rows if r["tier"] == tier]
@@ -212,7 +243,8 @@ def render_report(records: list[dict], header: str = "") -> str:
             false_alarms = sum(r.get("expected_outcome", "cause") != "cause"
                                and r["veracity"] == "FAIL" for r in rs)
             wall = sum(r.get("wall_s") or 0 for r in rs) / len(rs)
-            lines.append(f"| {label} | {_rate(passed, len(rs))} | "
+            missing = sum(r["veracity"] == "MISSING" for r in rs)
+            lines.append(f"| {label} | {_rate(passed, len(rs))} | {missing} | "
                          f"{_rate(sum(bool(r['answerable']) for r in ans), len(ans))} | "
                          f"{model_err} | {over} | {false_alarms} | {wall:.1f} |")
         lines.append("")
@@ -268,6 +300,15 @@ def regrade(records_dir: Path) -> str:
     return "\n".join(lines)
 
 
+def _record_failure(out_dir: Path, solver: str, case_name: str, run: int, why: str) -> None:
+    """A run that produced no record is said, and kept: ``failures.jsonl`` (fix plan R1)."""
+    print(f"{case_name} run {run}: ERROR — {why} (not recorded; --resume retries it)", file=sys.stderr)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with (out_dir / "failures.jsonl").open("a") as fh:
+        fh.write(json.dumps({"solver": solver, "case": case_name, "run": run, "why": why,
+                             "at": datetime.now(timezone.utc).isoformat()}) + "\n")
+
+
 def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
     """One llm run in its own process, killed after REPLAY_RUN_TIMEOUT seconds.
 
@@ -277,11 +318,20 @@ def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
     timeout = int(os.environ.get("REPLAY_RUN_TIMEOUT", "1800"))
     cmd = [sys.executable, str(Path(__file__).resolve()), "--solver", solver,
            "--cases", _key(case_name), "--child-run", str(run), "--out", str(out_dir)]
+    # the child's exit code and its record are both checked: a child that died (OOM-killed,
+    # crash at import) used to leave nothing at all (fix plan R1)
     try:
-        subprocess.run(cmd, timeout=timeout, check=False)
+        done = subprocess.run(cmd, timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
-        print(f"{case_name} run {run}: ERROR — no answer within {timeout}s, process killed "
-              "(not recorded; --resume retries it)", file=sys.stderr)
+        _record_failure(out_dir, solver.partition(":")[0], case_name, run,
+                        f"no answer within {timeout}s, process killed")
+        return
+    if done.returncode != 0:
+        _record_failure(out_dir, solver.partition(":")[0], case_name, run,
+                        f"child exited with code {done.returncode}")
+    elif not record_path(out_dir, solver.partition(":")[0], case_name, run).exists():
+        _record_failure(out_dir, solver.partition(":")[0], case_name, run,
+                        "child exited 0 but wrote no record")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -346,13 +396,14 @@ def main(argv: list[str] | None = None) -> int:
                               else solve_structured(case_name) if solver == "structured"
                               else solve_llm(case_name, client, run))
                 except Exception as exc:  # one failed run must not stop an hours-long replay
-                    print(f"{case_name} run {run}: ERROR — {type(exc).__name__}: {exc} "
-                          "(not recorded; --resume retries it)", file=sys.stderr)
+                    _record_failure(out_dir, solver, case_name, run, f"{type(exc).__name__}: {exc}")
                     continue
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
                 print(f"{case_name} run {run}: {record['veracity']} — {record['reason']}")
-                (out_dir / "REPORT.md").write_text(render_report(load_records(out_dir), _header(args.solver)))
+                (out_dir / "REPORT.md").write_text(render_report(
+                    load_records(out_dir), _header(args.solver),
+                    expected={solver: [(c, r) for c in cases for r in run_range]}))
     finally:
         if previous is None:
             os.environ.pop("EXAMPLE_LOOKUP_DISABLED", None)

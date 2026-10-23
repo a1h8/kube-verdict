@@ -9,6 +9,9 @@ the API's own ``_state_to_response`` and writes
 
 Every file is tagged ``"source": "fixture-replay"``: the inputs are fixtures and
 the LLM is scripted, so the vitrine must never present it as a live capture.
+It also writes ``api/sample_state.json``, the workflow state behind the API's
+``POST /sessions/sample`` (h014), which used to be hand-written and showed a
+pipeline the product no longer runs (docs/fix-plan-001.md, H72).
 Never hand-edit the output — re-run this tool. Spec: docs/test-cases.md →
 *Broadened offline coverage* §1.
 
@@ -33,6 +36,8 @@ from api.session_store import Session  # noqa: E402
 from tests.integration.workflow_harness import CASE_SCRIPTS, run_case  # noqa: E402
 
 OUT_DIR = ROOT / "dashboard" / "src" / "sampleJourneys"
+SAMPLE_PATH = ROOT / "api" / "sample_state.json"
+SAMPLE_CASE = "h014"
 SOURCE = "fixture-replay"
 
 
@@ -49,6 +54,13 @@ def journey(key: str) -> dict:
     return {"source": SOURCE, "case": CASE_SCRIPTS[key].case, **payload}
 
 
+def sample(key: str = SAMPLE_CASE) -> dict:
+    """The API sample session: the workflow state and review payload of one offline run."""
+    run = run_case(key)
+    return {"source": SOURCE, "case": CASE_SCRIPTS[key].case,
+            "state": run.state, "review_payload": run.review_payload}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("cases", nargs="*", default=sorted(CASE_SCRIPTS),
@@ -60,6 +72,9 @@ def main(argv: list[str] | None = None) -> int:
         path = OUT_DIR / f"{key}.json"
         path.write_text(json.dumps(journey(key), indent=2, ensure_ascii=False) + "\n")
         print(f"wrote {path.relative_to(ROOT)}")
+    if SAMPLE_CASE in args.cases:
+        SAMPLE_PATH.write_text(json.dumps(sample(), indent=2, ensure_ascii=False) + "\n")
+        print(f"wrote {SAMPLE_PATH.relative_to(ROOT)}")
     return 0
 
 

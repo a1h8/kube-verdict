@@ -42,7 +42,9 @@ class ManifestRenderer:
         chart:          Local path OR "repo/chart-name" OR bare chart name.
         release_name:   Helm release name (used as .Release.Name in templates).
         namespace:      Target namespace (.Release.Namespace).
-        values:         Inline values dict (passed as --set k=v).
+        values:         Inline values dict, passed as a values file given last (it wins over
+                        value_files, as --set did). Not --set: lists were dropped, a comma
+                        split a value and strings became numbers (docs/fix-plan-001.md, H32).
         value_files:    Paths to values files (passed as -f path).
         repo_url:       Chart repository URL (passed as --repo).
         chart_version:  Chart version constraint (passed as --version).
@@ -57,8 +59,15 @@ class ManifestRenderer:
             cmd += ["--version", chart_version]
         for vf in (value_files or []):
             cmd += ["-f", vf]
-        for k, v in self._flatten(values or {}).items():
-            cmd += ["--set", f"{k}={v}"]
+
+        import os
+        import tempfile
+        values_file = None
+        if values:
+            fd, values_file = tempfile.mkstemp(prefix="kv-values-", suffix=".yaml")
+            with os.fdopen(fd, "w") as fh:
+                yaml.safe_dump(values, fh, sort_keys=False)
+            cmd += ["-f", values_file]
 
         log.debug("helm template: %s", " ".join(cmd))
 
@@ -79,6 +88,9 @@ class ManifestRenderer:
             )
         except subprocess.TimeoutExpired:
             log.warning("helm template timed out for %s/%s", namespace, release_name)
+        finally:
+            if values_file:
+                os.unlink(values_file)
         return []
 
     # ------------------------------------------------------------------
@@ -90,15 +102,3 @@ class ManifestRenderer:
             if isinstance(doc, dict) and doc.get("kind"):
                 docs.append(doc)
         return docs
-
-    @staticmethod
-    def _flatten(values: dict, prefix: str = "") -> dict[str, str]:
-        """Flatten nested dict to dot-notation for --set flags."""
-        result: dict[str, str] = {}
-        for k, v in values.items():
-            key = f"{prefix}.{k}" if prefix else k
-            if isinstance(v, dict):
-                result.update(ManifestRenderer._flatten(v, key))
-            elif not isinstance(v, (list, dict)):
-                result[key] = str(v)
-        return result

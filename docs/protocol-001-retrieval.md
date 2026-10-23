@@ -1,6 +1,7 @@
 # Protocol 001 — does retrieval help the diagnosis?
 
-> Pre-registered 2026-10-17. Status: **draft, decision rules not yet approved**. Nothing
+> Pre-registered 2026-10-17. Status: **decision rules approved 2026-10-23**, as amended on
+> 2026-10-23 (end of file); the 19 cases are frozen at the commit that records it. Nothing
 > below may be changed after the first measured run except by a dated amendment at the
 > end of this file. No threshold is set or moved after seeing a number.
 
@@ -108,4 +109,58 @@ incident memory is drawn from C1 or C2.
 
 ## Amendments
 
-*(none)*
+- **2026-10-22 — "Code needed", item 2.** `index_node` no longer writes the index (`save()`,
+  since `docs/fix-plan-001.md` H40) and `persist_texts` no longer exists (H70): each
+  investigation builds its index in memory. Item 2 holds by construction; no protocol rule
+  changes.
+
+- **2026-10-23 — the configurations follow the product, the sLLM is added, 19 cases.**
+  Written before any run of this protocol; it replaces *Configurations*, the cases of
+  *Fixed before the first run* and the controls. The decision rules below were approved on
+  2026-10-23, in the commit that adds this amendment, before any run.
+  - **Why the configurations change.** This protocol was written on 2026-10-17, when the
+    LLM named the report's cause. Since `docs/structured-in-product.md` (H4) the report's
+    cause is the structured diagnosis and the model explains it: a retrieval layer added
+    there can change the explanation, never the graded cause. The layers are therefore
+    measured where the model names the cause itself — on the pipeline's context without the
+    diagnosis, the `context:` configuration of `docs/veracity-replay.md` (§ Amendment
+    2026-10-22).
+  - **Configurations**, each for mistral (LLM) and qwen2.5:3b-instruct (sLLM), 3 runs per
+    case; C0 and R0 once (deterministic):
+
+    | Id | What names the cause | Vector search | Resolved-incident memory |
+    |---|---|---|---|
+    | C0 | the structured diagnosis, no model (`structured`) | — | — |
+    | R0 | the root cause of the top-ranked incident record, no model | — | corpus only |
+    | C1 | the model, on the pipeline's context without the diagnosis (`context:`) | off | off |
+    | C2 | as C1 | **on** — what the product's `index_node` builds for the investigation (graph, chart anchors, enterprise documents), in memory | off |
+    | C3 | as C1 | on | **on** |
+
+    C1 is the `context:` configuration of `docs/veracity-replay.md`: the same runs, not run
+    twice. In the product path (structured diagnosis explained by the model) the layers are
+    reported on `explanation_veracity` and `llm_disagreement` only, and decide nothing.
+  - **Comparisons**, per model: C2 against C1 (vector search), C3 against C2 (incident
+    memory); R0 against C0 (does the corpus alone point to the cause?). LLM against sLLM on
+    the same configuration is reported on its own line.
+  - **Cases:** the 19 native cases of `tests/integration/cases/` at the commit that approves
+    these rules (h011 restored by `docs/failing-cases-002.md`, h026 added), frozen.
+  - **Controls:** positive, h001, must pass (≥ 2/3) in C1, C2 and C3 for each model, or that
+    run is invalid (re-run once, then recorded invalid); negative, **h022 and h026**: a
+    layer that makes either name a cause where the previous configuration did not has added
+    a false alarm.
+  - **Decision rules** — the table of *Decision rules* unchanged, applied per model, with
+    "h022" read as "h022 or h026". A layer stays in the default path only if it stays for
+    both models or is inconclusive for one and stays for the other; if the two models
+    disagree outright (stays / leaves), the layer is inconclusive and the README says why.
+  - **The corpus, beyond *Known limit*.** The legacy cases of `cases/` share most failure
+    families with the native cases, and three share their name (`001_crashloopbackoff`,
+    `002_imagepullbackoff`, `003_oomkilled`). Fixed now, checked by a script whose output
+    is published with the corpus: a record is excluded if its source is a legacy case with
+    the name of a native case, or if one of its symptoms appears verbatim (a log line, an
+    event message) in a native case's fixtures — otherwise retrieval could return the
+    case's own answer. A record of the same family is kept: recognising a known kind of
+    incident is what the memory is for. Results are also reported split into cases whose
+    family the corpus covers and cases it does not. Until the corpus exists, C3 and R0 are
+    recorded as not measurable.
+  - **Cost, estimated:** C2, about 3 h for mistral and 1.5 h for qwen; C3 the same once the
+    corpus exists. C0 and C1 come from the comparison.

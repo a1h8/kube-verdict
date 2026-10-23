@@ -1,45 +1,43 @@
 """
 Map a pushed PatchTST signal alert (native AnomalyResult / SignalRecord shape,
 not Alertmanager) to a (query, namespaces) pair suitable for a KubeVerdict
-RunRequest. Mirrors api/webhook_mapper.py.
+RunRequest. Mirrors api/webhook_mapper.py: the query comes from the labels, the pushed ``text``
+is quoted alert text (docs/fix-plan-001.md, H71).
 """
 from __future__ import annotations
 
+import config as cfg
 from api.models import SignalAlert
-
-# Labels that identify a Kubernetes resource unambiguously (standard
-# Prometheus/Mimir Kubernetes service-discovery label names).
-_RESOURCE_LABELS = ("deployment", "statefulset", "daemonset", "pod", "service", "job", "node")
+from api.webhook_mapper import _ALERT_TEXT_MAX, label_value, resource_of
 
 
 def signal_to_query(alert: SignalAlert) -> str:
-    """Build a human-readable RCA query from a single pushed signal."""
+    """Build the RCA query from a pushed signal's metric and labels."""
     labels = alert.labels
-    parts: list[str] = [f"Anomalous {alert.metric_name}"]
-
-    for key in _RESOURCE_LABELS:
-        if key in labels:
-            parts.append(f"{key}/{labels[key]}")
-            break
-    else:
-        parts.append(alert.entity_uid)
+    parts: list[str] = [f"Anomalous {label_value(alert.metric_name)}"]
+    parts.append(resource_of(labels) or label_value(alert.entity_uid, 253))
 
     ns = labels.get("namespace") or labels.get("exported_namespace")
     if ns:
-        parts.append(f"in namespace {ns}")
+        parts.append(f"in namespace {label_value(ns)}")
 
-    parts.append(f"[{alert.severity.upper()}]")
-
-    if alert.text:
-        parts.append(f"— {alert.text}")
-
+    parts.append(f"[{label_value(alert.severity).upper()}]")
     return " ".join(parts)
 
 
+def signal_text(alert: SignalAlert) -> str:
+    """The pushed signal's own words: quoted in the prompt as data."""
+    return alert.text[:_ALERT_TEXT_MAX]
+
+
 def signal_to_namespaces(alert: SignalAlert) -> list[str]:
-    """Extract namespace(s) from signal labels. Returns empty list if absent."""
+    """The signal's namespace label, else the namespace of its ``Kind/namespace/name`` entity,
+    else the configured KUBE_NAMESPACES; [] = refuse it."""
     ns = alert.labels.get("namespace") or alert.labels.get("exported_namespace")
-    return [ns] if ns else []
+    if not ns:
+        parts = alert.entity_uid.split("/")
+        ns = parts[1] if len(parts) == 3 else ""
+    return [label_value(ns)] if label_value(ns) else list(cfg.KUBE_NAMESPACES)
 
 
 def anomalous_signals(alerts: list[SignalAlert]) -> list[SignalAlert]:

@@ -14,15 +14,19 @@ Both expose the same interface so GitopsCollector is provider-agnostic.
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
+import os
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 import requests
 
 log = logging.getLogger(__name__)
+
+_GIT_TIMEOUT_S = 120   # a hung clone or pull used to block the investigation (fix plan H56)
 
 
 class GitProvider(ABC):
@@ -52,7 +56,8 @@ class LocalGitProvider(GitProvider):
 
     Works with GitHub, GitLab, Gitea, Gist, self-hosted, Bitbucket — any URL
     accepted by `git clone`. SSH URLs use the system ssh-agent; HTTPS URLs
-    accept an optional token injected as `oauth2:{token}@` credentials.
+    accept an optional token, given to git as an HTTP header through its environment — never in
+    the URL, so it is not in the clone's `.git/config`, the process list or an error message.
 
     Parameters
     ----------
@@ -71,35 +76,67 @@ class LocalGitProvider(GitProvider):
     ) -> None:
         self.repo_url = repo_url
         self.branch = branch
-        self._clone_url = _inject_token(repo_url, token) if token else repo_url
+        self._token = token
+        # why the checkout is missing or stale, for the caller to report (fix plan 001, H5)
+        self.last_error: str | None = None
         self._base = clone_dir or Path("/tmp/kubeverdict-gitops")
 
     def _repo_dir(self) -> Path:
+        # the name alone made two repositories (or two branches) called `infra` share one checkout
+        # and read each other's files (fix plan H58): the whole URL and the branch pick the directory
         name = self.repo_url.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
-        return self._base / name
+        digest = hashlib.sha256(f"{self.repo_url}#{self.branch}".encode()).hexdigest()[:12]
+        return self._base / f"{name}-{digest}"
+
+    def _git_env(self) -> dict[str, str]:
+        """git's environment: the token as an extra HTTP header (git >= 2.31), no prompt."""
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+        token = getattr(self, "_token", None)
+        if token and urlparse(self.repo_url).scheme in ("https", "http"):
+            cred = base64.b64encode(f"oauth2:{token}".encode()).decode()
+            i = int(env.get("GIT_CONFIG_COUNT", "0") or 0)
+            env.update({
+                "GIT_CONFIG_COUNT": str(i + 1),
+                f"GIT_CONFIG_KEY_{i}": "http.extraHeader",
+                f"GIT_CONFIG_VALUE_{i}": f"Authorization: Basic {cred}",
+            })
+        return env
 
     def _ensure_cloned(self) -> Path:
         dest = self._repo_dir()
         if (dest / ".git").exists():
-            result = subprocess.run(
-                ["git", "-C", str(dest), "pull", "--ff-only"],
-                capture_output=True, text=True,
-            )
+            try:
+                result = subprocess.run(
+                    ["git", "-C", str(dest), "pull", "--ff-only"],
+                    capture_output=True, text=True, env=self._git_env(), timeout=_GIT_TIMEOUT_S,
+                )
+            except subprocess.TimeoutExpired:                 # fix plan H56
+                result = subprocess.CompletedProcess([], 1, "", f"timed out after {_GIT_TIMEOUT_S}s")
             if result.returncode != 0:
                 log.warning("git pull failed for %s: %s", dest, result.stderr.strip())
+                self.last_error = f"git pull failed, the checkout may be stale: {result.stderr.strip()[:200]}"
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run(
-                ["git", "clone", "--depth=1", "--branch", self.branch,
-                 self._clone_url, str(dest)],
-                capture_output=True, text=True, check=True,
-            )
+            # `--` ends the options: an URL shaped like an option (`--upload-pack=…`) is never
+            # parsed as one, and is refused before git runs (fix plan, section 7)
+            cmd = ["git", "clone", "--depth=1", "--branch", self.branch, "--", self.repo_url, str(dest)]
+            if self.repo_url.startswith("-"):
+                raise subprocess.CalledProcessError(2, cmd, stderr="repository URL starts with '-': refused")
+            try:
+                subprocess.run(cmd, capture_output=True, text=True, check=True, env=self._git_env(),
+                               timeout=_GIT_TIMEOUT_S)
+            except subprocess.TimeoutExpired as exc:          # fix plan H56
+                raise subprocess.CalledProcessError(-1, cmd, stderr=f"timed out after {_GIT_TIMEOUT_S}s") from exc
         return dest
 
     def get_file(self, path: str) -> str | None:
         try:
             dest = self._ensure_cloned()
-            return (dest / path).read_text(encoding="utf-8")
+            target = _inside(dest, path)
+            if target is None:
+                log.warning("LocalGitProvider.get_file(%s): outside the repository — refused", path)
+                return None
+            return target.read_text(encoding="utf-8")
         except (OSError, subprocess.CalledProcessError) as exc:
             log.warning("LocalGitProvider.get_file(%s): %s", path, exc)
             return None
@@ -107,17 +144,22 @@ class LocalGitProvider(GitProvider):
     def list_files(self, directory: str, pattern: str = "*.yaml") -> list[str]:
         try:
             dest = self._ensure_cloned()
-            base = dest / directory
-            if not base.is_dir():
+            base = _inside(dest, directory)
+            if base is None or not base.is_dir():
                 return []
-            return [str(p.relative_to(dest)) for p in base.rglob(pattern)]
+            return [str(p.relative_to(dest)) for p in base.rglob(pattern)
+                    if _inside(dest, str(p.relative_to(dest))) is not None]
         except (OSError, subprocess.CalledProcessError):
             return []
 
     def local_path(self) -> Path | None:
         try:
             return self._ensure_cloned()
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as exc:
+            self.last_error = f"git clone failed: {(exc.stderr or '').strip()[:200] or exc.returncode}"
+            return None
+        except OSError as exc:
+            self.last_error = f"git could not run: {exc}"
             return None
 
 
@@ -195,19 +237,11 @@ class GithubProvider(GitProvider):
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _inject_token(url: str, token: str) -> str:
-    """Inject token into an HTTPS URL as oauth2:{token}@ credentials.
-
-    Works universally: GitHub PAT, GitLab PAT, Gitea token, Gist, self-hosted.
-    SSH and file:// URLs are returned unchanged (credentials handled externally).
-    """
-    p = urlparse(url)
-    if p.scheme not in ("https", "http"):
-        return url
-    netloc = f"oauth2:{token}@{p.hostname}"
-    if p.port:
-        netloc += f":{p.port}"
-    return urlunparse(p._replace(netloc=netloc))
+def _inside(root: Path, rel: str) -> Path | None:
+    """Return root/rel resolved (symlinks included), or None when it leaves root."""
+    root = root.resolve()
+    target = (root / rel).resolve()
+    return target if target.is_relative_to(root) else None
 
 
 def make_provider(

@@ -121,9 +121,10 @@ def _blocs() -> list[dict]:
                     "done": _exists("vectorstore/embedder.py"),
                 },
                 {
-                    "label": "SQLite persistence (survives restarts)",
-                    "done": _exists("persistence/vector_store_repo.py")
-                    and _grep(r"ON CONFLICT|upsert|persist_texts", "persistence/vector_store_repo.py"),
+                    # sessions and checkpoints; the index is rebuilt per investigation on purpose
+                    # (fix plan H40), its DB reconstruction path was dead and removed (H70)
+                    "label": "SQLite persistence (sessions survive restarts)",
+                    "done": _exists("persistence/session_repo.py"),
                 },
             ],
         },

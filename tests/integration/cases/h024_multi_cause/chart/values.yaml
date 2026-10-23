@@ -1,0 +1,19 @@
+# Declared chart values for the api release — what the team intends to deploy
+replicaCount: 1
+
+image:
+  repository: ghcr.io/acme/api
+  tag: "v4.1.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    memory: 1Gi
+    cpu: "1"
+  requests:
+    memory: 512Mi
+    cpu: 250m
+
+service:
+  type: ClusterIP
+  port: 8080

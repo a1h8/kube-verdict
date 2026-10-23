@@ -1,7 +1,8 @@
 """Per-identity JWT / OIDC bearer authentication.
 
 Verifies ``Authorization: Bearer <jwt>`` against an OIDC provider's JWKS
-(RS256), with optional issuer / audience checks, and returns the decoded
+(RS256), checking issuer and audience (both required: a provider's JWKS signs tokens for
+every application it serves), and returns the decoded
 identity (claims). This is the per-user layer the shared-secret guard
 (``api/auth.py``) was a placeholder for.
 
@@ -26,6 +27,8 @@ from api.auth import require_token
 # Cache the provider's signing keys so we don't fetch JWKS on every request.
 _JWKS_TTL = 3600  # seconds
 _jwks_cache: dict[str, Any] = {"keys": None, "fetched_at": 0.0}
+# An unknown kid forces a refetch (key rotation) at most this often, not on every request.
+_JWKS_MIN_REFRESH = 60  # seconds
 
 
 def _fetch_jwks(url: str) -> Any:
@@ -45,12 +48,13 @@ def _signing_key(token: str, jwks_url: str):
     for key in keys.keys:
         if key.key_id == kid:
             return key.key
-    # kid not found — force a refresh once (key rotation)
-    _jwks_cache["keys"] = None
-    keys = _fetch_jwks(jwks_url)
-    for key in keys.keys:
-        if key.key_id == kid:
-            return key.key
+    # kid not found — force a refresh (key rotation), rate-limited
+    if time.time() - _jwks_cache["fetched_at"] >= _JWKS_MIN_REFRESH:
+        _jwks_cache["keys"] = None
+        keys = _fetch_jwks(jwks_url)
+        for key in keys.keys:
+            if key.key_id == kid:
+                return key.key
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="token signing key not found in provider JWKS",
@@ -62,16 +66,19 @@ def verify_jwt(token: str) -> dict[str, Any]:
     """Verify a JWT against the configured OIDC provider; return its claims."""
     if not cfg.OIDC_JWKS_URL:
         raise HTTPException(status_code=500, detail="OIDC not configured")
+    if not (cfg.OIDC_ISSUER and cfg.OIDC_AUDIENCE):
+        # Fail closed: without both, any token the provider signed for any application passes.
+        raise HTTPException(status_code=500,
+                            detail="OIDC misconfigured: OIDC_ISSUER and OIDC_AUDIENCE are required")
     try:
         key = _signing_key(token, cfg.OIDC_JWKS_URL)
-        options = {"require": ["exp"], "verify_aud": bool(cfg.OIDC_AUDIENCE)}
         return jwt.decode(
             token,
             key=key,
             algorithms=["RS256"],
-            audience=cfg.OIDC_AUDIENCE or None,
-            issuer=cfg.OIDC_ISSUER or None,
-            options=options,
+            audience=cfg.OIDC_AUDIENCE,
+            issuer=cfg.OIDC_ISSUER,
+            options={"require": ["exp", "iss", "aud", "sub"]},
         )
     except jwt.PyJWTError as exc:
         raise HTTPException(

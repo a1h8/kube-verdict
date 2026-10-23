@@ -683,12 +683,15 @@ def _render_rca():
                 snap     = entry.get("snapshot", {})
                 ts       = (entry.get("ts") or "")[:19].replace("T", " ")
 
+                # escaped: reasons carry text taken from model output (a namespace, a command) —
+                # docs/fix-plan-001.md H54
+                from html import escape as _esc
                 st.markdown(
                     f"<div style='background:{bg};border-radius:6px;"
                     f"padding:8px 12px;margin-bottom:6px'>"
-                    f"<b>Step {i}</b> &nbsp; {emoji} <code>{router}</code> → "
-                    f"<b>{edge}</b> &nbsp; <span style='color:#666;font-size:0.85em'>{ts}</span>"
-                    f"<br><span style='font-size:0.9em'>{reason}</span>"
+                    f"<b>Step {i}</b> &nbsp; {emoji} <code>{_esc(str(router))}</code> → "
+                    f"<b>{_esc(str(edge))}</b> &nbsp; <span style='color:#666;font-size:0.85em'>{_esc(ts)}</span>"
+                    f"<br><span style='font-size:0.9em'>{_esc(str(reason))}</span>"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
@@ -969,6 +972,8 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
     import urllib.request
     from html.parser import HTMLParser
 
+    from knowledge.url_guard import fetch_refusal, guarded_opener
+
     class _Extractor(HTMLParser):
         def __init__(self) -> None:
             super().__init__()
@@ -993,6 +998,11 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
         def text(self) -> str:
             return "\n".join(self._buf)
 
+    refusal = fetch_refusal(url)
+    if refusal:
+        return f"[fetch error: {refusal}]"
+    opener = guarded_opener(url)
+
     try:
         headers: dict[str, str] = {"User-Agent": "KubeVerdict/1.0"}
         if token:
@@ -1006,7 +1016,7 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
             base = url.split("/wiki/")[0]
             api_url = f"{base}/wiki/rest/api/content/{page_id}?expand=body.storage,title"
             req = urllib.request.Request(api_url, headers={**headers, "Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=20) as resp:
+            with opener.open(req, timeout=20) as resp:
                 import json
                 data  = json.loads(resp.read())
                 title = data.get("title", "")
@@ -1018,7 +1028,7 @@ def _fetch_enterprise_url(url: str, token: str | None = None) -> str:
 
         # Generic HTML fetch
         req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=20) as resp:
+        with opener.open(req, timeout=20) as resp:
             ct = resp.headers.get("Content-Type", "")
             raw = resp.read()
 
@@ -1837,7 +1847,9 @@ def _render_integration_tests(demo_mode: bool = False):  # noqa: C901
         render_tree, write_json,
     )
     from tests.integration.use_cases.proposal_engine import generate_proposals
-    from tools.case_contract import update_expect_from_sim, update_input_from_sim, recalibrate_all
+    from tools.case_contract import (
+        is_graded_case, recalibrate_all, update_expect_from_sim, update_input_from_sim,
+    )
     from rca.analyzer import RCAAnalyzer
     from llm import build_llm_client
     from vectorstore.embedder import Embedder
@@ -2389,7 +2401,9 @@ def _render_integration_tests(demo_mode: bool = False):  # noqa: C901
                         use_container_width=True,
                     )
                 with ac2:
-                    if st.button("📋 Update expect.json", use_container_width=True, key=f"{scope}_upd_expect"):
+                    if is_graded_case(case_dir):
+                        st.caption("Graded case: expect.json changes only through the case audit.")
+                    elif st.button("📋 Update expect.json", use_container_width=True, key=f"{scope}_upd_expect"):
                         _, changes = update_expect_from_sim(case_dir, payload, dry_run=True)
                         if changes:
                             with st.expander("Changes preview", expanded=True):
@@ -2746,7 +2760,13 @@ def _render_remediation_panel(cmds: list[str], case_name: str) -> None:
         use_container_width=True,
         key=f"rem_apply_{case_name}",
     ):
+        from workflow.nodes import manual_apply_refusal
         for cmd in selected_cmds:
+            refused = manual_apply_refusal(cmd)
+            if refused:
+                # docs/fix-plan-001.md, H46: the commands come from model output
+                st.warning(f"Not run — {refused}: `{cmd}`. Run it yourself if it is right.")
+                continue
             st.markdown(f"**Running:** `{cmd}`")
             try:
                 args = shlex.split(cmd)
@@ -2905,7 +2925,7 @@ def _render_proposed_changes(ctx, case_name: str, case_type: str) -> None:
                     st.caption(msg[:300])
                 if src == "kyverno":
                     p = policy.split("=")[-1] if "=" in policy else policy
-                    st.code(f"kubectl describe clusterpolicy {p}\nkyverno test .", language="bash")
+                    st.code(f"kubectl describe clusterpolicy {p}", language="bash")   # fix plan H60
                 else:
                     st.code(f"kubectl get constraint {policy} -o jsonpath='{{.status.violations}}'", language="bash")
                 st.markdown("---")
@@ -2967,14 +2987,11 @@ def _render_proposed_changes(ctx, case_name: str, case_type: str) -> None:
 
                 if source == "kyverno":
                     policy_name = policy.split("=")[-1] if "=" in policy else policy
+                    # read-only: the former local-test and annotate lines neither tested nor
+                    # fixed anything (fix plan H60)
                     st.code(
                         f"# Inspect the policy\n"
-                        f"kubectl describe clusterpolicy {policy_name}\n\n"
-                        f"# Test locally\n"
-                        f"kyverno test .\n\n"
-                        f"# Patch the violating resource\n"
-                        f"kubectl annotate {resource.replace('/', ' -n ')} "
-                        f"policies.kyverno.io/last-applied-patches-",
+                        f"kubectl describe clusterpolicy {policy_name}",
                         language="bash",
                     )
                 elif source == "gatekeeper":

@@ -57,6 +57,8 @@ class MetricsServerCollector:
 
         api_client = k8s_client.ApiClient()
         self._custom = k8s_client.CustomObjectsApi(api_client)
+        # a refused or failed listing is reported, not read as "no metrics" (fix plan H52)
+        self.last_error: str | None = None
 
     def collect(self, graph: OntologyGraph) -> int:
         """
@@ -146,9 +148,11 @@ class MetricsServerCollector:
             return items
         except ApiException as exc:
             log.warning("metrics-server: failed to fetch ns=%s (%s)", namespace, exc.reason)
+            self.last_error = f"ns={namespace}: {exc.status} {exc.reason}"
             return []
         except Exception as exc:
             log.warning("metrics-server: unexpected error for ns=%s: %s", namespace, exc)
+            self.last_error = f"ns={namespace}: {exc}"
             return []
 
     def _fetch_all(self) -> list[dict]:
@@ -161,9 +165,11 @@ class MetricsServerCollector:
             return items
         except ApiException as exc:
             log.warning("metrics-server: cluster-wide fetch failed (%s)", exc.reason)
+            self.last_error = f"cluster-wide: {exc.status} {exc.reason}"
             return []
         except Exception as exc:
             log.warning("metrics-server: unexpected error: %s", exc)
+            self.last_error = f"cluster-wide: {exc}"
             return []
 
 

@@ -193,14 +193,16 @@ class OllamaClient:
         except requests.RequestException as exc:
             raise RuntimeError(f"Ollama chat failed: {exc}") from exc
 
-    def stream_generate(self, prompt: str, system: str = "") -> Iterator[str]:
-        """Yields response tokens as they arrive (streaming mode)."""
+    def stream_generate(self, prompt: str, system: str = "", temperature: float = 0.1) -> Iterator[str]:
+        """Yields response tokens as they arrive (streaming mode), at the temperature `generate`
+        uses — without it Ollama's default (~0.8) applied to the streamed path (fix plan H62)."""
         estimated, num_ctx = self.context_for(len(prompt) + len(system or ""))
         payload: dict = {
             "model": self.model,
             "prompt": prompt,
             "stream": True,
             "options": {
+                "temperature": temperature,
                 "num_ctx": num_ctx,
                 "num_predict": self.num_predict,
             },

@@ -187,6 +187,12 @@ change: the rule (every concept required) is unchanged.
   The cause concepts become `memory` · `drift|512mi|declared` (h003) and
   `memory|oom` · `drift|1gi|declared` (h024, second cause).
 
+- **A4 — h004** (2026-10-20) `not present` accepted for `missing` (`tests/veracity/synonyms.yaml`,
+  under `missing` and `not found`). The three mistral answers of 2026-10-17 say "ConfigMap
+  `api-gateway-config` and Secret `db-credentials` which are not present in the cluster" — the
+  cause, worded otherwise. Re-graded on those runs: h004 0/3 → 3/3, no other case changes
+  (31/57 → 34/57); without the amendment nothing changes (control).
+
 Not amended: h006 (the answers name a network/DNS problem, never the NetworkPolicy — the
 symptom) and h010 (the answers follow the fixture's node-CPU message; the fixture is fixed
 in correction 2).
@@ -220,3 +226,60 @@ in correction 2).
   512Mi → 128Mi from the Deployment alone.
 - Not in this correction: `spec.replicas` managed by an HPA still reads as a drift. Knowing that an
   HPA targets a Deployment needs HPAs collected live (D1.2); left open.
+
+## Correction F11 / H48 — declared, applied, live (2026-10-18, spec `docs/three-states.md`)
+
+The test loader compared `helm/values.yaml` with `helm/release.json` and wrote `drift.helm.*`, a
+comparison no production code made: those drifts were evidence only the test could see. The
+loader now runs the production comparisons on files that say what each state is:
+
+| Case | Added | What it asserts |
+|---|---|---|
+| h002, h003, h009, h024 | `chart/` (a minimal chart; `values.yaml` = the case's `helm/values.yaml`), `rendered/declared.yaml` (`helm template` of it), `helm/manifest.yaml` (the same chart rendered with `helm/release.json`) | Git declares one value, Helm applied another (image tag, memory limit, liveness timeout, memory limit), the live objects equal what Helm applied: comparison A finds the drift, B finds none |
+| h012 | `helm/release.json` (`replicaCount: 1`, `resources.limits.memory: 128Mi`), `helm/manifest.yaml` | the overrides named in its own `chart/values.yaml` comment (`helm upgrade --set …`): A as above; its declared render stays `rendered/expected.yaml` |
+
+- `expect.json["drift_provenance"]` is `git-vs-deployed` for these five; every other case has no
+  configuration drift (`tests/unit/test_case_drift_provenance.py`). No native case is a live
+  edit (B); B is covered by `tests/unit/test_three_states.py`.
+- The renders are checked against their chart by `tests/integration/test_three_states_goldens.py`
+  (needs `helm`).
+- A kind the fixture does not hold is not "listed": h002 and h009 have no live Deployment, so B
+  does not report the applied Deployment as missing (in production: a refused listing, H24).
+- Structured replay: 11/19 → **15/19**; h002, h003, h009, h024 pass through A. Their
+  reasoning-path "rule" step stays a strict xfail: the old `RemediationEngine` reads `drift.*`
+  only (two engines, H4).
+
+## Corrections 2 and 3 — the fixtures (2026-10-20)
+
+Applied as the per-case table decided; each case measured before and after (structured replay).
+
+| Case | Change | Before → after |
+|---|---|---|
+| h005 | The `forbidden` lines leave the events — Kubernetes emits no Event when an application's own API call is denied — and become the pod's logs (`loki/streams.json`, client-go klog lines). | PASS → **FAIL** |
+| h006 | The event that named the cause ("UDP/53 egress blocked", under a `BackOff` reason) is removed; the probe event is what kubelet writes for an HTTP probe (`statuscode: 503`); the DNS and database timeouts are the application's logs. | FAIL → FAIL |
+| h010 | One cause, the quota: no Pending pod (the quota rejects the pod at creation), the replicaset controller's `FailedCreate` with a `generateName` prefix, a Deployment at 0/2 with its `ReplicaFailure` condition. | FAIL → FAIL |
+| h002 | **Not changed.** The 401 is not a second cause: the deploy forced a private tag (`--set image.tag=v2.1.0-private`) the pull secret cannot read; one causal chain, its root the tag, graded as such since correction 1. | PASS → PASS |
+| h011 | Retired to `tests/integration/cases_retired/`, then **restored** on 2026-10-21 ("analyse the failing cases, do not remove them"): see `docs/failing-cases-002.md` S6. | PASS → — → PASS |
+
+Structured replay: 15/19 → **13/18**. What the corrections exposed:
+
+- **H50 (fixed)**: klog error lines (`E0514 …`), the format of every client-go program, were
+  read as `info` and dropped by the signals.
+- **H49 (open)**: logs are read only for pods that are failing or not ready (`needs_telemetry`).
+  An application whose pod is Ready but whose work fails — h005 — is invisible: the product says
+  `no_incident`. Proved: with the pod's logs read, h005's diagnosis is `rbac` on
+  `ServiceAccount/monitoring/audit-exporter-sa`.
+- h006 and h010 fail for the reason now named in their cases: NetworkPolicies and
+  ResourceQuotas are not collected live, and no structured family reads them.
+
+### After `docs/failing-cases-002.md` (2026-10-21)
+
+- **h011 restored and corrected.** Its PASS was for a wrong cause ("the PVC does not exist"):
+  the fixture had no PVC, and two event messages were invented. Now: the Bound claim
+  `data-kafka-2` (`kube/pvc.yaml`), the scheduler's own message only, cause concepts
+  `volume|pvc|persistentvolumeclaim|data-kafka-2` · `bound to another node|node affinity|cordon`.
+- **h013**: the `LatencySLOBreach` description stated the answer ("points at the network path to
+  the dependency rather than at the pod") — removed; the slow upstream is now an
+  `UpstreamLatencyHigh{upstream="payments-gateway"}` alert, what a RED / mesh setup exposes.
+- h016's `reasoning_path.rule` is `db.connections_exhausted` on `*postgres-primary*`, from its
+  declared cause.

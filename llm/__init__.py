@@ -10,7 +10,11 @@ from .groq_client import GroqClient
 
 
 def build_llm_client():
+    """The configured LLM client, or None for LLM_PROVIDER=none: the report is then the
+    structured diagnosis alone (docs/structured-in-product.md, rule 5)."""
     provider = os.getenv("LLM_PROVIDER", "ollama").lower()
+    if provider == "none":
+        return None
     if provider == "anthropic":
         return AnthropicClient()
     if provider == "openai":

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 from typing import Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SessionStatus(str, Enum):
@@ -14,11 +14,27 @@ class SessionStatus(str, Enum):
 
 # ── Requests ──────────────────────────────────────────────────────────────────
 
+# The cluster an investigation reads is server configuration (KUBECONFIG, KUBE_CONTEXT), never
+# the caller's choice: a kubeconfig path is a file on the server (an ``exec:`` entry runs a
+# binary) and a context may be one the server holds but does not use (docs/fix-plan-001.md, H73).
+SERVER_ONLY_FIELDS = ("kubeconfig", "kube_context")
+
+
+def refuse_server_only_fields(data: Any) -> Any:
+    if isinstance(data, dict):
+        sent = [f for f in SERVER_ONLY_FIELDS if f in data]
+        if sent:
+            raise ValueError(
+                f"{', '.join(sent)}: server configuration only (KUBECONFIG / KUBE_CONTEXT)"
+            )
+    return data
+
+
 class RunRequest(BaseModel):
     query: str
     namespaces: list[str] = Field(default_factory=list)
-    kubeconfig: str | None = None
-    kube_context: str | None = None
+
+    _refuse_server_only = model_validator(mode="before")(refuse_server_only_fields)
 
 class FeedbackRequest(BaseModel):
     human_decision: str | None = None   # "approve" | "reject"
