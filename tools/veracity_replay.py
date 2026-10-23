@@ -421,24 +421,33 @@ def context_prompt_state(case_name: str, cut: str | None = None):
     return run.graph, run.expect, _fallbacks(run.state)
 
 
-def solve_context(case_name: str, client, run: int, cut: str | None = None) -> dict:
-    """The model on the pipeline's context, without the hypothesis or the diagnosis."""
+def solve_context(case_name: str, client, run: int, cut: str | None = None,
+                  store: str = "stub") -> dict:
+    """The model on the pipeline's context, without the hypothesis or the diagnosis. With
+    ``store="faiss"``, the vector search the product builds for the investigation answers its
+    retrieval (docs/protocol-001-retrieval.md, C2); with ``stub``, nothing does (C1)."""
     from llm.ollama_client import PromptTooLongError
     from rca.analyzer import RCAAnalyzer
     from tests.integration.workflow_harness import RecordingLLM, StubStore
 
     t0 = time.perf_counter()
     graph, expect, fallbacks = context_prompt_state(case_name, cut)
+    index = None
+    if store == "faiss":
+        from workflow.nodes import build_investigation_store
+        retrieval, index = build_investigation_store(graph)
+    else:
+        retrieval = StubStore()
     recording = RecordingLLM(client)
     answer, refused = None, ""
     try:
-        answer = RCAAnalyzer(graph=graph, store=StubStore(), llm=recording).analyze(
+        answer = RCAAnalyzer(graph=graph, store=retrieval, llm=recording).analyze(
             expect["query"]).raw_analysis
     except PromptTooLongError as exc:
         refused = str(exc)
     prompt = recording.analyze_prompts[-1] if recording.analyze_prompts else ""
     record = _model_record(case_name, expect, "context", client, run, t0, prompt, answer, refused)
-    record["fallbacks"] = fallbacks
+    record.update(fallbacks=fallbacks, index=index)
     return record
 
 
@@ -621,7 +630,8 @@ def _record_failure(out_dir: Path, solver: str, case_name: str, run: int, why: s
                              "at": datetime.now(timezone.utc).isoformat()}) + "\n")
 
 
-def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path, cut: str | None = None) -> None:
+def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path, cut: str | None = None,
+                  store: str = "stub") -> None:
     """One llm run in its own process, killed after REPLAY_RUN_TIMEOUT seconds.
 
     A request can hang past the HTTP read timeout (a half-dead port-forward kept one
@@ -630,7 +640,7 @@ def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path, cut: str
     timeout = int(os.environ.get("REPLAY_RUN_TIMEOUT", "1800"))
     cmd = [sys.executable, str(Path(__file__).resolve()), "--solver", solver,
            "--cases", _key(case_name), "--child-run", str(run), "--out", str(out_dir), "--out-free",
-           *(["--cut", cut] if cut else [])]
+           *(["--cut", cut] if cut else []), *(["--store", store] if store != "stub" else [])]
     # the child's exit code and its record are both checked: a child that died (OOM-killed,
     # crash at import) used to leave nothing at all (fix plan R1)
     try:
@@ -668,6 +678,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--cut", choices=(*CUT_COLLECTORS, "auto"),
                     help="one run per case with that collector's backend unreachable; auto: every "
                          "collector each case has fixtures for (the collector-cut control)")
+    ap.add_argument("--store", choices=("stub", "faiss"), default="stub",
+                    help="context only: faiss gives the model the product's vector search (C2)")
     ap.add_argument("--out", default=None,
                     help="records directory (default: tests/veracity/replay-baselines/<run name>)")
     ap.add_argument("--out-free", action="store_true",
@@ -689,6 +701,9 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("--solver must be rules, structured, llm[:<model>], raw:<model> or context:<model>")
     if solver in ("raw", "context") and not model:
         ap.error(f"--solver {solver} needs a model: {solver}:<model>")
+    if args.store == "faiss" and solver != "context":
+        # protocol 001 measures retrieval where the model names the cause (its C2)
+        ap.error("--store faiss: only with context:<model> (docs/protocol-001-retrieval.md, C2)")
     wanted = {k.strip() for k in args.cases.split(",") if k.strip()}
     cases = [c for c in native_cases() if not wanted or _key(c) in wanted]
     # (case, cut) pairs: one connected run set per case, or one cut run per case and collector
@@ -723,14 +738,14 @@ def main(argv: list[str] | None = None) -> int:
 
     from rca.analyzer import PROMPT_VERSION
     prompt = RAW_PROMPT_VERSION if solver == "raw" else PROMPT_VERSION if client else None
-    name = run_dir_name(solver, client.model if client else "", prompt)
+    name = run_dir_name(solver, client.model if client else "", prompt, args.store)
     # resolved: every run changes directory (isolated_stores)
     out_dir = Path(args.out).resolve() if args.out else REPLAY_BASELINES / name
     if not args.out_free and (error := out_dir_error(out_dir, name)):
         ap.error(error)
     digest = getattr(client, "model_digest", None)
     meta = {"commit": commit_id(), "grading_hashes": grading_hashes(),
-            "model_digest": digest() if digest else "", **configuration(solver)}
+            "model_digest": digest() if digest else "", **configuration(solver, args.store)}
     watched = watched_stores()        # taken where the replay was started, before any chdir
 
     # never read data/examples/ during a replay; restored after, so a caller in the
@@ -747,7 +762,7 @@ def main(argv: list[str] | None = None) -> int:
                 if args.resume and path.exists():
                     continue
                 if solver in MODEL_SOLVERS and not args.child_run:
-                    _run_in_child(args.solver, case_name, run, out_dir, cut)
+                    _run_in_child(args.solver, case_name, run, out_dir, cut, args.store)
                     continue
                 before = fingerprint(watched)
                 try:
@@ -755,7 +770,8 @@ def main(argv: list[str] | None = None) -> int:
                         record = (solve_rules(case_name) if solver == "rules"
                                   else solve_structured(case_name, cut) if solver == "structured"
                                   else solve_raw(case_name, client, run, cut) if solver == "raw"
-                                  else solve_context(case_name, client, run, cut) if solver == "context"
+                                  else solve_context(case_name, client, run, cut, args.store)
+                                  if solver == "context"
                                   else solve_llm(case_name, client, run, cut))
                 except Exception as exc:  # one failed run must not stop an hours-long replay
                     _record_failure(out_dir, solver, case_name, run, f"{type(exc).__name__}: {exc}", cut)

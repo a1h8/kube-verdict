@@ -529,6 +529,49 @@ def anchor_node(state: RCAState, config: RunnableConfig) -> dict:
 # Indexing
 # ─────────────────────────────────────────────────────────────────────────────
 
+def build_investigation_store(graph, chart_dir: str | None = None,
+                              namespace: str = "default") -> tuple[Any, dict]:
+    """(the FAISSStore of one investigation, what went into it).
+
+    The cluster as collected, its anchor violations, the enterprise charts pushed to the chart
+    store (opt-in by presence), the resolved incidents and the enterprise documents. In memory,
+    never saved (H40). Shared by ``index_node`` and the replay's vector-search configuration
+    (docs/protocol-001-retrieval.md, C2), so both build the same store.
+    """
+    embedder = Embedder()
+    built_store = FAISSStore(embedder=embedder)
+    built_store.index_graph(graph)
+    anchor_count = built_store.index_anchor_violations(graph)
+
+    # Enterprise expected-state anchors — pushed Helm / Helmfile / Kustomize /
+    # raw-manifest sources, rendered at their pinned version. Opt-in by presence:
+    # no pushed charts → no-op. Best-effort: a render failure never breaks RCA.
+    chart_anchor_count = 0
+    try:
+        from knowledge.chart_indexer import ChartIndexer
+        from knowledge.chart_store import ChartStore
+        chart_dir = chart_dir or os.environ.get("KUBEVERDICT_CHART_DIR")
+        chart_store = ChartStore(chart_dir) if chart_dir else ChartStore()
+        if chart_store.list():
+            chart_anchor_count = ChartIndexer(built_store).index_all(chart_store, namespace=namespace)
+    except Exception as exc:  # noqa: BLE001 — enterprise store must never break RCA
+        log.warning("index: enterprise chart indexing skipped: %s", exc)
+
+    # Knowledge base: resolved incidents (ExampleStore) and enterprise documents (DocStore).
+    examples = docs = 0
+    try:
+        from knowledge import DocIndexer, DocStore, ExampleIndexer, ExampleStore
+        examples = ExampleIndexer(built_store).index_all(ExampleStore())
+        docs = DocIndexer(built_store).index_all(DocStore())
+    except Exception as exc:  # noqa: BLE001 — the knowledge base must never break RCA
+        log.warning("index: knowledge base skipped: %s", exc)
+
+    log.info("index: %d vectors, %d anchor violation(s), %d chart anchor(s), %d example(s), "
+             "%d doc chunk(s)", built_store.size, anchor_count, chart_anchor_count, examples, docs)
+    return built_store, {"vectors": built_store.size, "anchors": anchor_count,
+                         "chart_anchors": chart_anchor_count, "examples": examples, "docs": docs}
+
+
 def index_node(state: RCAState, config: RunnableConfig) -> dict:
     """Build this investigation's FAISSStore. Skipped only when a caller injects one (replay).
 
@@ -544,38 +587,9 @@ def index_node(state: RCAState, config: RunnableConfig) -> dict:
     if graph is None:
         return {"error": "index_node: no graph available"}
 
-    embedder = Embedder()
-    built_store = FAISSStore(embedder=embedder)
-    built_store.index_graph(graph)
-    anchor_count = built_store.index_anchor_violations(graph)
-
-    # Enterprise expected-state anchors — pushed Helm / Helmfile / Kustomize /
-    # raw-manifest sources, rendered at their pinned version. Opt-in by presence:
-    # no pushed charts → no-op. Best-effort: a render failure never breaks RCA.
-    chart_anchor_count = 0
-    try:
-        from knowledge.chart_indexer import ChartIndexer
-        from knowledge.chart_store import ChartStore
-        chart_dir = (config.get("configurable", {}).get("chart_dir")
-                     or os.environ.get("KUBEVERDICT_CHART_DIR"))
-        chart_store = ChartStore(chart_dir) if chart_dir else ChartStore()
-        if chart_store.list():
-            ns = config.get("configurable", {}).get("namespace") or "default"
-            chart_anchor_count = ChartIndexer(built_store).index_all(chart_store, namespace=ns)
-    except Exception as exc:  # noqa: BLE001 — enterprise store must never break RCA
-        log.warning("index: enterprise chart indexing skipped: %s", exc)
-
-    # Knowledge base: resolved incidents (ExampleStore) and enterprise documents (DocStore).
-    examples = docs = 0
-    try:
-        from knowledge import DocIndexer, DocStore, ExampleIndexer, ExampleStore
-        examples = ExampleIndexer(built_store).index_all(ExampleStore())
-        docs = DocIndexer(built_store).index_all(DocStore())
-    except Exception as exc:  # noqa: BLE001 — the knowledge base must never break RCA
-        log.warning("index: knowledge base skipped: %s", exc)
-
-    log.info("index: %d vectors, %d anchor violation(s), %d chart anchor(s), %d example(s), "
-             "%d doc chunk(s)", built_store.size, anchor_count, chart_anchor_count, examples, docs)
+    c = config.get("configurable", {})
+    built_store, _ = build_investigation_store(graph, c.get("chart_dir"),
+                                               c.get("namespace") or "default")
 
     config.setdefault("configurable", {})["store"] = built_store
     # Also refresh the thread-local infra cache: LangGraph does not reliably

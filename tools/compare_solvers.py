@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The comparison's tables and decisions — docs/veracity-replay.md § Comparison and its
-amendments (2026-10-22, 2026-10-23).
+amendments (2026-10-22, 2026-10-23) — and protocol 001's vector-search decision
+(docs/protocol-001-retrieval.md, C2 against C1).
 
 Reads replay records (``<dir>/<solver>/<case>/run_<n>.json``, cut runs under
 ``cut-<collector>/``), counts every expected run (a missing one is a FAIL, fix plan H7; an
@@ -9,7 +10,8 @@ invalid one is never a pass) and prints Markdown: per configuration, per tier, c
 Never hand-written: re-run this tool.
 
     python tools/compare_solvers.py --none DIR [--llm DIR] [--sllm DIR] [--raw-llm DIR]
-        [--raw-sllm DIR] [--ctx-llm DIR] [--ctx-sllm DIR] [--out FILE]
+        [--raw-sllm DIR] [--ctx-llm DIR] [--ctx-sllm DIR] [--c2-llm DIR] [--c2-sllm DIR]
+        [--out FILE]
 """
 from __future__ import annotations
 
@@ -27,11 +29,15 @@ from tools.veracity_replay import TIERS, cuttable, native_cases, tier_of  # noqa
 # name → (solver directory, runs per case); the order of the tables
 CONFIGS = {"none": ("structured", 1), "LLM": ("llm", 3), "sLLM": ("llm", 3),
            "raw-LLM": ("raw", 3), "raw-sLLM": ("raw", 3),
-           "ctx-LLM": ("context", 3), "ctx-sLLM": ("context", 3)}
+           "ctx-LLM": ("context", 3), "ctx-sLLM": ("context", 3),
+           # protocol 001: the context with the product's vector search (--store faiss)
+           "C2-LLM": ("context", 3), "C2-sLLM": ("context", 3)}
 RUNS = {name: runs for name, (_, runs) in CONFIGS.items()}
 SOLVER_DIR = {name: solver for name, (solver, _) in CONFIGS.items()}
 EXPLAINERS = ("LLM", "sLLM")            # the model words the structured diagnosis
-OWN_CAUSE = ("raw-LLM", "raw-sLLM", "ctx-LLM", "ctx-sLLM")   # the model names the cause
+OWN_CAUSE = ("raw-LLM", "raw-sLLM", "ctx-LLM", "ctx-sLLM", "C2-LLM", "C2-sLLM")
+# held to the collector-cut control (the comparison's configurations, not protocol 001's C2)
+CUT_CONTROLLED = ("none", "LLM", "sLLM", "raw-LLM", "raw-sLLM", "ctx-LLM", "ctx-sLLM")
 POSITIVE_CONTROL = "h001_crashloopbackoff"
 LABELS = {"": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
 
@@ -181,16 +187,16 @@ def cut_control(recs: list[dict], cuts: list[dict]) -> list[dict]:
     return out
 
 
-def controls(name: str, recs: list[dict], cuts: list[dict], cases: list[str]) -> dict:
+def controls(name: str, recs: list[dict], cuts: list[dict] | None, cases: list[str]) -> dict:
     """Which controls the configuration fails; ``invalid`` when protocol 001's positive control
-    is missed (context configurations)."""
+    is missed (context configurations, C1 and C2). ``cuts`` None: no collector-cut control."""
     failed, invalid = [], ""
     if alarms := false_alarms(name, recs, cases):
         failed.append("negative control: " + ", ".join(alarms) + " named a cause")
-    if bad := [c for c in cut_control(recs, cuts) if not c["ok"]]:
+    if cuts is not None and (bad := [c for c in cut_control(recs, cuts) if not c["ok"]]):
         failed.append("collector cut: " + ", ".join(f"{c['case']} ({c['cut']}): {c['why']}"
                                                     for c in bad))
-    if name.startswith("ctx-") and POSITIVE_CONTROL in cases \
+    if name.startswith(("ctx-", "C2-")) and POSITIVE_CONTROL in cases \
             and POSITIVE_CONTROL not in cases_passed(name, recs):
         invalid = f"positive control {POSITIVE_CONTROL} under 2 of 3: re-run once, then invalid"
     return {"failed": failed, "invalid": invalid}
@@ -296,14 +302,79 @@ def _explainer_rows(configs: dict[str, list[dict]], blocked) -> list[list[str]]:
     return rows
 
 
+# ── protocol 001: does the vector search stay in the default path? ───────────────
+
+def _prompt_body(r: dict) -> list[str]:
+    return [line for line in "\n".join(r.get("prompts") or []).splitlines()
+            if not line.startswith("Analysis timestamp")]
+
+
+def same_prompt_cases(c1: list[dict], c2: list[dict]) -> list[str]:
+    """Cases whose first C2 prompt equals the first C1 prompt, the timestamp line aside: there,
+    a difference between C1 and C2 is run-to-run variation (protocol 001, amendment
+    2026-10-23)."""
+    first = lambda recs: {r["case"]: r for r in recs if r.get("run") == 1 and r.get("prompts")}  # noqa: E731
+    a, b = first(c1), first(c2)
+    return sorted(c for c in a.keys() & b.keys() if _prompt_body(a[c]) == _prompt_body(b[c]))
+
+
+def layer_outcome(c1: str, c2: str, configs: dict[str, list[dict]], ctl: dict[str, dict],
+                  cases: list[str]) -> tuple[str, str]:
+    """(outcome, counts) of C2 against C1 on one model, by protocol 001's decision table:
+    stays / inconclusive / leaves, or not measured / not drawn."""
+    if missing := [n for n in (c1, c2) if n not in configs]:
+        return "not measured", ", ".join(missing) + " missing"
+    if bad := [n for n in (c1, c2) if ctl[n]["invalid"]]:
+        return "not drawn", ", ".join(f"{n}: {ctl[n]['invalid']}" for n in bad)
+    p1, p2 = cases_passed(c1, configs[c1]), cases_passed(c2, configs[c2])
+    net, only2, only1 = compare_counts(p2, p1)
+    new_alarms = sorted(set(false_alarms(c2, configs[c2], cases)) - set(false_alarms(c1, configs[c1], cases)))
+    same = same_prompt_cases(configs[c1], configs[c2])
+    noise = [c for c in same if (c in p1) != (c in p2)]
+    counts = (f"net gain {net:+d} (only {c2}: {', '.join(only2) or '—'}; only {c1}: "
+              f"{', '.join(only1) or '—'}); same prompt: {len(same)} cases, of which "
+              f"{len(noise)} differ by run-to-run variation ({', '.join(noise) or '—'})")
+    if new_alarms:
+        return "leaves", counts + "; new false alarm: " + ", ".join(new_alarms)
+    return ("stays" if net >= MORE_CASES else "leaves" if net <= 0 else "inconclusive"), counts
+
+
+def two_models(a: str, b: str) -> str:
+    """Protocol 001's rule over the two models."""
+    pair = {a, b}
+    if pair & {"not measured", "not drawn"}:
+        return "not drawn"
+    if pair <= {"stays", "inconclusive"} and "stays" in pair:
+        return "stays in the default path"
+    if pair == {"stays", "leaves"}:
+        return "inconclusive: the two models disagree, the README says why"
+    if pair == {"leaves"}:
+        return "leaves the default path (kept in the code, off by default)"
+    if pair == {"inconclusive"}:
+        return "inconclusive: unchanged, flagged; decided again on ≥ 30 cases"
+    return "not covered by the rules (one model leaves, the other is inconclusive)"
+
+
+def protocol_001_rows(configs: dict[str, list[dict]], ctl: dict[str, dict], cases: list[str]) -> list[list[str]]:
+    outcomes, rows = {}, []
+    for model in ("LLM", "sLLM"):
+        outcome, counts = layer_outcome(f"ctx-{model}", f"C2-{model}", configs, ctl, cases)
+        outcomes[model] = outcome
+        rows.append([f"vector search, {model} (C2 vs C1)", counts, outcome])
+    rows.append(["vector search, both models", "—", two_models(outcomes["LLM"], outcomes["sLLM"])])
+    return rows
+
+
 # ── report ──────────────────────────────────────────────────────────────────────
 
 def render(configs: dict[str, list[dict]], cuts: dict[str, list[dict]] | None = None,
            cases: list[str] | None = None) -> str:
     cases = cases or sorted({x["case"] for r in configs.values() for x in r})
-    # every configuration is held to the collector-cut control: no cut run is a missing one
-    cuts = {n: (cuts or {}).get(n) or [{"case": c, "cut": k, "veracity": "MISSING"}
-                                       for c in cases for k in cuttable(c)] for n in configs}
+    # every configuration of the comparison is held to the collector-cut control: no cut run is
+    # a missing one; protocol 001's C2 is not
+    cuts = {n: ((cuts or {}).get(n) or [{"case": c, "cut": k, "veracity": "MISSING"}
+                                        for c in cases for k in cuttable(c)])
+            if n in CUT_CONTROLLED else None for n in configs}
     ctl = {n: controls(n, r, cuts[n], cases) for n, r in configs.items()}
     parts = ["# The comparison: structured, LLM, sLLM, raw, context", "",
              "Generated by `tools/compare_solvers.py` — do not edit. Protocol and decision rules: "
@@ -343,8 +414,12 @@ def render(configs: dict[str, list[dict]], cuts: dict[str, list[dict]] | None = 
                      "Still names the cause", "Control"],
                     [[n, c["case"], c["cut"], c["label"], c["median"], "yes" if c["names_cause"] else "no",
                       "ok" if c["ok"] else f"FAIL — {c['why']}"]
-                     for n in configs for c in cut_control(configs[n], cuts[n])]), "",
-              "## Decisions", "", table(["Rule", "Counts", "Outcome"], decisions(configs, ctl, cases)), ""]
+                     for n in configs if cuts[n] is not None for c in cut_control(configs[n], cuts[n])]), "",
+              "## Decisions", "", table(["Rule", "Counts", "Outcome"], decisions(configs, ctl, cases)), "",
+              "## Protocol 001 — vector search (C2 against C1)", "",
+              "`docs/protocol-001-retrieval.md`, amendments of 2026-10-23: net gain ≥ 3 stays, 1 or 2 "
+              "inconclusive, ≤ 0 or a new false alarm on h022 or h026 leaves; h001 must pass.", "",
+              table(["Rule", "Counts", "Outcome"], protocol_001_rows(configs, ctl, cases)), ""]
     return "\n".join(parts)
 
 
@@ -359,7 +434,7 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("--none is required: every decision compares with the structured diagnosis")
     cases = native_cases()
     configs = {n: load(d, n, cases) for n, d in given.items()}
-    cuts = {n: load_cuts(d, n, cases) for n, d in given.items()}
+    cuts = {n: load_cuts(d, n, cases) for n, d in given.items() if n in CUT_CONTROLLED}
     text = render(configs, cuts, cases)
     if args.out:
         args.out.write_text(text)

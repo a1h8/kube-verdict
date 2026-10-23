@@ -184,3 +184,27 @@ incident memory is drawn from C1 or C2.
   for writes; reads are prevented by the isolation, not detected. Detail:
   `docs/veracity-replay.md` § Amendment 2026-10-23, what every run records. No decision rule
   changes.
+
+- **2026-10-23 — what C2 adds, measured offline, and a noise control.** Written before any run
+  of C2, after building it (`tools/veracity_replay.py --solver context:<model> --store faiss`)
+  and reading its prompts on the 19 cases with a scripted model and isolated stores:
+  - the vector search is built by the product's own code (`build_investigation_store`, shared
+    with `index_node`) from the case's graph alone: 4 to 30 vectors per case, no resolved
+    incident, no document, no enterprise chart, and **no anchor violation** in any case (none of
+    the fixtures carries the `anchor.*` annotations it indexes);
+  - what retrieval adds to the C1 prompt is a "Related context" list of objects already in the
+    context (the Deployment, its Pods, the Namespace, an Event), and it changes the chunk count
+    and the "Context quality score" line both prompts carry (h013: MEDIUM 0.42 in C1, HIGH 0.70 in
+    C2) — a line that could move the model's label. It does so for 8 cases (h005, h007, h011, h012, h013, h016,
+    h022, h026); **for 10 cases (h001, h002, h003, h004, h006, h008, h009, h010, h015, h024) the
+    C2 prompt is the C1 prompt**, the timestamp line aside, and h014's has the same lines in
+    another order. C2 adds no knowledge the C1 prompt lacks;
+  - **prediction, stated before the numbers:** C2 against C1 shows a net gain of 0 or less for
+    both models, so the decision rule says the vector search over the investigation's own graph
+    leaves the default path. The rule is unchanged; the run decides, the prediction is checked
+    against it and reported either way;
+  - **noise control:** on the cases whose C2 prompt equals C1's (the timestamp line aside),
+    any difference between C1 and C2 is run-to-run variation; it is reported as such, beside
+    the net gain, and computed from the recorded prompts, not from this list;
+  - **what C2 does not measure:** the knowledge base — resolved incidents (C3, R0) and
+    enterprise documents (no corpus). "LLM against the knowledge base" is C3 and R0.

@@ -192,3 +192,64 @@ def test_the_cut_runs_are_read_from_their_directory(tmp_path):
 def test_the_structured_configuration_is_required(tmp_path):
     with pytest.raises(SystemExit):
         cs.main(["--raw-llm", str(tmp_path)])
+
+
+# ── protocol 001: C2 against C1 ─────────────────────────────────────────────────
+
+def _layer(c1_pass, c2_pass, prompts=None):
+    configs = {"ctx-LLM": _recs("ctx-LLM", c1_pass), "C2-LLM": _recs("C2-LLM", c2_pass)}
+    if prompts:
+        for name, recs in configs.items():
+            for r in recs:
+                r["prompts"] = [prompts(name, r["case"])]
+    ctl = {n: cs.controls(n, r, None, CASES) for n, r in configs.items()}
+    return cs.layer_outcome("ctx-LLM", "C2-LLM", configs, ctl, CASES)
+
+
+BASE = set(cs.negatives(CASES)) | {cs.POSITIVE_CONTROL} | set(POSITIVES[1:6])
+
+
+@pytest.mark.parametrize("more, outcome", [(3, "stays"), (2, "inconclusive"), (0, "leaves")])
+def test_the_vector_search_decision(more, outcome):
+    extra = set(POSITIVES[6:6 + more])
+    assert _layer(BASE, BASE | extra)[0] == outcome
+
+
+def test_a_net_loss_leaves():
+    assert _layer(BASE, BASE - {POSITIVES[1]})[0] == "leaves"
+
+
+def test_a_new_false_alarm_leaves_whatever_the_gain():
+    outcome, counts = _layer(BASE, (BASE | set(POSITIVES[6:12])) - {"h022_no_incident"})
+    assert outcome == "leaves" and "new false alarm: h022_no_incident" in counts
+
+
+def test_a_c2_without_the_positive_control_draws_nothing():
+    assert _layer(BASE, BASE - {cs.POSITIVE_CONTROL})[0] == "not drawn"
+
+
+def test_on_the_same_prompt_a_difference_is_noise():
+    same = lambda name, case: "Analysis timestamp: x\nsame"  # noqa: E731
+    outcome, counts = _layer(BASE, BASE | {POSITIVES[7]}, prompts=same)
+    assert f"of which 1 differ by run-to-run variation ({POSITIVES[7]})" in counts
+    other = lambda name, case: f"{name}\nprompt"  # noqa: E731                       # control
+    assert "same prompt: 0 cases" in _layer(BASE, BASE, prompts=other)[1]
+
+
+@pytest.mark.parametrize("a, b, outcome", [
+    ("stays", "stays", "stays in the default path"),
+    ("stays", "inconclusive", "stays in the default path"),
+    ("stays", "leaves", "inconclusive: the two models disagree, the README says why"),
+    ("leaves", "leaves", "leaves the default path (kept in the code, off by default)"),
+    ("inconclusive", "inconclusive", "inconclusive: unchanged, flagged; decided again on ≥ 30 cases"),
+    ("leaves", "inconclusive", "not covered by the rules (one model leaves, the other is inconclusive)"),
+    ("stays", "not drawn", "not drawn"),
+])
+def test_the_two_models_rule(a, b, outcome):
+    assert cs.two_models(a, b) == outcome == cs.two_models(b, a)
+
+
+def test_c2_is_not_held_to_the_collector_cut_control():
+    text = cs.render({"none": _recs("none", ALL), "C2-LLM": _recs("C2-LLM", ALL)},
+                     {"none": _cuts()}, CASES)
+    assert "| C2-LLM | none | no |" in text
