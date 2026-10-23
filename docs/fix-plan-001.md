@@ -397,6 +397,13 @@ item says how it was checked; the fix comes with a test that fails on today's co
   *Done: a "Structured diagnosis" panel (outcome, collectors that could not be read, ranked
   diagnoses with their rule, the LLM's disagreement and its explanation, marked as not deciding)
   replaces the panel that called them RemediationEngine rule hits.*
+- [x] **H78 — the lint is not reproducible**: the CI installs the latest ruff, and the checks
+  run before a commit were the tests alone, so the lint failed on the PR at 70 commits that
+  pass every test. → the CI's ruff pinned, one configuration for the CI and `make lint`.
+  *Done: `ruff==0.17.2` in the CI and in the dev dependencies; the CI runs `ruff check .` with
+  the rules of `pyproject.toml`; `make ci` runs the lint, then the CI's test selection. The 38
+  findings are fixed in one commit at the end of the PR (statements split, unused imports
+  removed), with no change to the tests' ASTs where only a statement was split.*
 - Retracted: `ontology/version.py` is not dead code — `K8sCollector` calls `detect_version`
   and every flag has a production caller; only its docstring contradicted the fallback (fixed).
   Previously recorded as: dead code, `ontology/version.py` (no caller). Latent: `git clone` receives the

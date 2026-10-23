@@ -30,11 +30,13 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      # pinned: an unpinned ruff can turn the lint red with no change to the code
       - name: Install ruff
-        run: pip install ruff
+        run: pip install ruff==0.17.2
 
+      # rules from [tool.ruff] in pyproject.toml, the same as `make lint`
       - name: Ruff check
-        run: ruff check . --select=E,W,F --ignore=E501
+        run: ruff check .
 
   # ─────────────────────────────────────────────
   # Dashboard (React) — Vitest unit tests + production build

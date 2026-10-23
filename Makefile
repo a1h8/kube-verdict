@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help demo install test ui lint
+.PHONY: help demo install test ui lint ci
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -18,5 +18,7 @@ test: ## Run the offline test suite (the CI's selection: no Ollama, no live clus
 ui: ## Launch the Streamlit UI (offline pipeline trace — pick any h0NN case)
 	streamlit run ui/app.py
 
-lint: ## Ruff lint
+lint: ## Ruff lint (the CI's rules, from pyproject.toml)
 	ruff check .
+
+ci: lint test ## What the CI checks: the lint, then the offline tests
