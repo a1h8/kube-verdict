@@ -18,9 +18,10 @@ RAW_DIRS = ("kube", "helm", "chart", "policy", "prometheus", "loki", "otel")
 _TEMPLATE_COMMENT = re.compile(r"\{\{-?\s*/\*.*?\*/\s*-?\}\}", re.S)
 
 
-def raw_files(case_dir: Path) -> list[Path]:
-    """The fixture files of the case the raw model may read, in sorted order."""
-    files = [p for d in RAW_DIRS if (case_dir / d).is_dir()
+def raw_files(case_dir: Path, exclude: tuple[str, ...] = ()) -> list[Path]:
+    """The fixture files of the case the raw model may read, in sorted order; ``exclude`` leaves
+    directories out (a cut collector, docs/veracity-replay.md § Amendment 2026-10-23)."""
+    files = [p for d in RAW_DIRS if d not in exclude and (case_dir / d).is_dir()
              for p in (case_dir / d).rglob("*") if p.is_file()]
     return sorted(files, key=lambda p: p.relative_to(case_dir).as_posix())
 
@@ -61,10 +62,10 @@ def strip_comments(text: str) -> str:
     return "\n".join(out).rstrip() + "\n"
 
 
-def raw_block(case_dir: Path) -> tuple[str, list[str]]:
+def raw_block(case_dir: Path, exclude: tuple[str, ...] = ()) -> tuple[str, list[str]]:
     """(the files as one text block, their paths relative to the case)."""
     parts, names = [], []
-    for path in raw_files(case_dir):
+    for path in raw_files(case_dir, exclude):
         rel = path.relative_to(case_dir).as_posix()
         text = path.read_text(encoding="utf-8", errors="replace")
         if path.suffix in (".yaml", ".yml"):

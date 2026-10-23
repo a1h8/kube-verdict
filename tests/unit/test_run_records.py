@@ -169,7 +169,7 @@ def test_a_run_that_writes_a_real_store_is_invalid(tmp_path, monkeypatch):
     real.mkdir()
     leak = real / "data/examples/leak.json"
 
-    def leaking(case_name):
+    def leaking(case_name, cut=None):
         leak.parent.mkdir(parents=True)
         leak.write_text("{}")                     # an absolute path: the isolation cannot catch it
         return {"case": case_name, "run": 1, "veracity": "PASS", "reason": "", "tier": "A",
@@ -185,7 +185,7 @@ def test_every_solver_runs_isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("KUBEWHISPERER_DB", str(tmp_path / "real.db"))
     seen = {}
 
-    def spy(case_name):
+    def spy(case_name, cut=None):
         seen.update(cwd=Path.cwd(), db=os.environ["KUBEWHISPERER_DB"],
                     examples=os.environ["KUBEVERDICT_EXAMPLE_DIR"], index=cfg.VECTOR_STORE_PATH)
         return {"case": case_name, "run": 1, "veracity": "PASS", "reason": "", "tier": "A",

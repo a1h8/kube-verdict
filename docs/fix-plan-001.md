@@ -218,8 +218,13 @@
   corpus hash and cut; a truncated run or one that wrote a real store is recorded `invalid` and
   never counted as a pass; every solver runs isolated; the records directory must carry the
   run's name (`:` and `/` of a model name written `_`) unless `--out-free`; an empty answer is
-  tested as a FAIL. Left: the cut (`--cut`), `tools/compare_solvers.py` reading `invalid`, and
-  the corpus split (with the corpus).
+  tested as a FAIL. *Cut done 2026-10-23* (`tests/unit/test_cut_runs.py`): `--cut
+  <collector>|auto` runs one cut run per case and collector, under `cut-<collector>/`, apart
+  from the connected runs (`CUT.md`); a cut the case has no fixtures for is refused. Structured,
+  8 cut runs: none above its connected label (h005, h013, h014 MEDIUM → LOW, h015 HIGH → LOW,
+  h006 MEDIUM → MEDIUM, h016 HIGH → HIGH for each of its three collectors). Left:
+  `tools/compare_solvers.py` reading `invalid` and the cut runs, and the corpus split (with the
+  corpus).
 
 - [x] **H81 — the test suite writes the real database and store directories.** Run from an
   empty directory, `make ci` leaves `kubeverdict.db` (sessions written by

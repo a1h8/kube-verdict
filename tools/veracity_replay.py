@@ -47,6 +47,9 @@ GRADING_KEYS = ("root_cause_concepts", "root_cause_concepts_all",
                 "root_cause_must_not_contain", "expected_outcome", "expected_verdict")
 TIERS = ("A", "B", "C", "M")
 MODEL_SOLVERS = ("llm", "raw", "context")   # each run in its own process, with a model
+# the backends a run can lose and keep going — docs/veracity-replay.md § Amendment 2026-10-23
+# (the collector-cut control); the same as workflow_harness.CUTTABLE
+CUT_COLLECTORS = ("prometheus", "loki", "otel")
 # docs/veracity-replay.md § Amendment 2026-10-22: the raw configurations' context ceiling
 RAW_NUM_CTX_MAX = 16384
 
@@ -84,6 +87,16 @@ def native_cases() -> list[str]:
 
 def _key(case_name: str) -> str:
     return case_name.split("_", 1)[0]
+
+
+def cuttable(case_name: str) -> list[str]:
+    """The collectors of the case that can be cut: those it has fixtures for."""
+    return [c for c in CUT_COLLECTORS if (CASES_ROOT / case_name / c).is_dir()]
+
+
+def _fallbacks(state: dict) -> list[str]:
+    stats = state.get("ingestion_stats") or {}
+    return sorted(k for k, v in stats.items() if isinstance(v, dict) and v.get("fallback"))
 
 
 # ── what every run records, and where (docs/veracity-replay.md § Amendment 2026-10-23) ──
@@ -230,7 +243,7 @@ def solve_rules(case_name: str) -> dict:
     return record
 
 
-def solve_structured(case_name: str) -> dict:
+def solve_structured(case_name: str, cut: str | None = None) -> dict:
     """Typed signals → typed diagnoses, no LLM (docs/structured-diagnosis.md). Deterministic."""
     from rca.diagnosis import RULES_VERSION, diagnose
     from rca.signals import EXTRACTOR_VERSION, extract_signals
@@ -238,7 +251,7 @@ def solve_structured(case_name: str) -> dict:
     from tools.reasoning_path import _RecordOnly
 
     t0 = time.perf_counter()
-    run = run_case(_key(case_name), llm=_RecordOnly())
+    run = run_case(_key(case_name), cut=cut, llm=_RecordOnly())
     signals = extract_signals(run.graph)
     outcome = diagnose(signals)
     expect = run.expect
@@ -248,7 +261,7 @@ def solve_structured(case_name: str) -> dict:
     record.update({
         "wall_s": round(time.perf_counter() - t0, 2), "answerable": None,
         "confidence": outcome.confidence, "pre_llm_confidence_score": None, "verdict": None,
-        "fallbacks": [], "signals_mode": None, "root_cause": outcome.root_cause(),
+        "fallbacks": _fallbacks(run.state), "signals_mode": None, "root_cause": outcome.root_cause(),
         "outcome": outcome.outcome,
         "diagnoses": [{"rule": d.rule, "family": d.family, "location": d.cause_location,
                        "score": round(d.score, 2), "signals": d.signal_ids} for d in outcome.diagnoses],
@@ -258,12 +271,12 @@ def solve_structured(case_name: str) -> dict:
     return record
 
 
-def solve_llm(case_name: str, client, run: int) -> dict:
+def solve_llm(case_name: str, client, run: int, cut: str | None = None) -> dict:
     """The offline workflow on the case fixtures, answered by ``client``."""
     from tests.integration.workflow_harness import run_case
 
     t0 = time.perf_counter()
-    result = run_case(_key(case_name), llm=client)
+    result = run_case(_key(case_name), cut=cut, llm=client)
     expect = result.expect
     state = result.state
     report = state.get("report_dict") or {}
@@ -279,7 +292,7 @@ def solve_llm(case_name: str, client, run: int) -> dict:
         "confidence_raw": state.get("confidence") or "",
         "pre_llm_confidence_score": (report.get("pre_llm_confidence") or {}).get("score"),
         "verdict": state.get("verdict"),
-        "fallbacks": sorted(k for k, v in stats.items() if isinstance(v, dict) and v.get("fallback")),
+        "fallbacks": _fallbacks(state),
         "signals_mode": (stats.get("signals") or {}).get("mode"),
         "root_cause": report.get("root_cause", ""),
         # docs/structured-in-product.md: the report's cause is the structured diagnosis; what
@@ -343,10 +356,11 @@ Start your answer with exactly one word: HIGH, MEDIUM, or LOW.
 """
 
 
-def raw_prompt(case_dir: Path, query: str) -> tuple[str, list[str]]:
-    """(the raw prompt, the files it carries) for one case."""
+def raw_prompt(case_dir: Path, query: str, cut: str | None = None) -> tuple[str, list[str]]:
+    """(the raw prompt, the files it carries) for one case; a cut collector's directory is left
+    out."""
     from tools.raw_input import raw_block
-    block, files = raw_block(case_dir)
+    block, files = raw_block(case_dir, exclude=(cut,) if cut else ())
     return f"## Files of the incident\n\n{block}\n---\n" + _RAW_TASK.format(query=query), files
 
 
@@ -381,7 +395,7 @@ def _model_record(case_name: str, expect: dict, solver: str, client, run: int, t
     return record
 
 
-def solve_raw(case_name: str, client, run: int) -> dict:
+def solve_raw(case_name: str, client, run: int, cut: str | None = None) -> dict:
     """The model on the case's raw fixture files, no pipeline (docs/veracity-replay.md)."""
     from llm.ollama_client import PromptTooLongError
     from tests.integration.cases.case_loader import load_case
@@ -389,32 +403,32 @@ def solve_raw(case_name: str, client, run: int) -> dict:
     t0 = time.perf_counter()
     case_dir = CASES_ROOT / case_name
     expect = load_case(case_dir)["expect"]
-    prompt, files = raw_prompt(case_dir, expect["query"])
+    prompt, files = raw_prompt(case_dir, expect["query"], cut)
     answer, refused = None, ""
     try:
         answer = client.generate(prompt, system=_RAW_SYSTEM_PROMPT)
     except PromptTooLongError as exc:
         refused = str(exc)
     record = _model_record(case_name, expect, "raw", client, run, t0, prompt, answer, refused)
-    record.update({"prompt": RAW_PROMPT_VERSION, "files": files})
+    record.update({"prompt": RAW_PROMPT_VERSION, "files": files, "fallbacks": [cut] if cut else []})
     return record
 
 
-def context_prompt_state(case_name: str):
-    """The case through the collectors and the graph, no model: (graph, expect)."""
+def context_prompt_state(case_name: str, cut: str | None = None):
+    """The case through the collectors and the graph, no model: (graph, expect, fallbacks)."""
     from tests.integration.workflow_harness import run_case
-    run = run_case(_key(case_name), llm="none")
-    return run.graph, run.expect
+    run = run_case(_key(case_name), cut=cut, llm="none")
+    return run.graph, run.expect, _fallbacks(run.state)
 
 
-def solve_context(case_name: str, client, run: int) -> dict:
+def solve_context(case_name: str, client, run: int, cut: str | None = None) -> dict:
     """The model on the pipeline's context, without the hypothesis or the diagnosis."""
     from llm.ollama_client import PromptTooLongError
     from rca.analyzer import RCAAnalyzer
     from tests.integration.workflow_harness import RecordingLLM, StubStore
 
     t0 = time.perf_counter()
-    graph, expect = context_prompt_state(case_name)
+    graph, expect, fallbacks = context_prompt_state(case_name, cut)
     recording = RecordingLLM(client)
     answer, refused = None, ""
     try:
@@ -423,7 +437,9 @@ def solve_context(case_name: str, client, run: int) -> dict:
     except PromptTooLongError as exc:
         refused = str(exc)
     prompt = recording.analyze_prompts[-1] if recording.analyze_prompts else ""
-    return _model_record(case_name, expect, "context", client, run, t0, prompt, answer, refused)
+    record = _model_record(case_name, expect, "context", client, run, t0, prompt, answer, refused)
+    record["fallbacks"] = fallbacks
+    return record
 
 
 @contextlib.contextmanager
@@ -457,12 +473,32 @@ def isolated_stores():
 
 # ── records and report ──────────────────────────────────────────────────────────
 
-def record_path(out_dir: Path, solver: str, case_name: str, run: int) -> Path:
-    return out_dir / solver / case_name / f"run_{run}.json"
+def record_path(out_dir: Path, solver: str, case_name: str, run: int, cut: str | None = None) -> Path:
+    """``<out>/<solver>/<case>/run_<n>.json``; a cut run under ``cut-<collector>/``, never mixed
+    with the connected runs."""
+    base = out_dir / solver / case_name
+    return (base / f"cut-{cut}" if cut else base) / f"run_{run}.json"
 
 
 def load_records(out_dir: Path) -> list[dict]:
     return [json.loads(p.read_text()) for p in sorted(out_dir.glob("*/*/run_*.json"))]
+
+
+def load_cut_records(out_dir: Path) -> list[dict]:
+    return [json.loads(p.read_text()) for p in sorted(out_dir.glob("*/*/cut-*/run_*.json"))]
+
+
+def render_cut_report(records: list[dict], header: str = "") -> str:
+    """The cut runs as recorded; the control itself (against the connected runs' median label)
+    is decided by tools/compare_solvers.py."""
+    lines = ["# Collector-cut runs", ""] + ([header, ""] if header else []) + [
+        "Generated by `tools/veracity_replay.py` — do not edit. Control: "
+        "`docs/veracity-replay.md` § Amendment 2026-10-23, the collector-cut control.", "",
+        "| Case | Cut | Fallback | Confidence | Cause | Invalid |", "|---|---|---|---|---|---|"]
+    for r in sorted(records, key=lambda r: (r["case"], r.get("cut") or "")):
+        lines.append(f"| {r['case']} | {r.get('cut')} | {', '.join(r.get('fallbacks') or []) or '—'} | "
+                     f"{r.get('confidence') or '—'} | {r['veracity']} | {len(r.get('invalid') or [])} |")
+    return "\n".join(lines) + "\n"
 
 
 def _rate(n: int, d: int) -> str:
@@ -575,16 +611,17 @@ def regrade(records_dir: Path) -> str:
     return "\n".join(lines)
 
 
-def _record_failure(out_dir: Path, solver: str, case_name: str, run: int, why: str) -> None:
+def _record_failure(out_dir: Path, solver: str, case_name: str, run: int, why: str,
+                    cut: str | None = None) -> None:
     """A run that produced no record is said, and kept: ``failures.jsonl`` (fix plan R1)."""
     print(f"{case_name} run {run}: ERROR — {why} (not recorded; --resume retries it)", file=sys.stderr)
     out_dir.mkdir(parents=True, exist_ok=True)
     with (out_dir / "failures.jsonl").open("a") as fh:
-        fh.write(json.dumps({"solver": solver, "case": case_name, "run": run, "why": why,
+        fh.write(json.dumps({"solver": solver, "case": case_name, "run": run, "cut": cut, "why": why,
                              "at": datetime.now(timezone.utc).isoformat()}) + "\n")
 
 
-def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
+def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path, cut: str | None = None) -> None:
     """One llm run in its own process, killed after REPLAY_RUN_TIMEOUT seconds.
 
     A request can hang past the HTTP read timeout (a half-dead port-forward kept one
@@ -592,21 +629,22 @@ def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path) -> None:
     """
     timeout = int(os.environ.get("REPLAY_RUN_TIMEOUT", "1800"))
     cmd = [sys.executable, str(Path(__file__).resolve()), "--solver", solver,
-           "--cases", _key(case_name), "--child-run", str(run), "--out", str(out_dir), "--out-free"]
+           "--cases", _key(case_name), "--child-run", str(run), "--out", str(out_dir), "--out-free",
+           *(["--cut", cut] if cut else [])]
     # the child's exit code and its record are both checked: a child that died (OOM-killed,
     # crash at import) used to leave nothing at all (fix plan R1)
     try:
         done = subprocess.run(cmd, timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
         _record_failure(out_dir, solver.partition(":")[0], case_name, run,
-                        f"no answer within {timeout}s, process killed")
+                        f"no answer within {timeout}s, process killed", cut)
         return
     if done.returncode != 0:
         _record_failure(out_dir, solver.partition(":")[0], case_name, run,
-                        f"child exited with code {done.returncode}")
-    elif not record_path(out_dir, solver.partition(":")[0], case_name, run).exists():
+                        f"child exited with code {done.returncode}", cut)
+    elif not record_path(out_dir, solver.partition(":")[0], case_name, run, cut).exists():
         _record_failure(out_dir, solver.partition(":")[0], case_name, run,
-                        "child exited 0 but wrote no record")
+                        "child exited 0 but wrote no record", cut)
 
 
 def _invalid(record: dict, touched: list[str]) -> list[str]:
@@ -627,6 +665,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--cases", default="", help="comma-separated keys, e.g. h001,h014 (default: all)")
     ap.add_argument("--runs", type=int, default=3, help="runs per case for llm (rules: always 1)")
     ap.add_argument("--resume", action="store_true", help="skip runs already recorded")
+    ap.add_argument("--cut", choices=(*CUT_COLLECTORS, "auto"),
+                    help="one run per case with that collector's backend unreachable; auto: every "
+                         "collector each case has fixtures for (the collector-cut control)")
     ap.add_argument("--out", default=None,
                     help="records directory (default: tests/veracity/replay-baselines/<run name>)")
     ap.add_argument("--out-free", action="store_true",
@@ -650,6 +691,20 @@ def main(argv: list[str] | None = None) -> int:
         ap.error(f"--solver {solver} needs a model: {solver}:<model>")
     wanted = {k.strip() for k in args.cases.split(",") if k.strip()}
     cases = [c for c in native_cases() if not wanted or _key(c) in wanted]
+    # (case, cut) pairs: one connected run set per case, or one cut run per case and collector
+    if args.cut and solver == "rules":
+        ap.error("--cut: the rules solver reads no collector")
+    if not args.cut:
+        pairs = [(c, None) for c in cases]
+    else:
+        pairs = [(c, k) for c in cases
+                 for k in (cuttable(c) if args.cut == "auto" else [args.cut] if args.cut in cuttable(c) else [])]
+        lacking = [c for c in cases if wanted and args.cut != "auto" and args.cut not in cuttable(c)]
+        if lacking:
+            # cutting what the case does not have cuts nothing, and would pass the control
+            ap.error(f"--cut {args.cut}: no {args.cut} fixtures in {', '.join(lacking)}")
+        if not pairs:
+            ap.error(f"--cut {args.cut}: no case has a collector to cut")
 
     client = None
     if solver in MODEL_SOLVERS:
@@ -683,35 +738,41 @@ def main(argv: list[str] | None = None) -> int:
     previous = os.environ.get("EXAMPLE_LOOKUP_DISABLED")
     os.environ["EXAMPLE_LOOKUP_DISABLED"] = "1"
     try:
-        runs = 1 if solver in ("rules", "structured") else args.runs
+        # a cut run is one run per case and collector (the amendment of 2026-10-23)
+        runs = 1 if solver in ("rules", "structured") or args.cut else args.runs
         run_range = [args.child_run] if args.child_run else range(1, runs + 1)
-        for case_name in cases:
+        for case_name, cut in pairs:
             for run in run_range:
-                path = record_path(out_dir, solver, case_name, run)
+                path = record_path(out_dir, solver, case_name, run, cut)
                 if args.resume and path.exists():
                     continue
                 if solver in MODEL_SOLVERS and not args.child_run:
-                    _run_in_child(args.solver, case_name, run, out_dir)
+                    _run_in_child(args.solver, case_name, run, out_dir, cut)
                     continue
                 before = fingerprint(watched)
                 try:
                     with isolated_stores():
                         record = (solve_rules(case_name) if solver == "rules"
-                                  else solve_structured(case_name) if solver == "structured"
-                                  else solve_raw(case_name, client, run) if solver == "raw"
-                                  else solve_context(case_name, client, run) if solver == "context"
-                                  else solve_llm(case_name, client, run))
+                                  else solve_structured(case_name, cut) if solver == "structured"
+                                  else solve_raw(case_name, client, run, cut) if solver == "raw"
+                                  else solve_context(case_name, client, run, cut) if solver == "context"
+                                  else solve_llm(case_name, client, run, cut))
                 except Exception as exc:  # one failed run must not stop an hours-long replay
-                    _record_failure(out_dir, solver, case_name, run, f"{type(exc).__name__}: {exc}")
+                    _record_failure(out_dir, solver, case_name, run, f"{type(exc).__name__}: {exc}", cut)
                     continue
-                record.update(meta, case_hash=case_hash(case_name),
+                record.update(meta, case_hash=case_hash(case_name), cut=cut,
                               invalid=_invalid(record, store_changes(before, fingerprint(watched))))
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
-                print(f"{case_name} run {run}: {record['veracity']} — {record['reason']}")
-                (out_dir / "REPORT.md").write_text(render_report(
-                    load_records(out_dir), _header(args.solver),
-                    expected={solver: [(c, r) for c in cases for r in run_range]}))
+                print(f"{case_name}{f' cut {cut}' if cut else ''} run {run}: "
+                      f"{record['veracity']} — {record['reason']}")
+                if cut:
+                    (out_dir / "CUT.md").write_text(render_cut_report(
+                        load_cut_records(out_dir), _header(args.solver)))
+                else:
+                    (out_dir / "REPORT.md").write_text(render_report(
+                        load_records(out_dir), _header(args.solver),
+                        expected={solver: [(c, r) for c in cases for r in run_range]}))
     finally:
         if previous is None:
             os.environ.pop("EXAMPLE_LOOKUP_DISABLED", None)
