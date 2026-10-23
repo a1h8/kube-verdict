@@ -1,0 +1,41 @@
+{
+  "answerable": true,
+  "case": "h004_missing_configmap",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 100.6,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2391,
+      "num_ctx": 4096,
+      "prompt_eval_s": 73.9,
+      "prompt_tokens_read": 2142
+    }
+  ],
+  "matched_groups": [
+    [
+      "configmap|api-gateway-config"
+    ]
+  ],
+  "matched_keywords": [
+    "configmap|api-gateway-config"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: missing|not found",
+  "root_cause": "The api-gateway pod is unable to start because it requires ConfigMap \"api-gateway-config\" and Secret \"db-credentials\" which are not present in the cluster.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:06:41.908540+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 175.34
+}

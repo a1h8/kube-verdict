@@ -1,0 +1,35 @@
+{
+  "answerable": null,
+  "case": "h026_rollout_in_progress",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 122.3,
+      "answer_tokens": 485,
+      "estimated_prompt_tokens": 3460,
+      "num_ctx": 5120,
+      "prompt_eval_s": 159.0,
+      "prompt_tokens_read": 3105
+    }
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.33,
+  "prompt": "v2",
+  "reason": "no_incident: confidence MEDIUM, LOW expected",
+  "root_cause": "The Readiness probe for the Invoice service is configured to check the health of the service by attempting to connect to its own IP address on port 8080. However, the connection is refused, indicating that the service is not running or not listening on the specified port.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-18T03:12:38.327705+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 319.0
+}

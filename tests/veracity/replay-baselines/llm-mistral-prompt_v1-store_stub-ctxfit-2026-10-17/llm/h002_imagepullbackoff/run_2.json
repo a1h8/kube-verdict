@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h002_imagepullbackoff",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 102.1,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2533,
+      "num_ctx": 4096,
+      "prompt_eval_s": 80.6,
+      "prompt_tokens_read": 2278
+    }
+  ],
+  "matched_groups": [
+    [
+      "image",
+      "tag|drift|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "image",
+    "tag|drift|declared"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.53,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The Helm release for ml-inference in the production namespace has drifted, causing the incorrect image version (v2.1.0-private) to be deployed instead of the declared version (v2.0.5). This incorrect image version is causing a 401 Unauthorized error when attempting to pull the image, preventing the pod from starting.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T10:48:17.587178+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 183.44
+}

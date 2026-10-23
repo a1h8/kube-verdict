@@ -1,0 +1,37 @@
+{
+  "answerable": true,
+  "case": "h016_multi_signal",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 252.1,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 5586,
+      "num_ctx": 7168,
+      "prompt_eval_s": 313.7,
+      "prompt_tokens_read": 4984
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.52,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: max_connections|connection pool|pool, replica|scale",
+  "root_cause": "The high error rate in the orders-api deployment is causing the pods to become unhealthy and restart. This is due to a combination of database connection issues and a high error rate in the POST /orders API.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T13:53:02.323583+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 632.79
+}

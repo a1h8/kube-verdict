@@ -1,0 +1,44 @@
+{
+  "answerable": true,
+  "case": "h024_multi_cause",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 145.6,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3600,
+      "num_ctx": 5120,
+      "prompt_eval_s": 165.7,
+      "prompt_tokens_read": 3219
+    }
+  ],
+  "matched_groups": [
+    [],
+    [
+      "memory|oom",
+      "drift|1gi|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "memory|oom",
+    "drift|1gi|declared"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.65,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: secret|queue-credentials, missing|not found",
+  "root_cause": "The root cause is a combination of Helm drift affecting the memory limits and requests of the API deployment, and insufficient memory allocated to the worker pod.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T14:36:11.265668+00:00",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 319.58
+}

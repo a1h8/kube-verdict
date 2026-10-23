@@ -1,0 +1,37 @@
+{
+  "answerable": true,
+  "case": "h006_networkpolicy_blocked",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 97.7,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2315,
+      "num_ctx": 4096,
+      "prompt_eval_s": 79.5,
+      "prompt_tokens_read": 2042
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.39,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: networkpolicy|network policy",
+  "root_cause": "The root cause appears to be a DNS resolution issue and potential UDP/53 egress block, as indicated by the warning events.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:22:40.394947+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 208.65
+}

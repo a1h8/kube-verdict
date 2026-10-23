@@ -1,0 +1,41 @@
+{
+  "answerable": true,
+  "case": "h008_init_container_fail",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM.",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 96.8,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2182,
+      "num_ctx": 3072,
+      "prompt_eval_s": 75.7,
+      "prompt_tokens_read": 1940
+    }
+  ],
+  "matched_groups": [
+    [
+      "migration"
+    ]
+  ],
+  "matched_keywords": [
+    "migration"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.39,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: init|db-migrate",
+  "root_cause": "The root cause appears to be a failed database migration, as indicated by the event message \"FATAL: database migration failed \u2014 relation 'user_tokens' does not exist\".",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:46:20.882334+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 206.15
+}

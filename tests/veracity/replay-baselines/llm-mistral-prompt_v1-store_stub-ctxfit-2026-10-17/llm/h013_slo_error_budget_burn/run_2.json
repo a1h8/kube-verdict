@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h013_slo_error_budget_burn",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM:",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 180.6,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3008,
+      "num_ctx": 4096,
+      "prompt_eval_s": 171.9,
+      "prompt_tokens_read": 2662
+    }
+  ],
+  "matched_groups": [
+    [
+      "payments-gateway|payments gateway|dependenc|downstream",
+      "network"
+    ]
+  ],
+  "matched_keywords": [
+    "payments-gateway|payments gateway|dependenc|downstream",
+    "network"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.66,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The increased latency is isolated to calls to the `payments-gateway` dependency, suggesting a network path issue between the two services.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T12:54:56.039903+00:00",
+  "tier": "B",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 392.76
+}

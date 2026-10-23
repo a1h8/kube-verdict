@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h007_hpa_no_metrics",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 89.5,
+      "answer_tokens": 496,
+      "estimated_prompt_tokens": 2195,
+      "num_ctx": 3072,
+      "prompt_eval_s": 67.3,
+      "prompt_tokens_read": 1743
+    }
+  ],
+  "matched_groups": [
+    [
+      "metrics",
+      "hpa|autoscal"
+    ]
+  ],
+  "matched_keywords": [
+    "metrics",
+    "hpa|autoscal"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.36,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The HPA is unable to compute the desired number of replicas because it cannot get CPU utilization metrics for the api-service.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:33:02.216699+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 186.89
+}

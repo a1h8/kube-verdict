@@ -1,0 +1,41 @@
+{
+  "answerable": true,
+  "case": "h008_init_container_fail",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 96.2,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2182,
+      "num_ctx": 3072,
+      "prompt_eval_s": 76.2,
+      "prompt_tokens_read": 1939
+    }
+  ],
+  "matched_groups": [
+    [
+      "migration"
+    ]
+  ],
+  "matched_keywords": [
+    "migration"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.39,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: init|db-migrate",
+  "root_cause": "The root cause is a failed database migration due to the non-existence of the 'user_tokens' relation.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:42:48.048597+00:00",
+  "tier": "A",
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 204.94
+}

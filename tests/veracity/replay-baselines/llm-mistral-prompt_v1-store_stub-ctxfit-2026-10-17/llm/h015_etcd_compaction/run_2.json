@@ -1,0 +1,37 @@
+{
+  "answerable": true,
+  "case": "h015_etcd_compaction",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 161.4,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3374,
+      "num_ctx": 5120,
+      "prompt_eval_s": 189.0,
+      "prompt_tokens_read": 2999
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.42,
+  "prompt": "v2",
+  "reason": "cause concept(s) not named: etcd, compaction|compacted|latency|slow",
+  "root_cause": "The repeated failures in the readiness probe of the `inventory-api` Pod are causing the Deployment to remain in an unhealthy state. The failures are due to the readiness probe timing out when trying to access the Pod's `/ready` endpoint.",
+  "run": 2,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T13:35:15.179042+00:00",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": "NO_GO",
+  "wall_s": 427.25
+}

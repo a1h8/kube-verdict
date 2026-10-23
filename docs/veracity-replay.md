@@ -86,6 +86,26 @@ them, measure mistral on the tail of the prompt, not on the evidence. They stay 
 The next measurement sets `num_ctx` to fit the prompt and records the tokens actually read
 (`docs/case-audit-001.md` F8).
 
+**First full-prompt LLM run (2026-10-17/18).** Records and conditions:
+`tests/veracity/replay-baselines/llm-mistral-prompt_v1-store_stub-ctxfit-2026-10-17/README.md`
+(code `9bb83ba`, every call read its whole prompt, the 19 native cases, 3 runs each). Result:
+31/57 runs, **11/19 cases** by majority. The structured diagnosis (no LLM, code of `e6e8844`)
+passes **14/19**:
+
+| | Cases |
+|---|---|
+| both pass | 9 — h001, h002, h003, h005, h007, h009, h011, h014, h024 |
+| LLM only | 2 — h010 (names the quota; the fixture's node-CPU message misleads the rules), h013 (no SLO rule exists) |
+| structured only | 5 — h004, h008, h015, h022, h026 |
+| neither | 3 — h006, h012, h016 |
+
+Read with its limits: the rules were written knowing these cases, the LLM was not; on h004 the
+LLM's answer is right but worded "not present", which the synonyms do not accept (a grading
+defect, to amend before any re-grade); on the two healthy cases (h022, h026) the LLM names a
+cause 6/6 times (MEDIUM), the structured diagnosis abstains; the LLM takes 242 s median per run,
+the structured diagnosis 3.7 s per case. Both ran with the loader-made drifts of F11. No
+conclusion on keeping the LLM is drawn from 19 cases the rules were written on.
+
 Next measurements (decided 2026-10-14): `--store faiss` (production retrieval), then
 prompt v2 (section 7), on the same cases, each frozen under its own configuration name.
 

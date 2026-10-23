@@ -1,0 +1,43 @@
+{
+  "answerable": true,
+  "case": "h009_liveness_probe_loop",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "llm_calls": [
+    {
+      "answer_s": 98.4,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2432,
+      "num_ctx": 4096,
+      "prompt_eval_s": 83.6,
+      "prompt_tokens_read": 2087
+    }
+  ],
+  "matched_groups": [
+    [
+      "liveness",
+      "drift|timeoutseconds|declared|too short|too aggressive"
+    ]
+  ],
+  "matched_keywords": [
+    "liveness",
+    "drift|timeoutseconds|declared|too short|too aggressive"
+  ],
+  "model": "mistral",
+  "num_ctx_max": 8192,
+  "pre_llm_confidence_score": 0.53,
+  "prompt": "v2",
+  "reason": "cause named, no decoy",
+  "root_cause": "The Helm deployment of the search-service has a drift in the livenessProbe.timeoutSeconds configuration, causing the liveness probe to fail and triggering restarts of the search-service pod.",
+  "run": 1,
+  "signals_mode": "real",
+  "solver": "llm",
+  "started_at": "2026-10-17T11:53:40.265985+00:00",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 221.65
+}
