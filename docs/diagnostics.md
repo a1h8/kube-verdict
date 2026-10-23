@@ -247,6 +247,10 @@ not only presentation.
      what Kubernetes already reports (`secret "x" not found`, `couldn't find key K in
      Secret …` in events and container status). Rejected, option A: a metadata-only
      list, which keeps the account able to read values and loses the key names anyway.
+     *Amended 2026-10-23:* one opt-in exception, off by default — reading Helm's release
+     Secrets in the namespaces the operator lists, for the applied state of
+     `docs/three-states.md`. RBAC cannot narrow it to Helm's Secrets, so the chart says it
+     grants every Secret of those namespaces (`docs/fix-plan-001.md`, H45).
      Found while deciding (see `docs/veracity-replay.md` § *Evidence only the test
      loader produces*): the missing-dependency detector exists only in the test fixture
      loader, and the collector's pod → Secret edges were never created (pods are

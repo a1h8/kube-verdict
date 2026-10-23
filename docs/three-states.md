@@ -65,10 +65,12 @@ no mode to choose.
 
 ## RBAC
 
-B reads Secrets of type `helm.sh/release.v1` only. The chart grants a namespaced Role limited to
-`get` / `list` on Secrets, documented as such; it does not grant other Secrets
-(`docs/fix-plan-001.md`, H45, to confirm in the live validation). Without it, B reports
-`fallback: true` and the investigation goes on.
+B reads the release Secrets (`type: helm.sh/release.v1`). RBAC cannot grant those alone: it
+selects by resource and by name, not by `type`, and a release's Secret changes name at each
+revision. Reading them is therefore opt-in, per namespace, off by default: for each namespace the
+operator lists, the chart grants a Role with `get` / `list` on `secrets` — every Secret of that
+namespace, and documented as such (`docs/fix-plan-001.md`, H45, decided 2026-10-23, to confirm in
+the live validation). Without it, B reports `fallback: true` and the investigation goes on.
 
 ## Tests (controls that can fail)
 

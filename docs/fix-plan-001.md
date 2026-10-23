@@ -415,8 +415,20 @@ item says how it was checked; the fix comes with a test that fails on today's co
 
 - [ ] **H45 — the project's chart grants no Secrets**, where Helm 3 stores its releases, nor
   quotas, limit ranges, webhooks or impersonation: deployed with it, kube-verdict sees no release.
-  → to confirm live, then the chart grants what the collectors read (Secrets of type
-  `helm.sh/release.v1` only, through a dedicated Role) and the docs say what dry-run needs.
+  → to confirm live, then the chart grants what the collectors read and the docs say what
+  dry-run needs.
+  *Corrected 2026-10-23: the fix first written here — a Role on "Secrets of type
+  `helm.sh/release.v1` only" — cannot exist. RBAC selects by resource and by name, never by a
+  field such as `type`; Helm names its Secrets `sh.helm.release.v1.<release>.v<revision>`, a new
+  name at each revision, so `resourceNames` cannot hold them either. Any Role that lets
+  `helm get manifest` read a release lets the account read every Secret of that namespace.*
+  *Decided 2026-10-23 (option A): opt-in, per namespace, off by default. A chart value lists
+  the namespaces whose releases kube-verdict may read; for each, a Role grants `get` / `list` on
+  `secrets`, and the chart's documentation says that it covers every Secret of the namespace,
+  not only Helm's. With the list empty — the default — no Secret is readable and the applied
+  state is reported as not read (`fallback: true`), never as absent. Rejected: B, no in-cluster
+  release at all (the three-state comparison would never run live); C, a ClusterRole on
+  `secrets` (every Secret of the cluster).*
 
 ## Not in this PR (open work, not corrections)
 
@@ -431,3 +443,6 @@ The comparison none / LLM / sLLM and its decision rules are fixed in
 
 Block B, on the merged code: rules, structured, mistral × 3, qwen2.5:3b × 3, the 19 native cases;
 a block counts only when complete (`docs/veracity-replay.md`).
+Amended 2026-10-22 (`docs/veracity-replay.md`, § Amendment 2026-10-22): the block also runs the
+model on the raw artifacts (raw:mistral × 3, raw:qwen2.5:3b × 3) and on the pipeline's context
+without the diagnosis (context:mistral × 3, context:qwen2.5:3b × 3), with their decision rules.
