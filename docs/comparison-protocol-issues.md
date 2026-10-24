@@ -31,6 +31,8 @@
 | CPI-16 | AMBIGUOUS | medium | RESOLVED (2026-10-24) |
 | CPI-17 | UNDERSPEC | low | RESOLVED (2026-10-24) |
 | CPI-18 | GAP | medium | OPEN (with the corpus) |
+| CPI-19 | INCONSISTENT | medium | RESOLVED in text (2026-10-24) |
+| CPI-20 | GAP | blocking | RESOLVED in text (2026-10-24) |
 
 ---
 
@@ -195,3 +197,27 @@ a GitOps source is a question for a later change, not for this protocol.
 cases it does not; nothing computes it.
 **Decision.** Implemented with the corpus (`docs/incident-corpus.md`); C3 and R0 are not
 measurable before it.
+**Families fixed (2026-10-24).** Each native case's family is fixed in `docs/incident-corpus.md`
+§ Amendment 2026-10-24, before any record is written; the split is still to implement.
+
+## CPI-19: the corpus spec and the product index different text (RESOLVED in text)
+
+**Symptom.** `docs/incident-corpus.md` says a record's `root_cause` and `remediation` are stored
+but not embedded; the product's `ExampleIndexer` embeds the whole incident (cause and fix in
+`_ExampleChunk.to_text`). Both cannot hold for C3 and R0.
+**Decision (2026-10-24).** C3 and R0 measure the product's path as it is; the spec's rule is
+recorded as not implemented by the product, and following it is a separate, measured change
+(`docs/incident-corpus.md` § Amendment 2026-10-24).
+
+## CPI-20: the namespace rule excluded almost the whole corpus (RESOLVED in text)
+
+**Symptom.** Protocol 001 excludes a corpus record that names "a namespace other than `default`"
+present in a native case's fixtures. The native cases use `production` (143 occurrences),
+`staging`, `monitoring` and `data`; applied to the sources, the rule excludes 28 of the 29 legacy
+cases (only `014_resource_quota_exceeded`, in `team-alpha`, remains), so C3 and R0 could not be
+measured. The rule's intent is to keep out a record that describes a case's own resources, not
+to forbid the names of environments. Found reading the sources, before any record was written.
+**Decision (2026-10-24).** The generic namespaces `default`, `production`, `staging`,
+`monitoring` and `kube-system` (closed list) do not exclude a record; a namespace particular to a
+case still does, and the rules on workloads, pod-name prefixes, ConfigMaps, Secrets and Services
+are unchanged. Amended in protocol 001 and `docs/incident-corpus.md` (§ Amendment 2026-10-24).

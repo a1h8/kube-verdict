@@ -220,3 +220,11 @@ incident memory is drawn from C1 or C2.
   C1 also serves as the anchoring test of `docs/veracity-replay.md` § Amendment 2026-10-24. If
   the model's label is shown to follow the score, the labels of C2 against C1 are reported as not
   informative; the net gain is computed on graded causes and does not change.
+
+- **2026-10-24 — the corpus's namespace rule.** Written before any corpus record
+  (`docs/comparison-protocol-issues.md` CPI-20). In *The corpus, beyond Known limit* (amendment
+  2026-10-23), "namespace other than `default`" becomes "namespace other than the generic
+  `default`, `production`, `staging`, `monitoring` and `kube-system`": as written, the rule
+  excluded 28 of the 29 legacy cases for naming `production` or `staging`. A namespace
+  particular to a native case still excludes; no other rule changes. The corpus v1 follows
+  `docs/incident-corpus.md` § Amendment 2026-10-24.
