@@ -241,3 +241,16 @@ incident memory is drawn from C1 or C2.
   none — every v1 record); below it, R0 abstains: no cause, label LOW. One run (deterministic);
   each record keeps the corpus hash, the matched record and the three best scores. No decision
   rule changes.
+
+- **2026-10-24 — R0 is reported, not decided; a prediction.** Written before any run of R0
+  (`docs/comparison-protocol-issues.md` CPI-23). "R0 against C0" with the vector search's rule
+  cannot decide anything: C0 passes all 19 cases (in-sample), so R0 can never show a positive
+  net gain, and the comparison does not answer R0's question — does the corpus alone point to the
+  cause? R0 therefore gets no stays/leaves outcome. It is reported: cases passed among the 9
+  cases whose family the corpus covers and among the 8 it does not (`docs/incident-corpus.md`
+  § Amendment 2026-10-24), the negative controls h022 and h026 (a cause named there is a false
+  alarm, reported as such), and, per case, the matched record and its score. **Prediction,
+  stated before the numbers:** R0 passes mostly covered cases and **no** uncovered case — a cause
+  from a family the corpus lacks cannot be the right one; an uncovered case that passes is
+  examined (a chance keyword match, or a leak the exclusion missed) and reported either way. The
+  decision on the incident memory stays C3 against C2, live.

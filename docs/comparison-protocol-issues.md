@@ -35,6 +35,7 @@
 | CPI-20 | GAP | blocking | RESOLVED in text (2026-10-24) |
 | CPI-21 | UNDERSPEC | medium | RESOLVED (2026-10-24) |
 | CPI-22 | UNDERSPEC | medium | RESOLVED (2026-10-24) |
+| CPI-23 | INCONSISTENT | medium | RESOLVED (2026-10-24) |
 
 ---
 
@@ -248,3 +249,13 @@ control whatever the corpus holds — no decision could ever be drawn from it.
 only when its score reaches the product's `EXAMPLE_MATCH_THRESHOLD` (0.65), with the product's
 label (HIGH when the record has no confidence); below it R0 abstains, LOW. The threshold is the
 code's, fixed before any run (protocol 001, amendment 2026-10-24, R0).
+
+## CPI-23: R0 against C0 could not decide (RESOLVED)
+
+**Symptom.** Protocol 001 compares R0 with C0 under the vector search's rule (net gain ≥ 3 stays,
+≤ 0 leaves). C0 passes the 19 cases (in-sample), so R0 can never gain: the outcome is fixed
+before any run and says nothing about whether the corpus alone points to the cause.
+**Decision (2026-10-24).** R0 gets no outcome; it is reported split into covered and uncovered
+cases, with the negative controls and the matched record per case, against a prediction written
+before the run (protocol 001, amendment 2026-10-24, R0 reported). The incident memory is decided
+by C3 against C2.

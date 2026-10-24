@@ -17,7 +17,7 @@ code:            complete offline for the comparison and protocol 001's C2
 runs:            none of the comparison or of protocol 001       # nothing below is measured live
 blocking:
   - H45 (the chart reads no Helm release), H80 (steps of the live run): fix-plan-001.md
-  - the incident corpus (docs/incident-corpus.md): C3 and R0 are not measurable without it
+  - C3 (`--examples on`) and the split by corpus family in the tables (CPI-18)
 known_bias:      the rules were written and tuned on the 19 cases — structured 19/19 is
                  in-sample: an upper bound of the pipeline's advantage, not a generalisation
 ```
@@ -32,7 +32,7 @@ known_bias:      the rules were written and tuned on the 19 cases — structured
 | 4 | The LLM as explainer of the diagnosis | its explanation is right and agrees | `llm:mistral`, diagnosed runs | explanation correct ≥ 80 % and disagreement ≤ 10 %; otherwise `LLM_PROVIDER=none` is the default | not measured |
 | 5 | A small local model (sLLM) | it is enough | `llm:qwen2.5:3b-instruct` against `llm:mistral` | within 5 points, no more disagreement, faster | not measured |
 | 6 | Vector search over the investigation (FAISS) | it helps the model | protocol 001, C2 against C1, per model and over both | net gain ≥ 3: stays; 1–2: inconclusive; ≤ 0 or a new false alarm: leaves | **predicted: leaves** (CPI-13: it adds no knowledge) |
-| 7 | Memory of resolved incidents | recognising a known incident helps | protocol 001, C3 against C2; R0 against C0 | as 6 | not measurable: no corpus |
+| 7 | Memory of resolved incidents | recognising a known incident helps | protocol 001, C3 against C2; R0 reported alone (CPI-23) | C3: as 6; R0: no outcome — predicted to pass covered cases only, none of the 8 uncovered | corpus v1 written (11 records, 9 cases covered); R0 coded, not run; C3 not coded |
 | 8 | Abstention, provenance of each drift, the decision gate | they keep a wrong answer from acting | — | no pre-registered test yet | not measured |
 | 9 | Reading the applied state from the cluster (Helm releases) | the three-state comparison runs live | live validation (H45 option A) | the applied state is read, or reported as not read — never as absent | not measured live |
 
