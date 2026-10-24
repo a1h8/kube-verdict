@@ -27,9 +27,9 @@
 | CPI-12 | GAP | medium | RESOLVED (2026-10-23) |
 | CPI-13 | UNDERSPEC | medium | RESOLVED (2026-10-23) |
 | CPI-14 | INCONSISTENT | low | RESOLVED (2026-10-23) |
-| CPI-15 | INCONSISTENT | medium | OPEN |
-| CPI-16 | AMBIGUOUS | medium | OPEN |
-| CPI-17 | UNDERSPEC | low | OPEN |
+| CPI-15 | INCONSISTENT | medium | RESOLVED (2026-10-24) |
+| CPI-16 | AMBIGUOUS | medium | RESOLVED in text, control to implement (2026-10-24) |
+| CPI-17 | UNDERSPEC | low | RESOLVED (2026-10-24) |
 | CPI-18 | GAP | medium | OPEN (with the corpus) |
 
 ---
@@ -147,30 +147,46 @@ same. Prediction: net gain ≤ 0. Those 10 cases become a noise control (protoco
 input never send the same bytes.
 **Decision (2026-10-23).** Comparisons of prompts (the C2 noise control) leave that line out.
 
-## CPI-15: two meanings of "confidence" under a cut collector (OPEN)
+## CPI-15: h016 stays HIGH with a collector cut (RESOLVED)
 
 **Symptom.** With any of its three collectors cut, h016's structured diagnosis stays HIGH (the
 control passes: not more confident than connected). `docs/test-cases.md` §4 says the label is
-"never HIGH" with a collector cut — a statement about the workflow's label, not the diagnosis's.
-**To decide before the first run:** which of the two the product's report carries, and whether
-§4 or the diagnosis is wrong. The cause of h016 (a replica drift) is visible from the Kubernetes
-objects alone, which may justify HIGH.
+"never HIGH" with a collector cut.
+**Read (2026-10-24).** There is one confidence: since H4 the product's report carries the
+structured diagnosis's. h016's cause is `db.connections_exhausted` (outside: postgres-primary),
+supported by all three signals: 0.95 connected, 0.95 with Prometheus cut, 0.80 with Loki or OTel
+cut, above the HIGH threshold (0.75). Redundant evidence keeps HIGH legitimately; the test
+already asserts "never higher than connected". The §4 sentence predates H4.
+**Decision (2026-10-24).** `docs/test-cases.md` §4 amended: never more confident than connected;
+the label may stay HIGH when redundant evidence remains. No threshold changes.
 
-## CPI-16: a score in the prompt may anchor the model's label (OPEN)
+## CPI-16: a score in the prompt may anchor the model's label (RESOLVED in text)
 
 **Symptom.** The context carries a "Context quality score" (HIGH, MEDIUM) computed from
 heuristics (BFS depth, diversity, TF-IDF). With C2 it moves from MEDIUM 0.42 to HIGH 0.70 on h013
 without new information. A model asked for a confidence label may copy it.
-**To decide:** whether the comparison reports it as a confound only (no rule changes) or a
-dated amendment removes it from the prompt before the runs — which would change prompt v6.
+**Decision (2026-10-24).** The score stays in the prompt: prompt v6 is what the product sends,
+and removing it would measure a prompt nobody runs. It is not only declared a confound: an
+anchoring control, fixed before any run, measures it (`docs/veracity-replay.md` § Amendment
+2026-10-24). If anchoring is shown, the model's labels — the collector-cut control of `context:`
+and the labels of C2 against C1 — are reported as not informative; graded causes are unaffected.
+Removing the score is then a separate, measured change (prompt v7). The control is computed in
+`tools/compare_solvers.py`, not written yet.
 
-## CPI-17: no anchor violation is indexed in any case (OPEN)
+## CPI-17: no anchor violation is indexed in any case (RESOLVED)
 
 **Symptom.** `index_anchor_violations` indexes `anchor.*` annotations marked `[manifest]`; none
 of the 19 cases carries one, so the "anchors" part of the vector search is empty in C2, while the
 quality score reports "Anchors matched 14" — another notion of anchor.
-**To decide:** whether this is a fixture gap or dead code; C2's prediction (CPI-13) holds either
-way.
+**Read (2026-10-24).** Not dead code: `anchor_node` makes `[manifest]` anchors only from a GitOps
+provider (the chart rendered from the repository); the replay has none, so every case has schema
+anchors (6 to 70, what "Anchors matched" counts) and no manifest anchor. Offline, neither
+`index_anchor_violations` nor the manifest branch of `anchor_fix_hints` runs, and the `context:`
+prompt lacks the manifest fix hints a live run with a GitOps source carries — a difference
+between offline and live, declared.
+**Decision (2026-10-24).** A gap of the harness, recorded in `docs/test-cases.md` (the loader's
+gaps table); exercised live only. C2's prediction (CPI-13) holds. Whether the harness should get
+a GitOps source is a question for a later change, not for this protocol.
 
 ## CPI-18: results split by corpus family not implemented (OPEN, with the corpus)
 

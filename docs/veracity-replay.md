@@ -381,6 +381,41 @@ open; no threshold changes.
   which equals protocol 001's net gain (cases only one passes minus cases only the other passes);
   both sets are listed.
 
+### Amendment 2026-10-24 — the context quality score: a confound, measured
+
+Written before any run (`docs/comparison-protocol-issues.md` CPI-16). Every `context:` prompt
+(prompt v6) carries a line `Context quality score: <LOW|MEDIUM|HIGH> (<s>/1.00)` computed from
+the shape of the context (BFS depth, diversity, TF-IDF), not from the evidence
+(`rca/confidence.py`). A model asked for a confidence label may copy it. The line stays: it is
+what the product sends. Its effect is measured, per model, with these rules:
+
+- **The score's label** is read from each recorded prompt. A run whose prompt has no such line is
+  left out of this control and counted beside it. **The model's label** of a case is the lower
+  median of its valid runs' `confidence`, as for the collector-cut control; LOW < MEDIUM < HIGH.
+- **Agreement**, reported only: the share of valid `context:` runs whose label equals their
+  prompt's score label. It decides nothing — the evidence moves both.
+- **The anchoring test** uses protocol 001's C2 against C1, where retrieval changes the score
+  without adding knowledge (protocol 001, amendment 2026-10-23). *S* is the set of cases whose
+  score label differs between the C1 and C2 prompts; *N* the cases whose C2 prompt equals C1's
+  (the noise control). Both sets are computed from the recorded prompts. The *follow rate* is
+  the share of *S* where the model's label moves strictly in the direction of the score's label;
+  the *move rate* the share of *N* where the model's label differs between C1 and C2.
+  **Anchoring is shown** for a model when *S* has at least 4 cases, the follow rate is at least
+  3/4, and it is above the move rate. With fewer than 4 cases in *S* the test is reported not
+  conclusive, and the model's labels carry the mention "anchoring not measured".
+- **The collector-cut control** of `context:` records, for each cut run, its prompt's score
+  label beside the model's label. The control passes or fails as before (§ Amendment 2026-10-23).
+- **What follows when anchoring is shown:** the model's labels — the cut control's pass for that
+  `context:` configuration, the labels of C2 against C1 — are reported as not informative of
+  what the model read. Graded causes, cases passed and every decision rule are unaffected: the
+  grading reads the cause, not the label. Removing the line is then a separate change (prompt
+  v7), measured on its own.
+- **The test can fail.** It is checked on records where the model copies the score (shown) and
+  where its label is constant or follows the evidence only (not shown). Computed by
+  `tools/compare_solvers.py`; not implemented when this is written. The 8 cases where C2 changes
+  the prompt also add a "Related context" list: *S* is not a pure manipulation of the score, which
+  the report says.
+
 ## What an LLM run grades (2026-10-19)
 
 The `rules` solver keeps grading the old `RemediationEngine`, which no longer runs in the

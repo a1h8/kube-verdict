@@ -16,7 +16,7 @@ code:            complete offline for the comparison and protocol 001's C2
                  (records, isolation, cuts, tables, controls, decisions — make ci green)
 runs:            none of the comparison or of protocol 001       # nothing below is measured live
 blocking:
-  - CPI-15, CPI-16, CPI-17 (comparison-protocol-issues.md): decided before the first run
+  - the anchoring control (CPI-16, decided 2026-10-24): written, not implemented
   - H45 (the chart reads no Helm release), H80 (steps of the live run): fix-plan-001.md
   - the incident corpus (docs/incident-corpus.md): C3 and R0 are not measurable without it
 known_bias:      the rules were written and tuned on the 19 cases — structured 19/19 is
@@ -49,6 +49,7 @@ A control that cannot fail checks nothing. Each control below has a test that ma
 | Negative: h022, h026 stay `no_incident` | every configuration | both cases pass (2 of 3) | a case names a cause → the configuration fails, no decision is drawn (`test_a_false_alarm_fails_the_control_and_no_decision_is_drawn`) |
 | Positive: h001 passes 2 of 3 | `context:` (C1, C2) | h001 passes | it does not → invalid, re-run once (`test_the_positive_control_makes_a_context_configuration_invalid`) |
 | Collector cut: never more confident than connected | the comparison's configurations | each of the 8 cut runs ≤ its connected median | above it, missing or invalid (`test_the_collector_cut_control`, `test_a_configuration_without_cut_runs_fails_the_cut_control`) |
+| Anchoring: the model's label follows the prompt's quality score | `context:` (C2 against C1) | not shown: fewer than 3/4 of the cases where the score's label changes see the model's label follow it, or no more than on same-prompt cases | shown → the model's labels are reported not informative (test to write) |
 | Noise: C2's prompt equals C1's | C2 against C1 | the 10 same-prompt cases agree | they differ → reported as run-to-run variation (`test_on_the_same_prompt_a_difference_is_noise`) |
 | Truncation | every model run | tokens read + `num_predict` < `num_ctx` | reached → invalid, never a pass (`test_a_truncated_run_is_invalid_and_never_a_pass`) |
 | No real store | every run, and the test suite | nothing outside the temporary directory changed | a write → invalid run (`test_a_run_that_writes_a_real_store_is_invalid`); the suite fails (`test_the_former_writers_leave_nothing_where_they_run`) |
@@ -58,7 +59,7 @@ A control that cannot fail checks nothing. Each control below has a test that ma
 | What | Result | Read as |
 |---|---|---|
 | `structured` on the 19 cases | 19/19, no false alarm | the rules on the cases they were written on: an upper bound |
-| `structured` with a collector cut (8 runs) | none above its connected label: h005, h013, h014 MEDIUM → LOW; h015 HIGH → LOW; h006 MEDIUM → MEDIUM; h016 HIGH → HIGH ×3 | the control passes; h016 is CPI-15 |
+| `structured` with a collector cut (8 runs) | none above its connected label: h005, h013, h014 MEDIUM → LOW; h015 HIGH → LOW; h006 MEDIUM → MEDIUM; h016 HIGH → HIGH ×3 | the control passes; h016 keeps HIGH on redundant evidence (0.95 / 0.80 / 0.80, CPI-15) |
 | C2's prompt against C1's (19 cases) | 10 identical, 1 reordered, 8 with a list of objects already present and a changed score | the basis of the C2 prediction (CPI-13) |
 
 Nothing else is measured. A claim of section 1 is made in the README only once its test has run

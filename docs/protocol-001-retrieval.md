@@ -214,3 +214,9 @@ incident memory is drawn from C1 or C2.
   "inconclusive" had no outcome. Read literally ("stays only if"), the layer does not stay: it
   leaves the default path (kept in the code, off by default), flagged, since neither model showed
   a gain.
+
+- **2026-10-24 — the context quality score in C1 and C2.** Written before any run
+  (`docs/comparison-protocol-issues.md` CPI-16). The score line stays in the prompt; C2 against
+  C1 also serves as the anchoring test of `docs/veracity-replay.md` § Amendment 2026-10-24. If
+  the model's label is shown to follow the score, the labels of C2 against C1 are reported as not
+  informative; the net gain is computed on graded causes and does not change.
