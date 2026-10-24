@@ -76,15 +76,24 @@ def test_a_generic_namespace_does_not_exclude_but_a_particular_one_does(repo):
 
 
 def test_a_verbatim_event_message_excludes(repo):
-    v = _check(repo, "021_x", {"events": [{"message": 'Error: secret "payment-db-secret" not found in the payment namespace'}]})
+    # a line that names no resource of the case: rule 3 alone
+    (repo / "native/h001_crashloopbackoff/kube/ev2.yaml").write_text(yaml.safe_dump(
+        {"kind": "Event", "metadata": {"name": "e2"}, "message": "Readiness probe failed: HTTP probe failed with statuscode: 503"}))
+    v = _check(repo, "021_x", {"events": [{"message": "Readiness probe failed: HTTP probe failed with statuscode: 503"}]})
     assert not v.kept and v.rule == "3 verbatim line"
     short = _check(repo, "022_y", {"events": [{"message": "not found"}]})        # too short to count
     assert short.kept
 
 
-def test_the_source_rule_reads_structured_fields_not_prose(repo):
-    # a symptom in prose naming the workload is not read from the source; the record is checked whole
-    assert _check(repo, "021_x", {"symptom": "payment-service is mentioned in the notes"}).kept
+def test_the_source_rule_reads_every_field_but_the_authors_prose(repo):
+    # a name inside an event message or an anchor's value excludes (018 named h004's Secret so)
+    v = _check(repo, "021_x", {"events": [{"message": "couldn't find key X in Secret production/payment-db-secret"}]})
+    assert not v.kept and v.rule == "2 resource" and "payment-db-secret" in v.match
+    v = _check(repo, "022_y", {"anchors": ["Pod/production/a-1: secretKeyRef.name declared='payment-db-secret' [manifest]"]})
+    assert not v.kept and v.rule == "2 resource"
+    # the case author's prose is not data: a symptom naming the workload is not read here (the
+    # record is checked whole after the rewrite)
+    assert _check(repo, "023_z", {"symptom": "payment-service is mentioned in the notes"}).kept    # control
 
 
 def _record(repo, name, **fields):
@@ -151,3 +160,22 @@ def test_the_cli_fails_on_an_excluded_record(repo):
     sources, records = ce.run(repo / "native", repo / "legacy", repo / "records")
     assert [v.kept for v in sources] == [True] and [v.kept for v in records] == [False]
     assert "## Records (0 kept of 1)" in ce.render(sources, records)
+
+
+@pytest.mark.parametrize("message, kept", [
+    ("cannot list resource configmaps in API group in the namespace production", True),   # a word
+    ("POST /payment-service/charge returned 500", True),                                 # a path
+    ("dial tcp: lookup http://payment-service:8080/health failed", False),                # a host
+    ("Back-off restarting failed container in pod payment-service-6d8f9b7c4-zz9q1", False),
+])
+def test_only_a_kubernetes_name_names_a_resource(repo, message, kept):
+    assert _check(repo, "021_x", {"events": [{"message": message}]}).kept is kept
+
+
+def test_an_english_word_does_not_name_a_workload_of_that_name(repo):
+    (repo / "native/h001_crashloopbackoff/kube/api.yaml").write_text(yaml.safe_dump(
+        {"kind": "Deployment", "metadata": {"name": "api", "namespace": "production"}}))
+    word = "configmaps is forbidden: cannot list resource configmaps in API group"
+    assert _check(repo, "021_x", {"events": [{"message": word}]}).kept                  # control
+    named = "Back-off restarting failed container in pod api-7d9f8c6b5-qq2w3"
+    assert not _check(repo, "022_y", {"events": [{"message": named}]}).kept

@@ -7,7 +7,8 @@ A candidate is excluded if (1) its source is a legacy case with the name of a na
 Secret, Service, or a namespace outside the generic list), (3) one of its observable lines (a log
 line, an event message) appears verbatim in a native case's fixtures, or (4) its ``source.ref``
 points into the native cases. Rules 2 and 3 apply to a legacy source before it is rewritten
-(its structured fields) and to a record after (its whole text).
+(every field but the case author's prose) and to a record after (its whole text). A native case's
+names come from its structured fields only, so an ordinary word is never taken for a resource.
 
     python tools/corpus_exclusions.py [--out corpus/EXCLUSIONS.md]
 
@@ -33,6 +34,7 @@ RECORDS = ROOT / "corpus/incidents"
 GENERIC_NAMESPACES = frozenset({"default", "production", "staging", "monitoring", "kube-system"})
 FIXTURE_DIRS = ("kube", "helm", "chart", "rendered", "policy", "prometheus", "loki", "otel")
 MIN_LINE = 20               # a shorter line ("connection refused") is not a symptom of its own
+PROSE = frozenset({"symptom", "scenario", "query"})   # a legacy case author's words, not data
 
 WORKLOADS = {"Deployment", "StatefulSet", "DaemonSet", "ReplicaSet", "Job", "CronJob"}
 NAMED_KINDS = WORKLOADS | {"Pod", "ConfigMap", "Secret", "Service"}
@@ -40,6 +42,8 @@ _REF = re.compile(r"^([A-Z][A-Za-z]+)/(?:([a-z0-9][a-z0-9-]*)/)?([a-z0-9][a-z0-9
 _HASHED = re.compile(r"^(.+?)-(?=[a-z0-9]*\d)[a-z0-9]{6,10}(?:-[a-z0-9]{5})?$")  # rs hash [+ pod]
 _SUFFIX = re.compile(r"^(.+?)-(?:\d+|(?=[a-z]*\d)[a-z0-9]{5})$")                 # ordinal, pod id
 _TOKEN = re.compile(r"[a-z0-9][a-z0-9._-]*")
+# an absolute path, or a URL's path (its host is kept: it may name a Service)
+_PATH = re.compile(r"(^|[\s\"'(=])/[^\s\"']*|(https?://[^/\s\"']+)/[^\s\"']*")
 _NAMESPACE = re.compile(r"(?:-n|--namespace)[ =]([a-z0-9-]+)|namespace[: ]+([a-z0-9-]+)"
                         r"|\.([a-z0-9-]+)\.svc\b")
 
@@ -72,9 +76,23 @@ class Facts:
             self.lines.add(line)
 
 
-def _walk(o, facts: Facts, key: str = "") -> None:
-    """Structured fields only: object names by kind, references, labels that name a workload,
-    namespaces, event messages and log lines. Prose (a case's notes, a symptom) is not read."""
+def _tokens(text: str) -> set[str]:
+    """Every candidate name in a text: a token, a pod name by its prefix, a DNS name by its first
+    label (``payment-service.production.svc`` names ``payment-service``). A Kubernetes name is
+    lowercase, so the match is case-sensitive ("API group" does not name the workload ``api``),
+    and the segments of a path ("POST /api/orders") are not names."""
+    text = _PATH.sub(lambda m: (m.group(1) or "") + (m.group(2) or ""), text)
+    out = set()
+    for tok in _TOKEN.findall(text):
+        tok = tok.strip("._-")
+        out |= {tok, tok.split(".")[0], pod_prefix(tok), pod_prefix(tok.split(".")[0])}
+    return out
+
+
+def _walk(o, facts: Facts, key: str = "", tokens: bool = False) -> None:
+    """Object names by kind, references, labels that name a workload, namespaces, event messages
+    and log lines. With ``tokens`` (a candidate source), every string outside ``PROSE`` also
+    yields candidate names."""
     if isinstance(o, dict):
         kind = o.get("kind")
         meta = o.get("metadata") if isinstance(o.get("metadata"), dict) else None
@@ -86,7 +104,7 @@ def _walk(o, facts: Facts, key: str = "") -> None:
             facts.add_name(kind, o["name"])
         for k, v in o.items():
             if isinstance(v, str):
-                _leaf(k, v, facts)
+                _leaf(k, v, facts, tokens)
             elif k in ("secretRef", "configMapRef", "secretKeyRef", "configMapKeyRef", "configMap") \
                     and isinstance(v, dict) and isinstance(v.get("name"), str):
                 facts.add_name("Secret" if "ecret" in k else "ConfigMap", v["name"])
@@ -94,18 +112,22 @@ def _walk(o, facts: Facts, key: str = "") -> None:
                 for pair in v:
                     if isinstance(pair, list) and len(pair) == 2 and isinstance(pair[1], str):
                         facts.add_line(pair[1])
-                _walk(v, facts, k)
-            else:
-                _walk(v, facts, k)
+                _walk(v, facts, k, tokens)
+            elif k not in PROSE:
+                _walk(v, facts, k, tokens)
     elif isinstance(o, list):
         for v in o:
             if isinstance(v, str):
-                _leaf(key, v, facts)
+                _leaf(key, v, facts, tokens)
             else:
-                _walk(v, facts, key)
+                _walk(v, facts, key, tokens)
 
 
-def _leaf(key: str, value: str, facts: Facts) -> None:
+def _leaf(key: str, value: str, facts: Facts, tokens: bool = False) -> None:
+    if key in PROSE:
+        return
+    if tokens:
+        facts.names |= _tokens(value)
     if m := _REF.match(value):
         kind, ns, name = m.groups()
         if kind in NAMED_KINDS:
@@ -136,11 +158,11 @@ def _load(path: Path) -> list:
     return []
 
 
-def facts_of(paths: list[Path]) -> Facts:
+def facts_of(paths: list[Path], tokens: bool = False) -> Facts:
     facts = Facts()
     for p in paths:
         for doc in _load(p):
-            _walk(doc, facts)
+            _walk(doc, facts, tokens=tokens)
     return facts
 
 
@@ -179,13 +201,14 @@ def _overlap(facts: Facts, native: dict[str, Facts]) -> tuple[str, str] | None:
 
 
 def check_source(src: Path, native: dict[str, Facts]) -> Verdict:
-    """A legacy case, before it is rewritten: its structured fields (never expect.json)."""
+    """A legacy case, before it is rewritten: every field but its author's prose (never
+    expect.json)."""
     label = src.relative_to(src.parents[1] if src.parent.name == "helm_cases" else src.parent).as_posix()
     label = f"cases/{label}"
     if f"h{src.name}" in native:
         return Verdict(label, False, "1 name of a native case", f"h{src.name}")
-    hit = _overlap(facts_of([p for p in sorted(src.rglob("*")) if p.is_file() and p.name != "expect.json"]),
-                   native)
+    hit = _overlap(facts_of([p for p in sorted(src.rglob("*")) if p.is_file() and p.name != "expect.json"],
+                            tokens=True), native)
     return Verdict(label, hit is None, *(hit or ("", "")))
 
 
@@ -196,10 +219,7 @@ def record_facts(record: dict) -> Facts:
     strings: list[str] = []
     _strings(record, strings)
     for s in strings:
-        for tok in _TOKEN.findall(s.lower()):
-            tok = tok.strip("._-")
-            for name in {tok, tok.split(".")[0], pod_prefix(tok), pod_prefix(tok.split(".")[0])}:
-                facts.names.add(name)
+        facts.names |= _tokens(s)
         for m in _NAMESPACE.finditer(s.lower()):
             facts.add_namespace(next(g for g in m.groups() if g))
     loc = str(record.get("cause_location") or "")

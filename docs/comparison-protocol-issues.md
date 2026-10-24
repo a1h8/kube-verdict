@@ -33,6 +33,7 @@
 | CPI-18 | GAP | medium | OPEN (with the corpus) |
 | CPI-19 | INCONSISTENT | medium | RESOLVED in text (2026-10-24) |
 | CPI-20 | GAP | blocking | RESOLVED in text (2026-10-24) |
+| CPI-21 | UNDERSPEC | medium | RESOLVED (2026-10-24) |
 
 ---
 
@@ -221,3 +222,18 @@ to forbid the names of environments. Found reading the sources, before any recor
 `monitoring` and `kube-system` (closed list) do not exclude a record; a namespace particular to a
 case still does, and the rules on workloads, pod-name prefixes, ConfigMaps, Secrets and Services
 are unchanged. Amended in protocol 001 and `docs/incident-corpus.md` (§ Amendment 2026-10-24).
+
+## CPI-21: what "names a resource" reads in a legacy source (RESOLVED)
+
+**Symptom.** The first exclusion script read a source's names from its structured fields only
+(object names, references, labels). `cases/018_secret_wrong_key` names h004's Secret
+`db-credentials` inside an event message and an anchor's value, and was kept. Reading every field
+as text then excluded three sources on the word `api` (h003's workload): "resource metrics API",
+"in API group", the path "POST /api/orders" — none names a resource. Found running the script on
+the 29 sources, before any record was written.
+**Decision (2026-10-24).** A source's names are read from every field except its author's prose
+(`symptom`, `scenario`, `query`); a native case's names from its structured fields only. A name
+matches as a Kubernetes name: case-sensitive (names are lowercase), a pod name by its prefix, a
+DNS name by its first label, never a segment of a URL path (a URL's host is kept). The rules of
+`docs/incident-corpus.md` § Amendment 2026-10-24 are unchanged; each reading has a test that fails
+on its mutant (`tests/unit/test_corpus_exclusions.py`). Result: 11 of the 29 sources kept.
