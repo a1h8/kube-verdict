@@ -1,0 +1,56 @@
+{
+  "answerable": null,
+  "case": "h016_multi_signal",
+  "case_hash": "2ba478870b137b009d24ce1bb81e773a48ee84c3a5e58bef8da93ae8c508cc3d",
+  "commit": "f2289e1755927c584dc8f680984a484aa880f8f0",
+  "confidence": "LOW",
+  "config": "R0",
+  "corpus_hash": "85ba60e739b820e28613dbb490edd81b28e28b11056502a5a53703a4786c1779",
+  "corpus_records": 11,
+  "cut": null,
+  "examples": "on",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched": null,
+  "matched_family": null,
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "model_digest": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause concept(s) not named: max_connections|connection pool|pool, replica|scale",
+  "root_cause": "",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "retrieval",
+  "started_at": "2026-10-24T13:47:48.457687+00:00",
+  "store": "faiss",
+  "threshold": 0.65,
+  "tier": "B",
+  "top": [
+    {
+      "id": "inc-0008",
+      "score": 0.5611
+    },
+    {
+      "id": "inc-0005",
+      "score": 0.5442
+    },
+    {
+      "id": "inc-0001",
+      "score": 0.5263
+    }
+  ],
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.47
+}

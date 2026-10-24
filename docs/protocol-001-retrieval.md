@@ -105,7 +105,31 @@ incident memory is drawn from C1 or C2.
 
 ## Results
 
-*(empty until the decision rules are approved and the runs are done)*
+### R0 — the corpus alone (2026-10-24, offline)
+
+Run on commit `f2289e1`, corpus v1 hash `85ba60e7…` (frozen from this run), one run per case,
+no model; records: `tests/veracity/replay-baselines/retrieval-store_faiss-examples_on-2026-10-24/`.
+Reported, not decided (amendment 2026-10-24, CPI-23).
+
+| Group | Passed | Detail |
+|---|---|---|
+| the 9 cases the corpus covers | **0/9** | 4 answered above the threshold, all FAIL; 5 abstained |
+| the 8 cases it does not cover | **0/8** | 1 answered (h012), FAIL; 7 abstained |
+| negative controls h022, h026 | **2/2** | both abstained: no false alarm |
+
+The five answers: h001 (missing Secret) ← inc-0003, `oom`, score 0.676; h008 (init container) ←
+inc-0010, `helm-drift`; h010 (quota) ← inc-0004, `config-missing` — three records of another
+family. h003 (OOM) ← inc-0003, `oom`: the right family, graded FAIL because the record's cause
+("the memory limit applied … is lower than the one in the release values") names none of the
+case's second concept (`drift|512mi|declared`). h012 (uncovered, `gitops-drift`, whose cause is
+also a memory-limit difference) ← inc-0003, FAIL for the same reason.
+
+**Against the prediction:** "no uncovered case passes" holds; "R0 passes mostly covered cases"
+does not — none passes. Read as: searched with the case's one-line `query`, every record about a
+crash or a restart scores between 0.6 and 0.77, so retrieval returns a kind of failure, not its
+cause (the question of `docs/incident-corpus.md` § Purpose, and the diagnosis's D5.5). Neither
+the record, the synonyms nor the threshold were changed after the run: the corpus is frozen. C3
+(the model with the same corpus) remains to run, live.
 
 ## Amendments
 
