@@ -228,3 +228,16 @@ incident memory is drawn from C1 or C2.
   excluded 28 of the 29 legacy cases for naming `production` or `staging`. A namespace
   particular to a native case still excludes; no other rule changes. The corpus v1 follows
   `docs/incident-corpus.md` § Amendment 2026-10-24.
+
+- **2026-10-24 — what R0 answers, and when it abstains.** Written before any run of R0
+  (`docs/comparison-protocol-issues.md` CPI-22). "The root cause of the top-ranked incident
+  record" answers every case, the negative controls h022 and h026 included, so R0 would fail the
+  negative control by construction. R0 follows the product's own example path
+  (`example_lookup_node`): an index built from the corpus alone by `ExampleIndexer`, searched
+  with the case's `query` (`store.search`, the example hits only); when the top record's score —
+  as the product computes it, cosine × the example source weight (`SOURCE_WEIGHT_EXAMPLE`, 1.2) —
+  reaches the product's `EXAMPLE_MATCH_THRESHOLD` (0.65, `workflow/nodes.py`, unchanged), the
+  answer is its `root_cause` with the product's label (the record's confidence, HIGH when it has
+  none — every v1 record); below it, R0 abstains: no cause, label LOW. One run (deterministic);
+  each record keeps the corpus hash, the matched record and the three best scores. No decision
+  rule changes.

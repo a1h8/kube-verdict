@@ -94,3 +94,15 @@ def corpus_hash(records: Path = RECORDS) -> str | None:
     for p in files:
         h.update(p.name.encode() + b"\0" + p.read_bytes() + b"\0")
     return h.hexdigest()
+
+
+def to_incident(rec: dict):
+    """A record as the product's ``ResolvedIncident`` (docs/incident-corpus.md § Amendment
+    2026-10-24): ``query`` = the title and the symptoms; the other unmapped fields empty."""
+    from knowledge.example_store import ResolvedIncident
+    return ResolvedIncident(id=rec["id"], query="; ".join([rec["title"], *rec["symptoms"]]),
+                            hypothesis="", root_cause=" ".join(str(rec["root_cause"]).split()),
+                            anchor_violations=[], entity_kinds=list(rec.get("kinds") or []),
+                            remediation=list(rec.get("remediation") or []),
+                            confidence=str(rec.get("confidence") or ""), created_at="")
+

@@ -136,6 +136,8 @@ def configuration(solver: str, store: str = "stub", examples: str = "off") -> di
     """The run's place in docs/protocol-001-retrieval.md (C0–C3) and its settings."""
     if solver == "structured":
         config = "C0"
+    elif solver == "retrieval":
+        config = "R0"
     elif solver == "context":
         config = "C1" if store == "stub" else "C3" if examples == "on" else "C2"
     else:
@@ -149,7 +151,7 @@ def run_dir_name(solver: str, model: str, prompt: str | None,
     """``<solver>[-<model>]-prompt_<v>-store_<store>-examples_<on|off>``; no model or prompt for
     the solvers without one. ``:`` and ``/`` of a model name become ``_``."""
     parts = [solver]
-    if solver not in ("structured", "rules"):
+    if solver not in ("structured", "rules", "retrieval"):
         parts += [re.sub(r"[:/]", "_", model), f"prompt_{prompt}"]
     return "-".join(parts + [f"store_{store}", f"examples_{examples}"])
 
@@ -267,6 +269,43 @@ def solve_structured(case_name: str, cut: str | None = None) -> dict:
                        "score": round(d.score, 2), "signals": d.signal_ids} for d in outcome.diagnoses],
         "signal_kinds": sorted(signals.kinds()), "unclassified": dict(signals.unclassified),
         "extractor_version": EXTRACTOR_VERSION, "rules_version": RULES_VERSION,
+    })
+    return record
+
+
+def solve_retrieval(case_name: str, records_dir: Path | None = None) -> dict:
+    """R0: the corpus alone, through the product's example path, no model (docs/protocol-001-
+    retrieval.md, amendment 2026-10-24). The top record answers when its score reaches the
+    product's threshold, with the product's label; below it, no cause and LOW."""
+    from knowledge.example_store import EXAMPLE_UID_PREFIX, ExampleIndexer
+    from tests.integration.cases.case_loader import load_case
+    from tools import incident_corpus
+    from vectorstore.store import FAISSStore
+    from workflow import nodes
+
+    t0 = time.perf_counter()
+    expect = load_case(CASES_ROOT / case_name)["expect"]
+    records = {r["id"]: r for _, r in incident_corpus.load_records(records_dir or incident_corpus.RECORDS)}
+    store = FAISSStore()
+    indexer = ExampleIndexer(store)
+    for rec in records.values():
+        indexer.index_example(incident_corpus.to_incident(rec))
+    hits = [h for h in store.search(expect.get("query", ""), top_k=20)
+            if h["uid"].startswith(EXAMPLE_UID_PREFIX)] if records else []
+    best = hits[0] if hits and hits[0]["score"] >= nodes.EXAMPLE_MATCH_THRESHOLD else None
+    matched = records[best["uid"][len(EXAMPLE_UID_PREFIX):]] if best else None
+    root_cause = " ".join(str(matched["root_cause"]).split()) if matched else ""
+    confidence = (str(matched.get("confidence") or "") or "HIGH").upper() if matched else "LOW"
+    record = _base_record(case_name, expect, "retrieval", "", 1)
+    cause_expect = {k: v for k, v in grading_expect(expect).items() if k != "expected_verdict"}
+    record.update(grade(root_cause, cause_expect, confidence=confidence))
+    record.update({
+        "wall_s": round(time.perf_counter() - t0, 2), "answerable": None,
+        "confidence": confidence, "pre_llm_confidence_score": None, "verdict": None,
+        "fallbacks": [], "signals_mode": None, "root_cause": root_cause,
+        "matched": matched["id"] if matched else None, "matched_family": matched["family"] if matched else None,
+        "threshold": nodes.EXAMPLE_MATCH_THRESHOLD, "corpus_records": len(records),
+        "top": [{"id": h["uid"][len(EXAMPLE_UID_PREFIX):], "score": round(h["score"], 4)} for h in hits[:3]],
     })
     return record
 
@@ -669,7 +708,8 @@ def _invalid(record: dict, touched: list[str]) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Grade a real model or the rules on the native cases")
-    ap.add_argument("--solver", help="rules | structured | llm[:<model>] | raw:<model> | context:<model>")
+    ap.add_argument("--solver",
+                    help="rules | structured | retrieval | llm[:<model>] | raw:<model> | context:<model>")
     ap.add_argument("--regrade", metavar="DIR",
                     help="re-grade the records under DIR (writes DIR/REGRADED.md), run nothing")
     ap.add_argument("--cases", default="", help="comma-separated keys, e.g. h001,h014 (default: all)")
@@ -697,8 +737,9 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("--solver is required (or --regrade DIR)")
 
     solver, _, model = args.solver.partition(":")
-    if solver not in ("rules", "structured", *MODEL_SOLVERS):
-        ap.error("--solver must be rules, structured, llm[:<model>], raw:<model> or context:<model>")
+    if solver not in ("rules", "structured", "retrieval", *MODEL_SOLVERS):
+        ap.error("--solver must be rules, structured, retrieval, llm[:<model>], raw:<model> or "
+                 "context:<model>")
     if solver in ("raw", "context") and not model:
         ap.error(f"--solver {solver} needs a model: {solver}:<model>")
     if args.store == "faiss" and solver != "context":
@@ -707,8 +748,8 @@ def main(argv: list[str] | None = None) -> int:
     wanted = {k.strip() for k in args.cases.split(",") if k.strip()}
     cases = [c for c in native_cases() if not wanted or _key(c) in wanted]
     # (case, cut) pairs: one connected run set per case, or one cut run per case and collector
-    if args.cut and solver == "rules":
-        ap.error("--cut: the rules solver reads no collector")
+    if args.cut and solver in ("rules", "retrieval"):
+        ap.error(f"--cut: the {solver} solver reads no collector")
     if not args.cut:
         pairs = [(c, None) for c in cases]
     else:
@@ -738,14 +779,19 @@ def main(argv: list[str] | None = None) -> int:
 
     from rca.analyzer import PROMPT_VERSION
     prompt = RAW_PROMPT_VERSION if solver == "raw" else PROMPT_VERSION if client else None
-    name = run_dir_name(solver, client.model if client else "", prompt, args.store)
+    # R0 searches the corpus, through the product's vector index (protocol 001, amendment 2026-10-24)
+    store, examples = ("faiss", "on") if solver == "retrieval" else (args.store, "off")
+    name = run_dir_name(solver, client.model if client else "", prompt, store, examples)
     # resolved: every run changes directory (isolated_stores)
     out_dir = Path(args.out).resolve() if args.out else REPLAY_BASELINES / name
     if not args.out_free and (error := out_dir_error(out_dir, name)):
         ap.error(error)
     digest = getattr(client, "model_digest", None)
     meta = {"commit": commit_id(), "grading_hashes": grading_hashes(),
-            "model_digest": digest() if digest else "", **configuration(solver, args.store)}
+            "model_digest": digest() if digest else "", **configuration(solver, store, examples)}
+    if solver == "retrieval":
+        from tools.incident_corpus import corpus_hash
+        meta["corpus_hash"] = corpus_hash()
     watched = watched_stores()        # taken where the replay was started, before any chdir
 
     # never read data/examples/ during a replay; restored after, so a caller in the
@@ -754,7 +800,7 @@ def main(argv: list[str] | None = None) -> int:
     os.environ["EXAMPLE_LOOKUP_DISABLED"] = "1"
     try:
         # a cut run is one run per case and collector (the amendment of 2026-10-23)
-        runs = 1 if solver in ("rules", "structured") or args.cut else args.runs
+        runs = 1 if solver in ("rules", "structured", "retrieval") or args.cut else args.runs
         run_range = [args.child_run] if args.child_run else range(1, runs + 1)
         for case_name, cut in pairs:
             for run in run_range:
@@ -769,6 +815,7 @@ def main(argv: list[str] | None = None) -> int:
                     with isolated_stores():
                         record = (solve_rules(case_name) if solver == "rules"
                                   else solve_structured(case_name, cut) if solver == "structured"
+                                  else solve_retrieval(case_name) if solver == "retrieval"
                                   else solve_raw(case_name, client, run, cut) if solver == "raw"
                                   else solve_context(case_name, client, run, cut, args.store)
                                   if solver == "context"

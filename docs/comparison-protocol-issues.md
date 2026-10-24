@@ -34,6 +34,7 @@
 | CPI-19 | INCONSISTENT | medium | RESOLVED in text (2026-10-24) |
 | CPI-20 | GAP | blocking | RESOLVED in text (2026-10-24) |
 | CPI-21 | UNDERSPEC | medium | RESOLVED (2026-10-24) |
+| CPI-22 | UNDERSPEC | medium | RESOLVED (2026-10-24) |
 
 ---
 
@@ -237,3 +238,13 @@ matches as a Kubernetes name: case-sensitive (names are lowercase), a pod name b
 DNS name by its first label, never a segment of a URL path (a URL's host is kept). The rules of
 `docs/incident-corpus.md` § Amendment 2026-10-24 are unchanged; each reading has a test that fails
 on its mutant (`tests/unit/test_corpus_exclusions.py`). Result: 11 of the 29 sources kept.
+
+## CPI-22: R0 could not abstain (RESOLVED)
+
+**Symptom.** Protocol 001's R0 is "the root cause of the top-ranked incident record, no model":
+read literally it names a cause on every case, h022 and h026 included, and fails the negative
+control whatever the corpus holds — no decision could ever be drawn from it.
+**Decision (2026-10-24).** R0 follows the product's example path as it is: the top record answers
+only when its score reaches the product's `EXAMPLE_MATCH_THRESHOLD` (0.65), with the product's
+label (HIGH when the record has no confidence); below it R0 abstains, LOW. The threshold is the
+code's, fixed before any run (protocol 001, amendment 2026-10-24, R0).
