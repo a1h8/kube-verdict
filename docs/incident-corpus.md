@@ -1,6 +1,7 @@
 # Incident corpus — the format of a resolved incident
 
-> Spec 2026-10-17, amended 2026-10-24 (below, before any record is written), not implemented. Why: the resolved-incident memory (`data/examples/`)
+> Spec 2026-10-17, amended 2026-10-24 (below, before any record is written); corpus v1 written
+> 2026-10-24 (11 records, `corpus/`), not yet used by R0 or C3. Why: the resolved-incident memory (`data/examples/`)
 > held only 64 copies of one record written by a unit test, and a record had no field to
 > say where it came from. Measured by [protocol-001-retrieval.md](protocol-001-retrieval.md).
 
@@ -187,3 +188,14 @@ case) and synthetic, and it was written by the authors of the native cases, in t
 that favours retrieval. A gain of C3 or R0 on covered cases is read as an upper bound, not as
 what an enterprise's own incident history would give. The decision rules of protocol 001 do not
 change.
+
+**Written (2026-10-24).** `corpus/incidents/inc-0001.yaml` … `inc-0011.yaml`, one per kept source
+(`corpus/EXCLUSIONS.md`, generated). `tools/incident_corpus.py` holds the checks fixed before the
+records — required fields, controlled family, a source that resolves, at least 2 symptoms, a
+remediation that changes something, a rollback, and **no cause word in a symptom** (a list for
+every family and one per family) — and the corpus hash. `tests/unit/test_incident_corpus.py`
+runs them and the exclusion script on every record. One record was reworded when the check
+refused it ("the container was never created", a cause word for `config-missing`); no rule was
+changed for a record. Families: storage, scheduling, oom, config-missing (2), probe,
+init-container, node, quota, rbac, helm-drift. Covered native cases: h001, h003, h004, h005, h008,
+h009, h010, h011, h024; not covered: h002, h006, h007, h012, h013, h014, h015, h016.

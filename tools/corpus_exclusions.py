@@ -193,8 +193,8 @@ def _overlap(facts: Facts, native: dict[str, Facts]) -> tuple[str, str] | None:
             return "2 resource", f"{', '.join(hits)} ({case})"
         if hits := sorted((facts.namespaces - GENERIC_NAMESPACES) & (nf.namespaces - GENERIC_NAMESPACES)):
             return "2 namespace", f"{', '.join(hits)} ({case})"
-        for line in facts.lines:
-            for other in nf.lines:
+        for line in sorted(facts.lines):
+            for other in sorted(nf.lines):
                 if line in other or other in line:
                     return "3 verbatim line", f"{line[:80]} ({case})"
     return None

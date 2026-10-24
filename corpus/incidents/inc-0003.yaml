@@ -1,0 +1,25 @@
+id: inc-0003
+title: Telemetry sync agents restart in a loop after a release
+family: oom
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/007_prometheus_alert
+  licence: Apache-2.0
+symptoms:
+  - alert KubePodCrashLooping firing for sync-agent pods in monitoring
+  - containers terminate with exit code 137, last state OOMKilled, a few minutes after start
+  - memory usage of the container sits at 96 percent just before each restart
+signals: [prometheus, k8s_events, helm]
+kinds: [Pod, Deployment]
+root_cause: >-
+  The memory limit applied to the Deployment (384Mi) is lower than the one in the release values
+  (1Gi); under normal load the container exceeds it and is OOM-killed.
+cause_location: monitoring/Deployment/sync-agent
+looks_like: [memory leak in the application, bad image]
+evidence:
+  - the release values say 1Gi while kubectl get deployment shows a 384Mi limit
+remediation:
+  - helm upgrade sync-agent ./chart -n monitoring --reuse-values --set resources.limits.memory=1Gi
+rollback:
+  - helm rollback sync-agent -n monitoring

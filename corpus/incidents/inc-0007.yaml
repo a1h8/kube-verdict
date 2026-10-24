@@ -1,0 +1,25 @@
+id: inc-0007
+title: Thumbnail renderer pods evicted one after another on the same node
+family: node
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/013_evicted_disk_pressure
+  licence: Apache-2.0
+symptoms:
+  - thumbnail-renderer pods end in phase Failed with reason Evicted
+  - the node worker-node-05 reports the NodeHasDiskPressure condition
+  - other pods on worker-node-05 are evicted too
+signals: [k8s_events]
+kinds: [Pod, Deployment, Node]
+root_cause: >-
+  The renderer writes its intermediate images to an emptyDir with no size limit; on a busy day the
+  node's ephemeral storage runs out and the kubelet evicts pods to reclaim it.
+cause_location: production/Deployment/thumbnail-renderer
+looks_like: [memory pressure, a crash in the renderer]
+evidence:
+  - the eviction message names ephemeral-storage, and du on the node shows the renderer's emptyDir as the largest
+remediation:
+  - helm upgrade thumbnail-renderer ./chart -n production --reuse-values --set scratch.sizeLimit=2Gi
+rollback:
+  - helm rollback thumbnail-renderer -n production

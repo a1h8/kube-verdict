@@ -1,0 +1,25 @@
+id: inc-0008
+title: ETL runner cannot reach its target replica count
+family: quota
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/014_resource_quota_exceeded
+  licence: Apache-2.0
+symptoms:
+  - Deployment etl-runner in team-beta shows 6 of 9 replicas available
+  - FailedCreate events on its ReplicaSet, pods forbidden, exceeded quota
+  - no pod of the missing replicas ever appears
+signals: [k8s_events]
+kinds: [Deployment, ReplicaSet, ResourceQuota]
+root_cause: >-
+  The namespace ResourceQuota caps requests.cpu at 6000m; 5600m are used and each new pod asks for
+  800m, so the ReplicaSet cannot create the last three pods.
+cause_location: team-beta/ResourceQuota/team-beta-quota
+looks_like: [scheduling capacity, a crash]
+evidence:
+  - kubectl describe resourcequota shows used near hard for requests.cpu
+remediation:
+  - kubectl -n team-beta patch resourcequota team-beta-quota --type merge -p '{"spec":{"hard":{"requests.cpu":"8000m"}}}'
+rollback:
+  - kubectl -n team-beta patch resourcequota team-beta-quota --type merge -p '{"spec":{"hard":{"requests.cpu":"6000m"}}}'

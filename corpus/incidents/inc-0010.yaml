@@ -1,0 +1,25 @@
+id: inc-0010
+title: Storefront slow under load with a single pod in staging
+family: helm-drift
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/helm_cases/h002_replica_mismatch
+  licence: Apache-2.0
+symptoms:
+  - storefront Deployment in staging runs 1 pod, all healthy, none restarting
+  - a ScalingReplicaSet event shows its ReplicaSet scaled down from 4 to 1
+  - p95 latency of the storefront doubles during the load test
+signals: [k8s_events, helm]
+kinds: [Deployment, ReplicaSet]
+root_cause: >-
+  The Deployment runs 1 replica while the release values say 4; the live object no longer matches
+  what Helm applied, and one pod cannot carry the load.
+cause_location: staging/Deployment/storefront
+looks_like: [slow dependency, CPU throttling]
+evidence:
+  - helm get values shows 4 replicas while kubectl get deployment shows 1
+remediation:
+  - helm upgrade storefront ./chart -n staging --reuse-values --set replicaCount=4
+rollback:
+  - helm rollback storefront -n staging
