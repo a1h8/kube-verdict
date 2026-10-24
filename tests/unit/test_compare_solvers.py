@@ -242,7 +242,7 @@ def test_on_the_same_prompt_a_difference_is_noise():
     ("stays", "leaves", "inconclusive: the two models disagree, the README says why"),
     ("leaves", "leaves", "leaves the default path (kept in the code, off by default)"),
     ("inconclusive", "inconclusive", "inconclusive: unchanged, flagged; decided again on ≥ 30 cases"),
-    ("leaves", "inconclusive", "not covered by the rules (one model leaves, the other is inconclusive)"),
+    ("leaves", "inconclusive", "leaves the default path, flagged: one model leaves, the other is inconclusive"),
     ("stays", "not drawn", "not drawn"),
 ])
 def test_the_two_models_rule(a, b, outcome):

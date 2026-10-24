@@ -352,7 +352,8 @@ def two_models(a: str, b: str) -> str:
         return "leaves the default path (kept in the code, off by default)"
     if pair == {"inconclusive"}:
         return "inconclusive: unchanged, flagged; decided again on ≥ 30 cases"
-    return "not covered by the rules (one model leaves, the other is inconclusive)"
+    # one leaves, the other is inconclusive: "stays only if" — it does not stay (CPI-12)
+    return "leaves the default path, flagged: one model leaves, the other is inconclusive"
 
 
 def protocol_001_rows(configs: dict[str, list[dict]], ctl: dict[str, dict], cases: list[str]) -> list[list[str]]:

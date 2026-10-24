@@ -208,3 +208,9 @@ incident memory is drawn from C1 or C2.
     the net gain, and computed from the recorded prompts, not from this list;
   - **what C2 does not measure:** the knowledge base — resolved incidents (C3, R0) and
     enterprise documents (no corpus). "LLM against the knowledge base" is C3 and R0.
+
+- **2026-10-23 — the two-model rule, completed.** Written before any run
+  (`docs/comparison-protocol-issues.md` CPI-12). One model "leaves" and the other
+  "inconclusive" had no outcome. Read literally ("stays only if"), the layer does not stay: it
+  leaves the default path (kept in the code, off by default), flagged, since neither model showed
+  a gain.

@@ -504,7 +504,9 @@ dependency lockfile.
 ## Measurement before the merge
 
 The comparison none / LLM / sLLM and its decision rules are fixed in
-`docs/veracity-replay.md` § Comparison (2026-10-20), before any run.
+`docs/veracity-replay.md` § Comparison (2026-10-20), before any run. Each design choice, the
+test that can refute it and where it stands: `docs/design-choices-evidence.md`; the defects of
+these protocols, fixed before the runs: `docs/comparison-protocol-issues.md`.
 
 Block B, on the head of this PR before it is merged (the commit recorded in every run, H79):
 rules, structured, mistral × 3, qwen2.5:3b × 3, the 19 native cases; a block counts only when
