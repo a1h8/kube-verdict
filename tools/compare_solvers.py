@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The comparison's tables and decisions — docs/veracity-replay.md § Comparison and its
-amendments (2026-10-22, 2026-10-23) — and protocol 001's vector-search decision
+amendments (2026-10-22, 2026-10-23, 2026-10-24) — and protocol 001's vector-search decision
 (docs/protocol-001-retrieval.md, C2 against C1).
 
 Reads replay records (``<dir>/<solver>/<case>/run_<n>.json``, cut runs under
@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -45,6 +46,11 @@ LABELS = {"": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
 MORE_CASES = 3              # "at least 3 more cases"
 EXPLAIN_MIN, DISAGREE_MAX = 80.0, 10.0
 SLLM_WITHIN = 5.0           # points of explanation-correct rate
+ANCHOR_MIN_CASES = 4        # fewer cases whose score label changes: not conclusive
+ANCHOR_FOLLOW = 0.75        # "the follow rate is at least 3/4"
+
+# the context quality score line every analyze prompt carries (rca/analyzer.py)
+SCORE_LINE = re.compile(r"Context quality score:\s*(LOW|MEDIUM|HIGH)\b")
 
 
 def _expect(case: str) -> dict:
@@ -164,6 +170,12 @@ def _label_name(value: int | None) -> str:
     return next((k for k, v in LABELS.items() if v == value and k), "—")
 
 
+def score_label(r: dict) -> int | None:
+    """The label of the context quality score in the run's prompt; None without the line."""
+    m = SCORE_LINE.search("\n".join(r.get("prompts") or []))
+    return LABELS[m.group(1)] if m else None
+
+
 def cut_control(recs: list[dict], cuts: list[dict]) -> list[dict]:
     """Each cut run against the lower median label of its case's valid connected runs; a cut run
     missing or invalid, or with no valid connected run to compare with, fails."""
@@ -183,6 +195,7 @@ def cut_control(recs: list[dict], cuts: list[dict]) -> list[dict]:
             why = "" if ok else "more confident than its connected runs"
         out.append({"case": cut["case"], "cut": cut.get("cut"), "ok": ok, "why": why,
                     "label": cut.get("confidence") or "—", "median": _label_name(median),
+                    "score": _label_name(score_label(cut)),
                     "names_cause": cut["veracity"] == "PASS"})
     return out
 
@@ -356,6 +369,80 @@ def two_models(a: str, b: str) -> str:
     return "leaves the default path, flagged: one model leaves, the other is inconclusive"
 
 
+# ── the context quality score: does the model's label follow it? ─────────────────
+# docs/veracity-replay.md § Amendment 2026-10-24 (CPI-16)
+
+def _valid(recs: list[dict], case: str) -> list[dict]:
+    return [r for r in recs if r["case"] == case and r["veracity"] != "MISSING" and not r.get("invalid")]
+
+
+def _case_label(recs: list[dict], case: str) -> int | None:
+    """The lower median of the case's valid runs' labels, as for the collector-cut control."""
+    labels = [_label(r) for r in _valid(recs, case)]
+    return statistics.median_low(labels) if labels else None
+
+
+def _case_score(recs: list[dict], case: str) -> int | None:
+    """The score label of the case's first run with a prompt (the pipeline is deterministic)."""
+    first = sorted((r for r in recs if r["case"] == case and r.get("prompts")), key=lambda r: r.get("run", 0))
+    return score_label(first[0]) if first else None
+
+
+def agreement(recs: list[dict]) -> tuple[int, int, int]:
+    """(valid runs whose label equals their prompt's score label, valid runs with the line,
+    valid runs without it). Reported only: the evidence moves both."""
+    valid = [r for r in recs if r["veracity"] != "MISSING" and not r.get("invalid")]
+    scored = [(r, s) for r in valid if (s := score_label(r)) is not None]
+    return sum(_label(r) == s for r, s in scored), len(scored), len(valid) - len(scored)
+
+
+def anchoring(c1: list[dict], c2: list[dict]) -> dict:
+    """C2 against C1 on one model. S: cases whose score label differs between the two prompts;
+    N: cases whose prompt is the same. Shown when S has at least ANCHOR_MIN_CASES cases, the
+    model's label moves strictly with the score's on at least ANCHOR_FOLLOW of them, and more
+    often than it moves at all on N."""
+    s1 = {c: _case_score(c1, c) for c in {r["case"] for r in c1}}
+    s2 = {c: _case_score(c2, c) for c in {r["case"] for r in c2}}
+    changed = sorted(c for c in s1.keys() & s2.keys()
+                     if s1[c] is not None and s2[c] is not None and s1[c] != s2[c])
+    followed = []
+    for c in changed:
+        l1, l2 = _case_label(c1, c), _case_label(c2, c)
+        if l1 is not None and l2 is not None and (l2 - l1) * (s2[c] - s1[c]) > 0:
+            followed.append(c)
+    same = [c for c in same_prompt_cases(c1, c2)
+            if _case_label(c1, c) is not None and _case_label(c2, c) is not None]
+    moved = [c for c in same if _case_label(c1, c) != _case_label(c2, c)]
+    follow = len(followed) / len(changed) if changed else None
+    move = len(moved) / len(same) if same else 0.0
+    if len(changed) < ANCHOR_MIN_CASES:
+        verdict = "not conclusive: anchoring not measured"
+    elif follow >= ANCHOR_FOLLOW and follow > move:
+        verdict = "shown: the model's labels are not informative"
+    else:
+        verdict = "not shown"
+    return {"changed": changed, "followed": followed, "same": same, "moved": moved,
+            "follow": follow, "move": move, "verdict": verdict}
+
+
+def anchoring_rows(configs: dict[str, list[dict]]) -> list[list[str]]:
+    rows = []
+    for model in ("LLM", "sLLM"):
+        c1, c2 = f"ctx-{model}", f"C2-{model}"
+        if c1 not in configs or c2 not in configs:
+            rows.append([f"anchoring, {model} (C2 vs C1)", f"{', '.join(n for n in (c1, c2) if n not in configs)} missing",
+                         "not measured"])
+            continue
+        a = anchoring(configs[c1], configs[c2])
+        follow = f"{len(a['followed'])}/{len(a['changed'])}" if a["changed"] else "—"
+        rows.append([f"anchoring, {model} (C2 vs C1)",
+                     f"score label changes on {len(a['changed'])} cases ({', '.join(a['changed']) or '—'}); "
+                     f"the label follows on {follow} ({', '.join(a['followed']) or '—'}); "
+                     f"same prompt: the label moves on {len(a['moved'])}/{len(a['same'])} "
+                     f"({', '.join(a['moved']) or '—'})", a["verdict"]])
+    return rows
+
+
 def protocol_001_rows(configs: dict[str, list[dict]], ctl: dict[str, dict], cases: list[str]) -> list[list[str]]:
     outcomes, rows = {}, []
     for model in ("LLM", "sLLM"):
@@ -377,6 +464,9 @@ def render(configs: dict[str, list[dict]], cuts: dict[str, list[dict]] | None = 
                                         for c in cases for k in cuttable(c)])
             if n in CUT_CONTROLLED else None for n in configs}
     ctl = {n: controls(n, r, cuts[n], cases) for n, r in configs.items()}
+    # a context configuration whose model is shown to follow the score: its cut labels say nothing
+    anchored = {f"ctx-{m}" for m in ("LLM", "sLLM") if f"ctx-{m}" in configs and f"C2-{m}" in configs
+                and anchoring(configs[f"ctx-{m}"], configs[f"C2-{m}"])["verdict"].startswith("shown")}
     parts = ["# The comparison: structured, LLM, sLLM, raw, context", "",
              "Generated by `tools/compare_solvers.py` — do not edit. Protocol and decision rules: "
              "`docs/veracity-replay.md` § Comparison and its amendments.", "",
@@ -411,11 +501,22 @@ def render(configs: dict[str, list[dict]], cuts: dict[str, list[dict]] | None = 
               "", "### Collector cut", "",
               "Not applicable (no Prometheus, Loki or OTel fixtures): "
               + (", ".join(c for c in cases if not cuttable(c)) or "—") + ".", "",
-              table(["Configuration", "Case", "Cut", "Cut label", "Connected median",
-                     "Still names the cause", "Control"],
-                    [[n, c["case"], c["cut"], c["label"], c["median"], "yes" if c["names_cause"] else "no",
-                      "ok" if c["ok"] else f"FAIL — {c['why']}"]
+              table(["Configuration", "Case", "Cut", "Cut label", "Score label in its prompt",
+                     "Connected median", "Still names the cause", "Control"],
+                    [[n, c["case"], c["cut"], c["label"], c["score"], c["median"],
+                      "yes" if c["names_cause"] else "no",
+                      ("ok" if c["ok"] else f"FAIL — {c['why']}")
+                      + (" (not informative: anchoring shown)" if n in anchored else "")]
                      for n in configs if cuts[n] is not None for c in cut_control(configs[n], cuts[n])]), "",
+              "### The context quality score in the prompt", "",
+              "`docs/veracity-replay.md` § Amendment 2026-10-24: shown when the score label changes on at "
+              f"least {ANCHOR_MIN_CASES} cases, the model's label follows it on at least 3/4 of them, and "
+              "more often than it moves on same-prompt cases. Graded causes and decisions are unaffected. "
+              "C2 also adds a \"Related context\" list: the score is not changed alone.", "",
+              table(["Configuration", "Label equals the score's", "Runs without the line"],
+                    [[n, _pct(*agreement(r)[:2]), str(agreement(r)[2])]
+                     for n, r in configs.items() if n.startswith(("ctx-", "C2-"))]), "",
+              table(["Rule", "Counts", "Outcome"], anchoring_rows(configs)), "",
               "## Decisions", "", table(["Rule", "Counts", "Outcome"], decisions(configs, ctl, cases)), "",
               "## Protocol 001 — vector search (C2 against C1)", "",
               "`docs/protocol-001-retrieval.md`, amendments of 2026-10-23: net gain ≥ 3 stays, 1 or 2 "

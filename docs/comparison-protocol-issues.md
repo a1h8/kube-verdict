@@ -28,7 +28,7 @@
 | CPI-13 | UNDERSPEC | medium | RESOLVED (2026-10-23) |
 | CPI-14 | INCONSISTENT | low | RESOLVED (2026-10-23) |
 | CPI-15 | INCONSISTENT | medium | RESOLVED (2026-10-24) |
-| CPI-16 | AMBIGUOUS | medium | RESOLVED in text, control to implement (2026-10-24) |
+| CPI-16 | AMBIGUOUS | medium | RESOLVED (2026-10-24) |
 | CPI-17 | UNDERSPEC | low | RESOLVED (2026-10-24) |
 | CPI-18 | GAP | medium | OPEN (with the corpus) |
 
@@ -160,7 +160,7 @@ already asserts "never higher than connected". The §4 sentence predates H4.
 **Decision (2026-10-24).** `docs/test-cases.md` §4 amended: never more confident than connected;
 the label may stay HIGH when redundant evidence remains. No threshold changes.
 
-## CPI-16: a score in the prompt may anchor the model's label (RESOLVED in text)
+## CPI-16: a score in the prompt may anchor the model's label (RESOLVED)
 
 **Symptom.** The context carries a "Context quality score" (HIGH, MEDIUM) computed from
 heuristics (BFS depth, diversity, TF-IDF). With C2 it moves from MEDIUM 0.42 to HIGH 0.70 on h013
@@ -170,8 +170,9 @@ and removing it would measure a prompt nobody runs. It is not only declared a co
 anchoring control, fixed before any run, measures it (`docs/veracity-replay.md` § Amendment
 2026-10-24). If anchoring is shown, the model's labels — the collector-cut control of `context:`
 and the labels of C2 against C1 — are reported as not informative; graded causes are unaffected.
-Removing the score is then a separate, measured change (prompt v7). The control is computed in
-`tools/compare_solvers.py`, not written yet.
+Removing the score is then a separate, measured change (prompt v7). Implemented the same day in
+`tools/compare_solvers.py` (`anchoring`, `agreement`); its tests fail on a mutant of each
+threshold (`tests/unit/test_compare_solvers.py`).
 
 ## CPI-17: no anchor violation is indexed in any case (RESOLVED)
 

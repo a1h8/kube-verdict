@@ -253,3 +253,72 @@ def test_c2_is_not_held_to_the_collector_cut_control():
     text = cs.render({"none": _recs("none", ALL), "C2-LLM": _recs("C2-LLM", ALL)},
                      {"none": _cuts()}, CASES)
     assert "| C2-LLM | none | no |" in text
+
+
+# ── docs/veracity-replay.md § Amendment 2026-10-24: does the label follow the score? ──
+
+def _scored(name, score, label, line=True):
+    """``name``'s runs; ``score(case)`` is the quality score label in the prompt, ``label(case)``
+    the model's. Same score, same prompt: those cases are the noise control."""
+    recs = _recs("ctx-LLM" if name.startswith("ctx") else "C2-LLM", ALL)
+    for r in recs:
+        s = score(r["case"])
+        r["prompts"] = [(f"Context quality score: {s} (0.50/1.00) — reasons\n" if line else "") + "evidence"]
+        r["confidence"] = label(r["case"])
+    return recs
+
+
+def _anchoring(changed, c2_label, c1_label=lambda c: "MEDIUM"):
+    c1 = _scored("ctx", lambda c: "MEDIUM", c1_label)
+    c2 = _scored("C2", lambda c: "HIGH" if c in changed else "MEDIUM", c2_label)
+    return cs.anchoring(c1, c2)
+
+
+S6 = set(POSITIVES[:6])
+
+
+def test_a_model_that_copies_the_score_is_anchored():
+    a = _anchoring(S6, lambda c: "HIGH" if c in S6 else "MEDIUM")
+    assert a["verdict"].startswith("shown") and a["follow"] == 1.0 and a["changed"] == sorted(S6)
+    assert len(a["same"]) == len(CASES) - 6 and a["moved"] == []
+
+
+@pytest.mark.parametrize("c2_label", [
+    lambda c: "MEDIUM",                                   # a constant label
+    lambda c: "HIGH" if c == POSITIVES[0] else "MEDIUM",  # 1 of 6 follows: under 3/4
+    lambda c: "LOW" if c in S6 else "MEDIUM",             # moves against the score
+])
+def test_a_label_that_does_not_follow_the_score_is_not_anchored(c2_label):           # controls
+    assert _anchoring(S6, c2_label)["verdict"] == "not shown"
+
+
+def test_fewer_than_four_changed_cases_is_not_conclusive():
+    s3 = set(POSITIVES[:3])
+    a = _anchoring(s3, lambda c: "HIGH" if c in s3 else "MEDIUM")
+    assert a["follow"] == 1.0 and a["verdict"] == "not conclusive: anchoring not measured"
+
+
+def test_a_label_that_moves_as_much_on_the_same_prompt_is_not_anchored():
+    # follows the score on every changed case, but moves on every same-prompt case too: noise
+    a = _anchoring(S6, lambda c: "HIGH", c1_label=lambda c: "MEDIUM" if c in S6 else "LOW")
+    assert a["follow"] == 1.0 and a["move"] == 1.0 and a["verdict"] == "not shown"
+
+
+def test_agreement_counts_runs_without_the_score_line():
+    recs = _scored("ctx", lambda c: "MEDIUM", lambda c: "MEDIUM")
+    assert cs.agreement(recs) == (len(recs), len(recs), 0)
+    bare = _scored("ctx", lambda c: "MEDIUM", lambda c: "MEDIUM", line=False)
+    assert cs.agreement(bare) == (0, 0, len(bare))
+    assert cs.score_label(bare[0]) is None
+
+
+def test_the_cut_table_says_when_anchoring_makes_the_labels_uninformative():
+    copy = lambda c: "HIGH" if c in S6 else "MEDIUM"  # noqa: E731
+    configs = {"none": _recs("none", ALL),
+               "ctx-LLM": _scored("ctx", lambda c: "MEDIUM", lambda c: "MEDIUM"),
+               "C2-LLM": _scored("C2", copy, copy)}
+    cuts = [dict(c, prompts=["Context quality score: LOW (0.30/1.00)"]) for c in _cuts()]
+    text = cs.render(configs, {"none": _cuts(), "ctx-LLM": cuts}, CASES)
+    assert "| ctx-LLM |" in text and "| LOW | MEDIUM | no | ok (not informative: anchoring shown) |" in text
+    assert "| anchoring, LLM (C2 vs C1) |" in text and "shown: the model's labels are not informative" in text
+    assert "| anchoring, sLLM (C2 vs C1) | ctx-sLLM, C2-sLLM missing | not measured |" in text

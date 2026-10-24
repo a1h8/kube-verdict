@@ -412,7 +412,7 @@ what the product sends. Its effect is measured, per model, with these rules:
   v7), measured on its own.
 - **The test can fail.** It is checked on records where the model copies the score (shown) and
   where its label is constant or follows the evidence only (not shown). Computed by
-  `tools/compare_solvers.py`; not implemented when this is written. The 8 cases where C2 changes
+  `tools/compare_solvers.py` (implemented 2026-10-24, after this text). The 8 cases where C2 changes
   the prompt also add a "Related context" list: *S* is not a pure manipulation of the score, which
   the report says.
 
