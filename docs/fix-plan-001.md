@@ -490,7 +490,7 @@ item says how it was checked; the fix comes with a test that fails on today's co
 - [ ] **H80 — steps of the live run written nowhere but in the protocols.** → listed in the
   live-run spec, in this order, each checked before the first measured run: Ollama alone on the
   cluster, the hourly CronJob suspended (and resumed after, both with an explicit go); every
-  prompt of the `raw:` and `context:` configurations measured with each model's tokenizer
+  prompt of the `raw:` and `context:` configurations (C1, C2 and C3) measured with each model's tokenizer
   (Ollama's own, the one the runs use) under its ceiling (`docs/veracity-replay.md`
   § Amendment 2026-10-23, records); the models' digests recorded; protocol
   001's positive control h001 re-run once when it fails, then recorded invalid.

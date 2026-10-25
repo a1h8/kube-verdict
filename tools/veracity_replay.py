@@ -460,11 +460,27 @@ def context_prompt_state(case_name: str, cut: str | None = None):
     return run.graph, run.expect, _fallbacks(run.state)
 
 
+def load_corpus_examples() -> int:
+    """C3: the committed corpus written as the product's resolved incidents into the run's
+    example directory — the temporary one of ``isolated_stores``, never ``./data/examples``."""
+    from knowledge.example_store import ExampleStore
+    from tools import incident_corpus
+    target = os.environ.get("KUBEVERDICT_EXAMPLE_DIR", "")
+    if not Path(target).name == "examples" or "kv-replay-" not in target:
+        raise RuntimeError("--examples on outside isolated_stores: refusing to write a real example store")
+    store = ExampleStore(target)
+    records = incident_corpus.load_records()
+    for _, rec in records:
+        store.save(incident_corpus.to_incident(rec))
+    return len(records)
+
+
 def solve_context(case_name: str, client, run: int, cut: str | None = None,
-                  store: str = "stub") -> dict:
+                  store: str = "stub", examples: str = "off") -> dict:
     """The model on the pipeline's context, without the hypothesis or the diagnosis. With
     ``store="faiss"``, the vector search the product builds for the investigation answers its
-    retrieval (docs/protocol-001-retrieval.md, C2); with ``stub``, nothing does (C1)."""
+    retrieval (docs/protocol-001-retrieval.md, C2); with ``stub``, nothing does (C1). With
+    ``examples="on"`` the corpus is in that search too (C3)."""
     from llm.ollama_client import PromptTooLongError
     from rca.analyzer import RCAAnalyzer
     from tests.integration.workflow_harness import RecordingLLM, StubStore
@@ -474,6 +490,8 @@ def solve_context(case_name: str, client, run: int, cut: str | None = None,
     index = None
     if store == "faiss":
         from workflow.nodes import build_investigation_store
+        if examples == "on":
+            load_corpus_examples()
         retrieval, index = build_investigation_store(graph)
     else:
         retrieval = StubStore()
@@ -670,7 +688,7 @@ def _record_failure(out_dir: Path, solver: str, case_name: str, run: int, why: s
 
 
 def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path, cut: str | None = None,
-                  store: str = "stub") -> None:
+                  store: str = "stub", examples: str = "off") -> None:
     """One llm run in its own process, killed after REPLAY_RUN_TIMEOUT seconds.
 
     A request can hang past the HTTP read timeout (a half-dead port-forward kept one
@@ -679,7 +697,8 @@ def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path, cut: str
     timeout = int(os.environ.get("REPLAY_RUN_TIMEOUT", "1800"))
     cmd = [sys.executable, str(Path(__file__).resolve()), "--solver", solver,
            "--cases", _key(case_name), "--child-run", str(run), "--out", str(out_dir), "--out-free",
-           *(["--cut", cut] if cut else []), *(["--store", store] if store != "stub" else [])]
+           *(["--cut", cut] if cut else []), *(["--store", store] if store != "stub" else []),
+           *(["--examples", examples] if examples != "off" else [])]
     # the child's exit code and its record are both checked: a child that died (OOM-killed,
     # crash at import) used to leave nothing at all (fix plan R1)
     try:
@@ -720,6 +739,8 @@ def main(argv: list[str] | None = None) -> int:
                          "collector each case has fixtures for (the collector-cut control)")
     ap.add_argument("--store", choices=("stub", "faiss"), default="stub",
                     help="context only: faiss gives the model the product's vector search (C2)")
+    ap.add_argument("--examples", choices=("off", "on"), default="off",
+                    help="context with --store faiss only: on loads the incident corpus (C3)")
     ap.add_argument("--out", default=None,
                     help="records directory (default: tests/veracity/replay-baselines/<run name>)")
     ap.add_argument("--out-free", action="store_true",
@@ -745,6 +766,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.store == "faiss" and solver != "context":
         # protocol 001 measures retrieval where the model names the cause (its C2)
         ap.error("--store faiss: only with context:<model> (docs/protocol-001-retrieval.md, C2)")
+    if args.examples == "on" and (solver != "context" or args.store != "faiss"):
+        # the corpus reaches the model through the product's vector search (protocol 001, C3)
+        ap.error("--examples on: only with context:<model> --store faiss (docs/protocol-001-retrieval.md, C3)")
     wanted = {k.strip() for k in args.cases.split(",") if k.strip()}
     cases = [c for c in native_cases() if not wanted or _key(c) in wanted]
     # (case, cut) pairs: one connected run set per case, or one cut run per case and collector
@@ -780,7 +804,7 @@ def main(argv: list[str] | None = None) -> int:
     from rca.analyzer import PROMPT_VERSION
     prompt = RAW_PROMPT_VERSION if solver == "raw" else PROMPT_VERSION if client else None
     # R0 searches the corpus, through the product's vector index (protocol 001, amendment 2026-10-24)
-    store, examples = ("faiss", "on") if solver == "retrieval" else (args.store, "off")
+    store, examples = ("faiss", "on") if solver == "retrieval" else (args.store, args.examples)
     name = run_dir_name(solver, client.model if client else "", prompt, store, examples)
     # resolved: every run changes directory (isolated_stores)
     out_dir = Path(args.out).resolve() if args.out else REPLAY_BASELINES / name
@@ -789,7 +813,7 @@ def main(argv: list[str] | None = None) -> int:
     digest = getattr(client, "model_digest", None)
     meta = {"commit": commit_id(), "grading_hashes": grading_hashes(),
             "model_digest": digest() if digest else "", **configuration(solver, store, examples)}
-    if solver == "retrieval":
+    if examples == "on":
         from tools.incident_corpus import corpus_hash
         meta["corpus_hash"] = corpus_hash()
     watched = watched_stores()        # taken where the replay was started, before any chdir
@@ -808,7 +832,7 @@ def main(argv: list[str] | None = None) -> int:
                 if args.resume and path.exists():
                     continue
                 if solver in MODEL_SOLVERS and not args.child_run:
-                    _run_in_child(args.solver, case_name, run, out_dir, cut, args.store)
+                    _run_in_child(args.solver, case_name, run, out_dir, cut, args.store, examples)
                     continue
                 before = fingerprint(watched)
                 try:
@@ -817,7 +841,7 @@ def main(argv: list[str] | None = None) -> int:
                                   else solve_structured(case_name, cut) if solver == "structured"
                                   else solve_retrieval(case_name) if solver == "retrieval"
                                   else solve_raw(case_name, client, run, cut) if solver == "raw"
-                                  else solve_context(case_name, client, run, cut, args.store)
+                                  else solve_context(case_name, client, run, cut, args.store, examples)
                                   if solver == "context"
                                   else solve_llm(case_name, client, run, cut))
                 except Exception as exc:  # one failed run must not stop an hours-long replay

@@ -36,6 +36,7 @@
 | CPI-21 | UNDERSPEC | medium | RESOLVED (2026-10-24) |
 | CPI-22 | UNDERSPEC | medium | RESOLVED (2026-10-24) |
 | CPI-23 | INCONSISTENT | medium | RESOLVED (2026-10-24) |
+| CPI-24 | GAP | medium | RESOLVED (2026-10-24) |
 
 ---
 
@@ -259,3 +260,14 @@ before any run and says nothing about whether the corpus alone points to the cau
 cases, with the negative controls and the matched record per case, against a prediction written
 before the run (protocol 001, amendment 2026-10-24, R0 reported). The incident memory is decided
 by C3 against C2.
+
+## CPI-24: h016's C3 prompt does not fit (RESOLVED)
+
+**Symptom.** With the corpus loaded, every context prompt grows by 8 500 to 10 000 characters
+(five similar incidents, repeated under "Related context"). h016's reaches 22 724 characters,
+about 8 400 tokens by the client's estimate: over the 8 192 ceiling, so the client refuses it
+before any call. Nothing said how a refused C3 prompt counts.
+**Decision (2026-10-24).** The ceiling stays: the refusal is the product's own guard, so h016 is a
+C3 FAIL recorded `did_not_fit`, and the net gain of C3 against C2 is reported with the cases lost
+by size named. The tokenizer measurement before the live run (`docs/fix-plan-001.md` H80) covers
+the C3 prompts too (protocol 001, amendment 2026-10-24, C3).

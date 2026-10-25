@@ -278,3 +278,24 @@ the record, the synonyms nor the threshold were changed after the run: the corpu
   from a family the corpus lacks cannot be the right one; an uncovered case that passes is
   examined (a chance keyword match, or a leak the exclusion missed) and reported either way. The
   decision on the incident memory stays C3 against C2, live.
+
+- **2026-10-24 — what C3 adds, measured offline; h016's size; a prediction.** Written before any
+  run of C3, after building it (`--solver context:<model> --store faiss --examples on`) and
+  reading its prompts on the 19 cases with a scripted model and isolated stores:
+  - the corpus v1 (11 records) is indexed in every case (`index.examples` = 11), and the
+    product's context lists **five "SIMILAR PAST INCIDENTS — proven remediations"** in every
+    case, the negative controls h022 and h026 included — no threshold on this path — each with
+    its root cause and fix (CPI-19); the same incidents appear again under "Related context"
+    (15 mentions per prompt). The prompt grows by 8 500 to 10 000 characters;
+  - the first of the five has the case's own family for h001, h003, h008 and h009; it is second
+    for h011, fourth for h004, fifth for h024 (`oom` only); absent for h005 and h010 (covered) and
+    for every uncovered case. The "Context quality score" rises in every case (+0.07 to +0.14),
+    from MEDIUM to HIGH in ten: the anchoring confound of CPI-16 applies to C3's labels too;
+  - **h016 does not fit** (CPI-24): 22 724 characters, about 8 400 tokens by the client's
+    estimate, over the 8 192 ceiling with the answer and the reserve. The ceiling is unchanged:
+    the product's own guard refuses the prompt, so h016 is a C3 FAIL recorded `did_not_fit`, and
+    the net gain of C3 against C2 is reported with the cases lost by size named;
+  - **prediction, stated before the numbers:** C3 against C2 gains at most 2 cases for each model
+    — the right family heads the list in four covered cases only, R0 passed none, and h016 is lost
+    by size — so C3 does not stay; a cause named on h022 or h026, now shown five past causes, is
+    the likeliest way for it to leave. The rule is unchanged; the run decides.
