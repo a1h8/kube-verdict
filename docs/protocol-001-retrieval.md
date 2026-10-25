@@ -129,7 +129,7 @@ does not — none passes. Read as: searched with the case's one-line `query`, ev
 crash or a restart scores between 0.6 and 0.77, so retrieval returns a kind of failure, not its
 cause (the question of `docs/incident-corpus.md` § Purpose, and the diagnosis's D5.5). Neither
 the record, the synonyms nor the threshold were changed after the run: the corpus is frozen. C3
-(the model with the same corpus) remains to run, live.
+(the model with the same corpus) remains to run, live — deferred (amendment 2026-10-25).
 
 ## Amendments
 
@@ -299,3 +299,19 @@ the record, the synonyms nor the threshold were changed after the run: the corpu
     — the right family heads the list in four covered cases only, R0 passed none, and h016 is lost
     by size — so C3 does not stay; a cause named on h022 or h026, now shown five past causes, is
     the likeliest way for it to leave. The rule is unchanged; the run decides.
+
+- **2026-10-25 — C2 and C3 are deferred; nothing is decided.** Written before any run of C1, C2
+  or C3. The product is the deterministic diagnosis; the model explains it, and the live run of
+  this PR measures that diagnosis against models that read the same artifacts
+  (`docs/veracity-replay.md` § Comparison). C2 and C3 measure whether a model gains from the
+  vector search and from the incident memory: layers on the model, not on the diagnosis. They
+  stay coded and tested, their predictions stand as written (C2 leaves, CPI-13; C3 does not stay,
+  amendment 2026-10-24), and they are **not run** in this PR's live run. The deferral is made
+  before any number, so it moves no threshold; choices 6 and 7 of
+  `docs/design-choices-evidence.md` stay "not measured". What follows:
+  - the split by corpus family (CPI-18) is not needed before a run of R0's tables or C3, and is
+    deferred with them;
+  - the anchoring test (`docs/veracity-replay.md` § Amendment 2026-10-24) needs C2 against C1:
+    without it the `context:` labels carry "anchoring not measured", as that text provides.
+    Graded causes and every decision rule are unaffected — the grading reads the cause;
+  - running C2 and C3 later is a separate run, on its own commit, under the rules of this file.

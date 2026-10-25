@@ -30,7 +30,7 @@
 | CPI-15 | INCONSISTENT | medium | RESOLVED (2026-10-24) |
 | CPI-16 | AMBIGUOUS | medium | RESOLVED (2026-10-24) |
 | CPI-17 | UNDERSPEC | low | RESOLVED (2026-10-24) |
-| CPI-18 | GAP | medium | OPEN (with the corpus) |
+| CPI-18 | GAP | medium | DEFERRED (2026-10-25, with C3) |
 | CPI-19 | INCONSISTENT | medium | RESOLVED in text (2026-10-24) |
 | CPI-20 | GAP | blocking | RESOLVED in text (2026-10-24) |
 | CPI-21 | UNDERSPEC | medium | RESOLVED (2026-10-24) |
@@ -195,7 +195,7 @@ between offline and live, declared.
 gaps table); exercised live only. C2's prediction (CPI-13) holds. Whether the harness should get
 a GitOps source is a question for a later change, not for this protocol.
 
-## CPI-18: results split by corpus family not implemented (OPEN, with the corpus)
+## CPI-18: results split by corpus family not implemented (DEFERRED)
 
 **Symptom.** Protocol 001 reports C3 and R0 split into cases whose family the corpus covers and
 cases it does not; nothing computes it.
@@ -203,6 +203,8 @@ cases it does not; nothing computes it.
 measurable before it.
 **Families fixed (2026-10-24).** Each native case's family is fixed in `docs/incident-corpus.md`
 § Amendment 2026-10-24, before any record is written; the split is still to implement.
+**Deferred (2026-10-25).** C2 and C3 are not run in this PR's live run (protocol 001, amendment
+2026-10-25); the split is implemented before their run, not before this one.
 
 ## CPI-19: the corpus spec and the product index different text (RESOLVED in text)
 

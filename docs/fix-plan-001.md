@@ -209,7 +209,7 @@
   - records go to a directory named after the run (`docs/veracity-replay.md` § Amendment
     2026-10-23, records); `--out` is free today;
   - protocol 001's results split into cases whose family the corpus covers and cases it does
-    not;
+    not (deferred 2026-10-25 with C2 and C3, CPI-18);
   - an empty answer is a FAIL (it is, through `grade("")`, but no test says so).
   → each enforced in the replay or in `tools/compare_solvers.py`, with a test that fails without
   it, before the first run. *Partly done 2026-10-23* (`tests/unit/test_run_records.py`): every
