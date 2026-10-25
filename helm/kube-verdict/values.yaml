@@ -35,6 +35,12 @@ rbac:
   impersonate:
     user: ""            # → KUBE_IMPERSONATE_USER
     groups: []          # → KUBE_IMPERSONATE_GROUPS (comma-joined)
+  # Namespaces whose Helm releases kube-verdict may read (docs/fix-plan-001.md, H45). Helm 3
+  # keeps each release in a Secret; RBAC cannot select Helm's Secrets alone, so for each
+  # namespace listed a Role grants get/list on EVERY Secret of that namespace. Empty (the
+  # default): no Secret is readable, and the applied state is reported as not read — never as
+  # absent. → HELM_RELEASE_NAMESPACES (comma-joined)
+  helmReleaseNamespaces: []
 
 
 # Non-secret config — all become env vars

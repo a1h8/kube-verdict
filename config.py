@@ -36,6 +36,8 @@ KUBECONFIG: str | None = (
 )
 KUBE_CONTEXT: str | None = os.getenv("KUBE_CONTEXT") or None
 KUBE_NAMESPACES: list[str] = _list("KUBE_NAMESPACES")           # empty = all
+# the namespaces whose Helm release Secrets the chart lets kube-verdict read (H45)
+HELM_RELEASE_NAMESPACES: list[str] = _list("HELM_RELEASE_NAMESPACES")
 KUBE_SKIP_KINDS: set[str] = set(_list("KUBE_SKIP_KINDS", "Event,Endpoints,EndpointSlice"))
 
 # ── Helm ───────────────────────────────────────────────────────────────────────

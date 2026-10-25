@@ -51,4 +51,7 @@ def test_rbac_manifests_grant_no_secrets():
         for rule in (doc or {}).get("rules", []):
             assert "secrets" not in rule.get("resources", []), rule
     helm = (ROOT / "helm/kube-verdict/templates/rbac.yaml").read_text()
-    assert "secrets" not in helm
+    # the one opt-in exception (docs/diagnostics.md, amended 2026-10-23; fix plan H45): Secrets
+    # only in the Role rendered per listed namespace, none by default (test_chart_rbac.py)
+    before, opt_in, _ = helm.partition("{{- range .Values.rbac.helmReleaseNamespaces }}")
+    assert opt_in and "secrets" not in before

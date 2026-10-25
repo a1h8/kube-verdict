@@ -486,6 +486,28 @@ item says how it was checked; the fix comes with a test that fails on today's co
   state is reported as not read (`fallback: true`), never as absent. Rejected: B, no in-cluster
   release at all (the three-state comparison would never run live); C, a ClusterRole on
   `secrets` (every Secret of the cluster).*
+  *Implemented 2026-10-25 (option A), checked offline; the live run confirms it.* Found while
+  reading the code: (1) `ingest_node` passed the Helm collector the request's namespaces only,
+  never `KUBE_NAMESPACES`, so in the cluster it always ran `helm list --all-namespaces` — the
+  Secrets of every namespace, refused under any per-namespace grant; (2) a refused `helm list`
+  left the applied state at `releases: 0, fallback: false`, read as absent — only a refused
+  `helm get manifest` set `fallback`; (3) the chart granted neither the mutating webhooks the
+  policy collector lists, nor ResourceQuotas and LimitRanges (read by discovery), nor
+  `impersonate` when `rbac.impersonate` is set. The change:
+  - `rbac.helmReleaseNamespaces` (default `[]`): for each namespace, a Role `get` / `list` on
+    `secrets` and its RoleBinding to the chart's ServiceAccount, the values file saying it covers
+    every Secret of the namespace; the list also reaches the pod as `HELM_RELEASE_NAMESPACES`;
+  - the Helm collector lists the request's namespaces, else `KUBE_NAMESPACES`, else
+    `HELM_RELEASE_NAMESPACES`, and only with none of them every namespace;
+  - a refused `helm list` sets the applied state's `fallback`, as a refused `helm get manifest`
+    does;
+  - the ClusterRole reads `resourcequotas`, `limitranges` and `mutatingwebhookconfigurations`;
+    `impersonate` is granted only with `rbac.impersonate` set, on the configured user and groups
+    by name;
+  - tests: the chart rendered by `helm template` (no Secret granted by default, one Role per
+    listed namespace, never a ClusterRole on Secrets, no `impersonate` unless configured), CI
+    installing Helm (checksum checked) so they never skip there; the two code fixes, each with
+    a test that fails without it.
 
 - [ ] **H80 — steps of the live run written nowhere but in the protocols.** → listed in the
   live-run spec, in this order, each checked before the first measured run: Ollama alone on the

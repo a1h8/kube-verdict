@@ -178,7 +178,9 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
             kube_context=state.get("kube_context") or cfg.KUBE_CONTEXT,
         )
         helm_releases = 0
-        helm.collect(built_graph, namespaces=state.get("namespaces") or None)
+        # where the release Secrets may be read: `--all-namespaces` reads every namespace's (H45)
+        helm.collect(built_graph, namespaces=state.get("namespaces") or cfg.KUBE_NAMESPACES
+                     or cfg.HELM_RELEASE_NAMESPACES or None)
         from ontology.entities import ResourceKind as _RK
         helm_releases = sum(1 for _ in built_graph.entities(_RK.HELM_RELEASE))
         helm_failures = list(getattr(helm, "failures", None) or [])
@@ -202,8 +204,9 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
         from ingestion.manifest_differ import compare_applied_to_live
         applied_releases, applied_drifts = compare_applied_to_live(
             built_graph, covered=getattr(collector, "covered", None))
+        # a refused `helm list` leaves no release to compare: not read, never absent (H45)
         manifest_failures = [f for f in (getattr(helm, "failures", None) or [])
-                             if str(f).startswith("helm get manifest")]
+                             if str(f).startswith(("helm get manifest", "helm list"))]
         applied_stat = {"releases": applied_releases, "drifts": applied_drifts,
                         "fallback": bool(manifest_failures)}
         if manifest_failures:

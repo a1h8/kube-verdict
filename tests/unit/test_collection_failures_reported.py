@@ -5,6 +5,8 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from kubernetes.client import ApiException
 
 from ingestion.git_provider import LocalGitProvider
@@ -24,20 +26,21 @@ def test_a_refused_pod_listing_is_a_listing_failure():
     assert c.listing_failures == ["pods in prod"]
 
 
-def _ingest(listing_failures=(), helm_failures=()):
+def _ingest(listing_failures=(), helm_failures=(), state=None, helm=None):
     k8s = MagicMock()
     k8s.collect.return_value = OntologyGraph()
     k8s.kube_version = None
     k8s.listing_failures = list(listing_failures)
-    helm = MagicMock()
-    helm.failures = list(helm_failures)
+    if helm is None:
+        helm = MagicMock()
+        helm.failures = list(helm_failures)
     pol = MagicMock(last_error=None)
     pol.collect.return_value = MagicMock(fail_count=0, audit_count=0, mutation_webhooks=0)
     with patch("ingestion.K8sCollector", return_value=k8s), \
             patch("ingestion.HelmCollector", return_value=helm), \
             patch("ingestion.HelmDriftDetector", return_value=MagicMock(detect_all=MagicMock(return_value=0))), \
             patch("ingestion.PolicyCollector", return_value=pol):
-        return ingest_node({"namespaces": ["prod"]}, {"configurable": {"thread_id": "f"}})
+        return ingest_node(state or {"namespaces": ["prod"]}, {"configurable": {"thread_id": "f"}})
 
 
 def test_ingest_reports_refused_listings_and_helm_failures():
@@ -99,3 +102,29 @@ def test_discovery_refusals_are_their_own_failure():
             patch("ingestion.PolicyCollector", return_value=pol):
         out = ingest_node({"namespaces": ["prod"]}, {"configurable": {"thread_id": "d"}})
     assert _ingestion_failures(out) == ["discovery"]
+
+
+def test_a_refused_helm_list_leaves_the_applied_state_not_read():
+    # H45: no release listed is no release read, never "no release"
+    out = _ingest(helm_failures=["helm list: Error: secrets is forbidden"])
+    assert out["ingestion_stats"]["applied"]["fallback"] is True
+
+
+def test_a_clean_collection_reads_the_applied_state():                        # control
+    assert _ingest()["ingestion_stats"]["applied"]["fallback"] is False
+
+
+@pytest.mark.parametrize("requested, kube, helm_ns, expected", [
+    (["prod"], ["x"], ["y"], ["prod"]),
+    ([], ["x"], ["y"], ["x"]),
+    ([], [], ["apps"], ["apps"]),
+    ([], [], [], None),
+])
+def test_helm_lists_only_where_it_may_read(requested, kube, helm_ns, expected, monkeypatch):
+    # H45: `--all-namespaces` reads every namespace's Secrets, refused under a per-namespace grant
+    import config as cfg
+    monkeypatch.setattr(cfg, "KUBE_NAMESPACES", kube)
+    monkeypatch.setattr(cfg, "HELM_RELEASE_NAMESPACES", helm_ns)
+    helm = MagicMock(failures=[])
+    _ingest(state={"namespaces": requested}, helm=helm)
+    assert helm.collect.call_args.kwargs["namespaces"] == expected
