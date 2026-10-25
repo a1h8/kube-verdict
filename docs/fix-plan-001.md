@@ -516,6 +516,9 @@ item says how it was checked; the fix comes with a test that fails on today's co
   (Ollama's own, the one the runs use) under its ceiling (`docs/veracity-replay.md`
   § Amendment 2026-10-23, records); the models' digests recorded; protocol
   001's positive control h001 re-run once when it fails, then recorded invalid.
+  *Written 2026-10-25:* `docs/live-validation-001.md` — block B as reduced (C2 and C3 deferred,
+  protocol 001 amendment 2026-10-25), the steps in order, H45's live check with its negative
+  control, stop rules. Still to do offline: the tokenizer-measurement script it names (step 4).
 
 ## Not in this PR (open work, not corrections)
 
