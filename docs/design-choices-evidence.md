@@ -18,7 +18,7 @@ runs:            none of the comparison or of protocol 001       # nothing below
 deferred:        protocol 001's C2 and C3, and CPI-18 — not run in this PR (protocol 001,
                  amendment 2026-10-25); the live run measures the diagnosis
 blocking:
-  - H45 confirmed live, H80's tokenizer script: fix-plan-001.md, live-validation-001.md
+  - the live run itself (H45 confirmed live, the tokenizer table): live-validation-001.md
 known_bias:      the rules were written and tuned on the 19 cases — structured 19/19 is
                  in-sample: an upper bound of the pipeline's advantage, not a generalisation
 ```

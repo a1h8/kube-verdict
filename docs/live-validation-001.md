@@ -63,9 +63,12 @@ Each step is checked and its result written in the run log (§ Records) before t
    19 cases (and of their cut runs) sent once to Ollama with `num_predict: 1` and a `num_ctx`
    above any prompt (32 768); its `prompt_eval_count` is the prompt's size in that model's tokens.
    A prompt whose size + `num_predict` + reserve exceeds `OLLAMA_NUM_CTX_MAX` (8 192) is listed
-   before the block: its runs are FAIL `did_not_fit`, the ceiling is not moved. The script that
-   does it is written and tested offline before the live session (a scripted HTTP answer), and
-   commits nothing but its table.
+   before the block: its runs are FAIL `did_not_fit`, the ceiling is not moved. The script:
+   `tools/token_measure.py --model <m>` (tested offline with a scripted HTTP answer). It builds
+   the prompts with the replay's own solvers — one model call per run, each with its system
+   prompt — and also lists `would_truncate`: a prompt the client sends, sized from its
+   character estimate, whose measured tokens and answer exceed the `num_ctx` it sends. A
+   measurement that reaches 32 768 tokens is invalid, never "fits".
 5. **The positive control.** `context:` runs h001 first: if it does not pass 2 of 3, it is re-run
    once; failing again, the configuration is recorded invalid (`docs/design-choices-evidence.md`
    § 2) and no decision is drawn from it.
