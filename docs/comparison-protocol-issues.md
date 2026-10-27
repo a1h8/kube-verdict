@@ -37,6 +37,7 @@
 | CPI-22 | UNDERSPEC | medium | RESOLVED (2026-10-24) |
 | CPI-23 | INCONSISTENT | medium | RESOLVED (2026-10-24) |
 | CPI-24 | GAP | medium | RESOLVED (2026-10-24) |
+| CPI-25 | GAP | medium | RESOLVED in text (2026-10-27) |
 
 ---
 
@@ -273,3 +274,12 @@ before any call. Nothing said how a refused C3 prompt counts.
 C3 FAIL recorded `did_not_fit`, and the net gain of C3 against C2 is reported with the cases lost
 by size named. The tokenizer measurement before the live run (`docs/fix-plan-001.md` H80) covers
 the C3 prompts too (protocol 001, amendment 2026-10-24, C3).
+
+## CPI-25: the vector search stays in the default path unmeasured (RESOLVED in text)
+
+**Symptom.** C2 is deferred (protocol 001, amendment 2026-10-25), block B runs every model
+without the vector search, and the product builds it at every investigation (`index_node`): after
+the live run, a layer of the default path would still have no measurement, predicted useless.
+**Decision (2026-10-27).** R1, offline and without a model: what the search finds alone against
+an exact chance line (M1, reported), and the cases where it brings the cause into the context
+(M2, decides) — protocol 001, amendment 2026-10-27.

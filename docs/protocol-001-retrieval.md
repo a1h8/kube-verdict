@@ -315,3 +315,36 @@ the record, the synonyms nor the threshold were changed after the run: the corpu
     without it the `context:` labels carry "anchoring not measured", as that text provides.
     Graded causes and every decision rule are unaffected — the grading reads the cause;
   - running C2 and C3 later is a separate run, on its own commit, under the rules of this file.
+
+- **2026-10-27 — R1: the investigation's vector search alone, offline; a rule and a prediction.**
+  Written before any code or number of R1 (CPI-25). The product builds the vector search over
+  each investigation (`index_node`) and the model reads its hits; with C2 deferred, nothing
+  measures it. R1 does, with no model, deterministic, on the 17 cases with a cause (h022 and h026
+  have none: reported, not counted):
+  - **what is searched:** the store `build_investigation_store` builds from the case's graph
+    (no incident, no document — examples off), queried as the context builder queries it
+    (`hybrid_search` with the case's `query`); entity hits only;
+  - **M1, does it point to the cause alone:** the texts of the top 3 hits, joined, graded with
+    the case's grader (`tools/veracity.py`, the concepts of every cause). k = 3 because the
+    stores hold 4 to 30 vectors: a top 10 is often the whole index. Ranking the affected
+    resource is not measured — the query names it — and a cause that is an absent object (a
+    missing Secret, a StorageClass that does not exist) has no vector to find;
+  - **its control, chance, computed exactly:** for each case, the share of all 3-hit subsets
+    of the store's entity vectors whose joined texts pass the same grader — an expectation, not
+    a sample, so no seed. A chunk is a dump of fields: many words pass by volume, which the
+    chance line measures. A store of 3 vectors or fewer gives top 3 = chance = the whole store:
+    reported, neutral by construction;
+  - **M2, does it add the cause to what the model reads:** from the prompts of C1 and C2 built
+    by the replay with a scripted model (as in the amendment of 2026-10-23), the cases where
+    the C1 prompt fails the grader and the C2 prompt passes it — knowledge the vector search
+    alone brought into the context;
+  - **rule, fixed now:** M2 ≥ 3 cases: the vector search stays in the default path; 1–2:
+    inconclusive, it stays and the README says so; 0: it leaves the default path — its removal a
+    separate change, measured on its own (the structured diagnosis and the 19 cases unchanged).
+    M1 is reported with its chance line (passes, expected passes by chance, their difference),
+    and decides nothing: in the product the hits feed the context, which is what M2 measures;
+  - **prediction, stated before the numbers:** M2 = 0 (C2's prompts list no object the C1
+    prompt lacks, amendment 2026-10-23), so the vector search leaves the default path; M1 within
+    2 cases of its chance line;
+  - records under `tests/veracity/replay-baselines/`, the run's commit recorded; R1 runs offline,
+    before or after the live run, and changes nothing of it.
