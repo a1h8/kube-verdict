@@ -527,6 +527,13 @@ HPAs, ResourceQuotas, LimitRanges, NetworkPolicies and RoleBindings collected li
 (needed for the HPA case of F9, F6 and h005/h006 live); Monte Carlo out of the decision path; a
 dependency lockfile.
 
+The blast radius calibrated on the gate's history (`docs/design-choices-evidence.md`, choice 8:
+no pre-registered test yet), after the merge, spec first. A precondition comes before any rule:
+a history to calibrate on. Human decisions exist only as an API field (`human_decision`,
+approve / reject), and the API is not deployed on the cluster (`docs/live-k3s.md`), so no real
+history exists today; how decisions are recorded, and how many are needed, is the spec's first
+question.
+
 ## Measurement before the merge
 
 The comparison none / LLM / sLLM and its decision rules are fixed in
