@@ -534,6 +534,25 @@ approve / reject), and the API is not deployed on the cluster (`docs/live-k3s.md
 history exists today; how decisions are recorded, and how many are needed, is the spec's first
 question.
 
+The wider analysis engine, after the merge, spec first. Every source becomes the one ontology
+(Kubernetes, Helm, Git, ArgoCD / Flux, the API schema), every expected value an anchor on its
+object, and the analysis compares declared with observed on any field, the rules a layer above.
+Two steps, in this order:
+- **ArgoCD as a declared source.** Nothing reads an `Application` today (the chart grants
+  Flux's HelmReleases only; `tools/roadmap.py` listed ArgoCD as done from a file's existence,
+  corrected 2026-10-27). An Application declares its source (repository, path, revision, Helm
+  values and parameters) — the declared state of comparison A without a Git configuration of
+  ours — its `OutOfSync` status and diff are drift signals, and its objects carry
+  `argocd.argoproj.io/tracking-id`: an exact key for a "managed by ArgoCD" edge, as
+  `meta.helm.sh/release-name` is for Helm.
+- **A case at scale, and how to rank its drifts.** Hundreds of objects, manifest anchors from
+  Git or ArgoCD, tens of drifts of which one explains the symptom. Three rankings compared,
+  their rule fixed before the run: the distance in the graph from the symptom (edges only,
+  deterministic), BM25 (exact words), FAISS (semantic). Expected: the graph wins wherever an
+  edge links the drift to the symptom; search could matter only for drifts no edge reaches (a
+  namespace quota, a NetworkPolicy, a shared config, a webhook). This is the test R1 could not
+  run (protocol 001, R1 results). Until it does, the vector search is an opt-in, off by default.
+
 ## Measurement before the merge
 
 The comparison none / LLM / sLLM and its decision rules are fixed in

@@ -154,6 +154,16 @@ h015: chance 0.83, top 3 FAIL). Eight cases have a chance of 0 (h002, h003, h005
 h012, h013, h024): no three vectors of their store carry the cause's concepts, so no ranking of
 that store could pass. Nothing was changed after the run.
 
+**What R1 does not measure (added 2026-10-27, after the run; the rule and the result are
+unchanged).** The store held **no anchor violation** in any case: manifest anchors exist only
+with a Git provider, and the replay has none (CPI-17). And the stores are small (4 to 30
+vectors), where the graph's own context already holds everything. R1 measures the search over
+the cluster's objects on small cases; it does not measure the role the search was meant for in
+a wider engine — finding, among many anchors and drifts of a large cluster, the ones that bear on
+the symptom. That test needs a declared source (Git or ArgoCD) and a case at scale
+(`docs/fix-plan-001.md` § Not in this PR); until it runs, the vector search leaves the default
+path as an opt-in, not deleted.
+
 ## Amendments
 
 - **2026-10-22 — "Code needed", item 2.** `index_node` no longer writes the index (`save()`,

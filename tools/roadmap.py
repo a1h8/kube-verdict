@@ -89,8 +89,14 @@ def _blocs() -> list[dict]:
                     "done": _exists("ingestion/helm_drift.py", "ingestion/anchor_engine.py"),
                 },
                 {
-                    "label": "GitOps collector (Flux / ArgoCD)",
+                    "label": "GitOps collector (charts rendered from Git)",
                     "done": _exists("ingestion/gitops_collector.py"),
+                },
+                {
+                    # an Application read as the declared state, its objects linked by its
+                    # tracking key (docs/fix-plan-001.md § Not in this PR); not collected today
+                    "label": "ArgoCD Applications as the declared state",
+                    "done": _grep(r"argocd\.argoproj\.io/tracking-id", "ingestion"),
                 },
                 {
                     "label": "OTel traces (Jaeger / Tempo)",
