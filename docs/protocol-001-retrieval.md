@@ -131,6 +131,29 @@ cause (the question of `docs/incident-corpus.md` § Purpose, and the diagnosis's
 the record, the synonyms nor the threshold were changed after the run: the corpus is frozen. C3
 (the model with the same corpus) remains to run, live — deferred (amendment 2026-10-25).
 
+### R1 — the investigation's vector search alone (2026-10-27, offline)
+
+Run on commit `3fb8890`, one run, no model; records:
+`tests/veracity/replay-baselines/retrieval_investigation-store_faiss-examples_off-2026-10-27/`.
+Rule and prediction: amendment 2026-10-27 (CPI-25).
+
+| Measure | Result | Read as |
+|---|---|---|
+| M2 — cases where C2's prompt passes the grader and C1's does not | **0 of 17** | the search brings the cause into no context the model did not already have |
+| M1 — top 3 hits pass alone | **6 of 17** | — |
+| M1's chance line (exact, all 3-hit subsets) | **6.03** expected | M1 − chance = **−0.03**: the ranking does no better than a random choice of three |
+
+**Rule: the vector search over the investigation leaves the default path.** Its removal is a
+separate change, measured on its own (the structured diagnosis and the 19 cases unchanged).
+
+**Against the prediction:** both parts hold — M2 = 0, and M1 within 2 cases of its chance line.
+Read as: the C1 prompt already passes the grader in 14 of the 17 cases (h005, h013, h015 fail
+in C1 and C2 alike), so there is nothing for the search to add; where the cause is in the store,
+its ranking is not better than chance, and worse in two cases (h014: chance 0.73, top 3 FAIL;
+h015: chance 0.83, top 3 FAIL). Eight cases have a chance of 0 (h002, h003, h005, h006, h009,
+h012, h013, h024): no three vectors of their store carry the cause's concepts, so no ranking of
+that store could pass. Nothing was changed after the run.
+
 ## Amendments
 
 - **2026-10-22 — "Code needed", item 2.** `index_node` no longer writes the index (`save()`,
