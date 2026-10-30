@@ -151,3 +151,12 @@ Not run.
   `OLLAMA_NUM_CTX_MAX` (8 192): every prompt a run could send is measured whole, and a
   measurement that reaches 16 384 tokens is invalid, never "fits" — the rule of step 4 with the
   new value. The pod's memory is not raised: block B runs at 8 192 at most (CPI-27).
+  *Corrected the same day, still before any measured run:* at 16 384 Ollama was OOM-killed again,
+  on h016's third prompt (raw, Prometheus cut, about 8 000 tokens): the estimate above counted the
+  KV cache and the weights, not the compute buffers of a long prompt, and the runs' own prompts
+  come close to the same peak. The pod's memory limit is raised to **12 Gi** (request 4 Gi
+  unchanged), in the cluster and in `k8s/ollama.yaml`; it changes no answer, only whether one is
+  given. The measurement is valid only if Ollama restarts during none of it (the pod's restart
+  count is read before and after). The client's timeout for the measurement is the replay's
+  (`OLLAMA_TIMEOUT=900`, as `REPLAY_OLLAMA_TIMEOUT`): at the default 120 s, mistral's long prompts
+  were abandoned before they were read.

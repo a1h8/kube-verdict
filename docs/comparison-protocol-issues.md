@@ -312,3 +312,8 @@ its first prompt; nothing was recorded, no measured run had started.
 amendment of step 4 (same day); the invalid rule keeps its meaning with the new value. The pod's
 memory is not raised. A test checks the context is at least twice the ceiling and that mistral's
 KV cache at that size, with the weights, stays under 8 Gi.
+**Corrected (2026-10-30, before any measured run).** That decision was wrong: at 16 384 Ollama was
+OOM-killed again on an 8 000-token prompt — the estimate left out the compute buffers. The pod's
+limit is raised to 12 Gi (cluster and `k8s/ollama.yaml`); the memory test is removed (memory
+is not computable offline) and the measurement counts only if Ollama does not restart during it.
+The measurement uses the replay's client timeout (900 s).

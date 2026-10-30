@@ -22,7 +22,7 @@ real cloud and incidents we did not write), Docker networking quirks.
 |---|---|---|---|
 | Cluster | ✅ | k3d `dev`, 1 server / 0 agents, K3s v1.35.5+k3s1 | 8 CPU, 61 GiB, StorageClass `local-path`, Traefik |
 | metrics-server | ✅ | `kube-system` | feeds the metrics collector |
-| Ollama | ✅ | `kubeverdict/ollama`, image `ollama/ollama:latest` (0.40.3), model `mistral:latest`, PVC 10 Gi | **unpinned image**; limit 8 Gi, **OOMKilled once** (2026-10-13) under the replay |
+| Ollama | ✅ | `kubeverdict/ollama`, image pinned by digest (0.40.8, `docs/live-validation-001.md` step 1), models `mistral:latest` and `qwen2.5:3b-instruct`, PVC 10 Gi | limit 12 Gi since 2026-10-30: 8 Gi was OOM-killed under the replay (2026-10-13) and by the tokenizer measurement (CPI-27) |
 | kube-verdict | ⚠️ partial | `kubeverdict/kubeverdict` **CronJob**, hourly, `python main.py --query "unhealthy pods, drift, crashloops, pending PVCs"`, image `ghcr.io/a1h8/kube-verdict:latest` | **unpinned image**; no API, no dashboard, results only in job logs; it calls the same Ollama every hour |
 | Prometheus | ✅ | Helm `prometheus-29.35.0` (v3.15.0), namespace **`observability`**, `prometheus-server` ClusterIP | no SLO alert rules for h013 yet |
 | Loki, Tempo, Grafana, Alloy, OTel Collector | ❌ | — | values exist in `demo/observability/` (namespace `observability`) |

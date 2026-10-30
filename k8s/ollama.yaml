@@ -46,7 +46,9 @@ spec:
       #     effect: NoSchedule
       containers:
         - name: ollama
-          image: ollama/ollama:latest
+          # pinned (docs/live-validation-001.md, step 1); load it with `k3d image import`
+          image: docker.io/ollama/ollama@sha256:2b8eecdb85aa6ea67c381c8ecffec04b2658496cf2821a8f88b0485bdff198e8
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 11434
@@ -63,7 +65,8 @@ spec:
               memory: 4Gi
             limits:
               cpu: "4"
-              memory: 8Gi
+              # 8 Gi was OOM-killed by mistral on ~8 000-token prompts (CPI-27)
+              memory: 12Gi
           readinessProbe:
             httpGet:
               path: /
