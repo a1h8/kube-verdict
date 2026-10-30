@@ -38,7 +38,7 @@
 | CPI-23 | INCONSISTENT | medium | RESOLVED (2026-10-24) |
 | CPI-24 | GAP | medium | RESOLVED (2026-10-24) |
 | CPI-25 | GAP | medium | RESOLVED in text (2026-10-27) |
-| CPI-26 | GAP | blocking | OPEN (2026-10-30) |
+| CPI-26 | GAP | blocking | RESOLVED (2026-10-30) |
 
 ---
 
@@ -285,7 +285,7 @@ the live run, a layer of the default path would still have no measurement, predi
 an exact chance line (M1, reported), and the cases where it brings the cause into the context
 (M2, decides) — protocol 001, amendment 2026-10-27.
 
-## CPI-26: C2's prompts are not measured with the model's tokenizer (OPEN)
+## CPI-26: C2's prompts are not measured with the model's tokenizer (RESOLVED)
 
 **Symptom.** C2 is added to block B (`docs/live-validation-001.md`, amendment 2026-10-30).
 Step 4 of that file measures every prompt with the model's tokenizer before the first run, but
@@ -296,3 +296,7 @@ invalidated every earlier LLM measure.
 replay does (`isolated_stores`, the investigation's store in memory) and lists them with the
 others; a test checks that a C2 prompt is measured and that the stub prompts are unchanged.
 Block B does not start before it is committed.
+**Resolved (2026-10-30).** `--store faiss` adds one C2 row per case (`context`, `store: faiss`,
+no cut); the table records its `store`. Tests in `tests/unit/test_token_measure.py`: 19 C2 rows,
+the stub rows identical with or without it (control), the C2 prompt built by the vector search
+(a mutant that builds it without the search fails the test).

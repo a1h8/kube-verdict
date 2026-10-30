@@ -16,9 +16,14 @@ Beside it, what the product's client decides from its character estimate:
 - ``invalid``: no count, or a count that reached the measuring ``num_ctx`` (Ollama truncated the
   measurement itself) — never read as ``fits``.
 
+With ``--store faiss`` the table also holds C2's prompts: ``context:`` with the vector search the
+product builds for the investigation, as the replay's ``--store faiss`` builds them, one per case
+and no cut runs (docs/live-validation-001.md, amendment 2026-10-30; CPI-26). The stub rows are the
+same with or without it.
+
 Usage::
 
-    OLLAMA_URL=http://localhost:11434 python tools/token_measure.py --model mistral
+    OLLAMA_URL=http://localhost:11434 python tools/token_measure.py --model mistral --store faiss
 """
 from __future__ import annotations
 
@@ -92,25 +97,33 @@ def verdict(tokens: int | None, num_ctx: int | None, num_predict: int) -> str:
     return "would_truncate" if tokens + num_predict > num_ctx else "fits"
 
 
-def measure(client: MeasuringClient, cases: list[str]) -> list[dict]:
+def _measure_one(client: MeasuringClient, case: str, solver: str, cut: str | None, store: str) -> dict:
+    before = len(client.calls)
+    row = {"case": case, "solver": solver, "cut": cut, "store": store}
+    try:
+        with vr.isolated_stores():
+            if solver == "raw":
+                vr.solve_raw(case, client, 1, cut)
+            elif store == "faiss":
+                vr.solve_context(case, client, 1, cut, store="faiss", examples="off")
+            else:
+                vr.solve_context(case, client, 1, cut)
+    except Exception as exc:  # noqa: BLE001 — one case must not stop the table
+        row["error"] = f"{type(exc).__name__}: {exc}"[:300]
+    calls = client.calls[before:]
+    row["calls"] = len(calls)
+    row.update(calls[0] if len(calls) == 1 else {"verdict": "invalid"})
+    return row
+
+
+def measure(client: MeasuringClient, cases: list[str], store: str = "stub") -> list[dict]:
     rows = []
     for case in cases:
         for cut in (None, *vr.cuttable(case)):
             for solver in SOLVERS:
-                before = len(client.calls)
-                row = {"case": case, "solver": solver, "cut": cut}
-                try:
-                    with vr.isolated_stores():
-                        if solver == "raw":
-                            vr.solve_raw(case, client, 1, cut)
-                        else:
-                            vr.solve_context(case, client, 1, cut)
-                except Exception as exc:  # noqa: BLE001 — one case must not stop the table
-                    row["error"] = f"{type(exc).__name__}: {exc}"[:300]
-                calls = client.calls[before:]
-                row["calls"] = len(calls)
-                row.update(calls[0] if len(calls) == 1 else {"verdict": "invalid"})
-                rows.append(row)
+                rows.append(_measure_one(client, case, solver, cut, "stub"))
+        if store == "faiss":                       # C2: context only, no cut runs
+            rows.append(_measure_one(client, case, "context", None, "faiss"))
     return rows
 
 
@@ -118,12 +131,14 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("--model", required=True)
     ap.add_argument("--cases", default="", help="comma-separated keys, e.g. h001,h016 (default: all)")
+    ap.add_argument("--store", choices=("stub", "faiss"), default="stub",
+                    help="faiss: also measure C2's prompts (context: with the vector search)")
     ap.add_argument("--out", default=None, help="output file (default: a dated records directory)")
     args = ap.parse_args(argv)
     wanted = {k.strip() for k in args.cases.split(",") if k.strip()}
     cases = [c for c in vr.native_cases() if not wanted or vr._key(c) in wanted]
     client = MeasuringClient(args.model)
-    rows = measure(client, cases)
+    rows = measure(client, cases, args.store)
     summary = {v: sum(r["verdict"] == v for r in rows)
                for v in ("fits", "would_truncate", "did_not_fit", "invalid")}
     out = Path(args.out) if args.out else (
@@ -131,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({
         "model": args.model, "model_digest": client.model_digest(), "commit": vr.commit_id(),
+        "store": args.store,
         "measure_num_ctx": MEASURE_CTX, "num_ctx_max": client.sizer.num_ctx_max,
         "num_predict": client.sizer.num_predict, "summary": summary, "rows": rows}, indent=2) + "\n")
     print(json.dumps(summary), "→", out)

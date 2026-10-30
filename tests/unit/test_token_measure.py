@@ -98,3 +98,48 @@ def test_each_solver_runs_inside_isolated_stores(monkeypatch):
     monkeypatch.setattr(vr, "solve_context", spy)
     tm.measure(_client(), ["h001_crashloopbackoff"])
     assert seen == [(True, True), (True, True)]
+
+
+# ── C2's prompts (CPI-26) ───────────────────────────────────────────────────────
+
+def _key(r):
+    return {k: v for k, v in r.items() if k not in ("store",)}
+
+
+def test_with_faiss_each_case_adds_one_c2_prompt_and_no_cut(ollama):
+    rows = tm.measure(_client(), vr.native_cases(), store="faiss")
+    c2 = [r for r in rows if r["store"] == "faiss"]
+    assert {(r["case"], r["solver"], r["cut"]) for r in c2} == {(c, "context", None) for c in vr.native_cases()}
+    assert len(c2) == 19 and all(r["calls"] == 1 and "error" not in r for r in c2)
+    assert len(rows) == 2 * (19 + 8) + 19
+
+
+def test_the_stub_rows_are_the_same_with_or_without_faiss(ollama):            # control
+    without = tm.measure(_client(), ["h013_slo_error_budget_burn"])
+    with_c2 = [r for r in tm.measure(_client(), ["h013_slo_error_budget_burn"], store="faiss")
+               if r["store"] == "stub"]
+    assert without and all("error" not in r for r in without)
+    assert [_key(r) for r in with_c2] == [_key(r) for r in without]
+
+
+def test_a_c2_prompt_is_the_one_the_vector_search_builds(ollama, monkeypatch):
+    seen = []
+    real = vr.solve_context
+
+    def spy(case, client, run, cut=None, store="stub", examples="off"):
+        seen.append((store, examples))
+        return real(case, client, run, cut, store, examples)
+    monkeypatch.setattr(vr, "solve_context", spy)
+    tm.measure(_client(), ["h013_slo_error_budget_burn"], store="faiss")
+    assert seen[-1] == ("faiss", "off") and all(s == ("stub", "off") for s in seen[:-1])
+    stub_context, c2 = ollama[1]["prompt"], ollama[-1]["prompt"]
+    assert c2 != stub_context                       # the search's hits are in the measured text
+
+
+def test_the_table_names_its_store(ollama, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(tm.MeasuringClient, "model_digest", lambda self: "sha256:abc")
+    out = tmp_path / "out/tokens.json"
+    assert tm.main(["--model", "mistral", "--cases", "h001", "--store", "faiss", "--out", str(out)]) == 0
+    table = json.loads(out.read_text())
+    assert table["store"] == "faiss" and len(table["rows"]) == 3 and table["summary"]["fits"] == 3

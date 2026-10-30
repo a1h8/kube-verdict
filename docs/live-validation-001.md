@@ -136,7 +136,7 @@ Not run.
     `python tools/veracity_replay.py --solver "context:$m" --store faiss --runs 3 --resume`.
   - **Step 4 covers C2's prompts.** `tools/token_measure.py` builds the `raw:` and `context:`
     prompts without the search; it must also build C2's (CPI-26). Until it does, block B does
-    not start.
+    not start. Step 4 then runs `tools/token_measure.py --model <m> --store faiss`.
   - **What C2 makes measurable:** C2 against C1 per model (protocol 001's decision rules), and
     the anchoring test (`docs/veracity-replay.md` § Amendment 2026-10-24), which needed C2.
   - **Pilot, not a decision on scale.** On 19 in-sample cases with small stores (R1: 4 to 30
