@@ -167,11 +167,3 @@ Not run.
   (the node has 60 GB). The CPU limit stays 4: a trial at 7 changed nothing, Ollama computes
   with 4 threads on the node's 4 physical cores; no measured run ran during it. The pod's memory
   is sampled every 30 s during the block, and its peak is written in § Results.
-- **2026-10-30 — step 4 runs after block B, as a check, not before it as a gate.** Written before
-  any measured run, at the operator's request: the measurement takes about 4 hours on this node,
-  and the block is started first. What step 4 protected stays enforced inside every run: a
-  prompt the client refuses is FAIL `did_not_fit` (`_model_record`), and a run whose tokens read plus
-  `num_predict` reach its `num_ctx` is recorded invalid, never FAIL (`truncated_calls`, from
-  Ollama's `prompt_eval_count`). What is lost is only the list made in advance. After the
-  block, step 4 runs on the same commit; its table is compared with the runs' own counts, and
-  any `would_truncate` it finds must match a run recorded invalid — a mismatch is reported.
