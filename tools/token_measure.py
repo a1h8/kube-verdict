@@ -43,7 +43,10 @@ sys.path.insert(0, str(ROOT))
 from llm.ollama_client import _CHARS_PER_TOKEN, OllamaClient, PromptTooLongError  # noqa: E402
 from tools import veracity_replay as vr  # noqa: E402
 
-MEASURE_CTX = 32768                      # above any prompt of the 19 cases (h016's C3: ~8 400)
+# twice the runs' ceiling (OLLAMA_NUM_CTX_MAX, 8 192): a prompt the runs could send is measured
+# whole. Not 32 768: Ollama allocates the KV cache for the whole num_ctx, 4 GiB for mistral at
+# 32 768, which with the weights (4.1 GiB) exceeds the pod's 8 Gi (OOMKilled, CPI-27)
+MEASURE_CTX = 16384
 SOLVERS = ("raw", "context")
 # the answer the solvers parse; one call per run, so it changes no measured prompt
 ANSWER = "ROOT CAUSE: measurement run, no answer.\nCONFIDENCE: LOW"

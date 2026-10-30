@@ -100,6 +100,14 @@ def test_each_solver_runs_inside_isolated_stores(monkeypatch):
     assert seen == [(True, True), (True, True)]
 
 
+def test_the_measuring_context_is_above_any_run_and_within_the_pod_memory():         # CPI-27
+    import config as cfg
+    assert tm.MEASURE_CTX >= 2 * cfg.OLLAMA_NUM_CTX_MAX
+    # mistral's KV cache: 32 layers x 8 KV heads x 128 x 2 (K, V) x 2 bytes (f16) per token
+    kv_gib = tm.MEASURE_CTX * 32 * 8 * 128 * 2 * 2 / 2**30
+    assert kv_gib + 4.1 < 8, kv_gib                 # weights 4.1 GiB, pod limit 8 Gi
+
+
 # ── C2's prompts (CPI-26) ───────────────────────────────────────────────────────
 
 def _key(r):

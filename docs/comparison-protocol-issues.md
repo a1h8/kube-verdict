@@ -39,6 +39,7 @@
 | CPI-24 | GAP | medium | RESOLVED (2026-10-24) |
 | CPI-25 | GAP | medium | RESOLVED in text (2026-10-27) |
 | CPI-26 | GAP | blocking | RESOLVED (2026-10-30) |
+| CPI-27 | INCONSISTENT | blocking | RESOLVED (2026-10-30) |
 
 ---
 
@@ -300,3 +301,14 @@ Block B does not start before it is committed.
 no cut); the table records its `store`. Tests in `tests/unit/test_token_measure.py`: 19 C2 rows,
 the stub rows identical with or without it (control), the C2 prompt built by the vector search
 (a mutant that builds it without the search fails the test).
+
+## CPI-27: the tokenizer measurement cannot run in the cluster's Ollama (RESOLVED)
+
+**Symptom.** Step 4 of `docs/live-validation-001.md` measures with `num_ctx` 32 768. Ollama
+allocates the KV cache for the whole context: 4 GiB for mistral at 32 768, plus 4.1 GiB of
+weights, over the pod's 8 Gi limit. The first measurement (2026-10-30, 03:39Z) was OOM-killed on
+its first prompt; nothing was recorded, no measured run had started.
+**Decision (2026-10-30).** `MEASURE_CTX` = 16 384, twice the runs' ceiling (8 192), by an
+amendment of step 4 (same day); the invalid rule keeps its meaning with the new value. The pod's
+memory is not raised. A test checks the context is at least twice the ceiling and that mistral's
+KV cache at that size, with the weights, stays under 8 Gi.

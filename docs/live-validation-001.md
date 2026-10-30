@@ -144,3 +144,10 @@ Not run.
     size protocol 002; they do not answer it.
   - **Cost:** 342 + 114 = 456 model runs and 48 cut runs; the estimate is replaced by the
     first case's wall time, as before.
+- **2026-10-30 — step 4 measures with `num_ctx` 16 384, not 32 768.** Written before any measured
+  run. The first measurement (mistral, 03:39Z) OOM-killed Ollama on its first prompt: Ollama
+  allocates the KV cache for the whole `num_ctx`, 4 GiB for mistral at 32 768 (pod log), which
+  with the weights (4.1 GiB) exceeds the pod's 8 Gi. Nothing was recorded. 16 384 is twice
+  `OLLAMA_NUM_CTX_MAX` (8 192): every prompt a run could send is measured whole, and a
+  measurement that reaches 16 384 tokens is invalid, never "fits" — the rule of step 4 with the
+  new value. The pod's memory is not raised: block B runs at 8 192 at most (CPI-27).
