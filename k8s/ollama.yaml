@@ -65,8 +65,9 @@ spec:
               memory: 4Gi
             limits:
               cpu: "4"
-              # 8 Gi was OOM-killed by mistral on ~8 000-token prompts (CPI-27)
-              memory: 12Gi
+              # 8 Gi, then 12 Gi, were OOM-killed by mistral measuring long prompts at num_ctx
+              # 16 384 (CPI-27): llama-server holds the weights in anonymous memory
+              memory: 16Gi
           readinessProbe:
             httpGet:
               path: /

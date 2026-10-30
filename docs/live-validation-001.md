@@ -160,3 +160,10 @@ Not run.
   count is read before and after). The client's timeout for the measurement is the replay's
   (`OLLAMA_TIMEOUT=900`, as `REPLAY_OLLAMA_TIMEOUT`): at the default 120 s, mistral's long prompts
   were abandoned before they were read.
+  *Corrected again the same day, still before any measured run:* 12 Gi was OOM-killed too
+  (05:48:57Z, during the mistral measurement). The pod's cgroup then held 8.1 GB of anonymous
+  memory — `llama-server` keeps the weights in it (4.1 GB), with the KV cache at 16 384 (2 GiB)
+  and the compute buffers of a long prompt — and 3.8 GB of file cache. The limit is **16 Gi**
+  (the node has 60 GB). The CPU limit stays 4: a trial at 7 changed nothing, Ollama computes
+  with 4 threads on the node's 4 physical cores; no measured run ran during it. The pod's memory
+  is sampled every 30 s during the block, and its peak is written in § Results.

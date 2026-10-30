@@ -317,3 +317,5 @@ OOM-killed again on an 8 000-token prompt — the estimate left out the compute 
 limit is raised to 12 Gi (cluster and `k8s/ollama.yaml`); the memory test is removed (memory
 is not computable offline) and the measurement counts only if Ollama does not restart during it.
 The measurement uses the replay's client timeout (900 s).
+**Corrected again (2026-10-30).** 12 Gi was OOM-killed too (8.1 GB anonymous memory, 3.8 GB file
+cache); the limit is 16 Gi, and the pod's memory is sampled during the block.
