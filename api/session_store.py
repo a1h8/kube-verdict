@@ -141,11 +141,10 @@ def init_store(db_path: str | None = None) -> SessionStore:
         conn.executescript(_SESSION_DDL)
     else:
         from persistence.db import get_db, init_db
-        import os
-        if db_path is not None:
-            os.environ["KUBEWHISPERER_DB"] = db_path
-        init_db()
-        conn = get_db()
+        # the path is passed, not written to os.environ: that changed the database of every
+        # later caller in the process (fix plan H63)
+        init_db(db_path)
+        conn = get_db(db_path)
 
     _store = SessionStore(conn)
     return _store

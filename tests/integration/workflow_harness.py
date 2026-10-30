@@ -330,13 +330,10 @@ HIGH — the missing-Secret event and the declared-vs-deployed memory limit name
 
 
 class ScriptedLLM:
-    """Deterministic LLM: hypotheses on demand, then LOW, LOW, HIGH for analyze.
-
-    Two LOW answers on the first hypothesis make log_confidence_decision see a
-    declining path (LOW×2) and switch to the next one, so archive_path really
-    runs and reasoning_history is non-empty. Later analyze calls answer HIGH
-    only when the case's evidence is actually in the prompt — LOW otherwise, so
-    a run without the signal cannot reach HIGH just because the script says so.
+    """Deterministic LLM: explains the diagnosis when the case's evidence is in the prompt,
+    answers LOW otherwise — a run without the signal cannot get the case's answer just because
+    the script has it. Since the structured diagnosis sets the confidence
+    (docs/structured-in-product.md) there is no LLM-driven retry or path switch to script.
     """
 
     model = "scripted"
@@ -356,8 +353,6 @@ class ScriptedLLM:
         if prompt.startswith(_HYPOTHESIZE_PROMPT_PREFIX):
             return "\n".join(f"{i}. {h}" for i, h in enumerate(self._script.hypotheses, 1))
         self.analyze_prompts.append(prompt)
-        if len(self.analyze_prompts) <= 2:
-            return self._low
         if all(needle in prompt for needle in self._script.prompt_evidence):
             return self._script.final_response
         return self._low
@@ -437,6 +432,9 @@ def run_case(key: str, cut: str | None = None, llm: Any = None) -> CaseRun:
     """
     if cut is not None and cut not in CUTTABLE:
         raise ValueError(f"cut must be one of {CUTTABLE}, got {cut!r}")
+    # llm="none": LLM_PROVIDER=none, the report is the structured diagnosis alone
+    # (docs/structured-in-product.md, rule 5) — any native case
+    no_llm = llm == "none"
     if llm is None:
         script = {**CASE_SCRIPTS, **MULTI_SIGNAL_SCRIPTS, **TIER_C_SCRIPTS}[key]
         case = load_case(script.case_dir)
@@ -446,7 +444,7 @@ def run_case(key: str, cut: str | None = None, llm: Any = None) -> CaseRun:
         query = case["expect"]["query"]
     namespace = case["expect"].get("namespace", "default")
     graph = build_case_graph(case, wire_signals=False)
-    llm = ScriptedLLM(script, namespace) if llm is None else RecordingLLM(llm)
+    llm = None if no_llm else ScriptedLLM(script, namespace) if llm is None else RecordingLLM(llm)
 
     alerts = case.get("prometheus_alerts", [])
     loki_query = fixture_loki_query(case.get("loki_streams", []))
@@ -458,7 +456,8 @@ def run_case(key: str, cut: str | None = None, llm: Any = None) -> CaseRun:
             "METRICS_SERVER_ENABLED": False, "GITOPS_ENABLED": False,
         }.items():
             stack.enter_context(patch.object(cfg, name, value))
-        stack.enter_context(patch.dict(os.environ, {"EXAMPLE_LOOKUP_DISABLED": "1"}))
+        stack.enter_context(patch.dict(os.environ, {"EXAMPLE_LOOKUP_DISABLED": "1",
+                                                    **({"LLM_PROVIDER": "none"} if no_llm else {})}))
         if cut == "prometheus":
             stack.enter_context(patch(
                 "ingestion.prometheus_collector.requests.get", side_effect=_UNREACHABLE))

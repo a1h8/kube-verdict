@@ -102,3 +102,45 @@ def test_unknown_enum_values_drop_to_none():
     )
     assert env.policy is None
     assert env.blast_radius is None
+
+
+# ── docs/fix-plan-001.md, H72: the envelope says what the structured diagnosis concluded ──────
+
+_DIAG = {"outcome": "cause", "confidence": "MEDIUM", "score": 0.65, "failed_collectors": [],
+         "diagnoses": [{"family": "certificate", "cause": "The TLS certificate has expired.",
+                        "location": "Issuer/production/letsencrypt-prod", "score": 0.65,
+                        "label": "MEDIUM", "rule": "cert.expired", "checks": [], "signal_ids": []}]}
+
+
+def test_the_ranked_diagnoses_and_the_disagreement_are_projected():
+    state = {**_STATE, "diagnosis": _DIAG, "llm_disagreement": "the LLM named another cause"}
+    env = VerdictEnvelope.from_state("s", state)
+    assert env.outcome == "cause"
+    assert [(d.family, d.location, d.rule) for d in env.diagnoses] == [
+        ("certificate", "Issuer/production/letsencrypt-prod", "cert.expired")]
+    assert env.llm_disagreement == "the LLM named another cause"
+
+
+def test_the_diagnosis_is_read_from_the_report_too():
+    report = {**_STATE["report_dict"], "diagnosis": _DIAG}
+    assert VerdictEnvelope.from_state("s", {**_STATE, "report_dict": report}).outcome == "cause"
+
+
+def test_an_abstention_speaks_of_no_remediation():
+    for outcome, failed in (("no_incident", []), ("insufficient_evidence", ["loki"])):
+        diag = {"outcome": outcome, "diagnoses": [], "failed_collectors": failed}
+        env = VerdictEnvelope.from_state("s", {**_STATE, "diagnosis": diag})
+        assert env.outcome == outcome and env.failed_collectors == failed
+        assert not any("proposed remediation" in s for s in env.next_steps)
+    assert "loki" in env.next_steps[0]
+    # control: a found cause still asks for review of the proposed remediation
+    env = VerdictEnvelope.from_state("s", {**_STATE, "diagnosis": _DIAG})
+    assert any("proposed remediation" in s for s in env.next_steps)
+
+
+def test_a_real_no_incident_run_projects_as_one():
+    from tests.integration.workflow_harness import run_case
+    run = run_case("h022")
+    env = VerdictEnvelope.from_state("h022", run.state)
+    assert env.outcome == "no_incident" and env.diagnoses == []
+    assert env.next_steps[0].startswith("No incident diagnosed")

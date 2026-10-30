@@ -261,7 +261,6 @@ class TestIndexNodeWiring:
         from vectorstore.store import FAISSStore
         # Keep it a unit test: no disk index / DB writes.
         monkeypatch.setattr(FAISSStore, "save", lambda self: None)
-        monkeypatch.setattr(FAISSStore, "persist_texts", lambda self, conn: None)
         monkeypatch.setattr("persistence.db.get_db", lambda: _DummyConn())
 
         from ontology.entities import Deployment

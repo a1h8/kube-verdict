@@ -16,9 +16,11 @@ Metrics fetched per entity type
   Deployment  : ready_ratio    (available / desired replicas)
   StatefulSet : ready_ratio    (ready / desired replicas)
 
-All metrics fall back gracefully: if a query returns no data, the entry
-is simply omitted from the returned segments — SignalAnalyzer falls back
-to synthetic history for that metric.
+A query that returns no data omits its entry. A query that fails (HTTP error,
+timeout, malformed answer) omits it too and is recorded in ``errors``: an
+unreachable Prometheus is a failed collection, not a cluster without metrics
+(docs/fix-plan-001.md, H68). Several series (one per container) are aligned on
+their timestamps and summed for a pod; a ratio is averaged.
 """
 from __future__ import annotations
 
@@ -50,11 +52,11 @@ _Q_RESTARTS = (
 )
 _Q_CPU = (
     'rate(container_cpu_usage_seconds_total'
-    '{{pod="{pod}",namespace="{namespace}",container!="POD"}}[{step}s])'
+    '{{pod="{pod}",namespace="{namespace}",container!="POD",container!=""}}[{step}s])'
 )
 _Q_MEMORY = (
     'container_memory_working_set_bytes'
-    '{{pod="{pod}",namespace="{namespace}",container!="POD"}}'
+    '{{pod="{pod}",namespace="{namespace}",container!="POD",container!=""}}'
 )
 _Q_DEP_READINESS = (
     'kube_deployment_status_replicas_available'
@@ -97,6 +99,7 @@ class PrometheusMetricSource:
         self.url = url.rstrip("/")
         self.token = token
         self.timeout = timeout
+        self.errors: list[str] = []      # failed queries, for the caller to report
 
     # ------------------------------------------------------------------
     # Per-entity segment fetchers
@@ -140,7 +143,7 @@ class PrometheusMetricSource:
             query = _Q_DEP_READINESS.format(
                 deployment=deployment, namespace=namespace
             )
-            values = self._range_query(query, lookback, step)
+            values = self._range_query(query, lookback, step, how="mean")
             if values is not None and len(values) >= 5:
                 result.append(HorizonSegment(
                     segment=SignalSegment(
@@ -164,7 +167,7 @@ class PrometheusMetricSource:
             query = _Q_STS_READINESS.format(
                 statefulset=statefulset, namespace=namespace
             )
-            values = self._range_query(query, lookback, step)
+            values = self._range_query(query, lookback, step, how="mean")
             if values is not None and len(values) >= 5:
                 result.append(HorizonSegment(
                     segment=SignalSegment(
@@ -182,11 +185,12 @@ class PrometheusMetricSource:
     # ------------------------------------------------------------------
 
     def _range_query(
-        self, query: str, lookback_s: int, step_s: int
+        self, query: str, lookback_s: int, step_s: int, how: str = "sum"
     ) -> np.ndarray | None:
         """
         Run a Prometheus range query and return a float32 numpy array.
-        Returns None on error or empty result.
+        Returns None on an empty result, and on a failure, which is recorded in ``errors``.
+        Several series are aligned on their timestamps and combined (``sum`` or ``mean``).
         """
         now = int(time.time())
         params = {
@@ -203,24 +207,32 @@ class PrometheusMetricSource:
                 timeout=self.timeout,
             )
             resp.raise_for_status()
-            data = resp.json()
-            results = data.get("data", {}).get("result", [])
+            results = resp.json().get("data", {}).get("result", [])
             if not results:
                 return None
-            # Take the first matching series; aggregate multiple by mean
-            arrays = [
-                np.array([float(v) for _, v in r["values"]], dtype=np.float32)
-                for r in results
-            ]
-            return np.mean(np.vstack(arrays), axis=0) if len(arrays) > 1 else arrays[0]
-        except requests.Timeout:
-            log.debug("prometheus range query timed out: %s", query[:80])
-            return None
-        except (requests.RequestException, KeyError, ValueError) as exc:
-            log.debug("prometheus range query failed (%s): %s", exc, query[:80])
+            return _combine([r["values"] for r in results], how)
+        except (requests.RequestException, KeyError, TypeError, ValueError) as exc:
+            reason = "timed out" if isinstance(exc, requests.Timeout) else f"{type(exc).__name__}: {exc}"
+            log.warning("prometheus range query failed (%s): %s", reason, query[:80])
+            self.errors.append(f"{reason} — {query[:80]}")
             return None
 
     def _headers(self) -> dict[str, str]:
         if self.token:
             return {"Authorization": f"Bearer {self.token}"}
         return {}
+
+
+def _combine(series: list[list], how: str) -> np.ndarray:
+    """Align series on their timestamps; sum them (a pod's containers) or average them.
+
+    A container absent at a timestamp (started later, or restarted) counts 0 in a sum and is
+    left out of a mean; ``np.vstack`` on series of different lengths used to drop the metric.
+    """
+    by_ts: dict[float, list[float]] = {}
+    for values in series:
+        for ts, v in values:
+            by_ts.setdefault(float(ts), []).append(float(v))
+    points = [by_ts[ts] for ts in sorted(by_ts)]
+    combine = sum if how == "sum" else (lambda vs: sum(vs) / len(vs))
+    return np.array([combine(vs) for vs in points], dtype=np.float32)

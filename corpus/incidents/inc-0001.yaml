@@ -1,0 +1,26 @@
+id: inc-0001
+title: Time-series database replica never starts after a migration to a new cluster
+family: storage
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/004_pending_pvc
+  licence: Apache-2.0
+symptoms:
+  - pod timeseries-db-0 stays Pending for more than 20 minutes
+  - PersistentVolumeClaim tsdb-volume stays Pending with a ProvisioningFailed event
+  - FailedMount warning on the pod, timed out waiting for the volume
+signals: [k8s_events]
+kinds: [Pod, StatefulSet, PersistentVolumeClaim, StorageClass]
+root_cause: >-
+  The claim asks for the StorageClass nvme-premium, which this cluster does not have (only
+  standard and local-path exist), so no volume is ever provisioned and the pod cannot mount it.
+cause_location: production/PersistentVolumeClaim/tsdb-volume
+looks_like: [node disk full, scheduler capacity]
+evidence:
+  - the ProvisioningFailed event names a StorageClass that kubectl get storageclass does not list
+remediation:
+  - kubectl -n production delete pvc tsdb-volume
+  - helm upgrade timeseries-db ./chart -n production --reuse-values --set persistence.storageClass=standard
+rollback:
+  - helm rollback timeseries-db -n production

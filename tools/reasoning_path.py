@@ -183,7 +183,7 @@ def _rule(path: dict, ranked: list[tuple[str, str]]) -> tuple[str, str]:
 def evaluate(case_name: str) -> dict[str, tuple[str, str]]:
     """{step: (PASS | FAIL | n.a., detail)} for one case."""
     from dedup.bfs import expand_incident_context, find_unhealthy
-    from rca.remediation_engine import RemediationEngine
+    from rca.diagnosis import diagnose
     from tests.integration.workflow_harness import run_case
 
     path = json.loads((CASES_ROOT / case_name / "expect.json").read_text())["reasoning_path"]
@@ -193,9 +193,12 @@ def evaluate(case_name: str) -> dict[str, tuple[str, str]]:
     seeds = {e.fqn for e in seed_entities}
     reached = {e.fqn for e in expand_incident_context(graph, seed_entities)}
     prompt = run.llm.analyze_prompts[0] if run.llm.analyze_prompts else ""
-    ranked = [(h.rule_id, h.affected) for h in RemediationEngine().score(graph)]
     from rca.signals import extract_signals
-    kinds = extract_signals(graph).kinds()
+    signals = extract_signals(graph)
+    kinds = signals.kinds()
+    # the rule step grades the structured diagnoses — the product's only engine since
+    # docs/structured-in-product.md (rule 7); the old RemediationEngine is no longer graded
+    ranked = [(d.rule, d.cause_location) for d in diagnose(signals).diagnoses]
     return {
         "signals": _signals(path, kinds),
         "seeds": _seeds(path, seeds),

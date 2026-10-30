@@ -8,7 +8,8 @@ items:
     namespace: production
   type: Warning
   reason: Unhealthy
-  message: "Readiness probe failed: dial tcp 10.96.45.12:5432: connect: connection timed out"
+  # what kubelet writes for an HTTP readiness probe: the status code, never the cause
+  message: "Readiness probe failed: HTTP probe failed with statuscode: 503"
   involvedObject:
     kind: Pod
     name: order-service-6f9b8c7d5-q4r2s
@@ -16,18 +17,3 @@ items:
   count: 24
   firstTimestamp: "2026-05-14T12:00:30Z"
   lastTimestamp: "2026-05-14T12:04:00Z"
-- apiVersion: v1
-  kind: Event
-  metadata:
-    name: order-service-netpol.dns-timeout
-    namespace: production
-  type: Warning
-  reason: BackOff
-  message: "dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout (DNS resolution failed — UDP/53 egress blocked)"
-  involvedObject:
-    kind: Pod
-    name: order-service-6f9b8c7d5-q4r2s
-    namespace: production
-  count: 8
-  firstTimestamp: "2026-05-14T12:00:05Z"
-  lastTimestamp: "2026-05-14T12:02:00Z"

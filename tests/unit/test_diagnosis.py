@@ -8,7 +8,10 @@ from rca.signals import extract_signals
 
 
 def _pod(name="api-6c8b7f9d4-x1", *, ready=False, state=None, last=None, restarts=0) -> Pod:
+    # the labels a pod of the "api" release carries — a workload is read from them and from the
+    # owner reference, not from the pod's name (docs/fix-plan-001.md, H25)
     return Pod(uid=f"pod-{name}", name=name, namespace="prod", phase="Running", restart_count=restarts,
+               labels={"app.kubernetes.io/instance": "api", "pod-template-hash": "6c8b7f9d4"},
                owner_ref_kind="ReplicaSet", owner_ref_name="api-6c8b7f9d4",
                container_statuses=[{"name": "api", "ready": ready, "restartCount": restarts,
                                     "state": state or {"running": {}}, "lastState": last or {}}])

@@ -1,0 +1,25 @@
+id: inc-0004
+title: Mailer pods stuck before their container starts in staging
+family: config-missing
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/008_missing_configmap
+  licence: Apache-2.0
+symptoms:
+  - mailer pods stay in CreateContainerConfigError, restart count 0
+  - no container log at all, the container has not started once
+  - outgoing email queue in staging stops draining
+signals: [k8s_events]
+kinds: [Pod, Deployment, ConfigMap]
+root_cause: >-
+  The pod mounts the ConfigMap mailer-templates, which was deleted from the namespace; the kubelet
+  cannot build the container until it exists.
+cause_location: staging/ConfigMap/mailer-templates
+looks_like: [image pull problem, application crash]
+evidence:
+  - the pod's events name the ConfigMap, and kubectl get configmap mailer-templates returns nothing
+remediation:
+  - kubectl -n staging create configmap mailer-templates --from-file=templates/
+rollback:
+  - kubectl -n staging delete configmap mailer-templates

@@ -61,6 +61,28 @@ rules:
   - apiGroups: ["autoscaling"]
     resources: ["horizontalpodautoscalers"]
     verbs: ["get", "list", "watch"]
+  # Quotas and limit ranges (read by discovery), mutating webhooks (policy collector)
+  - apiGroups: [""]
+    resources: ["resourcequotas", "limitranges"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["mutatingwebhookconfigurations"]
+    verbs: ["get", "list"]
+  {{- with .Values.rbac.impersonate }}
+  {{- if .user }}
+  # Impersonation of the configured identity only, by name
+  - apiGroups: [""]
+    resources: ["users"]
+    verbs: ["impersonate"]
+    resourceNames: [{{ .user | quote }}]
+  {{- end }}
+  {{- if .groups }}
+  - apiGroups: [""]
+    resources: ["groups"]
+    verbs: ["impersonate"]
+    resourceNames: [{{ range $i, $g := .groups }}{{ if $i }}, {{ end }}{{ $g | quote }}{{ end }}]
+  {{- end }}
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -76,4 +98,35 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "kubeverdict.fullname" . }}
     namespace: {{ .Release.Namespace }}
+{{- range .Values.rbac.helmReleaseNamespaces }}
+---
+# Helm releases of {{ . }}: every Secret of this namespace (rbac.helmReleaseNamespaces, H45)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "kubeverdict.fullname" $ }}-helm-releases
+  namespace: {{ . }}
+  labels:
+    {{- include "kubeverdict.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "kubeverdict.fullname" $ }}-helm-releases
+  namespace: {{ . }}
+  labels:
+    {{- include "kubeverdict.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "kubeverdict.fullname" $ }}-helm-releases
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kubeverdict.fullname" $ }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
 {{- end }}

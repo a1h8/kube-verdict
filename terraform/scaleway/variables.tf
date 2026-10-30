@@ -23,3 +23,8 @@ variable "node_type" {
   type        = string
   default     = "DEV1-M"
 }
+
+variable "kubernetes_version" {
+  description = "Kapsule Kubernetes version, pinned (list them with `scw k8s version list`); no default, so a run never picks one silently"
+  type        = string
+}

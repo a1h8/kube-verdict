@@ -1,0 +1,30 @@
+# Declared chart values — what the team intends to deploy
+replicaCount: 1
+
+image:
+  repository: ghcr.io/acme/ml-inference
+  tag: "v2.0.5"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+- name: ghcr-pull-secret
+
+resources:
+  limits:
+    memory: 4Gi
+    cpu: "2"
+  requests:
+    memory: 2Gi
+    cpu: "1"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+autoscaling:
+  enabled: false
+
+modelConfig:
+  path: /models/default
+  device: cpu
+  batchSize: 8

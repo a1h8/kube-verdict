@@ -1,0 +1,358 @@
+{
+  "commit": "3fb889034920833e39dc7610210cd3cc165a1420",
+  "k": 3,
+  "summary": {
+    "cases": 17,
+    "m1_passes": 6,
+    "m1_chance_expected": 6.03,
+    "m1_minus_chance": -0.03,
+    "m2_cases": [],
+    "m2": 0,
+    "decision": "leaves"
+  },
+  "rows": [
+    {
+      "case": "h001_crashloopbackoff",
+      "negative": false,
+      "vectors": 6,
+      "index": {
+        "vectors": 6,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": true,
+      "chance": 0.5,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h002_imagepullbackoff",
+      "negative": false,
+      "vectors": 5,
+      "index": {
+        "vectors": 5,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h003_oomkilled",
+      "negative": false,
+      "vectors": 4,
+      "index": {
+        "vectors": 4,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h004_missing_configmap",
+      "negative": false,
+      "vectors": 6,
+      "index": {
+        "vectors": 6,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": true,
+      "chance": 0.65,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h005_rbac_forbidden",
+      "negative": false,
+      "vectors": 15,
+      "index": {
+        "vectors": 15,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": false,
+      "c1_refused": false,
+      "c2_pass": false,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h006_networkpolicy_blocked",
+      "negative": false,
+      "vectors": 19,
+      "index": {
+        "vectors": 19,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h007_hpa_no_metrics",
+      "negative": false,
+      "vectors": 5,
+      "index": {
+        "vectors": 5,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": true,
+      "chance": 0.9,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h008_init_container_fail",
+      "negative": false,
+      "vectors": 5,
+      "index": {
+        "vectors": 5,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": true,
+      "chance": 0.6,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h009_liveness_probe_loop",
+      "negative": false,
+      "vectors": 6,
+      "index": {
+        "vectors": 6,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h010_resource_quota_exceeded",
+      "negative": false,
+      "vectors": 4,
+      "index": {
+        "vectors": 4,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": true,
+      "chance": 0.75,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h011_statefulset_pvc_stuck",
+      "negative": false,
+      "vectors": 5,
+      "index": {
+        "vectors": 5,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": true,
+      "chance": 0.6,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h012_gitops_render_vs_live",
+      "negative": false,
+      "vectors": 5,
+      "index": {
+        "vectors": 5,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h013_slo_error_budget_burn",
+      "negative": false,
+      "vectors": 8,
+      "index": {
+        "vectors": 8,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": false,
+      "c1_refused": false,
+      "c2_pass": false,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h014_cert_expiry",
+      "negative": false,
+      "vectors": 18,
+      "index": {
+        "vectors": 18,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.7304,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h015_etcd_compaction",
+      "negative": false,
+      "vectors": 10,
+      "index": {
+        "vectors": 10,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.8333,
+      "c1_pass": false,
+      "c1_refused": false,
+      "c2_pass": false,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h016_multi_signal",
+      "negative": false,
+      "vectors": 30,
+      "index": {
+        "vectors": 30,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.4655,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h022_no_incident",
+      "negative": true,
+      "vectors": 0,
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": false,
+      "c2_pass": false,
+      "m2": false
+    },
+    {
+      "case": "h024_multi_cause",
+      "negative": false,
+      "vectors": 7,
+      "index": {
+        "vectors": 7,
+        "anchors": 0,
+        "chart_anchors": 0,
+        "examples": 0,
+        "docs": 0
+      },
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": true,
+      "c1_refused": false,
+      "c2_pass": true,
+      "c2_refused": false,
+      "m2": false
+    },
+    {
+      "case": "h026_rollout_in_progress",
+      "negative": true,
+      "vectors": 0,
+      "m1_pass": false,
+      "chance": 0.0,
+      "c1_pass": false,
+      "c2_pass": false,
+      "m2": false
+    }
+  ]
+}

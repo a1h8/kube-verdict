@@ -1,0 +1,25 @@
+id: inc-0011
+title: Fraud scorer pods restart in a loop after a credentials rotation
+family: config-missing
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/helm_cases/h003_missing_env_secret
+  licence: Apache-2.0
+symptoms:
+  - fraud-scorer pods in CrashLoopBackOff, 0 of 2 ready
+  - Failed events on the pods about the Secret referenced by envFrom
+  - payment authorisations fall back to the slow manual review path
+signals: [k8s_events]
+kinds: [Pod, Deployment, Secret]
+root_cause: >-
+  The pods load their environment from the Secret fraud-scorer-db through envFrom, and the
+  rotation job removed that Secret without recreating it.
+cause_location: production/Secret/fraud-scorer-db
+looks_like: [database outage, application crash]
+evidence:
+  - kubectl get secret fraud-scorer-db returns nothing while the Deployment still references it
+remediation:
+  - kubectl -n production create secret generic fraud-scorer-db --from-env-file=fraud-scorer-db.env
+rollback:
+  - kubectl -n production delete secret fraud-scorer-db

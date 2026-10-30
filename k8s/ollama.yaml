@@ -46,7 +46,9 @@ spec:
       #     effect: NoSchedule
       containers:
         - name: ollama
-          image: ollama/ollama:latest
+          # pinned (docs/live-validation-001.md, step 1); load it with `k3d image import`
+          image: docker.io/ollama/ollama@sha256:2b8eecdb85aa6ea67c381c8ecffec04b2658496cf2821a8f88b0485bdff198e8
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 11434
@@ -63,7 +65,9 @@ spec:
               memory: 4Gi
             limits:
               cpu: "4"
-              memory: 8Gi
+              # 8 Gi, then 12 Gi, were OOM-killed by mistral measuring long prompts at num_ctx
+              # 16 384 (CPI-27): llama-server holds the weights in anonymous memory
+              memory: 16Gi
           readinessProbe:
             httpGet:
               path: /

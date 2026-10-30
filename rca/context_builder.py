@@ -349,6 +349,11 @@ class ContextBuilder:
             drifts = [
                 v for k, v in entity.annotations.items()
                 if k.startswith("drift.")
+            ] + [
+                # the declared / applied / live comparisons (docs/three-states.md) — H28
+                ("[deployed ≠ Git] " if k.startswith("gitops.") else "[edited outside Helm] ") + str(v)
+                for k, v in entity.annotations.items()
+                if k.startswith(("gitops.", "applied.")) and str(v).startswith("drift field=")
             ]
             if drifts:
                 drift_uids.add(entity.uid)

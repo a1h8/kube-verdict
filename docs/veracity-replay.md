@@ -107,6 +107,8 @@ section, anchor-based hypotheses and the re-ranking after a failed path.
     investigation's graph and its anchor violations are never indexed, so
     `hybrid_search` finds neither the entities at fault nor the `anchor:` hypotheses
     (RRF-on-anchors does not run through the API).
+    *Fixed 2026-10-18 (`docs/fix-plan-001.md`, H40, H39): the API loads no store; every
+    investigation indexes its graph, anchors, charts, examples and documents.*
   - *Without a persisted index* (CLI, `test_native_helm_dialogue`): `index_node`
     builds a FAISS on the graph and its anchors only, with no knowledge base.
 - **The graph is rebuilt for every investigation**: a snapshot taken by the collector,
@@ -171,6 +173,261 @@ native cases ──► run_case(real model) ──► grade() ──► tests/ve
 4. **Per solver.** `rules` (top pre-LLM hypothesis, no LLM) and `llm:<model>` on the
    same corpus (`docs/scenarios-v2.md` § Solvers). If `rules` already passes tier A, the
    LLM adds wording there, not diagnosis.
+
+## Comparison — structured alone vs LLM vs sLLM (protocol fixed 2026-10-20, before any run)
+
+Asked on 2026-10-18; runs after fix plan 001 is closed and the new full diagnosis is done.
+Everything below is fixed now; a change after the first run is a dated amendment.
+
+**Configurations**, one commit, one frozen case list (the native cases after the audit's
+fixture corrections), `EXAMPLE_LOOKUP_DISABLED=1`, stub store:
+
+| Name | `--solver` | Model | Runs per case |
+|---|---|---|---|
+| none | `structured` (= `LLM_PROVIDER=none`, `tests/unit/test_structured_in_product.py`) | — | 1 (deterministic) |
+| LLM | `llm:mistral` | mistral 7.2B Q4_K_M | 3 |
+| sLLM | `llm:qwen2.5:3b-instruct` | qwen2.5 3.1B Q4_K_M | 3 |
+
+**Tables** (`tools/compare_solvers.py`, generated from the records, never hand-written):
+
+1. *Per configuration*, over all expected runs (a missing run is a FAIL, H7):
+   report correct (%) · explanation correct (%) · LLM disagrees with the diagnosis (%) ·
+   remediation proposed (% of diagnosed runs with ≥ 1 command) · remediation without an
+   irreversible command (%) · missing runs · median wall s · median prompt tokens read.
+2. *Per tier* (A / B / C): the same columns.
+3. *Per case*: report and explanation, `x/3` per configuration.
+
+"Report correct" is the same for the three configurations by construction (the diagnosis
+decides); the columns that can differ are the explanation, the disagreement and the remediation
+— that is what an LLM adds or breaks.
+
+**Decision rules, fixed now:**
+- The LLM is worth running as explainer if, on the diagnosed runs, its explanation is correct
+  in ≥ 80 % and it disagrees in ≤ 10 %; otherwise `LLM_PROVIDER=none` is the recommended default.
+- The sLLM is preferred to the LLM if its explanation-correct rate is within 5 points of the
+  LLM's, its disagreement rate is not higher, and its median wall time is lower.
+- Negative controls, every configuration: h022 and h026 stay `no_incident`; a run with the
+  case's collector cut is never more confident than the connected run. A configuration that
+  fails a control is reported as failing, whatever its rates.
+
+### Amendment 2026-10-22 — the raw model, and the model on the pipeline's context
+
+Asked on 2026-10-22, before any run of the comparison. The design rests on three pillars: the
+Kubernetes ontology (the typed graph), the charts (declared in Git, applied by Helm, live), and
+resolved use cases (the incident base). This amendment measures what the first two add over
+handing a model every artifact the case has, and separates them from the rules.
+
+| Name | `--solver` | Model | What the model is given | Runs per case |
+|---|---|---|---|---|
+| raw-LLM | `raw:mistral` | mistral 7.2B Q4_K_M | every artifact of the case, raw | 3 |
+| raw-sLLM | `raw:qwen2.5:3b-instruct` | qwen2.5 3.1B Q4_K_M | every artifact of the case, raw | 3 |
+| ctx-LLM | `context:mistral` | mistral 7.2B Q4_K_M | the pipeline's context (ontology + charts), no diagnosis | 3 |
+| ctx-sLLM | `context:qwen2.5:3b-instruct` | qwen2.5 3.1B Q4_K_M | the pipeline's context (ontology + charts), no diagnosis | 3 |
+
+What each comparison isolates, on the same model:
+- **ctx against raw** — what the ontology and the charts add to the model, the rules aside;
+- **structured against ctx** — what the rules add over a model reading the same context;
+- **structured against raw** — the three together.
+
+**Raw input, fixed now.**
+- The fixture files under `kube/`, `helm/`, `chart/`, `policy/`, `prometheus/`, `loki/`,
+  `otel/`, each under a header naming its path relative to the case (`kube/pod.yaml`), in
+  sorted order — nothing else in the case directory: never `expect.json`, never a `README.md`
+  (h012's explains the case), never the case's directory name (it names the cause).
+- Never `rendered/`: it is Git's `helm template` of the case's chart, which the loader reads
+  instead of rendering. The raw model receives `chart/` and `helm/`, the sources of that
+  render; rendering is a step of the pipeline being compared.
+- YAML is parsed and written back, so its comments are dropped: comments name the cause in at
+  least 9 cases (h004, h005, h006, h010, h011, h012, h024, and the negative h022 and h026), and
+  the collectors never read them. The data is the data the collectors read.
+- The query is the case's `query`, as for the other configurations.
+- One fixed prompt (in the code, versioned like the analyze prompt): an SRE is asked for the
+  root cause, the affected resources, a remediation and a LOW / MEDIUM / HIGH confidence, and
+  told to answer "no incident" when nothing is wrong; the answer uses the analyze prompt's
+  section headers, so the same parser and `grade()` read it.
+- No retrieval, no examples, the same Ollama, temperature 0.1, `num_predict` 512. The context
+  ceiling is 16 384 tokens for the raw configurations (h016, the largest case, is measured with
+  the model's tokenizer before the first run; estimates give 5 300 to 7 800 tokens). A prompt
+  that still does not fit is recorded as a run, FAIL, reason `did_not_fit`, with its size — not
+  as a lost run.
+- No real store is read or written: `DocStore` and the example store point at empty temporary
+  directories (`./data/docs` and `./data/examples` are relative paths), and no run reaches
+  `save_example`. The same holds for the context configurations.
+
+**Context input, fixed now.** The case goes through the same collectors and graph as the other
+configurations; the model gets the analyze prompt (v6) built by `ContextBuilder` — unhealthy
+entities, drift with its provenance, events, alerts, logs, traces, anchors, Helm releases — with
+the case's query alone: no `HYPOTHESIS TO INVESTIGATE`, no structured diagnosis, no rule output
+anywhere in the prompt. The prompt keeps `anchor_fix_hints` and `policy_fix_hints`: they come
+from the ontology's annotations and the policy reports, not from the rules, and are part of the
+context being measured. Its own root cause is graded, not the report's. Same Ollama, temperature,
+`num_predict` and context ceiling as the LLM configurations above.
+
+**Grading.** `grade()` on the answer's root cause, with the cases' cause concepts and expected
+outcomes — what "report correct" grades for the other configurations. A case passes a raw or
+context configuration when at least 2 of its 3 runs pass.
+
+**Decision rules, fixed now.**
+- The structured diagnosis earns its place over the raw model if it passes at least **3 more
+  cases** (of 19) than the better raw configuration, and the raw configuration does not have
+  fewer false alarms on h022 and h026.
+- If the better raw configuration passes **as many cases or more**, the README says so, and the
+  claim of the pipeline is limited to what remains (abstention, provenance of each drift, the
+  decision gate) until an out-of-sample benchmark says otherwise.
+- **1 or 2 cases** apart: inconclusive, reported as such.
+- raw-sLLM against the structured diagnosis is reported on its own line: it is the question of
+  a small local model, with or without the pipeline.
+- **The ontology and the charts help the model** if, on the same model, the context
+  configuration passes at least **3 more cases** than the raw one with no more false alarms on
+  h022 and h026; **no more** cases: no measurable help, said as such; **1 or 2**: inconclusive.
+- **The rules add to the context** if the structured diagnosis passes at least **3 more cases**
+  than the better context configuration; otherwise the same three outcomes as above.
+
+**The third pillar is not measured here.** The incident base is empty (its only content was
+the pollution removed on 2026-10-17) and the corpus of `docs/incident-corpus.md` is not built.
+No configuration uses resolved use cases; their value is measured by protocol 001 (R0, C3) once
+the corpus exists, and claimed nowhere before.
+
+**Known bias, stated before the numbers.** The rules were written and tuned on these 19 cases:
+the structured 19/19 is in-sample, so this comparison is an upper bound of the pipeline's
+advantage. It can show that the pipeline adds nothing; it cannot by itself show that it
+generalises — an out-of-sample benchmark can.
+
+**Cost, estimated.** About 4 min per raw-LLM run on the CPU-only pod (≈ 22 prompt tokens/s): ≈ 4 h
+for raw-LLM, ≈ 3 h for ctx-LLM, ≈ 1.5–2 h each for raw-sLLM and ctx-sLLM — about 10 h on top of
+the three configurations above (≈ 4.5 h), so the whole block runs overnight, resumable.
+
+### Amendment 2026-10-23 — the collector-cut control, defined
+
+Written before any run of the comparison. The negative control "a run with the case's collector
+cut is never more confident than the connected run" (2026-10-20) named no collector and no run;
+no code applied it. It is defined here; no threshold of this section changes.
+
+- **The case's collector** is the one `docs/test-cases.md` § *Broadened offline coverage* §3
+  already cuts: an HTTP backend the investigation reads and can lose while it keeps running —
+  Prometheus, Loki or OTel — for which the case has fixtures. Six cases have one: h005, h006,
+  h014 (Loki), h013 (Prometheus), h015 (OTel), and h016 (all three, each cut in turn: three cut
+  runs). The 13 others carry their evidence in `kube/`, `helm/` and `chart/`: cutting the
+  Kubernetes API leaves no investigation, and the replay has no cut for Helm or Git. The control
+  does not apply to them, and the report says so case by case; it is not extended to them later
+  without a dated amendment.
+- **The cut**, per configuration, on the same commit and cases:
+  - `structured`, `llm:`, `context:`: `run_case(key, cut=<collector>)` — the backend is made
+    unreachable (`requests.get` raises `ConnectionError` in the collector's module), so the real
+    collector code reports `fallback: true`, as in production;
+  - `raw:`: the collector's directory (`prometheus/`, `loki/`, `otel/`) is left out of the raw
+    input; nothing else changes.
+- **Runs:** one cut run per case, collector and configuration — 8 per configuration (one for
+  each of the five single-collector cases, three for h016), recorded like the others with the
+  cut collector named in the record.
+- **The check:** the cut run's confidence label is compared with the **median** label of the
+  case's connected runs (its single run for `structured`), with no label < LOW < MEDIUM < HIGH.
+  A cut run above that median fails the control; a configuration with one failing cut run fails
+  the control, whatever its rates (rule of 2026-10-20). A cut run that still names the case's
+  cause is reported, not failed: some causes are visible from the Kubernetes objects alone.
+- **Cost, estimated:** 8 runs × 6 model configurations ≈ 2 to 2.5 h on the CPU-only pod, on top
+  of the block; `structured` cut runs are offline and deterministic.
+
+### Amendment 2026-10-23 — what every run records, and where
+
+Written before any run of the comparison, after a read-only pass that found rules no code
+applied (`docs/fix-plan-001.md` H79, H81). No threshold changes.
+
+- **Isolation, every solver.** The 2026-10-22 rule "no real store is read or written" is
+  extended from the `raw:` and `context:` configurations to all of them: `structured` and `llm:`
+  also run in a temporary directory with the example and chart stores pointed inside it. On the
+  AUTO path `save_example` writes the run's answer into the example store; run where the replay
+  was started, it would write a case's answer into the incident base. A check after each run
+  marks it invalid if a real store or database changed; it sees writes only — a read leaves no
+  reliable trace, and reads are prevented by the isolation, not detected.
+- **Recorded in every run:** the commit, a hash of the case's fixtures and `expect.json` (the
+  frozen case list is checked, not assumed), the hashes of `tools/veracity.py` and
+  `tests/veracity/synonyms.yaml`, the model's digest, and for each model call `num_ctx`, the
+  estimate, the tokens read, `num_predict` and the temperature.
+- **Truncated runs.** A run whose tokens read plus `num_predict` reach `num_ctx` may have been
+  cut by Ollama without an error; it is recorded **invalid**, not FAIL, and reported apart.
+- **Token sizes, measured.** The size estimate (2.7 characters per token) was calibrated on
+  mistral and the analyze prompt only, never on raw YAML nor on qwen2.5. Offline, every
+  `context:` and `llm:` prompt fits under 8 192 tokens by the estimate (the largest, h016, with
+  about 11 % of margin); the raw ones are unknown. Before the first run, every prompt of the
+  `raw:` and `context:` configurations is measured with each model's own tokenizer, through the
+  Ollama that runs them — not h016 alone as written on 2026-10-22.
+- **Records.** Each configuration writes to
+  `tests/veracity/replay-baselines/<solver>[-<model>]-prompt_<v>-store_<store>-examples_<on|off>/`,
+  model and prompt left out for the solvers that have none (`structured`, `rules`). The solver
+  is in the name because `llm:mistral` and `context:mistral` share a model and a prompt version
+  (v6): without it, their records would share a directory and one report would overwrite the
+  other (`docs/protocol-001-retrieval.md`, amendment of the same day).
+
+### Amendment 2026-10-23 — how the tables read the controls
+
+Written before any run, with `tools/compare_solvers.py`. It fixes readings the rules above left
+open; no threshold changes.
+
+- **The label** compared by the collector-cut control is each record's `confidence`: the
+  structured diagnosis's for `structured`, the workflow's final label for `llm:`, the model's own
+  label for `raw:` and `context:`. The **median** of the connected runs is the lower median when
+  two runs are valid (`statistics.median_low`), so a lost run never raises it. A cut run that is
+  missing or invalid fails the control, as a missing run fails a case (H7).
+- **The negative controls** (h022 and h026 stay `no_incident`) are read at the case level, with
+  the 2-of-3 rule of every other case; the runs that named a cause are reported beside it.
+- **Protocol 001's positive control** (h001 passes at least 2 of 3) applies to the `context:`
+  configurations, its C1; a configuration that misses it is reported invalid — re-run once, then
+  recorded invalid — and no decision is drawn from it.
+- **A decision is not drawn** from a configuration that fails a control or is invalid: the table
+  says which control, whatever the rates. That is also how the clauses "no more false alarms on
+  h022 and h026" apply: one false alarm fails the negative control. "N more cases" is the
+  difference of the cases passed,
+  which equals protocol 001's net gain (cases only one passes minus cases only the other passes);
+  both sets are listed.
+
+### Amendment 2026-10-24 — the context quality score: a confound, measured
+
+Written before any run (`docs/comparison-protocol-issues.md` CPI-16). Every `context:` prompt
+(prompt v6) carries a line `Context quality score: <LOW|MEDIUM|HIGH> (<s>/1.00)` computed from
+the shape of the context (BFS depth, diversity, TF-IDF), not from the evidence
+(`rca/confidence.py`). A model asked for a confidence label may copy it. The line stays: it is
+what the product sends. Its effect is measured, per model, with these rules:
+
+- **The score's label** is read from each recorded prompt. A run whose prompt has no such line is
+  left out of this control and counted beside it. **The model's label** of a case is the lower
+  median of its valid runs' `confidence`, as for the collector-cut control; LOW < MEDIUM < HIGH.
+- **Agreement**, reported only: the share of valid `context:` runs whose label equals their
+  prompt's score label. It decides nothing — the evidence moves both.
+- **The anchoring test** uses protocol 001's C2 against C1, where retrieval changes the score
+  without adding knowledge (protocol 001, amendment 2026-10-23). *S* is the set of cases whose
+  score label differs between the C1 and C2 prompts; *N* the cases whose C2 prompt equals C1's
+  (the noise control). Both sets are computed from the recorded prompts. The *follow rate* is
+  the share of *S* where the model's label moves strictly in the direction of the score's label;
+  the *move rate* the share of *N* where the model's label differs between C1 and C2.
+  **Anchoring is shown** for a model when *S* has at least 4 cases, the follow rate is at least
+  3/4, and it is above the move rate. With fewer than 4 cases in *S* the test is reported not
+  conclusive, and the model's labels carry the mention "anchoring not measured".
+- **The collector-cut control** of `context:` records, for each cut run, its prompt's score
+  label beside the model's label. The control passes or fails as before (§ Amendment 2026-10-23).
+- **What follows when anchoring is shown:** the model's labels — the cut control's pass for that
+  `context:` configuration, the labels of C2 against C1 — are reported as not informative of
+  what the model read. Graded causes, cases passed and every decision rule are unaffected: the
+  grading reads the cause, not the label. Removing the line is then a separate change (prompt
+  v7), measured on its own.
+- **The test can fail.** It is checked on records where the model copies the score (shown) and
+  where its label is constant or follows the evidence only (not shown). Computed by
+  `tools/compare_solvers.py` (implemented 2026-10-24, after this text). The 8 cases where C2 changes
+  the prompt also add a "Related context" list: *S* is not a pure manipulation of the score, which
+  the report says.
+
+## What an LLM run grades (2026-10-19)
+
+The `rules` solver keeps grading the old `RemediationEngine`, which no longer runs in the
+product (`docs/structured-in-product.md`, rule 7): it is the historical baseline, not the
+product's answer — `structured` is.
+
+Since `docs/structured-in-product.md` the report's cause is the structured diagnosis; an LLM run
+grades the same `root_cause` as the structured solver plus what the model adds:
+`explanation_veracity` (its own text, graded with the same cause concepts) and
+`llm_disagreement` (its text names none of the diagnosed locations). Runs are recorded with
+prompt `v4` and never compared with earlier prompts. The comparison asked on 2026-10-18 —
+structured alone (`LLM_PROVIDER=none`), an LLM, an sLLM — reads these fields on the same cases.
 
 ## Report
 

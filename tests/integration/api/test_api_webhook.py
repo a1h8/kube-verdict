@@ -183,3 +183,54 @@ async def test_empty_alerts_list_returns_no_sessions(client):
     assert r.status_code == 202
     assert body["session_ids"] == []
     assert body["skipped"] == 0
+
+
+# ── H53: one running investigation per alert, and a global cap ────────────────
+
+def _blocking_run_graph():
+    """A run that stays in flight until the test releases it."""
+    release = asyncio.Event()
+
+    async def _fake(session: Session, initial_state: dict, resume_cmd=None):
+        await release.wait()
+
+    return _fake, release
+
+
+async def test_a_repeated_alert_starts_one_investigation(client):
+    fake, release = _blocking_run_graph()
+    with patch("api.routes.sessions._run_graph", fake):
+        r1 = await client.post("/api/v1/webhook/alertmanager", json=_payload([_firing(), _firing()]))
+        r2 = await client.post("/api/v1/webhook/alertmanager", json=_payload([_firing()]))
+        release.set()
+    assert len(r1.json()["session_ids"]) == 1 and r1.json()["skipped"] == 1
+    assert r2.json()["session_ids"] == [] and r2.json()["skipped"] == 1
+
+
+async def test_the_same_alert_in_another_namespace_is_its_own_investigation(client):
+    fake, release = _blocking_run_graph()
+    with patch("api.routes.sessions._run_graph", fake):
+        r = await client.post("/api/v1/webhook/alertmanager",
+                              json=_payload([_firing(namespace="a"), _firing(namespace="b")]))
+        release.set()
+    assert len(r.json()["session_ids"]) == 2
+
+
+async def test_a_finished_investigation_frees_its_alert(client):
+    with patch("api.routes.sessions._run_graph", _make_run_graph_preserve_query()):
+        r1 = await client.post("/api/v1/webhook/alertmanager", json=_payload([_firing()]))
+        await _wait_for_status(client, r1.json()["session_ids"][0], SessionStatus.COMPLETED)
+        await asyncio.sleep(0)
+        r2 = await client.post("/api/v1/webhook/alertmanager", json=_payload([_firing()]))
+    assert len(r2.json()["session_ids"]) == 1
+
+
+async def test_an_alert_storm_is_capped(client, monkeypatch):
+    import config
+    monkeypatch.setattr(config, "WEBHOOK_MAX_RUNNING", 2)
+    fake, release = _blocking_run_graph()
+    with patch("api.routes.sessions._run_graph", fake):
+        r = await client.post("/api/v1/webhook/alertmanager",
+                              json=_payload([_firing(f"Alert{i}") for i in range(5)]))
+        release.set()
+    assert len(r.json()["session_ids"]) == 2 and r.json()["skipped"] == 3

@@ -1,0 +1,60 @@
+{
+  "answerable": null,
+  "case": "h003_oomkilled",
+  "case_hash": "a67ab5868addec82c22d7ab962689da80831b5760ae379d50f8f342d468fbe40",
+  "commit": "f2289e1755927c584dc8f680984a484aa880f8f0",
+  "confidence": "HIGH",
+  "config": "R0",
+  "corpus_hash": "85ba60e739b820e28613dbb490edd81b28e28b11056502a5a53703a4786c1779",
+  "corpus_records": 11,
+  "cut": null,
+  "examples": "on",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched": "inc-0003",
+  "matched_family": "oom",
+  "matched_groups": [
+    [
+      "memory"
+    ]
+  ],
+  "matched_keywords": [
+    "memory"
+  ],
+  "model": "",
+  "model_digest": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause concept(s) not named: drift|512mi|declared",
+  "root_cause": "The memory limit applied to the Deployment (384Mi) is lower than the one in the release values (1Gi); under normal load the container exceeds it and is OOM-killed.",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "retrieval",
+  "started_at": "2026-10-24T13:47:42.464851+00:00",
+  "store": "faiss",
+  "threshold": 0.65,
+  "tier": "A",
+  "top": [
+    {
+      "id": "inc-0003",
+      "score": 0.7449
+    },
+    {
+      "id": "inc-0005",
+      "score": 0.7337
+    },
+    {
+      "id": "inc-0008",
+      "score": 0.7331
+    }
+  ],
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.51
+}

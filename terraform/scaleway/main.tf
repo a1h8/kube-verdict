@@ -12,7 +12,8 @@ provider "scaleway" {
 resource "scaleway_k8s_cluster" "kapsule" {
   name    = var.cluster_name
   type    = "kapsule"
-  version = "latest"
+  # pinned by the operator: "latest" made two applies build different clusters (fix plan H76)
+  version = var.kubernetes_version
   cni     = "cilium"
 
   delete_additional_resources = true

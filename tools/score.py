@@ -66,7 +66,6 @@ def score_di() -> int:
     """Count LLM providers + store abstractions."""
     llm_clients = len(list((ROOT / "llm").glob("*_client.py"))) if (ROOT / "llm").exists() else 0
     store_files = [
-        "persistence/vector_store_repo.py",
         "persistence/session_repo.py",
         "vectorstore/store.py",
         "knowledge/doc_store.py",

@@ -120,6 +120,9 @@ and `hybrid_search`).
   `doc_source = cluster` in `vector_store_docs` until they are re-indexed. Since the
   weights were never applied before, every ranking that mixes enterprise docs or
   examples with cluster entities changes: enterprise docs ×1.5, examples ×1.2.
+  **[amended 2026-10-22]** `vector_store_docs` no longer exists (`docs/fix-plan-001.md`, H70):
+  each investigation indexes its documents and examples afresh, so they always carry their
+  current `doc_source`.
 - *Found while implementing:* `ChartStore.push()` has no production caller (no API
   route, no CLI, no MCP tool): the enterprise expected state is fed only by files
   placed under `data/charts/` by hand. A push entry point is needed before this can be

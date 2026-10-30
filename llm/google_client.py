@@ -21,7 +21,15 @@ class GoogleClient:
             raise RuntimeError("GOOGLE_API_KEY is not set")
 
     def _url(self, method: str = "generateContent") -> str:
-        return f"{_API_BASE}/{self.model}:{method}?key={self._api_key}"
+        # The key goes in a header, never in the URL: a request error quotes its URL, and the
+        # message reaches logs and the session state (docs/fix-plan-001.md, H41).
+        return f"{_API_BASE}/{self.model}:{method}"
+
+    def _headers(self) -> dict[str, str]:
+        return {"x-goog-api-key": self._api_key, "Content-Type": "application/json"}
+
+    def _redact(self, text: str) -> str:
+        return text.replace(self._api_key, "***") if self._api_key else text
 
     def is_available(self) -> bool:
         return bool(self._api_key)
@@ -36,7 +44,8 @@ class GoogleClient:
                 log.warning("Google 429 — retrying in %ds (attempt %d)", delay, attempt + 1)
                 time.sleep(delay)
             try:
-                resp = requests.post(self._url(), json=payload, timeout=self.timeout)
+                resp = requests.post(self._url(), headers=self._headers(), json=payload,
+                                     timeout=self.timeout)
                 if resp.status_code == 429:
                     last_exc = RuntimeError(f"Google request failed: {resp.status_code} {resp.reason}")
                     continue
@@ -47,7 +56,7 @@ class GoogleClient:
             except (KeyError, IndexError) as exc:
                 raise RuntimeError(f"Unexpected Google response: {exc}") from exc
             except requests.RequestException as exc:
-                raise RuntimeError(f"Google request failed: {exc}") from exc
+                raise RuntimeError(self._redact(f"Google request failed: {exc}")) from None
         raise last_exc or RuntimeError("Google: max retries exceeded")
 
     def generate(self, prompt: str, system: str = "", temperature: float = 0.1) -> str:
@@ -60,7 +69,7 @@ class GoogleClient:
         log.debug("Google generate: model=%s prompt_len=%d", self.model, len(prompt))
         return self._post(payload)
 
-def chat(self, messages: list[dict[str, str]], temperature: float = 0.1) -> str:
+    def chat(self, messages: list[dict[str, str]], temperature: float = 0.1) -> str:
         system = ""
         contents = []
         for m in messages:
