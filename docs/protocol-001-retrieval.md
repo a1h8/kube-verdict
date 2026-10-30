@@ -381,3 +381,10 @@ path as an opt-in, not deleted.
     2 cases of its chance line;
   - records under `tests/veracity/replay-baselines/`, the run's commit recorded; R1 runs offline,
     before or after the live run, and changes nothing of it.
+
+- **2026-10-30 — C2 runs in the live block after all; C3 stays deferred.** Written before any run
+  of C1, C2 or C3. C2 is added to block B (`docs/live-validation-001.md`, amendment 2026-10-30)
+  as the pilot of `docs/protocol-002-retrieval-vs-models.md`. Its rules, its prediction (C2
+  leaves, CPI-13) and its controls are those of this file, unchanged; R1's result (M2 = 0 of 17)
+  stands beside it, and the two are reported together. C3 and CPI-18 stay deferred: the corpus
+  (11 records) is below the size protocol 002 fixes for the search alone.

@@ -38,6 +38,7 @@
 | CPI-23 | INCONSISTENT | medium | RESOLVED (2026-10-24) |
 | CPI-24 | GAP | medium | RESOLVED (2026-10-24) |
 | CPI-25 | GAP | medium | RESOLVED in text (2026-10-27) |
+| CPI-26 | GAP | blocking | OPEN (2026-10-30) |
 
 ---
 
@@ -283,3 +284,15 @@ the live run, a layer of the default path would still have no measurement, predi
 **Decision (2026-10-27).** R1, offline and without a model: what the search finds alone against
 an exact chance line (M1, reported), and the cases where it brings the cause into the context
 (M2, decides) — protocol 001, amendment 2026-10-27.
+
+## CPI-26: C2's prompts are not measured with the model's tokenizer (OPEN)
+
+**Symptom.** C2 is added to block B (`docs/live-validation-001.md`, amendment 2026-10-30).
+Step 4 of that file measures every prompt with the model's tokenizer before the first run, but
+`tools/token_measure.py` builds the `raw:` and `context:` prompts with the stub store only: C2's
+prompts, longer by the search's hits, would be sent unmeasured — the silent truncation that
+invalidated every earlier LLM measure.
+**Decision (2026-10-30).** `tools/token_measure.py --store faiss` builds C2's prompts as the
+replay does (`isolated_stores`, the investigation's store in memory) and lists them with the
+others; a test checks that a C2 prompt is measured and that the stub prompts are unchanged.
+Block B does not start before it is committed.

@@ -121,4 +121,26 @@ Not run.
 
 ## Amendments
 
-None.
+- **2026-10-30 — C2 is added to block B; block B is the pilot of protocol 002.** Written before
+  any measured run (step 1 of § Before the first measured run done on 2026-10-29: images pinned
+  and imported, nothing measured). Protocol 001's amendment 2026-10-25 deferred C2 because it
+  measures a layer on the model, not the diagnosis. That question is now asked on its own:
+  does a model gain from the vector search, against the deterministic diagnosis and against the
+  search alone (`docs/protocol-002-retrieval-vs-models.md`). C2 is run here as its pilot, under
+  protocol 001's rules, unchanged.
+  - **Added configuration:** `context:mistral` and `context:qwen2.5:3b-instruct` with
+    `--store faiss` (C2), 3 runs per case, 19 cases: 114 model runs. No cut runs: the
+    collector-cut control asks whether a configuration is more confident without a collector,
+    and C2 differs from C1 only by the search, which reads the same collectors.
+  - **Commands**, after the `context:` runs of each model:
+    `python tools/veracity_replay.py --solver "context:$m" --store faiss --runs 3 --resume`.
+  - **Step 4 covers C2's prompts.** `tools/token_measure.py` builds the `raw:` and `context:`
+    prompts without the search; it must also build C2's (CPI-26). Until it does, block B does
+    not start.
+  - **What C2 makes measurable:** C2 against C1 per model (protocol 001's decision rules), and
+    the anchoring test (`docs/veracity-replay.md` § Amendment 2026-10-24), which needed C2.
+  - **Pilot, not a decision on scale.** On 19 in-sample cases with small stores (R1: 4 to 30
+    vectors), C2 decides only protocol 001's question on these cases. Its discordant pairs
+    size protocol 002; they do not answer it.
+  - **Cost:** 342 + 114 = 456 model runs and 48 cut runs; the estimate is replaced by the
+    first case's wall time, as before.
