@@ -25,19 +25,29 @@ make demo
 
 ## Status — measured, not claimed
 
-How often KubeVerdict names the right cause, on what, and how it was measured. Every number links to its records.
+How often KubeVerdict names the right cause, on what, and how it was measured.
 
-| Measurement | Result | How |
-|---|---|---|
-| Offline, real model — mistral 7B via Ollama, no retrieval | **invalidated — re-measure in progress** | the model read only ~17 % of each prompt: Ollama's default 2048-token context cut the evidence and kept the end. The recorded 28/54 measures the prompt's tail, not the diagnosis ([case-audit-001.md](docs/case-audit-001.md) F8) |
-| Offline, rules alone (no LLM) | **3/18** | same cases, top deterministic hypothesis ([REPORT.md](tests/veracity/replay/REPORT.md)) |
-| Live, real cluster | **not measured yet** | the two live captures of 2026-09-26 (0/2) do not count: the scenarios were staged — the pod failed on a closed probe port while the "cause" was only printed text ([case-audit-001.md](docs/case-audit-001.md) F3) |
+Measured on 19 prepared cases, offline, on replayed cluster state, with the rules fixed before the runs. Results: [live-validation-001.md](docs/live-validation-001.md); every table: [live-validation-001-tables.md](docs/live-validation-001-tables.md).
+
+| Configuration (cases passed, of 19) | mistral 7B | qwen2.5 3B | Names a cause when nothing is wrong (h022, h026) |
+|---|---|---|---|
+| Structured diagnosis, no model | **19** | **19** | never |
+| Structured diagnosis, model writes the explanation | 19 | 19 | never |
+| Model alone, on the raw files | 8 | 8 | yes |
+| Model alone, on the pipeline's context | 10 | 10 | yes |
+| Model alone, on the context + vector search | 11 | 8 | yes |
+| Deterministic rules alone, an older path | 5 | 5 | never |
+
+A case passes at 2 runs of 3, or 1 of 1 without a model. With a model explanation the cause is still the structured diagnosis, so those two 19s are the same result, not the model's.
 
 What these numbers say, and do not say:
 
-- **Rules alone find 3/18.** What the LLM adds is not known yet: it has not been measured on the whole prompt.
-- **It does not say "I don't know" yet.** On a healthy cluster (h022) the model invented a cause 3/3 times and answered MEDIUM on 53/54 runs, under the truncated prompt; part of the cause is in the pipeline: a restart from hours ago makes the healthy pod a starting point. The rules alone do abstain.
-- **18 cases are not a general accuracy.** They are prepared scenarios with a known cause; incidents we did not write are not measured yet. An audit of the 18 found 8 to correct or retire ([case-audit-001.md](docs/case-audit-001.md)); the numbers will be re-measured on the corrected cases.
+- **19/19 is in sample.** The rules were written with these 19 cases, so it is an upper bound and says nothing about incidents they have not seen. Those are not measured yet.
+- **"Beats the models" is not a decision.** The gap is wide, but every model-alone configuration names a cause on at least one case with no incident, and the rules fixed in advance draw no decision from a configuration that fails that control.
+- **The model is not reliable as an explainer here.** Its explanation is correct in 80 % (mistral) and 75 % (qwen) of diagnosed runs, and it disagrees with the diagnosis in 31 % and 27 %, against a maximum of 10 %. The rule recommends `LLM_PROVIDER=none`; the default has not changed yet.
+- **Vector search earned nothing measurable here.** mistral gains 1 case, within run-to-run variation; qwen loses 2 and adds a false alarm. The rule takes it out of the default path; the code has not changed yet.
+- **Causes are graded by keywords,** and the risk of the commands a model proposes is not measured.
+- **Live, real cluster:** the diagnosis of a real incident is **not measured yet**. On a live cluster only the chart's access to Helm releases is confirmed, with a negative control. The earlier captures of 2026-09-26 (0/2) do not count: the scenarios were staged ([case-audit-001.md](docs/case-audit-001.md) F3).
 
 ## Why it matters
 
@@ -80,7 +90,7 @@ The Monte Carlo stability check (it feeds the policy gate), beam-search path swi
 
 | Mode | Model | What leaves the cluster | Measured |
 |---|---|---|---|
-| **Local / air-gapped** (default) | Ollama + mistral on your hardware; the embedding model (`all-MiniLM-L6-v2`) from a pre-seeded cache (see [Air-gapped clusters](#air-gapped-clusters)) | nothing | the numbers in [Status](#status--measured-not-claimed); 127 s median per case on 8 CPU cores, no GPU (61–332 s) |
+| **Local / air-gapped** (default) | Ollama + mistral on your hardware; the embedding model (`all-MiniLM-L6-v2`) from a pre-seeded cache (see [Air-gapped clusters](#air-gapped-clusters)) | nothing | the numbers in [Status](#status--measured-not-claimed); median per run 200 s (mistral), 67 s (qwen2.5 3B), limited to 4 CPU cores, no GPU |
 | **Hosted** | Groq, Anthropic, OpenAI or Google (`LLM_PROVIDER` + API key) | the evidence sent to the model: object names, events, log lines | not measured yet |
 
 The hosted mode is there for hardware that cannot run a local model fast enough. The replay (`tools/veracity_replay.py`) drives Ollama only today; measuring the hosted mode on the same cases needs it to accept the other providers. Dependencies are not pinned yet.
@@ -417,7 +427,7 @@ The temporal detector (`signals/patchtst_detector.py`) can produce forecast resi
 
 Several constraints are intentional or known:
 
-- **Scenarios h001–h010 are reproduced in CI with a scripted LLM**, which checks the evidence path, not the diagnosis; the real-model numbers are in [Status](#status--measured-not-claimed) (h011 is wired in but not yet passing). Advanced scenarios on the roadmap — Helmfile multi-release, MCTS routing, Slack/PagerDuty enrichment, RBAC-aware (impersonated) scoping — are not yet implemented.
+- **Scenarios h001–h010 are reproduced in CI with a scripted LLM**, which checks the evidence path, not the diagnosis; the real-model numbers are in [Status](#status--measured-not-claimed). Advanced scenarios on the roadmap — Helmfile multi-release, MCTS routing, Slack/PagerDuty enrichment, RBAC-aware (impersonated) scoping — are not yet implemented.
 - **Single-cluster.** Multi-cluster support is not yet wired end-to-end.
 - **No auto-remediation in production.** The human approval gate is by design; autonomous execution is not implemented.
 - **LLM performance is local-hardware-dependent.** Mistral via Ollama requires at least 8 GB RAM; a GPU significantly accelerates inference.
