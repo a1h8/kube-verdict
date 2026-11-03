@@ -1,8 +1,8 @@
 ---
 name: kube-verdict
-description: Anchor-by-render root-cause analysis for Kubernetes incidents — reconstructs the expected state from Helm/GitOps rendered manifests (when a chart or repo is available), compares it with the live cluster, and turns declared-vs-observed drift into a ranked diagnosis with remediation commands, a rollback plan and a confidence score. Use when pods are crashlooping, OOMKilled, ImagePullBackOff, Pending or stuck, when a Helm release has drifted from its declared values, or to assess the blast radius of a kubectl/helm fix before applying it. Exposes kube_rca, helm_drift and blast_radius as tools; runs air-gapped via local Ollama.
+description: Anchor-by-render root-cause analysis for Kubernetes incidents — reconstructs the expected state from Helm/GitOps rendered manifests (when a chart or repo is available), compares what Git declares, what Helm applied and the live cluster, and turns each drift into a ranked structured diagnosis — an LLM, when configured, explains it and proposes remediation commands with a rollback plan. Use when pods are crashlooping, OOMKilled, ImagePullBackOff, Pending or stuck, when a Helm release has drifted from its declared values, or to assess the blast radius of a kubectl/helm fix before applying it. Exposes kube_rca, helm_drift and blast_radius as tools; inference runs locally via Ollama by default (LLM_PROVIDER=none: no model at all; a remote provider receives the prompt).
 license: Apache-2.0
-compatibility: Designed for Claude Code and MCP clients (Cursor, Continue). Runs air-gapped via Ollama + Mistral; requires Python 3.11+ and a read-only kubeconfig.
+compatibility: Designed for Claude Code and MCP clients (Cursor, Continue). Local inference via Ollama by default (or no LLM: LLM_PROVIDER=none); requires Python 3.11+ and a read-only kubeconfig.
 metadata:
   author: a1h8
   repository: https://github.com/a1h8/kube-verdict
@@ -29,7 +29,7 @@ directly from a Claude Code session — no browser, no copy-pasting kubectl outp
 | `expected_state_drift` | Diff a pushed expected-state source — **Helm / Helmfile / Kustomize / raw manifests** — rendered at a pinned version vs live |
 | `blast_radius` | Heuristic risk score (LOW→CRITICAL) over the proposed command + rollback check before applying any fix |
 
-All tools run **air-gapped** by default: Ollama + Mistral, no data leaves your infrastructure.
+By default the tools run against a local Ollama: no prompt leaves your infrastructure. Two exceptions to plan for: the embedding model (`all-MiniLM-L6-v2`) downloads once from HuggingFace unless pre-seeded (README → Air-gapped clusters), and a remote `LLM_PROVIDER` (Anthropic, OpenAI, Google, Groq) receives the prompt. With `LLM_PROVIDER=none` no model is called: the report is the structured diagnosis.
 
 ---
 
@@ -87,9 +87,10 @@ Before I apply these fixes, assess the blast radius:
 
 ## Air-gapped environments
 
-KubeVerdict is designed for air-gapped Kubernetes clusters:
+KubeVerdict can run in air-gapped Kubernetes clusters, with these settings:
 
-- **LLM**: Ollama runs locally (`ollama serve`) — no outbound calls
+- **LLM**: Ollama runs locally (`ollama serve`), or `LLM_PROVIDER=none` — never a remote provider
+- **Embedding model**: pre-seed the HuggingFace cache once and set `HF_HUB_OFFLINE=1`
 - **Images**: Pull `ollama/ollama` and `mistral` once, then mirror to your internal registry
 - **Dependencies**: `pip install` from a local PyPI mirror or bundle with `pip download`
 - **kubeconfig**: Use an in-cluster ServiceAccount or a scoped kubeconfig with read-only RBAC

@@ -25,4 +25,6 @@ Include: a description of the issue, steps to reproduce, and the potential impac
 
 ## Cluster permissions
 
-KubeVerdict requires **read-only** cluster access (`get`, `list`, `watch`). The `ClusterRole` in `k8s/rbac.yaml` grants no write permissions. No data is sent to external services — all LLM inference runs locally via Ollama.
+KubeVerdict requires **read-only** cluster access (`get`, `list`, `watch`). The `ClusterRole` in `k8s/rbac.yaml` grants no write permissions; the server-side dry-run of a remediation needs the permission of the real action, so it is refused under that role. The Streamlit UI's manual panel can run a remediation line for the operator, with the operator's kubeconfig.
+
+What leaves the machine: with the default `LLM_PROVIDER=ollama` (local) or `none`, no prompt does. A remote provider (`anthropic`, `openai`, `google`, `groq`) receives the prompt, which quotes cluster objects, events, logs and traces (never Secret values). The embedding model downloads once from HuggingFace unless its cache is pre-seeded. A GitHub repository configured for GitOps is cloned over the network.

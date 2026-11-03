@@ -1,0 +1,71 @@
+{
+  "case": "h008_init_container_fail",
+  "case_hash": "979fe37ee542861fe72946cd29f34f5f7fac28c5e510512d5001fb1d644d95b7",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 60.6,
+      "answer_tokens": 337,
+      "estimated_prompt_tokens": 1720,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 0.2,
+      "prompt_tokens_read": 1745,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "migration",
+      "init|db-migrate"
+    ]
+  ],
+  "matched_keywords": [
+    "migration",
+    "init|db-migrate"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 4396,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 1,\n  \"image\": {\"repository\": \"ghcr.io/acme/backend\", \"tag\": \"5.3.2\", \"pullPolicy\": \"IfNotPresent\"},\n  \"initContainers\": {\"dbMigrate\": {\"enabled\": true, \"image\": \"ghcr.io/acme/backend-migrate:5.3.2\", \"command\": [\"alembic\", \"upgrade\", \"head\"]}},\n  \"env\": {\"DATABASE_URL\": \"postgresql://backend:secret@db-primary.staging.svc.cluster.local:5432/backend\"},\n  \"resources\": {\"limits\": {\"memory\": \"512Mi\", \"cpu\": \"1\"}, \"requests\": {\"memory\": \"256Mi\", \"cpu\": \"100m\"}},\n  \"service\": {\"type\": \"ClusterIP\", \"port\": 8000}\n}\n\n=== helm/values.yaml ===\nreplicaCount: 1\nimage:\n  repository: ghcr.io/acme/backend\n  tag: 5.3.2\n  pullPolicy: IfNotPresent\ninitContainers:\n  dbMigrate:\n    enabled: true\n    image: ghcr.io/acme/backend-migrate:5.3.2\n    command:\n    - alembic\n    - upgrade\n    - head\nenv:\n  DATABASE_URL: postgresql://backend:secret@db-primary.staging.svc.cluster.local:5432/backend\nresources:\n  limits:\n    memory: 512Mi\n    cpu: '1'\n  requests:\n    memory: 256Mi\n    cpu: 100m\nservice:\n  type: ClusterIP\n  port: 8000\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nmetadata: {}\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: backend-init.fail.001\n    namespace: staging\n    uid: evt-staging-init-fail-001\n  type: Warning\n  reason: BackOff\n  message: Back-off restarting failed container db-migrate in pod backend-6b9f7c8d5-mn4pq_staging\n  involvedObject:\n    kind: Pod\n    name: backend-6b9f7c8d5-mn4pq\n    namespace: staging\n  count: 3\n  firstTimestamp: '2026-05-14T11:00:00Z'\n  lastTimestamp: '2026-05-14T11:30:00Z'\n  reportingComponent: kubelet\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: backend-init.failed.002\n    namespace: staging\n    uid: evt-staging-init-fail-002\n  type: Warning\n  reason: Failed\n  message: \"Error: container db-migrate in pod backend-6b9f7c8d5-mn4pq exited with\\\n    \\ code 1: FATAL: database migration failed \\u2014 relation 'user_tokens' does\\\n    \\ not exist\"\n  involvedObject:\n    kind: Pod\n    name: backend-6b9f7c8d5-mn4pq\n    namespace: staging\n  count: 3\n  firstTimestamp: '2026-05-14T11:00:05Z'\n  lastTimestamp: '2026-05-14T11:30:05Z'\n  reportingComponent: kubelet\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: backend-6b9f7c8d5-mn4pq\n  namespace: staging\n  uid: pod-staging-backend-6b9f7c8d5-mn4pq\n  labels:\n    app.kubernetes.io/name: backend\n    app.kubernetes.io/instance: backend\n    pod-template-hash: 6b9f7c8d5\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: backend-6b9f7c8d5\n    uid: rs-staging-backend-6b9f7c8d5\n    controller: true\n    blockOwnerDeletion: true\nspec:\n  nodeName: worker-node-03\n  serviceAccountName: backend\n  initContainers:\n  - name: db-migrate\n    image: ghcr.io/acme/backend-migrate:5.3.2\n    command:\n    - alembic\n    - upgrade\n    - head\n    env:\n    - name: DATABASE_URL\n      value: postgresql://backend:secret@db-primary.staging.svc.cluster.local:5432/backend\n  containers:\n  - name: backend\n    image: ghcr.io/acme/backend:5.3.2\n    resources:\n      limits:\n        memory: 512Mi\n        cpu: '1'\n      requests:\n        memory: 256Mi\n        cpu: 100m\nstatus:\n  phase: Pending\n  initContainerStatuses:\n  - name: db-migrate\n    ready: false\n    restartCount: 3\n    state:\n      waiting:\n        reason: CrashLoopBackOff\n        message: back-off 1m20s restarting failed container=db-migrate\n    lastState:\n      terminated:\n        exitCode: 1\n        reason: Error\n        finishedAt: '2026-05-14T11:30:00Z'\n  containerStatuses: []\n  conditions:\n  - type: Initialized\n    status: 'False'\n    reason: ContainersNotInitialized\n  - type: Ready\n    status: 'False'\n\n---\n## Incident query\nbackend pod never becomes ready in staging\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe `backend` pod in the `staging` namespace is not becoming ready due to a failed initialization container `db-migrate`.\n\n### 2. Affected resources\n- Pod: `backend \u2014 Pending`\n- InitContainer: `db-migrate \u2014 CrashLoopBackOff`\n\n### 3. Root cause\nThe root cause is that the `db-migrate` init container is exiting with a non-zero exit code (1) due to a database migration error related to the 'user_tokens' relation not existing.\n\n### 4. Causal chain\n1. The `backend` pod is created with an init container `db-migrate` that runs database migrations using the `alembic` command.\n2. The `db-migrate` container fails to execute the migration due to the 'user_tokens' relation not existing in the database.\n3. The failed container enters a CrashLoopBackOff state, causing the entire pod to remain in a Pending state.\n\n### 5. Remediation\n1. Check if the 'user_tokens' relation exists in the database. If not, create it.\n2. If the 'user_tokens' relation is required during deployment, ensure it is created before or during the initial deployment of the `backend` application.\n3. Modify the `db-migrate` init container to handle the case where the 'user_tokens' relation does not exist and create it if necessary.\n\n### 6. Confidence\nHIGH",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Check if the 'user_tokens' relation exists in the database. If not, create it.",
+    "If the 'user_tokens' relation is required during deployment, ensure it is created before or during the initial deployment of the `backend` application.",
+    "Modify the `db-migrate` init container to handle the case where the 'user_tokens' relation does not exist and create it if necessary."
+  ],
+  "root_cause": "The root cause is that the `db-migrate` init container is exiting with a non-zero exit code (1) due to a database migration error related to the 'user_tokens' relation not existing.",
+  "run": 3,
+  "solver": "raw",
+  "started_at": "2026-11-01T23:44:00.561577+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 60.8
+}

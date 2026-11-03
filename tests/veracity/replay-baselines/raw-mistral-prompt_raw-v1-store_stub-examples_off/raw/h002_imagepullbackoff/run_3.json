@@ -1,0 +1,72 @@
+{
+  "case": "h002_imagepullbackoff",
+  "case_hash": "54e3f7542fb9b0e98f56dd8cde7eb8b8648ab13a21cc889a765f4161ac96e486",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "chart/Chart.yaml",
+    "chart/templates/deployment.yaml",
+    "chart/values.yaml",
+    "helm/manifest.yaml",
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 80.6,
+      "answer_tokens": 338,
+      "estimated_prompt_tokens": 2949,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 0.2,
+      "prompt_tokens_read": 3090,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "image"
+    ]
+  ],
+  "matched_keywords": [
+    "image"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 7714,
+  "prompts": [
+    "## Files of the incident\n\n=== chart/Chart.yaml ===\napiVersion: v2\nname: ml-inference\nversion: 1.0.0\n\n=== chart/templates/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ .Release.Name }}\n  namespace: {{ .Release.Namespace }}\n  labels:\n    app.kubernetes.io/name: {{ .Release.Name }}\n    app.kubernetes.io/instance: {{ .Release.Name }}\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: {{ .Values.replicaCount }}\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: {{ .Release.Name }}\n      app.kubernetes.io/instance: {{ .Release.Name }}\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: {{ .Release.Name }}\n        app.kubernetes.io/instance: {{ .Release.Name }}\n    spec:\n      containers:\n        - name: {{ .Release.Name }}\n          image: \"{{ .Values.image.repository }}:{{ .Values.image.tag }}\"\n          imagePullPolicy: {{ .Values.image.pullPolicy }}\n          resources:\n            {{- toYaml .Values.resources | nindent 12 }}\n          {{- with .Values.livenessProbe }}\n          livenessProbe:\n            {{- toYaml . | nindent 12 }}\n          {{- end }}\n          {{- with .Values.readinessProbe }}\n          readinessProbe:\n            {{- toYaml . | nindent 12 }}\n          {{- end }}\n\n=== chart/values.yaml ===\nreplicaCount: 1\nimage:\n  repository: ghcr.io/acme/ml-inference\n  tag: v2.0.5\n  pullPolicy: IfNotPresent\nimagePullSecrets:\n- name: ghcr-pull-secret\nresources:\n  limits:\n    memory: 4Gi\n    cpu: '2'\n  requests:\n    memory: 2Gi\n    cpu: '1'\nservice:\n  type: ClusterIP\n  port: 8080\nautoscaling:\n  enabled: false\nmodelConfig:\n  path: /models/default\n  device: cpu\n  batchSize: 8\n\n=== helm/manifest.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: ml-inference\n  namespace: production\n  labels:\n    app.kubernetes.io/name: ml-inference\n    app.kubernetes.io/instance: ml-inference\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: ml-inference\n      app.kubernetes.io/instance: ml-inference\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: ml-inference\n        app.kubernetes.io/instance: ml-inference\n    spec:\n      containers:\n      - name: ml-inference\n        image: ghcr.io/acme/ml-inference:v2.1.0-private\n        imagePullPolicy: IfNotPresent\n        resources:\n          limits:\n            cpu: '2'\n            memory: 4Gi\n          requests:\n            cpu: '1'\n            memory: 2Gi\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 1,\n  \"image\": {\n    \"repository\": \"ghcr.io/acme/ml-inference\",\n    \"tag\": \"v2.1.0-private\",\n    \"pullPolicy\": \"IfNotPresent\"\n  },\n  \"imagePullSecrets\": [\n    {\"name\": \"ghcr-pull-secret\"}\n  ],\n  \"resources\": {\n    \"limits\": {\n      \"memory\": \"4Gi\",\n      \"cpu\": \"2\"\n    },\n    \"requests\": {\n      \"memory\": \"2Gi\",\n      \"cpu\": \"1\"\n    }\n  },\n  \"service\": {\n    \"type\": \"ClusterIP\",\n    \"port\": 8080\n  },\n  \"autoscaling\": {\n    \"enabled\": false\n  },\n  \"modelConfig\": {\n    \"path\": \"/models/default\",\n    \"device\": \"cpu\",\n    \"batchSize\": 8\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 1\nimage:\n  repository: ghcr.io/acme/ml-inference\n  tag: v2.0.5\n  pullPolicy: IfNotPresent\nimagePullSecrets:\n- name: ghcr-pull-secret\nresources:\n  limits:\n    memory: 4Gi\n    cpu: '2'\n  requests:\n    memory: 2Gi\n    cpu: '1'\nservice:\n  type: ClusterIP\n  port: 8080\nautoscaling:\n  enabled: false\nmodelConfig:\n  path: /models/default\n  device: cpu\n  batchSize: 8\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nmetadata:\n  resourceVersion: '5930600'\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: ml-inference-7c9d8b6f5-pq3r7.failed.pull\n    namespace: production\n    uid: b1d4f6a7-6c9e-11ef-c4b5-0242ac110006\n    resourceVersion: '5930510'\n  type: Warning\n  reason: Failed\n  message: 'Failed to pull image \"ghcr.io/acme/ml-inference:v2.1.0-private\": rpc error:\n    code = Unknown desc = failed to pull and unpack image \"ghcr.io/acme/ml-inference:v2.1.0-private\":\n    failed to resolve reference \"ghcr.io/acme/ml-inference:v2.1.0-private\": unexpected\n    status code 401 Unauthorized: unauthorized: unauthenticated'\n  involvedObject:\n    kind: Pod\n    name: ml-inference-7c9d8b6f5-pq3r7\n    namespace: production\n    uid: f8b2d4e5-6c9e-11ef-c4b5-0242ac110006\n  count: 12\n  firstTimestamp: '2026-05-14T08:00:12Z'\n  lastTimestamp: '2026-05-14T09:05:00Z'\n  reportingComponent: kubelet\n  reportingInstance: worker-node-03\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: ml-inference-7c9d8b6f5-pq3r7.backoff.pull\n    namespace: production\n    uid: c2e5a7b8-6c9e-11ef-c4b5-0242ac110006\n    resourceVersion: '5930520'\n  type: Warning\n  reason: BackOff\n  message: Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\"\n  involvedObject:\n    kind: Pod\n    name: ml-inference-7c9d8b6f5-pq3r7\n    namespace: production\n    uid: f8b2d4e5-6c9e-11ef-c4b5-0242ac110006\n  count: 8\n  firstTimestamp: '2026-05-14T08:01:00Z'\n  lastTimestamp: '2026-05-14T09:06:00Z'\n  reportingComponent: kubelet\n  reportingInstance: worker-node-03\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: ml-inference-7c9d8b6f5-pq3r7\n  namespace: production\n  uid: f8b2d4e5-6c9e-11ef-c4b5-0242ac110006\n  resourceVersion: '5930482'\n  creationTimestamp: '2026-05-14T08:00:00Z'\n  labels:\n    app.kubernetes.io/name: ml-inference\n    app.kubernetes.io/instance: ml-inference\n    app.kubernetes.io/version: v2.1.0-private\n    pod-template-hash: 7c9d8b6f5\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: ml-inference-7c9d8b6f5\n    uid: a9c3e5f6-6c9e-11ef-c4b5-0242ac110006\n    controller: true\n    blockOwnerDeletion: true\nspec:\n  nodeName: worker-node-03\n  serviceAccountName: ml-inference\n  imagePullSecrets:\n  - name: ghcr-pull-secret\n  containers:\n  - name: ml-inference\n    image: ghcr.io/acme/ml-inference:v2.1.0-private\n    resources:\n      limits:\n        memory: 4Gi\n        cpu: '2'\n      requests:\n        memory: 2Gi\n        cpu: '1'\n    ports:\n    - containerPort: 8080\n      protocol: TCP\n  restartPolicy: Always\n  terminationGracePeriodSeconds: 60\n  dnsPolicy: ClusterFirst\nstatus:\n  phase: Pending\n  podIP: ''\n  hostIP: 192.168.1.13\n  containerStatuses:\n  - name: ml-inference\n    ready: false\n    restartCount: 0\n    image: ghcr.io/acme/ml-inference:v2.1.0-private\n    imageID: ''\n    state:\n      waiting:\n        reason: ImagePullBackOff\n        message: Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\"\n    lastState: {}\n  conditions:\n  - type: Initialized\n    status: 'True'\n    lastTransitionTime: '2026-05-14T08:00:05Z'\n  - type: Ready\n    status: 'False'\n    reason: ContainersNotReady\n    message: 'containers with unready status: [ml-inference]'\n    lastTransitionTime: '2026-05-14T08:00:10Z'\n  - type: ContainersReady\n    status: 'False'\n    reason: ContainersNotReady\n    lastTransitionTime: '2026-05-14T08:00:10Z'\n  - type: PodScheduled\n    status: 'True'\n    lastTransitionTime: '2026-05-14T08:00:00Z'\n\n---\n## Incident query\nml-inference pods do not start in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe ml-inference pod in the production namespace is not starting due to an unauthorized access error when pulling the image.\n\n### 2. Affected resources\n- Pod: ml-inference \u2014 Pending status\n\n### 3. Root cause\nThe root cause is an unauthorized access error when pulling the image \"ghcr.io/acme/ml-inference:v2.1.0-private\". This error is evident in the event log with the message: \"unauthenticated\".\n\n### 4. Causal chain\n1. The Helm deployment in the helm/manifest.yaml file specifies the image \"ghcr.io/acme/ml-inference:v2.1.0-private\" for the ml-inference pod in the production namespace.\n2. The kube/pod.yaml file shows that the pod is in a Pending state, waiting for the image to be pulled.\n3. The kube/events.yaml file contains an event with the message \"unauthenticated\", indicating an unauthorized access error when trying to pull the image.\n\n### 5. Remediation\n1. Ensure that the service account used by the ml-inference pod has the necessary permissions to pull the image from the GitHub Container Registry (GHCR).\n2. Verify that the image pull secret \"ghcr-pull-secret\" is correctly configured and has the necessary credentials to authenticate with GHCR.\n\n### 6. Confidence\nHIGH",
+  "reason": "cause concept(s) not named: tag|drift|declared",
+  "remediation": [
+    "Ensure that the service account used by the ml-inference pod has the necessary permissions to pull the image from the GitHub Container Registry (GHCR).",
+    "Verify that the image pull secret \"ghcr-pull-secret\" is correctly configured and has the necessary credentials to authenticate with GHCR."
+  ],
+  "root_cause": "The root cause is an unauthorized access error when pulling the image \"ghcr.io/acme/ml-inference:v2.1.0-private\". This error is evident in the event log with the message: \"unauthenticated\".",
+  "run": 3,
+  "solver": "raw",
+  "started_at": "2026-11-01T23:10:58.388346+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 80.87
+}

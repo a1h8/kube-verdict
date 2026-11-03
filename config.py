@@ -36,6 +36,8 @@ KUBECONFIG: str | None = (
 )
 KUBE_CONTEXT: str | None = os.getenv("KUBE_CONTEXT") or None
 KUBE_NAMESPACES: list[str] = _list("KUBE_NAMESPACES")           # empty = all
+# the namespaces whose Helm release Secrets the chart lets kube-verdict read (H45)
+HELM_RELEASE_NAMESPACES: list[str] = _list("HELM_RELEASE_NAMESPACES")
 KUBE_SKIP_KINDS: set[str] = set(_list("KUBE_SKIP_KINDS", "Event,Endpoints,EndpointSlice"))
 
 # ── Helm ───────────────────────────────────────────────────────────────────────
@@ -60,8 +62,10 @@ def _git_repos() -> list[dict]:
             repos = json.loads(raw)
             if isinstance(repos, list):
                 return [r for r in repos if isinstance(r, dict) and r.get("url")]
-        except Exception:
-            pass
+            logging.getLogger(__name__).warning("GIT_REPOS_JSON is not a JSON list — ignored")
+        except ValueError as exc:
+            # not silent: a typo here turns GitOps off (docs/fix-plan-001.md, H11)
+            logging.getLogger(__name__).warning("GIT_REPOS_JSON is not valid JSON (%s) — ignored", exc)
     if os.getenv("GITOPS_REPO_URL"):
         return [{"url": os.getenv("GITOPS_REPO_URL"), "branch": GITOPS_BRANCH,
                  "token": GITHUB_TOKEN or "", "label": "", "charts_path": GITOPS_CHARTS_PATH}]
@@ -78,8 +82,12 @@ OTEL_TOKEN: str | None = os.getenv("OTEL_TOKEN") or None
 OTEL_LOOKBACK_HOURS: int = _int("OTEL_LOOKBACK_HOURS", 1)
 OTEL_TIMEOUT: int = _int("OTEL_TIMEOUT", 30)
 # OTLP push receiver (used when OTEL_BACKEND_TYPE=otlp)
-OTLP_HOST: str = os.getenv("OTLP_HOST", "0.0.0.0")
+# Loopback by default: anything that reaches the port writes evidence. Set OTLP_HOST=0.0.0.0 to
+# receive from a collector, with OTLP_TOKEN (the sender sends `Authorization: Bearer <token>`).
+OTLP_HOST: str = os.getenv("OTLP_HOST", "127.0.0.1")
 OTLP_PORT: int = _int("OTLP_PORT", 4318)
+OTLP_TOKEN: str = os.getenv("OTLP_TOKEN", "")
+OTLP_MAX_BODY_BYTES: int = _int("OTLP_MAX_BODY_BYTES", 16 * 1024 * 1024)
 
 # ── Self-observability (B15) — kube-verdict's own OTLP export, not evidence ingestion ──
 OTEL_SELF_MONITORING_ENABLED: bool = os.getenv("OTEL_SELF_MONITORING_ENABLED", "false").lower() == "true"
@@ -94,6 +102,10 @@ LOKI_TOKEN: str | None = os.getenv("LOKI_TOKEN") or None
 LOKI_LOOKBACK_HOURS: int = _int("LOKI_LOOKBACK_HOURS", 1)
 LOKI_TIMEOUT: int = _int("LOKI_TIMEOUT", 30)
 LOKI_MAX_LOGS_PER_POD: int = _int("LOKI_MAX_LOGS_PER_POD", 20)
+# Stream labels naming the pod and its namespace: the OTel Collector's by default; Promtail and
+# Alloy's defaults are `pod` / `namespace` (docs/fix-plan-001.md, H34)
+LOKI_POD_LABEL: str = os.getenv("LOKI_POD_LABEL", "k8s_pod_name")
+LOKI_NAMESPACE_LABEL: str = os.getenv("LOKI_NAMESPACE_LABEL", "k8s_namespace_name")
 
 # ── Metrics Server ─────────────────────────────────────────────────────────────
 METRICS_SERVER_ENABLED: bool = os.getenv("METRICS_SERVER_ENABLED", "false").lower() == "true"
@@ -103,6 +115,9 @@ PROMETHEUS_ENABLED: bool = os.getenv("PROMETHEUS_ENABLED", "false").lower() == "
 PROMETHEUS_URL: str = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 PROMETHEUS_TOKEN: str | None = os.getenv("PROMETHEUS_TOKEN") or None
 PROMETHEUS_TIMEOUT: int = _int("PROMETHEUS_TIMEOUT", 30)
+# Entities whose metric history is analysed (seeds first): each costs 9 range queries and up to
+# ~20 s of CPU training, and every pod of the graph used to be analysed (fix plan H68)
+SIGNAL_MAX_ENTITIES: int = _int("SIGNAL_MAX_ENTITIES", 10)
 
 # ── API auth ──────────────────────────────────────────────────────────────────
 # Shared-secret bearer gate for mutating / IDP endpoints. This is NOT OIDC/JWT
@@ -120,10 +135,13 @@ def _resolve_api_token() -> str | None:
 
 
 API_TOKEN: str | None = _resolve_api_token()
+# Webhook alerts: at most this many investigations at once, one per alert identity (H53)
+WEBHOOK_MAX_RUNNING: int = _int("WEBHOOK_MAX_RUNNING", 4)
 
 # Per-identity JWT / OIDC auth (preferred over the shared secret above). When
 # OIDC_JWKS_URL is set, bearer tokens are verified against the provider's JWKS
-# (RS256), with optional issuer/audience checks. Unset → JWT auth disabled and
+# (RS256); OIDC_ISSUER and OIDC_AUDIENCE are then required (a JWT is refused without them).
+# Unset → JWT auth disabled and
 # the request falls back to the shared-secret gate. OIDC_REQUIRED=1 rejects any
 # request without a valid JWT (no shared-secret / open fallback).
 OIDC_JWKS_URL: str | None = os.getenv("OIDC_JWKS_URL") or None
@@ -159,7 +177,6 @@ OLLAMA_NUM_CTX_MAX: int = _int("OLLAMA_NUM_CTX_MAX", 8192)
 OLLAMA_NUM_PREDICT: int = _int("OLLAMA_NUM_PREDICT", 512)
 
 # ── Vector store ───────────────────────────────────────────────────────────────
-VECTOR_STORE_TYPE: str = os.getenv("VECTOR_STORE_TYPE", "faiss")
 VECTOR_STORE_PATH: Path = Path(os.getenv("VECTOR_STORE_PATH", "./data/index.faiss"))
 EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 

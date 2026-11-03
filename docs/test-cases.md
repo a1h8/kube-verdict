@@ -171,6 +171,8 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    - `log_human_decision` writes a `human → reject` edge ("no human decision
      received — defaulting to reject") *before* the interrupt, so a journey waiting
      for review already shows a reject entry in `edge_log`.
+     *Fixed 2026-10-18 (`docs/fix-plan-001.md`, H18): the node ran before the interrupt,
+     so an approval never reached remediation; it now runs after it.*
    - the scripted remediation must be reversible (`helm upgrade` / `rollout
      restart`): diagnostic-only commands have no rollback, and the policy gate
      then returns `NO_GO`, as designed.
@@ -338,7 +340,8 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
      for the staging trace id;
    - the run reaches HIGH and a verdict, like h013–h015.
    One extra check reuses §3: cutting each collector in turn removes only that
-   family from the prompt and the label is never HIGH.
+   family from the prompt and the label is never HIGH (amended 2026-10-24, below:
+   never more confident than connected).
 
    *Out of scope.* No signal-aware rule (`hypothesis_sources` stays
    Kubernetes-only), no change to `compute_confidence`, no vitrine fixture (can be
@@ -364,6 +367,17 @@ The table below distinguishes what is **proven offline** (runs in CI, no cluster
    *Observed, not changed:* one h016 run takes ~20–45 s against ~2 s for h013–h015.
    The time is PatchTST in synthetic mode, which trains one small model per
    entity it watches (14 here, with 8 replicas). The module takes ~4 min.
+   **Amended 2026-10-24 (`docs/comparison-protocol-issues.md` CPI-15).** "Never HIGH
+   with a collector cut" was true of the workflow's label with the evidence-gated mock
+   (2026-10-10). Since `docs/structured-in-product.md` (H4) the report carries the
+   structured diagnosis's confidence, the only one, and h016's cause
+   (`db.connections_exhausted`, outside: postgres-primary) is supported by all three
+   signals: score 0.95 connected, 0.95 with Prometheus cut (the Postgres error lines in
+   the logs already say the connections are exhausted), 0.80 with Loki or OTel cut —
+   above the HIGH threshold (0.75, `rca/diagnosis.py`). Redundant evidence keeps HIGH
+   legitimately. What holds, and what `test_multi_signal_h016.py` asserts: a cut removes
+   only its signal from the prompt, and the score is **never higher than connected**.
+   No threshold changes.
 
 Live captures (`tools/b13_capture.py`) get the same root-cause check, against
 ground truth, outside CI: see [veracity-benchmark.md](veracity-benchmark.md)
@@ -836,6 +850,34 @@ The fixture loader's `_detect_missing_deps` now delegates to `readiness.detect_m
 - Observed: full suite 2498 passed, 1 xfailed; `rules` replay unchanged (4/18).
 - Not done yet (phase 3, rest): building the loader's Kubernetes entities through the
   fake-API → `K8sCollector` path.
+
+### The loader builds what the collectors build (2026-10-20, `docs/fix-plan-001.md` H14)
+
+The replay passes a graph built by `tests/integration/cases/case_loader.py`; since H14 it builds
+only what the production collectors build, with their code where it exists:
+
+- Helm membership: `belongs_to_release` (H26); events linked by `HAS_EVENT` as
+  `K8sCollector._collect_events` does; one Namespace and `IN_NAMESPACE` edges; PolicyReports
+  read by `PolicyCollector._process_report`; the declared / applied / live comparisons
+  (`docs/three-states.md`); missing dependencies by `ingestion.readiness.detect_missing` with
+  what production knows.
+- Removed from the loader because production does not build them: the `drift.helm.*`
+  comparison of a values file with the deployed values (F11), RoleBinding and NetworkPolicy
+  lists passed to `detect_missing` (`missing.rbac.*`, `netpol.*`), the typed ResourceQuota and
+  its `QUOTA_BLOCKS` edge, and a call to `AnchorEngine.annotate` that did not exist.
+
+Gaps that remain, per case — what live collection would add that the fixtures do not hold:
+
+| Gap | Cases | Effect |
+|---|---|---|
+| no ReplicaSet objects (the owner chain is read from `pod-template-hash`, H25) | all | the walk reaches the Deployment only through its selector |
+| RoleBindings and NetworkPolicies not collected live ("Not in this PR") | h005, h006 | no `rbac.unbound`; NetworkPolicies collected since `docs/failing-cases-002.md` S4; h005's evidence is its logs (S1) |
+| ResourceQuotas, LimitRanges, HPAs not typed live ("Not in this PR") | h007, h010 | no quota or HPA object in the graph |
+| no live Deployment in the fixture | h002, h009 | comparison B reports nothing about it (a kind not listed is unknown, not missing) |
+| no GitOps source in the replay (added 2026-10-24, `docs/comparison-protocol-issues.md` CPI-17) | all | `anchor_node` builds schema anchors (6 to 70 per case) but no `[manifest]` anchor, which needs a GitOps provider: `index_anchor_violations`, the manifest branch of `anchor_fix_hints` and the Git path to the anchors run in no offline case, and the `context:` prompt lacks the manifest fix hints a live run with a GitOps source would carry; the declared-vs-live comparison of the cases goes through the Helm drift (`drift.*`) instead. Exercised live only |
+
+Measured: structured replay 15/19 before and after; one diagnosis changes — h005's `rbac`
+score drops from 0.65 to 0.5 (its `rbac.unbound` signal was loader-only).
 
 ## h026 — negative: a healthy rolling update
 

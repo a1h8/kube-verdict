@@ -1,0 +1,69 @@
+{
+  "case": "h009_liveness_probe_loop",
+  "case_hash": "864d1eeb5e4d30be80b0dd6f891e0f2281361bb803609fb2133598d302f91f79",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "config": "C2",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": {
+    "anchors": 0,
+    "chart_anchors": 0,
+    "docs": 0,
+    "examples": 0,
+    "vectors": 6
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 39.0,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2297,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 20.8,
+      "prompt_tokens_read": 1677,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "liveness"
+    ]
+  ],
+  "matched_keywords": [
+    "liveness"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 4959,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-03 02:54:18 UTC\nTotal context chunks : 15\nContext quality score: HIGH (0.73/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 2/20 \u2192 0.02, Anchors matched 6 \u2192 0.15, Critical signals 3 \u2192 0.09, Helm drift items 1 \u2192 0.07\n\n### CRITICAL \u2014 Unhealthy resources (3)\n  - kind=Pod name=search-service-5c9b7d6f4-rk8st namespace=production labels=[app.kubernetes.io/name=search-service app.kubernetes.io/instance=search-service pod-template-hash=5c9b7d6f4] phase=Running node=worker-node-02 restarts=18 owner=ReplicaSet/search-service-5c9b7d6f4\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/search-service-5c9b7d6f4-rk8st namespace=production count=54 message=Liveness probe failed: Get \"http://10.0.2.15:9200/health\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n  - kind=Event type=Warning reason=BackOff involved=Pod/search-service-5c9b7d6f4-rk8st namespace=production count=18 message=Back-off restarting failed container search-service in pod search-service-5c9b7d6f4-rk8st_production\n### CRITICAL \u2014 Helm declared vs observed drift (1)\n  - HelmRelease/production/search-service: [deployed \u2260 Git] drift field=container.search-service.livenessProbe.timeoutSeconds declared=5 observed=1 severity=warning\n### WARNING \u2014 Kubernetes events (2)\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/search-service-5c9b7d6f4-rk8st namespace=production count=54 message=Liveness probe failed: Get \"http://10.0.2.15:9200/health\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n  - kind=Event type=Warning reason=BackOff involved=Pod/search-service-5c9b7d6f4-rk8st namespace=production count=18 message=Back-off restarting failed container search-service in pod search-service-5c9b7d6f4-rk8st_production\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/production/search-service-5c9b7d6f4-rk8st: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/search-service-5c9b7d6f4-rk8st: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/search-service-5c9b7d6f4-rk8st: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/search-service-5c9b7d6f4-rk8st: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/search-service-5c9b7d6f4-rk8st: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/search-service-5c9b7d6f4-rk8st: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=search-service namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=2]\n### Related context (2 chunks after dedup)\n  - kind=Event type=Normal reason=Killing involved=Pod/search-service-5c9b7d6f4-rk8st namespace=production count=18 message=Container search-service failed liveness probe, will be restarted\n  - kind=Namespace name=production\n\n---\n## Incident query\nsearch-service goes down every few minutes in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe search-service Pod in the production namespace frequently restarts due to liveness probe failures.\n\n### 2. Affected resources\n- Pod/search-service-5c9b7d6f4-rk8st \u2014 liveness probe failure\n- Pod/search-service-5c9b7d6f4-rk8st \u2014 Back-off restarting\n\n### 3. Root cause\nThe liveness probe timeout is set to 1 second, which is shorter than the actual response time of the service. This causes the liveness probe to fail, leading to the Pod restarting.\n\n### 4. Causal chain\n1. The liveness probe timeout is set to 1 second in the deployment configuration.\n2. The service takes longer than 1 second to respond to the liveness probe.\n3. The liveness probe fails, triggering a restart of the Pod.\n4. The Pod restarts, but the service is still unavailable due to the timeout.\n5. The Pod restarts again, repeating the cycle.\n\n### 5. Remediation\n- Increase the liveness probe timeout to a higher value, such as 10 seconds, to allow sufficient time for the service to respond.\n  ```shell\n  kubectl patch deployment search-service --patch '{\"spec\": {\"template\": {\"spec\": {\"containers\": [{\"name\": \"search-service\", \"livenessProbe\": {\"timeoutSeconds\": 10}}]}}}}' --type='json'\n  ```\n\n### 6. Confidence\nMEDIUM\n\n### 7. Checks\n- kubectl get deployment search-service | confirms if: livenessProbe.timeoutSeconds is set to 10 | refutes if: livenessProbe.timeoutSeconds is still set to 1\n- kubectl describe deployment search-service | confirms if: livenessProbe.timeoutSeconds is set to 10 | refutes if: livenessProbe.timeoutSeconds is still set to 1\n- kubectl get pod search-service-5c9b7d6f4-rk8st -o yaml | confirms if: livenessProbe.timeoutSeconds is set to 10 | refutes if: livenessProbe.timeoutSeconds is still set to 1\n- kubectl exec search-service-5c9b7d6f4-rk8st -c search-service -- curl http://10.0.2.15:9200/health | confirms if: service responds within 10 seconds |",
+  "reason": "cause concept(s) not named: drift|timeoutseconds|declared|too short|too aggressive",
+  "remediation": [
+    "Increase the liveness probe timeout to a higher value, such as 10 seconds, to allow sufficient time for the service to respond.",
+    "kubectl patch deployment search-service --patch '{\"spec\": {\"template\": {\"spec\": {\"containers\": [{\"name\": \"search-service\", \"livenessProbe\": {\"timeoutSeconds\": 10}}]}}}}' --type='json'"
+  ],
+  "root_cause": "The liveness probe timeout is set to 1 second, which is shorter than the actual response time of the service. This causes the liveness probe to fail, leading to the Pod restarting.",
+  "run": 1,
+  "solver": "context",
+  "started_at": "2026-11-03T02:55:18.024157+00:00",
+  "store": "faiss",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 62.47
+}

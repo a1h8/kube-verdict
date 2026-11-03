@@ -1,0 +1,69 @@
+{
+  "answerable": null,
+  "case": "h009_liveness_probe_loop",
+  "case_hash": "864d1eeb5e4d30be80b0dd6f891e0f2281361bb803609fb2133598d302f91f79",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": null,
+  "diagnoses": [
+    {
+      "family": "helm-drift",
+      "location": "HelmRelease/production/search-service",
+      "rule": "config.drift",
+      "score": 0.8,
+      "signals": [
+        "2f8b637e71a7cb41",
+        "2e06491b783407b3",
+        "63236a40511fc2b2",
+        "558f75a6bf327fd0",
+        "9a11f1a8d17a5e98"
+      ]
+    }
+  ],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    [
+      "liveness",
+      "drift|timeoutseconds|declared|too short|too aggressive"
+    ]
+  ],
+  "matched_keywords": [
+    "liveness",
+    "drift|timeoutseconds|declared|too short|too aggressive"
+  ],
+  "model": "",
+  "model_digest": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause named, no decoy",
+  "root_cause": "search-service drifted from its declared configuration: container.search-service.livenessProbe.timeoutSeconds is declared 5 but deployed 1. It was deployed with a value Git does not declare.",
+  "rules_version": "rules/5",
+  "run": 1,
+  "signal_kinds": [
+    "container.crashloop",
+    "drift.config",
+    "pod.not_ready",
+    "probe.liveness_failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-01T19:00:08.214769+00:00",
+  "store": "stub",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.11
+}

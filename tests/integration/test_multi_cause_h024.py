@@ -39,7 +39,9 @@ def test_each_cause_is_answerable_from_the_prompt(run, group):
 
 
 def test_final_answer_names_both_causes(run):
-    assert run.state["confidence"] == "HIGH"
+    # MEDIUM: the top diagnosis is dependency.missing (0.65). The former HIGH came from a generic
+    # drift lifted by the OOMs oom.memory_drift already explains (fix plan P7)
+    assert run.state["confidence"] == "MEDIUM"
     root_cause = run.state["report_dict"]["root_cause"]
     result = grade(root_cause, run.expect, confidence=run.state["confidence"])
     assert result["veracity"] == "PASS", result["reason"]

@@ -1,0 +1,79 @@
+{
+  "case": "h024_multi_cause",
+  "case_hash": "587fb43acdb09f5797e12a87dd44d355361baaf26c93d94d19ec615761b68e8f",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "chart/Chart.yaml",
+    "chart/templates/deployment.yaml",
+    "chart/values.yaml",
+    "helm/manifest.yaml",
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/deployment.yaml",
+    "kube/events.yaml",
+    "kube/pods.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 77.6,
+      "answer_tokens": 323,
+      "estimated_prompt_tokens": 3214,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 137.7,
+      "prompt_tokens_read": 3189,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "secret|queue-credentials",
+      "missing|not found"
+    ],
+    [
+      "memory|oom"
+    ]
+  ],
+  "matched_keywords": [
+    "secret|queue-credentials",
+    "missing|not found",
+    "memory|oom"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 8430,
+  "prompts": [
+    "## Files of the incident\n\n=== chart/Chart.yaml ===\napiVersion: v2\nname: api\nversion: 1.0.0\n\n=== chart/templates/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ .Release.Name }}\n  namespace: {{ .Release.Namespace }}\n  labels:\n    app.kubernetes.io/name: {{ .Release.Name }}\n    app.kubernetes.io/instance: {{ .Release.Name }}\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: {{ .Values.replicaCount }}\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: {{ .Release.Name }}\n      app.kubernetes.io/instance: {{ .Release.Name }}\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: {{ .Release.Name }}\n        app.kubernetes.io/instance: {{ .Release.Name }}\n    spec:\n      containers:\n        - name: {{ .Release.Name }}\n          image: \"{{ .Values.image.repository }}:{{ .Values.image.tag }}\"\n          imagePullPolicy: {{ .Values.image.pullPolicy }}\n          resources:\n            {{- toYaml .Values.resources | nindent 12 }}\n          {{- with .Values.livenessProbe }}\n          livenessProbe:\n            {{- toYaml . | nindent 12 }}\n          {{- end }}\n          {{- with .Values.readinessProbe }}\n          readinessProbe:\n            {{- toYaml . | nindent 12 }}\n          {{- end }}\n\n=== chart/values.yaml ===\nreplicaCount: 1\nimage:\n  repository: ghcr.io/acme/api\n  tag: v4.1.0\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 1Gi\n    cpu: '1'\n  requests:\n    memory: 512Mi\n    cpu: 250m\nservice:\n  type: ClusterIP\n  port: 8080\n\n=== helm/manifest.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\n  namespace: production\n  labels:\n    app.kubernetes.io/name: api\n    app.kubernetes.io/instance: api\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: api\n      app.kubernetes.io/instance: api\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: api\n        app.kubernetes.io/instance: api\n    spec:\n      containers:\n      - name: api\n        image: ghcr.io/acme/api:v4.1.0\n        imagePullPolicy: IfNotPresent\n        resources:\n          limits:\n            cpu: '1'\n            memory: 256Mi\n          requests:\n            cpu: 250m\n            memory: 128Mi\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 1,\n  \"image\": {\n    \"repository\": \"ghcr.io/acme/api\",\n    \"tag\": \"v4.1.0\",\n    \"pullPolicy\": \"IfNotPresent\"\n  },\n  \"resources\": {\n    \"limits\": {\n      \"memory\": \"256Mi\",\n      \"cpu\": \"1\"\n    },\n    \"requests\": {\n      \"memory\": \"128Mi\",\n      \"cpu\": \"250m\"\n    }\n  },\n  \"service\": {\n    \"type\": \"ClusterIP\",\n    \"port\": 8080\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 1\nimage:\n  repository: ghcr.io/acme/api\n  tag: v4.1.0\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 1Gi\n    cpu: '1'\n  requests:\n    memory: 512Mi\n    cpu: 250m\nservice:\n  type: ClusterIP\n  port: 8080\n\n=== kube/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\n  namespace: production\n  uid: 7a1c3e61-8e21-11ef-a1b2-0242ac110024\n  creationTimestamp: '2026-09-01T07:00:00Z'\n  labels:\n    app.kubernetes.io/name: api\n    app.kubernetes.io/instance: api\n    app.kubernetes.io/managed-by: Helm\n  annotations:\n    deployment.kubernetes.io/revision: '5'\n    meta.helm.sh/release-name: api\n    meta.helm.sh/release-namespace: production\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: api\n      app.kubernetes.io/instance: api\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: api\n        app.kubernetes.io/instance: api\n    spec:\n      containers:\n      - name: api\n        image: ghcr.io/acme/api:v4.1.0\n        resources:\n          limits:\n            memory: 256Mi\n            cpu: '1'\n          requests:\n            memory: 128Mi\n            cpu: 250m\nstatus:\n  replicas: 1\n  readyReplicas: 0\n  availableReplicas: 0\n  conditions:\n  - type: Available\n    status: 'False'\n    reason: MinimumReplicasUnavailable\n    message: Deployment does not have minimum availability.\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: api-6b8d4f7c9-q7r2t.oomkilled\n    namespace: production\n  type: Warning\n  reason: BackOff\n  message: 'Back-off restarting failed container api in pod api-6b8d4f7c9-q7r2t (last\n    state: OOMKilled, exit code 137)'\n  involvedObject:\n    kind: Pod\n    name: api-6b8d4f7c9-q7r2t\n    namespace: production\n  count: 6\n  firstTimestamp: '2026-10-08T09:10:00Z'\n  lastTimestamp: '2026-10-08T09:41:25Z'\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: worker-58c9d7b6f-h4m8n.secret-missing\n    namespace: production\n  type: Warning\n  reason: Failed\n  message: 'Error: secret \"queue-credentials\" not found'\n  involvedObject:\n    kind: Pod\n    name: worker-58c9d7b6f-h4m8n\n    namespace: production\n  count: 8\n  firstTimestamp: '2026-10-08T09:00:05Z'\n  lastTimestamp: '2026-10-08T09:41:00Z'\n\n=== kube/pods.yaml ===\napiVersion: v1\nkind: PodList\nitems:\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: api-6b8d4f7c9-q7r2t\n    namespace: production\n    uid: 7a1c3e5f-8e21-11ef-a1b2-0242ac110024\n    creationTimestamp: '2026-10-08T08:00:00Z'\n    labels:\n      app.kubernetes.io/name: api\n      app.kubernetes.io/instance: api\n      pod-template-hash: 6b8d4f7c9\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: api-6b8d4f7c9\n      controller: true\n  spec:\n    nodeName: worker-node-02\n    serviceAccountName: api\n    containers:\n    - name: api\n      image: ghcr.io/acme/api:v4.1.0\n      resources:\n        limits:\n          memory: 256Mi\n          cpu: '1'\n        requests:\n          memory: 128Mi\n          cpu: 250m\n      ports:\n      - containerPort: 8080\n  status:\n    phase: Running\n    containerStatuses:\n    - name: api\n      ready: false\n      restartCount: 6\n      image: ghcr.io/acme/api:v4.1.0\n      state:\n        waiting:\n          reason: CrashLoopBackOff\n          message: back-off 5m0s restarting failed container=api pod=api-6b8d4f7c9-q7r2t_production\n      lastState:\n        terminated:\n          reason: OOMKilled\n          exitCode: 137\n          startedAt: '2026-10-08T09:40:00Z'\n          finishedAt: '2026-10-08T09:41:20Z'\n    conditions:\n    - type: Ready\n      status: 'False'\n      reason: ContainersNotReady\n      message: 'containers with unready status: [api]'\n    - type: PodScheduled\n      status: 'True'\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: worker-58c9d7b6f-h4m8n\n    namespace: production\n    uid: 7a1c3e60-8e21-11ef-a1b2-0242ac110024\n    creationTimestamp: '2026-10-08T09:00:00Z'\n    labels:\n      app.kubernetes.io/name: worker\n      app.kubernetes.io/instance: worker\n      pod-template-hash: 58c9d7b6f\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: worker-58c9d7b6f\n      controller: true\n  spec:\n    nodeName: worker-node-01\n    serviceAccountName: worker\n    containers:\n    - name: worker\n      image: ghcr.io/acme/worker:v2.3.0\n      env:\n      - name: QUEUE_PASSWORD\n        valueFrom:\n          secretKeyRef:\n            name: queue-credentials\n            key: password\n      resources:\n        limits:\n          memory: 512Mi\n          cpu: 500m\n        requests:\n          memory: 256Mi\n          cpu: 100m\n  status:\n    phase: Pending\n    containerStatuses:\n    - name: worker\n      ready: false\n      restartCount: 0\n      state:\n        waiting:\n          reason: CreateContainerConfigError\n          message: secret \"queue-credentials\" not found\n    conditions:\n    - type: Ready\n      status: 'False'\n      reason: ContainersNotReady\n      message: 'containers with unready status: [worker]'\n    - type: PodScheduled\n      status: 'True'\n\n---\n## Incident query\nwhy are api and worker down in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe API and worker deployments in the production namespace are down due to an Out of Memory (OOM) error in the API container and a missing secret for the worker container.\n\n### 2. Affected resources\n- Deployment/production/api \u2014 CrashLoopBackOff\n- Deployment/production/worker \u2014 Pending\n\n### 3. Root cause\nThe root cause for the API deployment's crash is an Out of Memory (OOM) error, as indicated by the event with reason 'BackOff' and message 'Back-off restarting failed container api in pod api-6b8d4f7c9-q7r2t (last state: OOMKilled, exit code 137)'. The worker deployment is pending due to a missing secret 'queue-credentials'. This is evident from the event with reason 'Failed' and message 'Error: secret \"queue-credentials\" not found'.\n\n### 4. Causal chain\n1. The API deployment is created with insufficient memory resources, causing it to run out of memory and crash.\n2. The worker deployment is unable to start due to the missing 'queue-credentials' secret.\n\n### 5. Remediation\n1. Increase the memory resources for the API deployment to avoid Out of Memory errors.\n2. Ensure the 'queue-credentials' secret is created and accessible to the worker deployment.\n\n### 6. Confidence\nHIGH",
+  "reason": "cause concept(s) not named: drift|1gi|declared",
+  "remediation": [
+    "Increase the memory resources for the API deployment to avoid Out of Memory errors.",
+    "Ensure the 'queue-credentials' secret is created and accessible to the worker deployment."
+  ],
+  "root_cause": "The root cause for the API deployment's crash is an Out of Memory (OOM) error, as indicated by the event with reason 'BackOff' and message 'Back-off restarting failed container api in pod api-6b8d4f7c9-q7r2t (last state: OOMKilled, exit code 137)'. The worker deployment is pending due to a missing secret 'queue-credentials'. This is evident from the event with reason 'Failed' and message 'Error: secret \"queue-credentials\" not found'.",
+  "run": 1,
+  "solver": "raw",
+  "started_at": "2026-11-02T00:54:39.969398+00:00",
+  "store": "stub",
+  "tier": "C",
+  "veracity": "FAIL",
+  "wall_s": 215.34
+}

@@ -288,19 +288,22 @@ class TestSignalAnalyzer:
         for r in analyzer.analyze(synthetic_graph):
             assert isinstance(r, AnomalyResult)
 
-    def test_anomalous_entities_are_annotated(self, synthetic_graph):
+    def test_synthetic_series_are_labelled_not_annotated(self, synthetic_graph):
         analyzer = SignalAnalyzer(
             detector=PatchTSTDetector(
                 context_length=32, prediction_length=4, d_model=16,
                 num_heads=2, num_layers=1, epochs=3,
             )
         )
-        analyzer.analyze(synthetic_graph)
-        # synthetic_graph has a pod with restarts=15 — should get a signal annotation
+        results = analyzer.analyze(synthetic_graph)
+        # synthetic_graph has a pod with restarts=15: its synthetic series is analysed and
+        # labelled, but never written as evidence (docs/fix-plan-001.md, H43)
         from ontology.entities import ResourceKind
+        assert results and all(r.synthetic for r in results)
+        assert analyzer.last_mode == "synthetic"
         pods = list(synthetic_graph.entities(ResourceKind.POD))
-        annotated = [p for p in pods if any(k.startswith("signal.") for k in p.annotations)]
-        assert len(annotated) > 0
+        assert not [p for p in pods if any(k.startswith("signal.") for k in p.annotations)]
+        assert all("SIGNAL=[" not in p.to_text() for p in pods)
 
     def test_signal_annotation_in_to_text(self, synthetic_graph):
         analyzer = SignalAnalyzer(

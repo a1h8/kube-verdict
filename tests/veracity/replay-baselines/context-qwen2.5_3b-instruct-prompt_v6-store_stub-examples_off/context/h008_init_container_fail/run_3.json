@@ -1,0 +1,60 @@
+{
+  "case": "h008_init_container_fail",
+  "case_hash": "979fe37ee542861fe72946cd29f34f5f7fac28c5e510512d5001fb1d644d95b7",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "confidence_raw": "LOW",
+  "config": "C1",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": null,
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 38.1,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2088,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 20.5,
+      "prompt_tokens_read": 1585,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "migration"
+    ]
+  ],
+  "matched_keywords": [
+    "migration"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 4394,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-03 01:25:22 UTC\nTotal context chunks : 13\nContext quality score: MEDIUM (0.65/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 6 \u2192 0.15, Critical signals 3 \u2192 0.09, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (3)\n  - kind=Pod name=backend-6b9f7c8d5-mn4pq namespace=staging labels=[app.kubernetes.io/name=backend app.kubernetes.io/instance=backend pod-template-hash=6b9f7c8d5] phase=Pending node=worker-node-03 restarts=0 owner=ReplicaSet/backend-6b9f7c8d5\n  - kind=Event type=Warning reason=BackOff involved=Pod/backend-6b9f7c8d5-mn4pq namespace=staging count=3 message=Back-off restarting failed container db-migrate in pod backend-6b9f7c8d5-mn4pq_staging\n  - kind=Event type=Warning reason=Failed involved=Pod/backend-6b9f7c8d5-mn4pq namespace=staging count=3 message=Error: container db-migrate in pod backend-6b9f7c8d5-mn4pq exited with code 1: FATAL: database migration failed \u2014 relation 'user_tokens' does not exist\n### WARNING \u2014 Kubernetes events (2)\n  - kind=Event type=Warning reason=BackOff involved=Pod/backend-6b9f7c8d5-mn4pq namespace=staging count=3 message=Back-off restarting failed container db-migrate in pod backend-6b9f7c8d5-mn4pq_staging\n  - kind=Event type=Warning reason=Failed involved=Pod/backend-6b9f7c8d5-mn4pq namespace=staging count=3 message=Error: container db-migrate in pod backend-6b9f7c8d5-mn4pq exited with code 1: FATAL: database migration failed \u2014 relation 'user_tokens' does not exist\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=backend namespace=staging chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=1]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=staging\n\n---\n## Incident query\nbackend pod never becomes ready in staging\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe backend pod in the staging namespace never becomes ready due to a persistent database migration failure.\n\n### 2. Affected resources\n- Pod/staging/backend-6b9f7c8d5-mn4pq \u2014 phase is Pending\n- Event/staging/backend-6b9f7c8d5-mn4pq \u2014 Back-off restarting failed container db-migrate\n- Event/staging/backend-6b9f7c8d5-mn4pq \u2014 Error: container db-migrate exited with code 1: FATAL: database migration failed \u2014 relation 'user_tokens' does not exist\n\n### 3. Root cause\nThe root cause is a persistent database migration failure, indicated by the repeated events and the Pod's phase remaining at Pending. The database migration failure is causing the container to exit with code 1, preventing the Pod from becoming ready.\n\n### 4. Causal chain\n1. The database migration script attempts to create the 'user_tokens' relation, which does not exist.\n2. The container db-migrate exits with code 1, causing the Pod to be restarted.\n3. The Pod's phase remains at Pending due to the ongoing migration failure.\n4. The Pod's restartPolicy is set to Always, leading to repeated restarts without resolution.\n\n### 5. Remediation\nNo immediate kubectl commands are needed as the root cause is a persistent issue. The root cause is a database migration failure, which is best addressed by the database administrator or the database schema itself. The database schema should be updated to include the 'user_tokens' relation.\n\n### 6. Confidence\nLOW\n\n### 7. Checks\n- kubectl get pods -n staging | grep backend-6b9f7c8d5-mn4pq \u2014 verifies the existence of the Pod \u2014 confirms if: the Pod is listed \u2014 refutes if: the Pod is not listed\n- kubectl describe pod/staging/backend-6b9f7c8d5-mn4pq | grep migration \u2014 verifies the migration failure message \u2014 confirms if: the migration failure message is present \u2014 refutes if: the migration failure message is not present\n- kubectl logs pod/staging/backend-6b9f7c8d5-mn4pq \u2014 verifies the container logs \u2014 confirms if: the container logs show the migration failure \u2014 refutes if: the container logs do not show the migration failure\n- kubectl exec pod/staging/backend",
+  "reason": "cause concept(s) not named: init|db-migrate",
+  "remediation": [],
+  "root_cause": "The root cause is a persistent database migration failure, indicated by the repeated events and the Pod's phase remaining at Pending. The database migration failure is causing the container to exit with code 1, preventing the Pod from becoming ready.",
+  "run": 3,
+  "solver": "context",
+  "started_at": "2026-11-03T01:26:21.030182+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 58.7
+}

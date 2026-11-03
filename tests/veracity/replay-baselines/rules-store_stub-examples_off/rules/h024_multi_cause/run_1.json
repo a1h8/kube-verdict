@@ -1,0 +1,46 @@
+{
+  "answerable": null,
+  "case": "h024_multi_cause",
+  "case_hash": "587fb43acdb09f5797e12a87dd44d355361baaf26c93d94d19ec615761b68e8f",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "config": "rules",
+  "corpus_hash": null,
+  "cut": null,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    [
+      "secret|queue-credentials",
+      "missing|not found"
+    ],
+    []
+  ],
+  "matched_keywords": [
+    "secret|queue-credentials",
+    "missing|not found"
+  ],
+  "model": "",
+  "model_digest": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause concept(s) not named: memory|oom, drift|1gi|declared",
+  "root_cause": "CreateContainerConfigError \u2014 ConfigMap or Secret not found. A required ConfigMap or Secret does not exist in the namespace. Create the missing resources before redeploying. (Pod/production/worker-58c9d7b6f-h4m8n)",
+  "rule_id": "missing_config",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-11-01T18:59:52.641402+00:00",
+  "store": "stub",
+  "tier": "C",
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.02
+}

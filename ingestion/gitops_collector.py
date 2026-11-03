@@ -54,6 +54,8 @@ class GitopsCollector:
         track_orphans: bool = False,
     ) -> None:
         self._provider = provider
+        # releases whose applied manifest could not be read: A was not computed for them
+        self.missing_applied: list[str] = []
         self._charts_path = charts_path.rstrip("/")
         self._renderer = renderer or ManifestRenderer()
         self._differ = differ or ManifestDiffer(track_orphans=track_orphans)
@@ -92,11 +94,15 @@ class GitopsCollector:
                       release.namespace, release.name)
             return []
 
+        # A — declared → applied (docs/three-states.md). Declared = what Git holds: the chart's
+        # values.yaml, and a Helmfile's value files and inline values (they come from Git). A
+        # live release's values are what was deployed, so they are not fed in: that hid every
+        # values change against Git (docs/fix-plan-001.md, H48).
         rendered = self._renderer.render(
             chart=chart_ref,
             release_name=release.name,
             namespace=release.namespace or "default",
-            values=release.values,
+            values=release.values if release.source == "helmfile" else None,
             value_files=release.value_files,
             repo_url=repo_url,
             chart_version=release.chart_version or None,
@@ -107,7 +113,14 @@ class GitopsCollector:
                       release.namespace, release.name)
             return []
 
-        drifts = self._differ.diff(rendered, graph, release_uid=release.uid)
+        applied = getattr(release, "applied_manifest", None) or []
+        if not applied:
+            # without what Helm applied there is nothing to compare Git with; never compared
+            # with the live objects instead (that is B, from the applied manifest)
+            self.missing_applied.append(f"{release.namespace}/{release.name}")
+            return []
+        drifts = self._differ.diff_manifests(rendered, applied, graph, release_uid=release.uid,
+                                             namespace=release.namespace or "default")
 
         if drifts:
             release.annotations["gitops.drift_count"] = str(len(drifts))

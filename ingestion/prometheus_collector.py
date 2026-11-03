@@ -20,7 +20,7 @@ import logging
 
 import requests
 
-from ontology.entities import K8sEntity, PrometheusAlert
+from ontology.entities import K8sEntity, PrometheusAlert, ResourceKind
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
 
@@ -61,6 +61,10 @@ class PrometheusCollector:
         # Set when the last collect() could not reach Prometheus — collect() still
         # returns 0, so callers that only read the count keep working.
         self.last_error: str | None = None
+        # Firing alerts kept without an entity (cluster-level: API server, etcd, nodes…) and
+        # alerts of a namespace outside the collected scope (docs/fix-plan-001.md, H33).
+        self.uncorrelated = 0
+        self.out_of_scope = 0
 
     # ------------------------------------------------------------------
 
@@ -71,12 +75,14 @@ class PrometheusCollector:
         A request failure returns 0 and is recorded in ``last_error``.
         """
         self.last_error = None
+        self.uncorrelated = self.out_of_scope = 0
         alerts = self._fetch_alerts()
         if not alerts:
             return 0
 
         correlated = 0
         seen_alert_uids: set[str] = set()
+        in_scope = {e.name for e in graph.entities(ResourceKind.NAMESPACE)}
 
         for alert in alerts:
             if alert.get("state") != "firing":
@@ -89,8 +95,10 @@ class PrometheusCollector:
             namespace = labels.get("namespace", "")
 
             entity = self._correlate(labels, graph)
-            if entity is None:
-                log.debug("prometheus: no entity match for alert %s", alert_name)
+            if entity is None and namespace and namespace not in in_scope:
+                log.info("prometheus: alert %s in namespace %s — outside the collected scope",
+                         alert_name, namespace)
+                self.out_of_scope += 1
                 continue
 
             # Create PrometheusAlert node once per (alertname, namespace)
@@ -110,6 +118,13 @@ class PrometheusCollector:
                     started_at=alert.get("activeAt", ""),
                 )
                 graph.add_entity(pa)
+
+            if entity is None:
+                # kept as evidence of its own: an alert about the API server, etcd or a node
+                # names no workload, and used to be dropped at debug level (H33)
+                log.info("prometheus: %s/%s kept without a matching entity", severity, alert_name)
+                self.uncorrelated += 1
+                continue
 
             # Annotate matched entity
             prefix = f"alert.{alert_name}"

@@ -6,12 +6,30 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from ontology.entities import HelmRelease, HelmChart, HelmRepository
+import yaml
+
+from ontology.entities import HelmRelease, HelmChart, HelmRepository, ResourceKind
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
 from ingestion.chart_parser import ChartParser
 
 log = logging.getLogger(__name__)
+
+
+def belongs_to_release(entity, release: str) -> bool:
+    """True when *entity* was deployed by the Helm release named *release*.
+
+    Helm writes `meta.helm.sh/release-name` on the objects it creates; pods, which it does not
+    create, carry the chart's `app.kubernetes.io/instance` label. `managed-by=Helm` alone says
+    *some* release — linking on it tied every object of a namespace to every release there and
+    made false replica drifts (docs/fix-plan-001.md, H26).
+    """
+    if entity.kind == ResourceKind.HELM_RELEASE:
+        return False
+    annotated = getattr(entity, "k8s_annotations", {}).get("meta.helm.sh/release-name")
+    if annotated:
+        return annotated == release
+    return (entity.labels or {}).get("app.kubernetes.io/instance") == release
 
 # K8s name validation: RFC 1123 label (lowercase alphanumeric / hyphens / dots)
 _SAFE_K8S_NAME = re.compile(r'^[a-z0-9][a-z0-9\-\.]{0,252}$')
@@ -27,8 +45,12 @@ def _safe_name(value: str, field: str) -> str:
 # Fixed, non-value tokens we ever emit in a helm argv: the binary, sub-commands,
 # and the exact set of flags/literal values. Anything outside this set must be an
 # RFC-1123 name (or a value validated in __init__) to reach the exec.
+# `helm list`'s chart column is `<name>-<semver>`; the version may hold a `-` (`1.2.3-rc1`), so the
+# split is at the first `-` followed by a semver, not at the last `-` (fix plan H59)
+_CHART_STRING = re.compile(r"^(?P<name>.+?)-(?P<version>v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?)$")
+_HELM_TIMEOUT_S = 60    # every helm call is bounded (docs/fix-plan-001.md H56)
 _HELM_FIXED_TOKENS = frozenset({
-    "helm", "list", "get", "values", "notes", "repo",
+    "helm", "list", "get", "values", "notes", "manifest", "repo",
     "--output", "json",
     "--namespace", "--all-namespaces", "--all",
     "--kubeconfig", "--kube-context",
@@ -48,6 +70,9 @@ class HelmCollector:
         # (the resolved kubeconfig path contains "/", so it can't match the name
         # regex and must be allowlisted explicitly).
         self._safe_argv_values: set[str] = set()
+        # helm calls that failed in the last collect(): their empty result is not "no values"
+        # or "no release" (docs/fix-plan-001.md, H5)
+        self.failures: list[str] = []
         if kubeconfig:
             if not Path(kubeconfig).is_file():
                 raise ValueError(f"kubeconfig not found: {kubeconfig!r}")
@@ -61,6 +86,7 @@ class HelmCollector:
             self._safe_argv_values.add(kube_context)
 
     def collect(self, graph: OntologyGraph, namespaces: list[str] | None = None) -> None:
+        self.failures = []
         releases = self._list_releases(namespaces)
         log.info("Found %d Helm release(s) in cluster", len(releases))
         parser = ChartParser()
@@ -78,6 +104,7 @@ class HelmCollector:
 
             user_values = self._get_values(release_name, namespace, include_defaults=False)
             notes = self._get_notes(release_name, namespace)
+            applied = self._get_manifest(release_name, namespace)
 
             chart_str = rel.get("chart", "")
             chart_name = self._parse_chart_name(chart_str)
@@ -96,6 +123,7 @@ class HelmCollector:
                 status=rel.get("status", ""),
                 values=user_values,
                 source="helm",
+                applied_manifest=applied,
                 raw=rel,
             )
             graph.add_entity(entity)
@@ -193,6 +221,24 @@ class HelmCollector:
         result = self._run_json(cmd, f"helm get values {release_name}")
         return result if isinstance(result, dict) else {}
 
+    def _get_manifest(self, release_name: str, namespace: str) -> list[dict]:
+        """The manifests Helm applied (`helm get manifest`); [] and a recorded failure when the
+        release Secrets cannot be read (docs/three-states.md, rule 4)."""
+        cmd = ["helm", "get", "manifest", release_name, "--namespace", namespace] + self._env_flags
+        try:
+            text = self._exec(cmd)
+        except subprocess.CalledProcessError as exc:
+            self._fail(f"helm get manifest {release_name}: {(exc.stderr or '').strip()[:200]}")
+            return []
+        except (ValueError, OSError) as exc:
+            self._fail(f"helm get manifest {release_name}: {exc}")
+            return []
+        try:
+            return [d for d in yaml.safe_load_all(text) if isinstance(d, dict) and d.get("kind")]
+        except yaml.YAMLError as exc:
+            self._fail(f"helm get manifest {release_name}: invalid YAML ({exc})")
+            return []
+
     def _get_notes(self, release_name: str, namespace: str) -> str:
         cmd = [
             "helm", "get", "notes", release_name,
@@ -219,21 +265,31 @@ class HelmCollector:
                 continue
             if not _SAFE_K8S_NAME.fullmatch(token):
                 raise ValueError(f"unsafe helm argument: {token!r}")
-        out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=_HELM_TIMEOUT_S)
+        except subprocess.TimeoutExpired as exc:     # a hung helm used to block the investigation (H56)
+            raise subprocess.CalledProcessError(-1, cmd, stderr=f"timed out after {exc.timeout:.0f}s") from exc
         return out.stdout
+
+    def _fail(self, what: str) -> None:
+        self.__dict__.setdefault("failures", []).append(what)
 
     def _run_json(self, cmd: list[str], label: str) -> Any:
         try:
             return json.loads(self._exec(cmd)) or {}
         except subprocess.CalledProcessError as exc:
-            log.warning("%s failed: %s", label, exc.stderr.strip())
-            return {}
+            log.warning("%s failed: %s", label, (exc.stderr or "").strip())
+            self._fail(f"{label}: {(exc.stderr or '').strip()[:200] or exc.returncode}")
         except json.JSONDecodeError:
             log.warning("%s returned invalid JSON", label)
-            return {}
+            self._fail(f"{label}: invalid JSON")
         except ValueError as exc:
             log.warning("%s blocked unsafe argument: %s", label, exc)
-            return {}
+            self._fail(f"{label}: {exc}")
+        except OSError as exc:              # helm missing or not executable
+            log.warning("%s could not run: %s", label, exc)
+            self._fail(f"{label}: {exc}")
+        return {}
 
     # ------------------------------------------------------------------
     # Graph linking
@@ -243,11 +299,7 @@ class HelmCollector:
         self, graph: OntologyGraph, helm_entity: HelmRelease, namespace: str
     ) -> None:
         for entity in graph.entities():
-            if entity.namespace != namespace:
-                continue
-            release_ann = entity.annotations.get("meta.helm.sh/release-name", "")
-            managed_by = entity.labels.get("app.kubernetes.io/managed-by", "")
-            if release_ann == helm_entity.name or managed_by == "Helm":
+            if entity.namespace == namespace and belongs_to_release(entity, helm_entity.name):
                 graph.add_edge(
                     Edge(entity.uid, helm_entity.uid, RelationshipType.MANAGED_BY_HELM)
                 )
@@ -263,10 +315,16 @@ class HelmCollector:
 
     @staticmethod
     def _parse_chart_name(chart_string: str) -> str:
+        m = _CHART_STRING.match(chart_string)
+        if m:
+            return m["name"]
         parts = chart_string.rsplit("-", 1)
         return parts[0] if len(parts) == 2 else chart_string
 
     @staticmethod
     def _parse_chart_version(chart_string: str) -> str:
+        m = _CHART_STRING.match(chart_string)
+        if m:
+            return m["version"]
         parts = chart_string.rsplit("-", 1)
         return parts[-1] if len(parts) == 2 else ""

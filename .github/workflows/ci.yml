@@ -30,11 +30,13 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      # pinned: an unpinned ruff can turn the lint red with no change to the code
       - name: Install ruff
-        run: pip install ruff
+        run: pip install ruff==0.17.2
 
+      # rules from [tool.ruff] in pyproject.toml, the same as `make lint`
       - name: Ruff check
-        run: ruff check . --select=E,W,F --ignore=E501
+        run: ruff check .
 
   # ─────────────────────────────────────────────
   # Dashboard (React) — Vitest unit tests + production build
@@ -91,6 +93,19 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      # the chart's RBAC tests render it with `helm template` (H45): the Dockerfile's version,
+      # checksum checked
+      - name: Install helm
+        env:
+          HELM_VERSION: v3.22.0
+          HELM_SHA256: 1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb
+        run: |
+          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" -o /tmp/helm.tar.gz
+          echo "${HELM_SHA256}  /tmp/helm.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/helm.tar.gz -C /tmp
+          sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
+          helm version
 
       - name: Warm embedding-model cache (best-effort, online)
         run: |
@@ -209,6 +224,19 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      # the chart's RBAC tests render it with `helm template` (H45): the Dockerfile's version,
+      # checksum checked
+      - name: Install helm
+        env:
+          HELM_VERSION: v3.22.0
+          HELM_SHA256: 1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb
+        run: |
+          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" -o /tmp/helm.tar.gz
+          echo "${HELM_SHA256}  /tmp/helm.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/helm.tar.gz -C /tmp
+          sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
+          helm version
 
       - name: Warm embedding-model cache (best-effort, online)
         run: |

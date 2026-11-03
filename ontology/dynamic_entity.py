@@ -67,7 +67,7 @@ class GenericEntity(K8sEntity):
             kind=ResourceKind.NAMESPACE,  # overridden below
             namespace=meta.get("namespace"),
             labels=meta.get("labels") or {},
-            annotations=meta.get("annotations") or {},
+            k8s_annotations=dict(meta.get("annotations") or {}),
             created_at=ts,
             api_version=resource_info.api_version,
             resource_kind_str=resource_info.kind,
@@ -88,10 +88,15 @@ class GenericEntity(K8sEntity):
             parts.append(f"namespace={self.namespace}")
         if self.labels:
             parts.append("labels=[" + " ".join(f"{k}={v}" for k, v in self.labels.items()) + "]")
-        for key, val in self.spec_fields.items():
-            parts.append(f"spec.{key}={val}")
-        for key, val in self.status_fields.items():
-            parts.append(f"status.{key}={val}")
+        # Only the phase and the conditions' type/status/reason: a CRD's spec and status may hold
+        # anything (connection strings, tokens), and this text reaches the LLM (fix plan H57).
+        if "phase" in self.status_fields:
+            parts.append(f"status.phase={self.status_fields['phase']}")
+        status = (self.raw or {}).get("status") or {}
+        for cond in status.get("conditions") or [] if isinstance(status, dict) else []:
+            if isinstance(cond, dict) and cond.get("type"):
+                reason = f"({cond['reason']})" if cond.get("reason") else ""
+                parts.append(f"condition.{cond['type']}={cond.get('status', '')}{reason}")
         return " ".join(parts)
 
 

@@ -1,0 +1,70 @@
+{
+  "case": "h006_networkpolicy_blocked",
+  "case_hash": "44711f13ba8b1b6e3439ba5afbccde710b538ce7d33a671523e4aa50a206d05c",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/networkpolicy.yaml",
+    "kube/pod.yaml",
+    "loki/streams.json"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 27.0,
+      "answer_tokens": 345,
+      "estimated_prompt_tokens": 2540,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 0.1,
+      "prompt_tokens_read": 2229,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "networkpolicy|network policy"
+    ]
+  ],
+  "matched_keywords": [
+    "networkpolicy|network policy"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 6610,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 2,\n  \"image\": { \"repository\": \"ghcr.io/acme/order-service\", \"tag\": \"v4.2.1\" },\n  \"database\": {\n    \"host\": \"db-primary.production.svc.cluster.local\",\n    \"port\": 5432,\n    \"name\": \"orders\"\n  },\n  \"redis\": { \"host\": \"redis.production.svc.cluster.local\", \"port\": 6379 },\n  \"networkPolicy\": { \"enabled\": false },\n  \"resources\": {\n    \"limits\": { \"memory\": \"512Mi\", \"cpu\": \"1\" },\n    \"requests\": { \"memory\": \"256Mi\", \"cpu\": \"200m\" }\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 2\nimage:\n  repository: ghcr.io/acme/order-service\n  tag: v4.2.1\n  pullPolicy: IfNotPresent\ndatabase:\n  host: db-primary.production.svc.cluster.local\n  port: 5432\n  name: orders\n  existingSecret: order-db-credentials\nredis:\n  host: redis.production.svc.cluster.local\n  port: 6379\nnetworkPolicy:\n  enabled: false\nresources:\n  limits:\n    memory: 512Mi\n    cpu: '1'\n  requests:\n    memory: 256Mi\n    cpu: 200m\nservice:\n  type: ClusterIP\n  port: 8080\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: order-service-netpol.readiness-fail\n    namespace: production\n  type: Warning\n  reason: Unhealthy\n  message: 'Readiness probe failed: HTTP probe failed with statuscode: 503'\n  involvedObject:\n    kind: Pod\n    name: order-service-6f9b8c7d5-q4r2s\n    namespace: production\n  count: 24\n  firstTimestamp: '2026-05-14T12:00:30Z'\n  lastTimestamp: '2026-05-14T12:04:00Z'\n\n=== kube/networkpolicy.yaml ===\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: order-service-restrict-egress\n  namespace: production\n  annotations:\n    applied-by: security-team\n    applied-at: '2026-05-14T11:55:00Z'\n    ticket: SEC-4821\nspec:\n  podSelector:\n    matchLabels:\n      app: order-service\n  policyTypes:\n  - Egress\n  egress: []\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: order-service-6f9b8c7d5-q4r2s\n  namespace: production\n  uid: e7a4b0c3-8e1a-11ef-b3a4-0242ac110008\n  labels:\n    app.kubernetes.io/name: order-service\n    app.kubernetes.io/instance: order-service\n    app: order-service\n    pod-template-hash: 6f9b8c7d5\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: order-service-6f9b8c7d5\n    controller: true\nspec:\n  nodeName: worker-node-01\n  serviceAccountName: order-service\n  containers:\n  - name: order-service\n    image: ghcr.io/acme/order-service:v4.2.1\n    env:\n    - name: DATABASE_URL\n      value: postgresql://db-primary.production.svc.cluster.local:5432/orders\n    - name: REDIS_URL\n      value: redis://redis.production.svc.cluster.local:6379\n    ports:\n    - containerPort: 8080\n    readinessProbe:\n      httpGet:\n        path: /healthz\n        port: 8080\n      initialDelaySeconds: 5\n      periodSeconds: 5\n    resources:\n      limits:\n        memory: 512Mi\n        cpu: '1'\n      requests:\n        memory: 256Mi\n        cpu: 200m\nstatus:\n  phase: Running\n  podIP: 10.244.1.55\n  containerStatuses:\n  - name: order-service\n    ready: false\n    restartCount: 0\n    state:\n      running:\n        startedAt: '2026-05-14T12:00:00Z'\n  conditions:\n  - type: Ready\n    status: 'False'\n    reason: ContainersNotReady\n    message: 'containers with unready status: [order-service]'\n\n=== loki/streams.json ===\n[\n  {\n    \"stream\": {\n      \"k8s_pod_name\": \"order-service-6f9b8c7d5-q4r2s\",\n      \"k8s_namespace_name\": \"production\",\n      \"k8s_container_name\": \"order-service\"\n    },\n    \"values\": [\n      [\n        \"1778760005000000000\",\n        \"level=error msg=\\\"db ping failed\\\" err=\\\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760010000000000\",\n        \"level=error msg=\\\"cache connect failed\\\" err=\\\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760015000000000\",\n        \"level=warn msg=\\\"health check failing\\\" status=503 reason=\\\"database unreachable\\\"\"\n      ],\n      [\n        \"1778760035000000000\",\n        \"level=error msg=\\\"db ping failed\\\" err=\\\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760040000000000\",\n        \"level=error msg=\\\"cache connect failed\\\" err=\\\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760045000000000\",\n        \"level=warn msg=\\\"health check failing\\\" status=503 reason=\\\"database unreachable\\\"\"\n      ],\n      [\n        \"1778760065000000000\",\n        \"level=error msg=\\\"db ping failed\\\" err=\\\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760070000000000\",\n        \"level=error msg=\\\"cache connect failed\\\" err=\\\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760075000000000\",\n        \"level=warn msg=\\\"health check failing\\\" status=503 reason=\\\"database unreachable\\\"\"\n      ],\n      [\n        \"1778760095000000000\",\n        \"level=error msg=\\\"db ping failed\\\" err=\\\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760100000000000\",\n        \"level=error msg=\\\"cache connect failed\\\" err=\\\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760105000000000\",\n        \"level=warn msg=\\\"health check failing\\\" status=503 reason=\\\"database unreachable\\\"\"\n      ],\n      [\n        \"1778760125000000000\",\n        \"level=error msg=\\\"db ping failed\\\" err=\\\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760130000000000\",\n        \"level=error msg=\\\"cache connect failed\\\" err=\\\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\\\"\"\n      ],\n      [\n        \"1778760135000000000\",\n        \"level=warn msg=\\\"health check failing\\\" status=503 reason=\\\"database unreachable\\\"\"\n      ]\n    ]\n  }\n]\n\n---\n## Incident query\norder-service requests fail in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nOrder service pods in the production namespace are experiencing repeated database and Redis connection failures, leading to health check failures and service unavailability.\n\n### 2. Affected resources\n- Pod: order-service-6f9b8c7d5-q4r2s \u2014 health check failing with status 503\n- NetworkPolicy: order-service-restrict-egress \u2014 Egress policy is disabled\n\n### 3. Root cause\nThe database and Redis connections are failing due to network timeouts. This is evidenced by the loki logs showing repeated errors like \"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\" and \"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\". The network policy is disabled, allowing unrestricted egress which could be causing the connectivity issues.\n\n### 4. Causal chain\n1. The order service pods are configured to connect to the database and Redis services via their service names.\n2. The network policy is disabled, allowing egress traffic to any destination.\n3. The pods are unable to reach the database and Redis services due to network timeouts.\n4. The health check for the service fails, resulting in the service being marked as unhealthy.\n5. The service is not available to external clients.\n\n### 5. Remediation\n1. Enable the network policy: `kubectl patch networkpolicy order-service-restrict-egress -p '{\"spec\": {\"policyTypes\": [\"Ingress\"]}}' -n production`\n2. Verify the network policy is enabled: `kubectl get networkpolicy order-service-restrict-egress -n production`\n\n### 6. Confidence\nHIGH",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Enable the network policy: `kubectl patch networkpolicy order-service-restrict-egress -p '{\"spec\": {\"policyTypes\": [\"Ingress\"]}}' -n production`",
+    "Verify the network policy is enabled: `kubectl get networkpolicy order-service-restrict-egress -n production`"
+  ],
+  "root_cause": "The database and Redis connections are failing due to network timeouts. This is evidenced by the loki logs showing repeated errors like \"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\" and \"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\". The network policy is disabled, allowing unrestricted egress which could be causing the connectivity issues.",
+  "run": 3,
+  "solver": "raw",
+  "started_at": "2026-11-03T00:12:11.172310+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 27.16
+}

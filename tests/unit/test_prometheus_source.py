@@ -70,8 +70,8 @@ class TestRangeQuery:
         with patch("requests.get", side_effect=requests.ConnectionError()):
             assert _src()._range_query("up", 3600, 60) is None
 
-    def test_aggregates_multiple_series_by_mean(self):
-        """When multiple pods match (e.g. init containers), we take the mean."""
+    def test_sums_a_pods_container_series(self):
+        """One series per container: a pod's usage is their sum (fix plan H68; was a mean)."""
         now = int(time.time())
         series_a = [[now - 2 * 60, "2.0"], [now - 60, "4.0"]]
         series_b = [[now - 2 * 60, "4.0"], [now - 60, "6.0"]]
@@ -83,7 +83,7 @@ class TestRangeQuery:
         r.raise_for_status = MagicMock()
         with patch("requests.get", return_value=r):
             result = _src()._range_query("cpu", 3600, 60)
-        np.testing.assert_allclose(result, [3.0, 5.0])
+        np.testing.assert_allclose(result, [6.0, 10.0])
 
     def test_sends_bearer_token(self):
         src = PrometheusMetricSource(url="http://prom:9090", token="tok123")

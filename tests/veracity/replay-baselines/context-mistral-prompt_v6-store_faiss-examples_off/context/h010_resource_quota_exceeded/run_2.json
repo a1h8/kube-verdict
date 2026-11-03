@@ -1,0 +1,69 @@
+{
+  "case": "h010_resource_quota_exceeded",
+  "case_hash": "82cea462f684626184e30fe04b6d646063cf65bb30e2bc32ec7ee4660b84d5ef",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM \u2014 The causal chain is mostly observed, but the initial trigger (scaling attempt by the worker-service deployment) is inferred rather than directly observed.",
+  "config": "C2",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": {
+    "anchors": 0,
+    "chart_anchors": 0,
+    "docs": 0,
+    "examples": 0,
+    "vectors": 4
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 96.0,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 1988,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 55.4,
+      "prompt_tokens_read": 1651,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "quota"
+    ]
+  ],
+  "matched_keywords": [
+    "quota"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 4126,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 07:29:13 UTC\nTotal context chunks : 13\nContext quality score: MEDIUM (0.62/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 8 \u2192 0.15, Critical signals 2 \u2192 0.06, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (2)\n  - kind=Deployment name=worker-service namespace=staging labels=[app.kubernetes.io/name=worker-service app.kubernetes.io/instance=worker-service app.kubernetes.io/managed-by=Helm] replicas=2 ready=0 available=0\n  - kind=Event type=Warning reason=FailedCreate involved=ReplicaSet/worker-service-7d8f9c6b5 namespace=staging count=12 message=Error creating: pods \"worker-service-7d8f9c6b5-\" is forbidden: exceeded quota: staging-compute-quota, requested: requests.cpu=500m, used: requests.cpu=3800m, limited: requests.cpu=4\n### WARNING \u2014 Kubernetes events (1)\n  - kind=Event type=Warning reason=FailedCreate involved=ReplicaSet/worker-service-7d8f9c6b5 namespace=staging count=12 message=Error creating: pods \"worker-service-7d8f9c6b5-\" is forbidden: exceeded quota: staging-compute-quota, requested: requests.cpu=500m, used: requests.cpu=3800m, limited: requests.cpu=4\n### ANCHORS \u2014 Declared values & K8s schema (8)\n  - Deployment/staging/worker-service: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/staging/worker-service: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/staging/worker-service: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/staging/worker-service: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/staging/worker-service: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/staging/worker-service: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/staging/worker-service: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/staging/worker-service: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=worker-service namespace=staging chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=2]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=staging\n\n---\n## Incident query\nworker-service pod never starts in staging\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe worker-service deployment in the staging namespace is unable to scale beyond 1 replica due to CPU quota limits.\n\n### 2. Affected resources\n- Deployment/staging/worker-service \u2014 replicas=2 ready=0 available=0\n- ReplicaSet/worker-service-7d8f9c6b5 \u2014 type=Warning reason=FailedCreate\n\n### 3. Root cause\nThe worker-service deployment is attempting to scale to 2 replicas, but it is forbidden due to exceeding the staging-compute-quota for CPU usage. The current usage is 3800m, the requested limit is 4m, and the available limit is 4m.\n\n### 4. Causal chain\n1. The worker-service deployment is configured to scale to 2 replicas (Helm release).\n2. The Kubernetes API forbids the creation of additional replicas due to exceeding the staging-compute-quota (Event).\n3. The worker-service deployment is unable to scale beyond 1 replica, resulting in no available pods (Deployment status).\n\n### 5. Remediation\n- Adjust the staging-compute-quota to accommodate the increased CPU usage by the worker-service deployment.\n  ```\n  kubectl edit limitrange staging-compute-quota\n  ```\n\n### 6. Confidence\nMEDIUM \u2014 The causal chain is mostly observed, but the initial trigger (scaling attempt by the worker-service deployment) is inferred rather than directly observed.\n\n### 7. Checks\n- Verify the current CPU usage and limits:\n  ```\n  kubectl get pods --namespace=staging -o wide\n  ```\n  Confirms if the worker-service pods have a CPU usage greater than the available limit.\n  Refutes if the worker-service pods have a CPU usage less than or equal to the available limit.\n\n- Verify the staging-compute-quota:\n  ```\n  kubectl describe limitrange staging-compute-quota\n  ```\n  Confirms if the staging-compute-quota has the correct CPU limits and requests.\n  Refutes if the staging-",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Adjust the staging-compute-quota to accommodate the increased CPU usage by the worker-service deployment.",
+    "kubectl edit limitrange staging-compute-quota"
+  ],
+  "root_cause": "The worker-service deployment is attempting to scale to 2 replicas, but it is forbidden due to exceeding the staging-compute-quota for CPU usage. The current usage is 3800m, the requested limit is 4m, and the available limit is 4m.",
+  "run": 2,
+  "solver": "context",
+  "started_at": "2026-11-02T07:31:45.141668+00:00",
+  "store": "faiss",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 154.06
+}

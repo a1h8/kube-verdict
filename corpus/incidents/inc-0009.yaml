@@ -1,0 +1,27 @@
+id: inc-0009
+title: Settings reloader crashes at startup in production
+family: rbac
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/016_rbac_forbidden
+  licence: Apache-2.0
+symptoms:
+  - settings-reloader pods in CrashLoopBackOff, restart count above 20
+  - the container log says configmaps is forbidden for its service account when it starts watching
+  - settings changes are no longer picked up by the services that rely on it
+signals: [k8s_events, loki]
+kinds: [Pod, Deployment, ServiceAccount]
+root_cause: >-
+  The service account settings-reloader-sa has no Role allowing list and watch on ConfigMaps; the
+  application exits when its watch is refused.
+cause_location: production/ServiceAccount/settings-reloader-sa
+looks_like: [bad configuration file, network policy]
+evidence:
+  - kubectl auth can-i list configmaps --as system:serviceaccount:production:settings-reloader-sa answers no
+remediation:
+  - kubectl -n production create role settings-reader --verb=get,list,watch --resource=configmaps
+  - kubectl -n production create rolebinding settings-reloader-read --role=settings-reader --serviceaccount=production:settings-reloader-sa
+rollback:
+  - kubectl -n production delete rolebinding settings-reloader-read
+  - kubectl -n production delete role settings-reader

@@ -1,0 +1,69 @@
+{
+  "case": "h002_imagepullbackoff",
+  "case_hash": "54e3f7542fb9b0e98f56dd8cde7eb8b8648ab13a21cc889a765f4161ac96e486",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "C2",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": {
+    "anchors": 0,
+    "chart_anchors": 0,
+    "docs": 0,
+    "examples": 0,
+    "vectors": 5
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 131.3,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2352,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 98.9,
+      "prompt_tokens_read": 2102,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "image"
+    ]
+  ],
+  "matched_keywords": [
+    "image"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 5109,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 06:13:25 UTC\nTotal context chunks : 14\nContext quality score: HIGH (0.72/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 6 \u2192 0.15, Critical signals 3 \u2192 0.09, Helm drift items 1 \u2192 0.07\n\n### CRITICAL \u2014 Unhealthy resources (3)\n  - kind=Pod name=ml-inference-7c9d8b6f5-pq3r7 namespace=production labels=[app.kubernetes.io/name=ml-inference app.kubernetes.io/instance=ml-inference app.kubernetes.io/version=v2.1.0-private pod-template-hash=7c9d8b6f5] phase=Pending node=worker-node-03 restarts=0 owner=ReplicaSet/ml-inference-7c9d8b6f5\n  - kind=Event type=Warning reason=Failed involved=Pod/ml-inference-7c9d8b6f5-pq3r7 namespace=production count=12 message=Failed to pull image \"ghcr.io/acme/ml-inference:v2.1.0-private\": rpc error: code = Unknown desc = failed to pull and unpack image \"ghcr.io/acme/ml-inference:v2.1.0-private\": failed to resolve reference \"ghcr.io/acme/ml-inference:v2.1.0-private\": unexpected status code 401 Unauthorized: unauthorized: unauthenticated\n  - kind=Event type=Warning reason=BackOff involved=Pod/ml-inference-7c9d8b6f5-pq3r7 namespace=production count=8 message=Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\"\n### CRITICAL \u2014 Helm declared vs observed drift (1)\n  - HelmRelease/production/ml-inference: [deployed \u2260 Git] drift field=container.ml-inference.image declared=ghcr.io/acme/ml-inference:v2.0.5 observed=ghcr.io/acme/ml-inference:v2.1.0-private severity=warning\n### WARNING \u2014 Kubernetes events (2)\n  - kind=Event type=Warning reason=Failed involved=Pod/ml-inference-7c9d8b6f5-pq3r7 namespace=production count=12 message=Failed to pull image \"ghcr.io/acme/ml-inference:v2.1.0-private\": rpc error: code = Unknown desc = failed to pull and unpack image \"ghcr.io/acme/ml-inference:v2.1.0-private\": failed to resolve reference \"ghcr.io/acme/ml-inference:v2.1.0-private\": unexpected status code 401 Unauthorized: unauthorized: unauthenticated\n  - kind=Event type=Warning reason=BackOff involved=Pod/ml-inference-7c9d8b6f5-pq3r7 namespace=production count=8 message=Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\"\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: container.ml-inference.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=ml-inference namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=1]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\nml-inference pods do not start in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe ml-inference pods in the production namespace are not starting due to an unauthorized pull of the image.\n\n### 2. Affected resources\n- Pod/production/ml-inference-7c9d8b6f5-pq3r7 \u2014 Pending\n\n### 3. Root cause\nThe root cause is a failed image pull due to unauthorized access. This is evident from the repeated Warning events mentioning \"Failed to pull image 'ghcr.io/acme/ml-inference:v2.1.0-private': rpc error: code = Unknown desc = failed to pull and unpack image 'ghcr.io/acme/ml-inference:v2.1.0-private': failed to resolve reference 'ghcr.io/acme/ml-inference:v2.1.0-private': unexpected status code 401 Unauthorized: unauthorized: unauthenticated\".\n\n### 4. Causal chain\n1. The Helm deployment for ml-inference in the production namespace is using the image 'ghcr.io/acme/ml-inference:v2.1.0-private' (Helm drift).\n2. When the pod is created, it attempts to pull the image, but the pull fails due to unauthorized access (Warning events).\n3. As a result, the pod remains in the Pending state.\n\n### 5. Remediation\n- Authenticate the service account used by the pod to pull the image from the GitHub Container Registry (GHCR).\n- Update the Helm deployment to use the correct image tag or update the service account's credentials to access the private registry.\n\n### 6. Confidence\nHIGH\n\n### 7. Checks\n- `kubectl describe pod/production/ml-inference-7c9d8b6f5-pq3r7` | verifies: Pod events and status | confirms if: The pod is still in the Pending state and the events mention unauthorized access.\n- `helm status production/ml-inference` | verifies: Helm release status | confirms if: The release is deployed but the pods are not running.\n- `kubectl get sa",
+  "reason": "cause concept(s) not named: tag|drift|declared",
+  "remediation": [
+    "Authenticate the service account used by the pod to pull the image from the GitHub Container Registry (GHCR).",
+    "Update the Helm deployment to use the correct image tag or update the service account's credentials to access the private registry."
+  ],
+  "root_cause": "The root cause is a failed image pull due to unauthorized access. This is evident from the repeated Warning events mentioning \"Failed to pull image 'ghcr.io/acme/ml-inference:v2.1.0-private': rpc error: code = Unknown desc = failed to pull and unpack image 'ghcr.io/acme/ml-inference:v2.1.0-private': failed to resolve reference 'ghcr.io/acme/ml-inference:v2.1.0-private': unexpected status code 401 Unauthorized: unauthorized: unauthenticated\".",
+  "run": 3,
+  "solver": "context",
+  "started_at": "2026-11-02T06:17:15.963568+00:00",
+  "store": "faiss",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 233.07
+}

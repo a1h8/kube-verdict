@@ -1,0 +1,65 @@
+{
+  "answerable": null,
+  "case": "h012_gitops_render_vs_live",
+  "case_hash": "38195851ec0592bf9a69a4ab528d567b869ac567076e072f7c8e7b82b3729b33",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": null,
+  "diagnoses": [
+    {
+      "family": "oom",
+      "location": "Deployment/production/api",
+      "rule": "oom.memory_drift",
+      "score": 0.5,
+      "signals": [
+        "8e400b0272a86623",
+        "d1d6490ac0853947"
+      ]
+    }
+  ],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    [
+      "memory",
+      "drift|512mi|declared|render|expected state"
+    ]
+  ],
+  "matched_keywords": [
+    "memory",
+    "drift|512mi|declared|render|expected state"
+  ],
+  "model": "",
+  "model_digest": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause named, no decoy",
+  "root_cause": "The memory limit of api drifted from the declared value: container.api.resources.limits.memory is declared 512Mi but deployed 128Mi, and the container is OOMKilled. It was deployed with a value Git does not declare.",
+  "rules_version": "rules/5",
+  "run": 1,
+  "signal_kinds": [
+    "container.oom_killed",
+    "drift.config",
+    "event.past"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-01T19:00:08.479415+00:00",
+  "store": "stub",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.08
+}

@@ -1,0 +1,59 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "audit-exporter-7b8d6c9f5-m3p1q",
+      "k8s_namespace_name": "monitoring",
+      "k8s_container_name": "audit-exporter"
+    },
+    "values": [
+      [
+        "1778756460000000000",
+        "E0514 11:01:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot list resource \"pods\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756490000000000",
+        "E0514 11:01:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot watch resource \"events\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756520000000000",
+        "E0514 11:02:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot list resource \"pods\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756550000000000",
+        "E0514 11:02:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot watch resource \"events\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756580000000000",
+        "E0514 11:03:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot list resource \"pods\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756610000000000",
+        "E0514 11:03:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot watch resource \"events\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756640000000000",
+        "E0514 11:04:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot list resource \"pods\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756670000000000",
+        "E0514 11:04:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot watch resource \"events\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756700000000000",
+        "E0514 11:05:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot list resource \"pods\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756730000000000",
+        "E0514 11:05:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot watch resource \"events\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756760000000000",
+        "E0514 11:06:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot list resource \"pods\" in API group \"\" in the namespace \"production\""
+      ],
+      [
+        "1778756790000000000",
+        "E0514 11:06:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \"system:serviceaccount:monitoring:audit-exporter-sa\" cannot watch resource \"events\" in API group \"\" in the namespace \"production\""
+      ]
+    ]
+  }
+]

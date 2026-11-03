@@ -1,0 +1,71 @@
+{
+  "case": "h012_gitops_render_vs_live",
+  "case_hash": "38195851ec0592bf9a69a4ab528d567b869ac567076e072f7c8e7b82b3729b33",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "chart/Chart.yaml",
+    "chart/templates/deployment.yaml",
+    "chart/values.yaml",
+    "helm/manifest.yaml",
+    "helm/release.json",
+    "kube/deployment.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 60.0,
+      "answer_tokens": 320,
+      "estimated_prompt_tokens": 2046,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 0.2,
+      "prompt_tokens_read": 1961,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "memory",
+      "drift|512mi|declared|render|expected state"
+    ]
+  ],
+  "matched_keywords": [
+    "memory",
+    "drift|512mi|declared|render|expected state"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 5277,
+  "prompts": [
+    "## Files of the incident\n\n=== chart/Chart.yaml ===\napiVersion: v2\nname: api\nversion: 1.4.0\ndescription: \"h012 render-vs-live fixture chart. Declares the team's intended state\\\n  \\ (replicaCount: 3, resources.limits.memory: 512Mi). KubeVerdict renders this with\\\n  \\ `helm template` to reconstruct the EXPECTED state, then diffs it against the OBSERVED\\\n  \\ cluster (replicas=1, memory=128Mi, OOMKilled) \\u2014 proving the anchor-by-render\\\n  \\ path: rendered intent \\u2192 declared-vs-observed drift evidence.\"\n\n=== chart/templates/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ .Release.Name }}\n  namespace: {{ .Release.Namespace }}\n  labels:\n    app.kubernetes.io/name: {{ .Chart.Name }}\n    app.kubernetes.io/instance: {{ .Release.Name }}\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: {{ .Values.replicaCount }}\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: {{ .Chart.Name }}\n      app.kubernetes.io/instance: {{ .Release.Name }}\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: {{ .Chart.Name }}\n        app.kubernetes.io/instance: {{ .Release.Name }}\n    spec:\n      containers:\n        - name: {{ .Chart.Name }}\n          image: \"{{ .Values.image.repository }}:{{ .Values.image.tag }}\"\n          imagePullPolicy: {{ .Values.image.pullPolicy }}\n          resources:\n            limits:\n              memory: {{ .Values.resources.limits.memory }}\n              cpu: \"{{ .Values.resources.limits.cpu }}\"\n            requests:\n              cpu: {{ .Values.resources.requests.cpu }}\n\n=== chart/values.yaml ===\nreplicaCount: 3\nimage:\n  repository: ghcr.io/acme/api\n  tag: v2.3.1\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 512Mi\n    cpu: '1'\n  requests:\n    cpu: 200m\n\n=== helm/manifest.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\n  namespace: production\n  labels:\n    app.kubernetes.io/name: api\n    app.kubernetes.io/instance: api\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: api\n      app.kubernetes.io/instance: api\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: api\n        app.kubernetes.io/instance: api\n    spec:\n      containers:\n      - name: api\n        image: ghcr.io/acme/api:v2.3.1\n        imagePullPolicy: IfNotPresent\n        resources:\n          limits:\n            memory: 128Mi\n            cpu: '1'\n          requests:\n            cpu: 200m\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 1,\n  \"resources\": {\"limits\": {\"memory\": \"128Mi\"}}\n}\n\n=== kube/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\n  namespace: production\n  uid: d9f3c21a-4e7b-11ef-a1b2-0242ac110099\n  labels:\n    app.kubernetes.io/name: api\n    app.kubernetes.io/instance: api\n    app.kubernetes.io/managed-by: Helm\n    helm.sh/chart: api-1.4.0\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: api\n      app.kubernetes.io/instance: api\n  strategy:\n    type: RollingUpdate\n  template:\n    spec:\n      containers:\n      - name: api\n        image: ghcr.io/acme/api:v2.3.1\n        resources:\n          limits:\n            memory: 128Mi\n            cpu: '1'\n          requests:\n            memory: 64Mi\n            cpu: 200m\nstatus:\n  replicas: 1\n  readyReplicas: 0\n  availableReplicas: 0\n  unavailableReplicas: 1\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: api-6d8f9b7c4-xvk2p.17e0oomkill\n    namespace: production\n  type: Warning\n  reason: OOMKilling\n  message: 'Memory cgroup out of memory: Killed process in container api (memory limit\n    128Mi exceeded)'\n  count: 4\n  involvedObject:\n    kind: Pod\n    name: api-6d8f9b7c4-xvk2p\n    namespace: production\n  firstTimestamp: '2026-06-21T09:00:00Z'\n  lastTimestamp: '2026-06-21T09:14:00Z'\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: api-6d8f9b7c4-xvk2p\n  namespace: production\n  uid: a1c2e3f4-4e7b-11ef-a1b2-0242ac1100aa\n  labels:\n    app.kubernetes.io/name: api\n    app.kubernetes.io/instance: api\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: api-6d8f9b7c4\n    controller: true\nspec:\n  nodeName: node-1\n  containers:\n  - name: api\n    image: ghcr.io/acme/api:v2.3.1\n    resources:\n      limits:\n        memory: 128Mi\nstatus:\n  phase: Running\n  containerStatuses:\n  - name: api\n    image: ghcr.io/acme/api:v2.3.1\n    restartCount: 4\n    lastState:\n      terminated:\n        reason: OOMKilled\n        exitCode: 137\n\n---\n## Incident query\napi pods keep crashing in production after the last deploy\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe api pod in the production namespace is crashing due to Out Of Memory (OOM) errors.\n\n### 2. Affected resources\n- Deployment: api \u2014 OOMKilled\n- Pod: api-6d8f9b7c4-xvk2p in production \u2014 OOMKilling\n\n### 3. Root cause\nThe api pod is using more memory than its limit (128Mi) as declared in the deployment and pod manifests. The root cause is the discrepancy between the intended memory limit (512Mi) declared in the Helm chart and the observed memory limit (128Mi) in the deployed resources.\n\n### 4. Causal chain\n1. The Helm chart declares an intended memory limit of 512Mi for the api deployment.\n2. The deployment is created with a memory limit of 128Mi, as specified in the helm/manifest.yaml and kube/deployment.yaml files.\n3. The api pod, running with the limited memory, consumes more memory than its limit, causing OOMKilling events.\n\n### 5. Remediation\nUpdate the memory limit in the helm/manifest.yaml and kube/deployment.yaml files to match the intended limit (512Mi) declared in the Helm chart.\n\n### 6. Confidence\nHIGH",
+  "reason": "cause named, no decoy",
+  "remediation": [],
+  "root_cause": "The api pod is using more memory than its limit (128Mi) as declared in the deployment and pod manifests. The root cause is the discrepancy between the intended memory limit (512Mi) declared in the Helm chart and the observed memory limit (128Mi) in the deployed resources.",
+  "run": 3,
+  "solver": "raw",
+  "started_at": "2026-11-02T00:03:27.738253+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 60.24
+}

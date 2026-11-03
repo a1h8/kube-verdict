@@ -21,11 +21,11 @@ Fields read from ``expect``:
 from __future__ import annotations
 
 import os
-import re
 from functools import lru_cache
 from pathlib import Path
 
 import yaml
+from decision.labels import normalize_label  # noqa: F401 — one normaliser (fix plan 001, H20)
 
 OUTCOMES = ("cause", "no_incident", "insufficient_evidence")
 
@@ -57,16 +57,6 @@ def _alternatives(keyword: str) -> tuple[str, ...]:
 def _matches(text: str, keywords: list[str]) -> list[str]:
     """The keywords (as authored) for which the text contains any accepted wording."""
     return [kw for kw in keywords if any(alt in text for alt in _alternatives(kw))]
-
-
-def normalize_label(confidence: str) -> str:
-    """``"MEDIUM."``, ``"low — sparse context"``, ``"LOW (rule-assisted…)"`` → the bare label.
-
-    A live model decorates the label; comparing it raw would fail a correct LOW and
-    hide a wrong HIGH from the overconfidence count.
-    """
-    m = re.match(r"\s*([A-Za-z]+)", confidence or "")
-    return m.group(1).upper() if m else ""
 
 
 def _group_passes(matched: list[str], keywords: list[str]) -> bool:

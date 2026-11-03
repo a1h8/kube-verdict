@@ -45,6 +45,10 @@ class SignalAnalyzer:
     prometheus_source: Optional PrometheusMetricSource for real time series.
                        When provided, synthetic generation is skipped for any
                        entity/metric that returns data from Prometheus.
+    synthetic_fallback: Generate synthetic history when there is no measured one. The
+                       workflow turns it off: a synthetic result is never evidence (H43), so
+                       training on it was only cost (docs/fix-plan-001.md, H68). The UI and
+                       the demos keep it.
     """
 
     def __init__(
@@ -52,31 +56,36 @@ class SignalAnalyzer:
         detector: PatchTSTDetector | None = None,
         history_length: int = _DEFAULT_HISTORY,
         prometheus_source=None,   # PrometheusMetricSource | None
+        synthetic_fallback: bool = True,
     ) -> None:
         self.detector = detector or PatchTSTDetector()
         self.history_length = history_length
         self.prometheus_source = prometheus_source
+        self.synthetic_fallback = synthetic_fallback
 
     # ─────────────────────────────────────────────────────────────────────────
     # Public API
     # ─────────────────────────────────────────────────────────────────────────
 
-    def analyze(self, graph: OntologyGraph) -> list[AnomalyResult]:
+    def analyze(self, graph: OntologyGraph, only: set[str] | None = None) -> list[AnomalyResult]:
         """
         Run signal analysis over every entity in the graph.
 
         Returns a flat list of AnomalyResult, one per (entity, metric, horizon).
         When a PrometheusMetricSource is available, real multi-horizon time series
         are used; otherwise synthetic history is generated from current state.
-        Entities receive `signal.<metric>.<horizon>` annotations.
+        Entities receive `signal.<metric>.<horizon>` annotations. ``only`` limits the analysis
+        to those entity uids.
         """
         results: list[AnomalyResult] = []
+        self._only = only
 
         if self.prometheus_source is not None:
             horizon_segments = self._collect_real_segments(graph)
             for hs in horizon_segments:
                 result = self.detector.detect(hs.segment)
                 result.horizon = hs.horizon
+                result.synthetic = getattr(hs.segment, "synthetic", False) is True
                 results.append(result)
                 self._annotate(graph, result)
                 log.info(
@@ -84,9 +93,10 @@ class SignalAnalyzer:
                     hs.horizon, result.entity_uid, result.metric_name,
                     result.severity, result.score, result.method,
                 )
-        else:
+        elif self.synthetic_fallback:
             for segment in self._collect_synthetic_segments(graph):
                 result = self.detector.detect(segment)
+                result.synthetic = segment.synthetic
                 results.append(result)
                 self._annotate(graph, result)
                 log.info(
@@ -96,7 +106,12 @@ class SignalAnalyzer:
                 )
 
         anomalous = [r for r in results if r.is_anomalous]
-        mode = "real" if self.prometheus_source else "synthetic"
+        n_synthetic = sum(1 for r in results if r.synthetic)
+        # "real" only when every series was measured: a Prometheus source that answered nothing
+        # for a pod used to make its synthetic fallback count as real (H43)
+        mode = ("synthetic" if n_synthetic == len(results) else
+                "mixed" if n_synthetic else "real") if results else "none"
+        self.last_mode, self.last_synthetic = mode, n_synthetic
         log.info(
             "SignalAnalyzer[%s]: %d segments analysed, %d anomalous",
             mode, len(results), len(anomalous),
@@ -107,6 +122,10 @@ class SignalAnalyzer:
     # Signal derivation
     # ─────────────────────────────────────────────────────────────────────────
 
+    def _wanted(self, entity) -> bool:
+        only = getattr(self, "_only", None)
+        return only is None or entity.uid in only
+
     def _collect_real_segments(self, graph: OntologyGraph):
         """Fetch multi-horizon segments from Prometheus for all relevant entities."""
         from signals.prometheus_source import HorizonSegment
@@ -114,29 +133,29 @@ class SignalAnalyzer:
         segments: list[HorizonSegment] = []
 
         for pod in graph.entities(ResourceKind.POD):
-            if pod.namespace:
+            if pod.namespace and self._wanted(pod):
                 fetched = src.pod_segments(pod.uid, pod.name, pod.namespace)
                 segments.extend(fetched)
-                if not fetched:
+                if not fetched and self.synthetic_fallback:
                     # Prometheus returned nothing — fall back to synthetic for this pod
                     segments.extend(self._synthetic_pod_segments(pod))
 
         for dep in graph.entities(ResourceKind.DEPLOYMENT):
-            if dep.namespace and dep.replicas > 0:
+            if dep.namespace and dep.replicas > 0 and self._wanted(dep):
                 fetched = src.deployment_segments(dep.uid, dep.name, dep.namespace)
                 segments.extend(fetched)
-                if not fetched:
+                if not fetched and self.synthetic_fallback:
                     segments.extend(self._synthetic_deployment_segments(dep))
 
         for sts in graph.entities(ResourceKind.STATEFULSET):
-            if sts.namespace and sts.replicas > 0:
+            if sts.namespace and sts.replicas > 0 and self._wanted(sts):
                 fetched = src.statefulset_segments(sts.uid, sts.name, sts.namespace)
                 segments.extend(fetched)
-                if not fetched:
+                if not fetched and self.synthetic_fallback:
                     segments.extend(self._synthetic_statefulset_segments(sts))
 
         for event in graph.entities(ResourceKind.EVENT):
-            if event.is_warning and event.count > 1:
+            if event.is_warning and event.count > 1 and self.synthetic_fallback and self._wanted(event):
                 segments.extend(self._synthetic_event_segments(event))
 
         return segments
@@ -149,6 +168,7 @@ class SignalAnalyzer:
         for pod in graph.entities(ResourceKind.POD):
             if pod.restart_count >= 0:
                 segments.append(SignalSegment(
+                    synthetic=True,
                     entity_uid=pod.uid,
                     metric_name="restart_count",
                     values=_restart_signal(pod.restart_count, self.history_length, rng),
@@ -157,6 +177,7 @@ class SignalAnalyzer:
             cpu_m = _annotation_float(pod, "metrics.cpu_m")
             if cpu_m is not None:
                 segments.append(SignalSegment(
+                    synthetic=True,
                     entity_uid=pod.uid,
                     metric_name="cpu_usage",
                     values=_resource_signal(cpu_m, self.history_length, rng),
@@ -164,6 +185,7 @@ class SignalAnalyzer:
             memory_mi = _annotation_float(pod, "metrics.memory_mi")
             if memory_mi is not None:
                 segments.append(SignalSegment(
+                    synthetic=True,
                     entity_uid=pod.uid,
                     metric_name="memory_bytes",
                     values=_resource_signal(memory_mi * 1024 * 1024, self.history_length, rng),
@@ -172,6 +194,7 @@ class SignalAnalyzer:
         for dep in graph.entities(ResourceKind.DEPLOYMENT):
             if dep.replicas > 0:
                 segments.append(SignalSegment(
+                    synthetic=True,
                     entity_uid=dep.uid,
                     metric_name="ready_ratio",
                     values=_readiness_signal(
@@ -182,6 +205,7 @@ class SignalAnalyzer:
         for sts in graph.entities(ResourceKind.STATEFULSET):
             if sts.replicas > 0:
                 segments.append(SignalSegment(
+                    synthetic=True,
                     entity_uid=sts.uid,
                     metric_name="ready_ratio",
                     values=_readiness_signal(
@@ -192,6 +216,7 @@ class SignalAnalyzer:
         for event in graph.entities(ResourceKind.EVENT):
             if event.is_warning and event.count > 1:
                 segments.append(SignalSegment(
+                    synthetic=True,
                     entity_uid=event.uid,
                     metric_name="event_count",
                     values=_event_signal(event.count, self.history_length, rng),
@@ -206,6 +231,7 @@ class SignalAnalyzer:
         rng = np.random.default_rng(hash(pod.uid) & 0xFFFF)
         segments = [HorizonSegment(
             segment=SignalSegment(
+                synthetic=True,
                 entity_uid=pod.uid,
                 metric_name="restart_count",
                 values=_restart_signal(pod.restart_count, self.history_length, rng),
@@ -216,6 +242,7 @@ class SignalAnalyzer:
         if cpu_m is not None:
             segments.append(HorizonSegment(
                 segment=SignalSegment(
+                    synthetic=True,
                     entity_uid=pod.uid,
                     metric_name="cpu_usage",
                     values=_resource_signal(cpu_m, self.history_length, rng),
@@ -226,6 +253,7 @@ class SignalAnalyzer:
         if memory_mi is not None:
             segments.append(HorizonSegment(
                 segment=SignalSegment(
+                    synthetic=True,
                     entity_uid=pod.uid,
                     metric_name="memory_bytes",
                     values=_resource_signal(memory_mi * 1024 * 1024, self.history_length, rng),
@@ -239,6 +267,7 @@ class SignalAnalyzer:
         rng = np.random.default_rng(hash(dep.uid) & 0xFFFF)
         return [HorizonSegment(
             segment=SignalSegment(
+                synthetic=True,
                 entity_uid=dep.uid,
                 metric_name="ready_ratio",
                 values=_readiness_signal(
@@ -253,6 +282,7 @@ class SignalAnalyzer:
         rng = np.random.default_rng(hash(sts.uid) & 0xFFFF)
         return [HorizonSegment(
             segment=SignalSegment(
+                synthetic=True,
                 entity_uid=sts.uid,
                 metric_name="ready_ratio",
                 values=_readiness_signal(
@@ -267,6 +297,7 @@ class SignalAnalyzer:
         rng = np.random.default_rng(hash(event.uid) & 0xFFFF)
         return [HorizonSegment(
             segment=SignalSegment(
+                synthetic=True,
                 entity_uid=event.uid,
                 metric_name="event_count",
                 values=_event_signal(event.count, self.history_length, rng),
@@ -279,6 +310,11 @@ class SignalAnalyzer:
     # ─────────────────────────────────────────────────────────────────────────
 
     def _annotate(self, graph: OntologyGraph, result: AnomalyResult) -> None:
+        # A synthetic series is computed from the very state it would flag (a restart count
+        # turned into an "anomaly" of restarts): it is never written where the prompt, the
+        # rules or the decision read evidence (docs/fix-plan-001.md, H43).
+        if result.synthetic:
+            return
         entity = graph.get(result.entity_uid)
         if entity is None:
             return

@@ -87,26 +87,30 @@ class TestLokiTargetSelection:
             src.collect(graph)
         return q
 
+    @staticmethod
+    def _queried(q) -> set[str]:
+        # two queries per pod: error lines first, then the latest lines (H34)
+        import re
+        return {re.search(r'k8s_pod_name="([^"]+)"', c.args[0]).group(1) for c in q.call_args_list}
+
     def test_ready_pod_is_not_queried(self):
         q = self._collect(_graph(_pod(statuses=READY)))
         q.assert_not_called()
 
     def test_running_not_ready_pod_is_queried(self):
         q = self._collect(_graph(_pod(name="api-0", statuses=NOT_READY)))
-        q.assert_called_once()
-        assert 'k8s_pod_name="api-0"' in q.call_args.args[0]
+        assert self._queried(q) == {"api-0"}
 
     def test_pending_pod_is_still_queried(self):
         q = self._collect(_graph(_pod(phase="Pending")))
-        q.assert_called_once()
+        assert len(self._queried(q)) == 1
 
     def test_only_the_not_ready_pod_of_a_mixed_graph_is_queried(self):
         q = self._collect(_graph(
             _pod(name="ok-0", statuses=READY),
             _pod(name="bad-0", statuses=NOT_READY),
         ))
-        assert q.call_count == 1
-        assert 'k8s_pod_name="bad-0"' in q.call_args.args[0]
+        assert self._queried(q) == {"bad-0"}
 
 
 class TestOtelTargetSelection:

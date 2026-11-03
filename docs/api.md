@@ -49,12 +49,14 @@ curl -X POST http://localhost:8000/api/v1/sessions/$SESSION/run \
   -H "Content-Type: application/json" \
   -d '{
     "query": "payment-service is crashing repeatedly",
-    "namespaces": ["production"],
-    "kube_context": "k3d-kubeverdict"
+    "namespaces": ["production"]
   }'
 ```
 
-`namespaces`, `kubeconfig`, and `kube_context` are optional. When omitted, the defaults from `.env` apply.
+`namespaces` is optional; when omitted, `KUBE_NAMESPACES` from `.env` applies. The cluster is
+server configuration (`KUBECONFIG`, `KUBE_CONTEXT`): a request that sends `kubeconfig` or
+`kube_context` is refused with `422`, since a kubeconfig path names a file on the server and a
+context may be one the server holds but does not use.
 
 ### Poll state
 

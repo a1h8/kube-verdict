@@ -1,0 +1,45 @@
+{
+  "answerable": null,
+  "case": "h001_crashloopbackoff",
+  "case_hash": "c9c7c7e195f4717e1aa49e1e5fdf64bfd33534744a80853bae52b924c1b89d3e",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "config": "rules",
+  "corpus_hash": null,
+  "cut": null,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    [
+      "secret",
+      "not found|missing"
+    ]
+  ],
+  "matched_keywords": [
+    "secret",
+    "not found|missing"
+  ],
+  "model": "",
+  "model_digest": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause named, no decoy",
+  "root_cause": "CreateContainerConfigError \u2014 ConfigMap or Secret not found. A required ConfigMap or Secret does not exist in the namespace. Create the missing resources before redeploying. (Pod/production/payment-service-6d8f9b7c4-xk9p2)",
+  "rule_id": "missing_config",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-11-01T18:59:52.370906+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.01
+}

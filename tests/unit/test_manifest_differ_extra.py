@@ -84,23 +84,23 @@ class TestServicePortDrift:
 
 class TestEnvDiff:
     def test_sensitive_env_drift_detected(self):
-        pod = Pod(uid="p1", name="api", namespace="prod",
-                  annotations={"env.api.DATABASE_URL": "postgres://old/db"})
+        pod = Deployment(uid="p1", name="api", namespace="prod",  # live container env (H1)
+                         containers=[{"name": "api", "env": [{"name": "DATABASE_URL", "value": "postgres://old/db"}]}])
         rendered_env = [{"name": "DATABASE_URL", "value": "postgres://new/db"}]
         drifts = _diff_env("api", rendered_env, pod)
         assert len(drifts) == 1
         assert "DATABASE_URL" in drifts[0].field_path
 
     def test_non_sensitive_env_skipped(self):
-        pod = Pod(uid="p1", name="api", namespace="prod",
-                  annotations={"env.api.SOME_VAR": "old"})
+        pod = Deployment(uid="p1", name="api", namespace="prod",  # live container env (H1)
+                         containers=[{"name": "api", "env": [{"name": "SOME_VAR", "value": "old"}]}])
         rendered_env = [{"name": "SOME_VAR", "value": "new"}]
         drifts = _diff_env("api", rendered_env, pod)
         assert drifts == []
 
     def test_no_drift_when_values_match(self):
-        pod = Pod(uid="p1", name="api", namespace="prod",
-                  annotations={"env.api.DATABASE_URL": "postgres://db"})
+        pod = Deployment(uid="p1", name="api", namespace="prod",  # live container env (H1)
+                         containers=[{"name": "api", "env": [{"name": "DATABASE_URL", "value": "postgres://db"}]}])
         rendered_env = [{"name": "DATABASE_URL", "value": "postgres://db"}]
         drifts = _diff_env("api", rendered_env, pod)
         assert drifts == []

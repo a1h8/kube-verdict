@@ -1,5 +1,6 @@
 from api.models import SignalAlert
-from api.signal_mapper import anomalous_signals, signal_to_namespaces, signal_to_query
+import config
+from api.signal_mapper import anomalous_signals, signal_text, signal_to_namespaces, signal_to_query
 
 
 def _signal(severity="critical", entity_uid="Pod/checkout/api-7c9", metric_name="cpu_usage", **labels) -> SignalAlert:
@@ -42,11 +43,11 @@ def test_query_includes_severity():
     assert "[CRITICAL]" in q
 
 
-def test_query_includes_text_when_present():
+def test_query_leaves_the_text_to_the_alert_text():                # fix plan H71
     s = _signal()
     s = s.model_copy(update={"text": "forecast residual spiking"})
-    q = signal_to_query(s)
-    assert "forecast residual spiking" in q
+    assert "forecast residual spiking" not in signal_to_query(s)
+    assert signal_text(s) == "forecast residual spiking"
 
 
 def test_query_exported_namespace_fallback():
@@ -61,9 +62,13 @@ def test_namespaces_from_label():
     assert ns == ["staging"]
 
 
-def test_namespaces_empty_when_absent():
-    ns = signal_to_namespaces(_signal())
-    assert ns == []
+def test_namespaces_from_the_entity_when_no_label():
+    assert signal_to_namespaces(_signal()) == ["checkout"]          # Pod/checkout/api-7c9
+
+
+def test_namespaces_empty_when_absent_and_none_configured(monkeypatch):
+    monkeypatch.setattr(config, "KUBE_NAMESPACES", [])
+    assert signal_to_namespaces(_signal(entity_uid="api-7c9")) == []
 
 
 def test_namespaces_exported_namespace():

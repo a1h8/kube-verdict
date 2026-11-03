@@ -1,0 +1,70 @@
+{
+  "case": "h004_missing_configmap",
+  "case_hash": "f81a1205780be5ba3f94d5e2c68a69b61220087cd72c1a0f24d24f9e50a74e73",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 55.0,
+      "answer_tokens": 307,
+      "estimated_prompt_tokens": 1692,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 0.2,
+      "prompt_tokens_read": 1717,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "configmap|api-gateway-config",
+      "missing|not found"
+    ]
+  ],
+  "matched_keywords": [
+    "configmap|api-gateway-config",
+    "missing|not found"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 4321,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 2,\n  \"image\": { \"repository\": \"ghcr.io/acme/api-gateway\", \"tag\": \"v1.3.0\" },\n  \"config\": {\n    \"existingConfigMap\": \"api-gateway-config\",\n    \"existingSecret\": \"api-gateway-tls-secret\"\n  },\n  \"dbCredentials\": { \"existingSecret\": \"db-credentials\" },\n  \"resources\": {\n    \"limits\": { \"memory\": \"512Mi\", \"cpu\": \"1\" },\n    \"requests\": { \"memory\": \"256Mi\", \"cpu\": \"200m\" }\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 2\nimage:\n  repository: ghcr.io/acme/api-gateway\n  tag: v1.3.0\n  pullPolicy: IfNotPresent\nconfig:\n  existingConfigMap: api-gateway-config\n  existingSecret: api-gateway-tls-secret\ndbCredentials:\n  existingSecret: db-credentials\nresources:\n  limits:\n    memory: 512Mi\n    cpu: '1'\n  requests:\n    memory: 256Mi\n    cpu: 200m\nservice:\n  type: ClusterIP\n  port: 8080\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: api-gateway-5c7d9b8f4-x2k9p.configmap-missing\n    namespace: production\n  type: Warning\n  reason: Failed\n  message: 'Error: couldn''t find key LOG_LEVEL in ConfigMap production/api-gateway-config'\n  involvedObject:\n    kind: Pod\n    name: api-gateway-5c7d9b8f4-x2k9p\n    namespace: production\n  count: 5\n  firstTimestamp: '2026-05-14T10:00:00Z'\n  lastTimestamp: '2026-05-14T10:05:00Z'\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: api-gateway-5c7d9b8f4-x2k9p.create-config-error\n    namespace: production\n  type: Warning\n  reason: Failed\n  message: 'Error: configmap \"api-gateway-config\" not found'\n  involvedObject:\n    kind: Pod\n    name: api-gateway-5c7d9b8f4-x2k9p\n    namespace: production\n  count: 5\n  firstTimestamp: '2026-05-14T10:00:00Z'\n  lastTimestamp: '2026-05-14T10:05:00Z'\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: api-gateway-5c7d9b8f4-x2k9p.secret-missing\n    namespace: production\n  type: Warning\n  reason: Failed\n  message: 'Error: secret \"db-credentials\" not found'\n  involvedObject:\n    kind: Pod\n    name: api-gateway-5c7d9b8f4-x2k9p\n    namespace: production\n  count: 3\n  firstTimestamp: '2026-05-14T10:00:00Z'\n  lastTimestamp: '2026-05-14T10:05:00Z'\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: api-gateway-5c7d9b8f4-x2k9p\n  namespace: production\n  uid: c5e2f8a1-6c9e-11ef-b3a4-0242ac110006\n  labels:\n    app.kubernetes.io/name: api-gateway\n    app.kubernetes.io/instance: api-gateway\n    pod-template-hash: 5c7d9b8f4\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: api-gateway-5c7d9b8f4\n    controller: true\nspec:\n  nodeName: worker-node-01\n  serviceAccountName: api-gateway\n  containers:\n  - name: api-gateway\n    image: ghcr.io/acme/api-gateway:v1.3.0\n    envFrom:\n    - configMapRef:\n        name: api-gateway-config\n    - secretRef:\n        name: api-gateway-tls-secret\n    env:\n    - name: DB_URL\n      valueFrom:\n        secretKeyRef:\n          name: db-credentials\n          key: connection_string\n    ports:\n    - containerPort: 8080\n    resources:\n      limits:\n        memory: 512Mi\n        cpu: '1'\n      requests:\n        memory: 256Mi\n        cpu: 200m\nstatus:\n  phase: Pending\n  containerStatuses:\n  - name: api-gateway\n    ready: false\n    restartCount: 0\n    state:\n      waiting:\n        reason: CreateContainerConfigError\n        message: couldn't find key LOG_LEVEL in ConfigMap production/api-gateway-config\n  conditions:\n  - type: Initialized\n    status: 'True'\n  - type: Ready\n    status: 'False'\n    reason: ContainersNotReady\n    message: 'containers with unready status: [api-gateway]'\n  - type: PodScheduled\n    status: 'True'\n\n---\n## Incident query\napi-gateway pod does not start in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe API Gateway pod in the production namespace is not starting due to missing ConfigMap and Secret resources.\n\n### 2. Affected resources\n- Pod/production/api-gateway-5c7d9b8f4-x2k9p \u2014 Pending status, containers not ready\n- ConfigMap/production/api-gateway-config \u2014 Missing key LOG_LEVEL\n- Secret/production/db-credentials \u2014 Not found\n\n### 3. Root cause\nThe root cause is that the required ConfigMap and Secret resources are missing, preventing the API Gateway pod from starting due to the missing environment variables.\n\n### 4. Causal chain\n1. The ConfigMap and Secret resources were not created or not properly synced with the API Gateway pod.\n2. The API Gateway pod is unable to find the required environment variables (LOG_LEVEL from ConfigMap and DB_URL from Secret) due to their absence.\n3. The API Gateway pod enters a Pending state and containers are not ready, causing the pod to remain in a failed state.\n\n### 5. Remediation\n1. Create or recreate the missing ConfigMap and Secret resources with the correct content.\n2. Apply the updated Helm release to ensure the new ConfigMap and Secret are synced with the API Gateway pod.\n\n### 6. Confidence\nHIGH",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Create or recreate the missing ConfigMap and Secret resources with the correct content.",
+    "Apply the updated Helm release to ensure the new ConfigMap and Secret are synced with the API Gateway pod."
+  ],
+  "root_cause": "The root cause is that the required ConfigMap and Secret resources are missing, preventing the API Gateway pod from starting due to the missing environment variables.",
+  "run": 3,
+  "solver": "raw",
+  "started_at": "2026-11-01T23:21:49.411146+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 55.24
+}

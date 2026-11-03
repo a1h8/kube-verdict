@@ -1,0 +1,271 @@
+# Live validation 001 — block B and the chart's release access
+
+> Written 2026-10-25, before any action on the cluster. It lists every step of the live run of
+> this PR, in order, with what each must show before the next (`docs/fix-plan-001.md`, H80).
+> Nothing below may be changed once the first measured run has started, except by a dated
+> amendment at the end of this file. Every action that changes the cluster needs an explicit go,
+> given for that action.
+
+## What it measures
+
+The deterministic diagnosis against models that read the same cases
+(`docs/veracity-replay.md` § Comparison and its amendments; decision rules there, unchanged).
+Protocol 001's C2 and C3 are not run (protocol 001, amendment 2026-10-25). It also confirms H45
+on the cluster: the chart lets kube-verdict read a Helm release, and only where it is told to.
+
+## Block B
+
+On the head of this PR before it is merged; every record names its commit (H79). The block
+counts only when complete. It may run over several sessions, resumed with `--resume` on the
+same commit; no code change between sessions — a change restarts the block on the new commit.
+
+| Configuration | Solver | Runs per case | Cut runs |
+|---|---|---|---|
+| rules | `rules` | 1 | — |
+| structured | `structured` | 1 | 8 (offline) |
+| LLM / sLLM | `llm:mistral`, `llm:qwen2.5:3b-instruct` | 3 | 8 each |
+| raw-LLM / raw-sLLM | `raw:mistral`, `raw:qwen2.5:3b-instruct` | 3 | 8 each |
+| ctx-LLM / ctx-sLLM | `context:mistral`, `context:qwen2.5:3b-instruct` | 3 | 8 each |
+
+19 native cases. Model runs: 6 configurations × 19 × 3 = 342, plus 48 cut runs.
+**Cost, estimated:** about 3 min per call on the CPU-only Ollama (mistral, `docs/veracity-replay.md`
+§ Practical constraints): more than one night. The first case's wall time is recorded before
+the rest is started, and the estimate is replaced by it.
+
+Commands (from the worktree at the PR head, `OLLAMA_URL` pointing at the cluster's Ollama):
+
+```bash
+python tools/veracity_replay.py --solver rules
+python tools/veracity_replay.py --solver structured
+python tools/veracity_replay.py --solver structured --cut auto
+for m in mistral qwen2.5:3b-instruct; do
+  for s in llm raw context; do
+    python tools/veracity_replay.py --solver "$s:$m" --runs 3 --resume
+    python tools/veracity_replay.py --solver "$s:$m" --cut auto --resume
+  done
+done
+```
+
+## Before the first measured run, in this order
+
+Each step is checked and its result written in the run log (§ Records) before the next.
+
+1. **Images pinned and imported.** Ollama
+   `docker.io/ollama/ollama@sha256:2b8eecdb85aa6ea67c381c8ecffec04b2658496cf2821a8f88b0485bdff198e8`,
+   curl `docker.io/curlimages/curl@sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777`,
+   loaded with `k3d image import`; the Ollama Deployment runs the pinned digest. *(go)*
+2. **Ollama alone.** The hourly kube-verdict CronJob is suspended (`docs/live-k3s.md`, one Ollama
+   for everything); no other replay or capture runs. *(go; resumed after the block, with a go)*
+3. **Models and their digests.** `mistral` and `qwen2.5:3b-instruct` pulled; their digests read
+   from Ollama and written in the log. Every record carries `model_digest`; a run whose digest
+   differs from the log's is invalid.
+4. **Every prompt measured with the model's tokenizer.** Each `raw:` and `context:` prompt of the
+   19 cases (and of their cut runs) sent once to Ollama with `num_predict: 1` and a `num_ctx`
+   above any prompt (32 768); its `prompt_eval_count` is the prompt's size in that model's tokens.
+   A prompt whose size + `num_predict` + reserve exceeds `OLLAMA_NUM_CTX_MAX` (8 192) is listed
+   before the block: its runs are FAIL `did_not_fit`, the ceiling is not moved. The script:
+   `tools/token_measure.py --model <m>` (tested offline with a scripted HTTP answer). It builds
+   the prompts with the replay's own solvers — one model call per run, each with its system
+   prompt — and also lists `would_truncate`: a prompt the client sends, sized from its
+   character estimate, whose measured tokens and answer exceed the `num_ctx` it sends. A
+   measurement that reaches 32 768 tokens is invalid, never "fits".
+5. **The positive control.** `context:` runs h001 first: if it does not pass 2 of 3, it is re-run
+   once; failing again, the configuration is recorded invalid (`docs/design-choices-evidence.md`
+   § 2) and no decision is drawn from it.
+
+## H45 on the cluster
+
+The cluster runs kube-verdict as a CronJob (`k8s/kubeverdict.yaml`), not from the chart: the
+replay does not exercise H45. After block B, or before it with Ollama idle:
+
+1. Build the image at the PR head, `k3d image import` it; `helm install` the chart in its own
+   namespace with `rbac.helmReleaseNamespaces={observability}` (Prometheus is a Helm release
+   there) and `config` pointing at the cluster's Ollama. *(go)*
+2. One investigation on `observability`. **Pass:** `ingestion_stats.applied.releases` ≥ 1 and
+   `fallback: false`; `helm.fallback: false`.
+3. **Negative control:** the same with `rbac.helmReleaseNamespaces` empty (`helm upgrade`).
+   **Pass:** `applied.fallback: true` and `helm.fallback: true`, the applied state reported as
+   not read — never `releases: 0` with `fallback: false`. *(go)*
+4. `helm uninstall`; nothing of the chart left in the cluster. *(go)*
+
+Either control failing reopens H45; the block's results stand apart from it.
+
+## Stop rules (fixed now)
+
+- Ollama OOM-killed or restarted: the runs in flight are invalid; resume with `--resume` once it
+  is back, nothing else changed.
+- A run past `REPLAY_RUN_TIMEOUT`: killed by the harness and recorded, as the harness does.
+- A write to a real store: the run is invalid (`docs/design-choices-evidence.md` § 2) and the
+  block stops until the cause is found; a code fix restarts the block on the new commit.
+- A threshold, case, grading keyword or prompt is never changed during the block.
+
+## Records
+
+- The run records, under `tests/veracity/replay-baselines/<run name>/`, committed after the
+  block, with no personal path in them (checked before the commit).
+- A run log in this file's § Results: the commit, the image and model digests, the token table,
+  the first case's wall time, each session's start and end, every invalid run and why, the two
+  H45 controls.
+- The tables of `tools/compare_solvers.py` and the decisions of `docs/veracity-replay.md`
+  § Comparison, written as they come out.
+
+## After
+
+Each with its own go: the records committed; the branch pushed; the README updated with the
+numbers as they came out (a claim of `docs/design-choices-evidence.md` § 1 only once its rule
+has decided); the PR merged.
+
+## Results
+
+Block B is complete and both H45 controls pass, on the image built at `643dea3`.
+
+**Run log**
+
+| Item | Value |
+|---|---|
+| Commit | `13877d1` on every record |
+| Ollama | 0.40.8, image digest `2b8eecdb85aa…`, one pod, same pod for the whole block |
+| mistral | `6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf` |
+| qwen2.5:3b-instruct | `357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b` |
+| Token tables (2026-11-01) | each model: 71 fit, 0 would truncate, 2 did not fit, 0 invalid; see CPI-30 for the 2 |
+| First case's wall time | h001, `context:`: 160 s per run (mistral), 71 s (qwen) |
+| Positive control | h001 passes 3 of 3 for each model, first attempt |
+| Session 1 | 2026-11-01T13:47Z (step 4), block from 18:47Z, to the power loss about 2026-11-02T07:36Z |
+| Session 2 | 2026-11-02T19:54Z to `BLOCK B DONE` at 2026-11-03T03:42:40Z |
+| Records | 504 model runs (456 + 48 cut), 19 `rules`, 19 + 8 cut `structured`; none missing, none invalid, no real store touched |
+| Ollama restarts | 1, from the power loss, between the sessions; none during either session |
+| Peak memory (sampled every 30 s, from session 1) | 11.40 GiB cgroup, 6.37 GiB anonymous, limit 16 Gi |
+| Temperature (session 2 only) | 77 C at most, throttle count 0 |
+| H45 controls | both pass at `643dea3`; a first attempt at `876d6ac` failed before reading Helm (amendment 2026-11-03) |
+
+**Tables:** [live-validation-001-tables.md](live-validation-001-tables.md), generated by
+`tools/compare_solvers.py` from the records. `rules`, which that tool does not read, passes
+5 of 19 cases.
+
+| Configuration | mistral (LLM) | qwen (sLLM) | Fails the negative control on |
+|---|---|---|---|
+| none (structured) | 19/19 | 19/19 | none |
+| structured + model explanation | 19/19 | 19/19 | none |
+| raw | 8/19 | 8/19 | h022, h026 (both models) |
+| context | 10/19 | 10/19 | h022, h026 (mistral); h026 (qwen) |
+| context + vector search (C2) | 11/19 | 8/19 | h022, h026 (both models) |
+
+A case passes at 2 runs of 3 (1 of 1 for `none`). With a model explanation the report's cause is
+still the structured diagnosis, so those two 19/19 are the same result, not a model's.
+
+**Decisions, by the rules fixed before the runs**
+
+- **Not drawn:** structured against the better raw, context against raw for each model, and the
+  rules added to the context. Every raw and context configuration fails the negative control, and
+  no decision is drawn from a configuration that does (`docs/veracity-replay.md`).
+- **The model as explainer:** `LLM_PROVIDER=none` recommended. Explanation correct 80 % (mistral)
+  and 75 % (qwen) of diagnosed runs; it disagrees with the diagnosis in 31 % and 27 %, against a
+  maximum of 10 %.
+- **sLLM preferred to the LLM:** no. Median wall 67 s against 200 s, explanation lower.
+- **Vector search:** leaves the default path. mistral +1 net, inconclusive (both cases it gains have
+  the same prompt with and without the search, so they are run-to-run variation); qwen -2 net with
+  a new false alarm on h022.
+- **Anchoring on the context score:** not shown (the label follows on 1/6 and 3/6 cases, minimum 3/4).
+
+**What these results do not show**
+
+- The structured rules were written with these 19 cases: 19/19 is in-sample and says nothing about
+  new cases. Protocol 002 asks that question.
+- A cause counts as named by its grading keywords; the answers were not read one by one.
+- C2 on 19 cases with small stores is a pilot; it does not settle the vector search at scale.
+- "No computed inverse" says whether the tool can compute how to undo a command (CPI-28), not how
+  risky the command is, which is not measured (CPI-29).
+
+**H45 on the cluster, 2026-11-03.** Chart in its own namespace, image built at `643dea3` (kubernetes
+36.0.3), one investigation of `observability`, which holds one Helm release.
+
+| Control | `rbac.helmReleaseNamespaces` | `applied` | `helm` | Pass |
+|---|---|---|---|---|
+| Positive | `{observability}` | `releases: 1`, `fallback: false` | `releases: 1`, `fallback: false` | yes |
+| Negative | empty | `releases: 0`, `fallback: true` | `releases: 0`, `fallback: true` | yes |
+
+In the negative control the error recorded is `secrets is forbidden` for the chart's ServiceAccount,
+the report says of Helm that "what they hold is unknown", and the verdict is `HUMAN_REVIEW` at `LOW`.
+After `helm uninstall`, and the deletion of the namespace created for the test, nothing of the chart
+is left in the cluster, and the `observability` release is untouched.
+
+Seen during these runs, outside H45's criteria:
+
+- **Discovery is refused 39 resource kinds (403)** with the chart's ClusterRole, among them `Job`,
+  `CronJob` and `PodDisruptionBudget` in the 10 the error lists. Both runs report it as a collection
+  failure and end at `LOW`; whether that is the reason was not tested. Listed in `docs/fix-plan-001.md`, § Not in this PR.
+- **The embedding model is fetched from Hugging Face on first use**, as the Dockerfile documents; the
+  pod could reach it here. Without that network, the documented route is a pre-seeded cache.
+
+## Amendments
+
+- **2026-10-30 — C2 is added to block B; block B is the pilot of protocol 002.** Written before
+  any measured run (step 1 of § Before the first measured run done on 2026-10-29: images pinned
+  and imported, nothing measured). Protocol 001's amendment 2026-10-25 deferred C2 because it
+  measures a layer on the model, not the diagnosis. That question is now asked on its own:
+  does a model gain from the vector search, against the deterministic diagnosis and against the
+  search alone (`docs/protocol-002-retrieval-vs-models.md`). C2 is run here as its pilot, under
+  protocol 001's rules, unchanged.
+  - **Added configuration:** `context:mistral` and `context:qwen2.5:3b-instruct` with
+    `--store faiss` (C2), 3 runs per case, 19 cases: 114 model runs. No cut runs: the
+    collector-cut control asks whether a configuration is more confident without a collector,
+    and C2 differs from C1 only by the search, which reads the same collectors.
+  - **Commands**, after the `context:` runs of each model:
+    `python tools/veracity_replay.py --solver "context:$m" --store faiss --runs 3 --resume`.
+  - **Step 4 covers C2's prompts.** `tools/token_measure.py` builds the `raw:` and `context:`
+    prompts without the search; it must also build C2's (CPI-26). Until it does, block B does
+    not start. Step 4 then runs `tools/token_measure.py --model <m> --store faiss`.
+  - **What C2 makes measurable:** C2 against C1 per model (protocol 001's decision rules), and
+    the anchoring test (`docs/veracity-replay.md` § Amendment 2026-10-24), which needed C2.
+  - **Pilot, not a decision on scale.** On 19 in-sample cases with small stores (R1: 4 to 30
+    vectors), C2 decides only protocol 001's question on these cases. Its discordant pairs
+    size protocol 002; they do not answer it.
+  - **Cost:** 342 + 114 = 456 model runs and 48 cut runs; the estimate is replaced by the
+    first case's wall time, as before.
+- **2026-10-30 — step 4 measures with `num_ctx` 16 384, not 32 768.** Written before any measured
+  run. The first measurement (mistral, 03:39Z) OOM-killed Ollama on its first prompt: Ollama
+  allocates the KV cache for the whole `num_ctx`, 4 GiB for mistral at 32 768 (pod log), which
+  with the weights (4.1 GiB) exceeds the pod's 8 Gi. Nothing was recorded. 16 384 is twice
+  `OLLAMA_NUM_CTX_MAX` (8 192): every prompt a run could send is measured whole, and a
+  measurement that reaches 16 384 tokens is invalid, never "fits" — the rule of step 4 with the
+  new value. The pod's memory is not raised: block B runs at 8 192 at most (CPI-27).
+  *Corrected the same day, still before any measured run:* at 16 384 Ollama was OOM-killed again,
+  on h016's third prompt (raw, Prometheus cut, about 8 000 tokens): the estimate above counted the
+  KV cache and the weights, not the compute buffers of a long prompt, and the runs' own prompts
+  come close to the same peak. The pod's memory limit is raised to **12 Gi** (request 4 Gi
+  unchanged), in the cluster and in `k8s/ollama.yaml`; it changes no answer, only whether one is
+  given. The measurement is valid only if Ollama restarts during none of it (the pod's restart
+  count is read before and after). The client's timeout for the measurement is the replay's
+  (`OLLAMA_TIMEOUT=900`, as `REPLAY_OLLAMA_TIMEOUT`): at the default 120 s, mistral's long prompts
+  were abandoned before they were read.
+  *Corrected again the same day, still before any measured run:* 12 Gi was OOM-killed too
+  (05:48:57Z, during the mistral measurement). The pod's cgroup then held 8.1 GB of anonymous
+  memory — `llama-server` keeps the weights in it (4.1 GB), with the KV cache at 16 384 (2 GiB)
+  and the compute buffers of a long prompt — and 3.8 GB of file cache. The limit is **16 Gi**
+  (the node has 60 GB). The CPU limit stays 4: a trial at 7 changed nothing, Ollama computes
+  with 4 threads on the node's 4 physical cores; no measured run ran during it. The pod's memory
+  is sampled every 30 s during the block, and its peak is written in § Results.
+- **2026-11-01 — one model in memory, no prompt cache; step 4 re-run.** Written in the run log
+  before any measured run of that restart, copied here after the block. Ollama was OOM-killed at
+  16 Gi on 2026-10-30T08:26:55Z, when qwen loaded with mistral still resident; mistral alone had
+  reached 15.4 GB of anonymous memory, `llama-server` keeping a prompt cache in RAM (8 192 MiB by
+  default). One qwen row of step 4 was invalid, so the chain stopped on its rule; step 5 and the
+  block had not started. The Deployment gets `OLLAMA_MAX_LOADED_MODELS=1` and
+  `LLAMA_ARG_CACHE_RAM=0` (now in `k8s/ollama.yaml`): every run evaluates its whole prompt, with no
+  reuse of the previous one. Both token tables, measured with the cache on, were discarded and step
+  4 re-run from zero for both models.
+- **2026-11-03 — the power loss, recorded after the block.** The machine lost power about
+  2026-11-02T07:36Z, cause not established, with C2 for mistral at 30 of 57 runs (through h010). The
+  run in flight left no record. The block resumed with `--resume` on the same commit, same pod and
+  same digests, nothing else changed in what is measured: all records already written were checked
+  readable first, and none was re-run. Added outside the repository for session 2, none of it
+  touching a run's input: sleep and lid inhibited, temperature sampled every 30 s, the chain stopped
+  after 5 minutes at 95 C or above (never triggered). Step 2 suspended the kube-verdict CronJob; a
+  separate demo CronJob and its services kept running on the same node throughout, without using
+  Ollama. They share the CPU, so wall times carry that noise.
+- **2026-11-03 — H45 reopened: the first positive control failed.** Step 2 of § H45 on the cluster,
+  image built at `876d6ac`: the ingest fell back on `ApiClient.call_api() got an unexpected keyword
+  argument 'response_types_map'`, so `applied` and `helm` were never written and the access rule
+  was not exercised. Cause and fix: `docs/fix-plan-001.md`, H82. As § H45 says, the block's results
+  stand apart: its records were made with kubernetes 36.0.3, read no cluster and did not use this
+  image. The controls are re-run on an image built at the commit of the fix.

@@ -55,6 +55,30 @@ def test_generate_sends_the_sized_window_and_records_what_was_read():
     assert client.last_call["num_ctx"] == sent
     assert client.last_call["prompt_tokens_read"] == 2343
     assert client.last_call["estimated_prompt_tokens"] >= 2343
+    # docs/veracity-replay.md § Amendment 2026-10-23: what was asked is recorded beside what was read
+    assert client.last_call["num_predict"] == post.call_args.kwargs["json"]["options"]["num_predict"]
+    assert client.last_call["temperature"] == 0.1
+
+
+@pytest.mark.parametrize("names, digest", [
+    (["mistral:7b", "mistral:latest", "mistral"], "exact"),
+    (["mistral:7b", "mistral:latest"], "latest"),
+    (["mistral:7b"], "tag"),
+    (["mistralai:latest", "qwen2.5:3b-instruct"], ""),                         # control: no match
+])
+def test_the_model_digest_is_the_one_ollama_lists(names, digest):
+    tags = {"mistral": "exact", "mistral:latest": "latest", "mistral:7b": "tag"}
+    response = MagicMock(status_code=200)
+    response.json.return_value = {"models": [{"name": n, "digest": tags.get(n, "other")}
+                                             for n in names]}
+    with patch("llm.ollama_client.requests.get", return_value=response):
+        assert _client().model_digest() == digest
+
+
+def test_an_unreadable_digest_is_empty_not_an_error():
+    import requests
+    with patch("llm.ollama_client.requests.get", side_effect=requests.ConnectionError("down")):
+        assert _client().model_digest() == ""
 
 
 def test_every_native_case_prompt_fits_under_the_default_ceiling():

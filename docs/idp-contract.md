@@ -26,7 +26,7 @@ decision — without letting an LLM act on its own.
 | Input | Status |
 |-------|--------|
 | `namespace` + free-text `query` | ✅ |
-| `kubeconfig` / `kube_context` (read-only) | ✅ |
+| Cluster: server configuration (`KUBECONFIG` / `KUBE_CONTEXT`); `kubeconfig` / `kube_context` in a request are refused (`422`) | ✅ |
 | Alertmanager alert payload (labels / annotations) | ✅ (webhook) |
 | Structured `service` / `environment` | 🎯 |
 | GitOps repo / chart / release reference | 🎯 |
@@ -78,6 +78,10 @@ decision — without letting an LLM act on its own.
   "namespace": "prod",
   "environment": "prod",
   "root_cause": "Missing env var DATABASE_URL",
+  "outcome": "cause",
+  "diagnoses": [{ "family": "config-missing", "cause": "Missing env var DATABASE_URL", "location": "Deployment/prod/payment-api", "score": 0.87, "label": "HIGH", "rule": "dependency.missing" }],
+  "failed_collectors": [],
+  "llm_disagreement": "",
   "confidence_label": "HIGH",
   "confidence_score": 0.87,
   "policy": "HUMAN_REVIEW",
@@ -88,6 +92,10 @@ decision — without letting an LLM act on its own.
 }
 ```
 
+> `outcome` is `cause`, `no_incident` or `insufficient_evidence` (then `diagnoses` is empty,
+> `failed_collectors` names what could not be read, and `next_steps` proposes no remediation);
+> `confidence_score` is the score the policy gate used, the top diagnosis's rule score.
+>
 > Convergence note: the target envelope is built by **fusing** the existing
 > `IncidentReport`, `DecisionResult`, `BlastRadius` and `RollbackPlan` types —
 > not by introducing a parallel model. (The envelope cannot be named `Verdict`;

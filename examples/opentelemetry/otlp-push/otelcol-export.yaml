@@ -32,6 +32,8 @@ config:
     otlphttp/kubeverdict:
       # KubeVerdict's in-process OTLP/HTTP receiver.
       traces_endpoint: http://kube-verdict.kube-verdict.svc:4318/v1/traces
+      headers:
+        Authorization: "Bearer change-me"   # KubeVerdict's OTLP_TOKEN
       # encoding defaults to proto; the receiver also accepts: encoding: json
       tls:
         insecure: true

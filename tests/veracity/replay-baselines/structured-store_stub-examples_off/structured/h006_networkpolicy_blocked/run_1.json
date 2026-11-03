@@ -1,0 +1,80 @@
+{
+  "answerable": null,
+  "case": "h006_networkpolicy_blocked",
+  "case_hash": "44711f13ba8b1b6e3439ba5afbccde710b538ce7d33a671523e4aa50a206d05c",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": null,
+  "diagnoses": [
+    {
+      "family": "network-policy",
+      "location": "NetworkPolicy/production/order-service-restrict-egress",
+      "rule": "netpol.egress_blocked",
+      "score": 0.65,
+      "signals": [
+        "bdef3556b6ea109e",
+        "06e78ebbb1f7daf4",
+        "6531406ffadc3253",
+        "65dbfbb5fc5f89c6",
+        "9c44277fbb716beb",
+        "e8de6fa98769ac3f",
+        "045d0c798040de55",
+        "25d7d69553881768",
+        "b08b494e8de06446",
+        "cc29b99d2ac36ea0",
+        "ff67744379f0683d",
+        "06b5a14e68b26a44",
+        "7d9d481a093e54d1",
+        "809b2927879e7fb2",
+        "8877dccf8cb17cf9",
+        "9a8372924944ff0b",
+        "986b347b928a2fbb"
+      ]
+    }
+  ],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    [
+      "networkpolicy|network policy"
+    ]
+  ],
+  "matched_keywords": [
+    "networkpolicy|network policy"
+  ],
+  "model": "",
+  "model_digest": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause named, no decoy",
+  "root_cause": "The NetworkPolicy order-service-restrict-egress selects order-service-6f9b8c7d5-q4r2s and allows no egress: its DNS lookups and outbound connections are dropped, so it cannot reach its dependencies and stays not ready.",
+  "rules_version": "rules/5",
+  "run": 1,
+  "signal_kinds": [
+    "dependency.unreachable",
+    "dns.failed",
+    "netpol.egress_blocked",
+    "pod.not_ready",
+    "probe.readiness_failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-01T19:00:07.905366+00:00",
+  "store": "stub",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.11
+}

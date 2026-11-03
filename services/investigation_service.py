@@ -29,6 +29,7 @@ async def run_investigation(
     kube_context: str | None = None,
     store: Any | None = None,
     thread_id: str | None = None,
+    on_step: Any | None = None,
 ) -> dict[str, Any]:
     """Run the investigation graph to its decision point and return the final state.
 
@@ -53,6 +54,8 @@ async def run_investigation(
     final: dict[str, Any] = {}
     async for state in _graph.astream(initial_state, cfg, stream_mode="values"):
         final = dict(state)
+        if on_step is not None:
+            on_step(final)
         # Stop at the decision point — never proceed to dry-run / remediation.
         if final.get("verdict"):
             break

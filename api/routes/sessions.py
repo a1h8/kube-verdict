@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 
+import config as app_cfg
+
 from api.oidc import require_auth
 from api.models import (
     BlastRadius, EdgeEntry, FeedbackRequest, IncidentReport, RunRequest,
@@ -31,10 +33,6 @@ def _build_graph(checkpointer=None):
 # Default in-memory graph — replaced at startup by app.py lifespan with a
 # SqliteSaver-backed instance.
 _graph = _build_graph()
-
-# Pre-loaded FAISS store — set by app.py lifespan if index.faiss exists on disk.
-# When set, index_node skips re-embedding and uses this store directly.
-_faiss_store = None
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -113,8 +111,6 @@ def _build_incident_report(report: dict) -> IncidentReport | None:
 async def _run_graph(session: Session, initial_state: dict, resume_cmd: Command | None = None) -> None:
     """Run (or resume) the LangGraph workflow in a background task."""
     configurable: dict = {"thread_id": session.session_id}
-    if _faiss_store is not None:
-        configurable["store"] = _faiss_store
     cfg = {"configurable": configurable}
     try:
         store.set_status(session.session_id, SessionStatus.RUNNING)
@@ -177,8 +173,6 @@ async def run_session(session_id: str, body: RunRequest) -> SessionState:
     initial_state = {
         "query":        body.query,
         "namespaces":   body.namespaces,
-        "kubeconfig":   body.kubeconfig,
-        "kube_context": body.kube_context,
         "edge_log":     [],
     }
     store.set_last_state(session_id, initial_state)
@@ -190,13 +184,21 @@ async def run_session(session_id: str, body: RunRequest) -> SessionState:
     return _state_to_response(session)
 
 
-@router.post("/{session_id}/feedback", response_model=SessionState, dependencies=[Depends(require_auth)])
-async def feedback(session_id: str, body: FeedbackRequest) -> SessionState:
+def _approver(identity: dict | None) -> str:
+    """Who answered the review: the OIDC subject, else the kind of gate that let them in."""
+    if identity and identity.get("sub"):
+        return f"oidc:{identity.get('iss', '')}#{identity['sub']}"
+    return "shared-token" if app_cfg.API_TOKEN else "anonymous"
+
+
+@router.post("/{session_id}/feedback", response_model=SessionState)
+async def feedback(session_id: str, body: FeedbackRequest,
+                   identity: dict | None = Depends(require_auth)) -> SessionState:
     session = store.get_or_404(session_id)
 
     if session.status == SessionStatus.AWAITING_REVIEW:
         decision = (body.human_decision or "reject").lower()
-        resume = Command(resume=decision)
+        resume = Command(resume={"decision": decision, "by": _approver(identity)})
         task = asyncio.create_task(_run_graph(session, {}, resume_cmd=resume))
         session.task = task
 
@@ -215,12 +217,12 @@ async def feedback(session_id: str, body: FeedbackRequest) -> SessionState:
     return _state_to_response(session)
 
 
-@router.get("/{session_id}/state", response_model=SessionState)
+@router.get("/{session_id}/state", response_model=SessionState, dependencies=[Depends(require_auth)])
 async def get_state(session_id: str) -> SessionState:
     return _state_to_response(store.get_or_404(session_id))
 
 
-@router.get("/{session_id}/stream")
+@router.get("/{session_id}/stream", dependencies=[Depends(require_auth)])
 async def stream_session(session_id: str) -> StreamingResponse:
     """SSE stream — emits one JSON event per LangGraph state update."""
     session = store.get_or_404(session_id)
@@ -236,7 +238,7 @@ async def stream_session(session_id: str) -> StreamingResponse:
     return StreamingResponse(_generate(), media_type="text/event-stream")
 
 
-@router.delete("/{session_id}", status_code=204)
+@router.delete("/{session_id}", status_code=204, dependencies=[Depends(require_auth)])
 async def delete_session(session_id: str) -> None:
     store.get_or_404(session_id)
     store.delete(session_id)

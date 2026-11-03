@@ -171,34 +171,61 @@ function Paths({ state }) {
   );
 }
 
-// B15: renders `hypothesis_sources` — the deterministic rule hits (RemediationEngine)
-// that grounded each hypothesis before the LLM ranked them, already returned by
-// /state but previously unrendered. Shows the concrete evidence lines (Loki logs,
-// OTel spans, Prometheus alerts) behind a hypothesis, not just the reasoning text.
-function HypothesisEvidencePanel({ state }) {
-  const sources = state.hypothesis_sources || [];
-  if (!sources.length) return null;
+// The structured diagnosis decides the cause (docs/structured-in-product.md); the LLM only
+// explains it. Shows the outcome — a cause, or an abstention and why — the ranked diagnoses with
+// the rule behind each, and an LLM explanation that named another cause (fix plan H77). It
+// replaces a panel that presented these diagnoses as the former RemediationEngine's rule hits.
+const OUTCOME = {
+  cause:                 { fg: "#34d399", label: "cause diagnosed" },
+  no_incident:           { fg: "#60a5fa", label: "no incident" },
+  insufficient_evidence: { fg: "#fbbf24", label: "insufficient evidence" },
+};
+
+function DiagnosisPanel({ state }) {
+  const diag = state.report?.diagnosis;
+  if (!diag?.outcome) return null;
+  const o = OUTCOME[diag.outcome] || { fg: C.sub, label: diag.outcome };
+  const ranked = diag.diagnoses || [];
+  const failed = diag.failed_collectors || [];
+  const disagreement = state.report?.llm_disagreement;
+  const explanation = state.report?.explanation;
   return (
     <div style={box}>
-      <h3 style={{ color: C.text, marginBottom: 4 }}>Evidence behind the hypotheses — {sources.length}</h3>
+      <h3 style={{ color: C.text, marginBottom: 4 }}>
+        Structured diagnosis — <span style={{ color: o.fg }}>{o.label}</span>
+      </h3>
       <p style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>
-        Deterministic rule hits that grounded each hypothesis — the concrete logs / traces / metrics, not just reasoning text.
+        Typed rules over the collected signals decide the cause; the LLM only explains it.
       </p>
-      {sources.map((s, i) => (
-        <div key={i} style={{ borderLeft: "2px solid #60a5fa", paddingLeft: 12,
-          marginBottom: i < sources.length - 1 ? 12 : 0 }}>
+      {diag.outcome !== "cause" && diag.root_cause && (
+        <p style={{ color: C.sub, fontSize: 14, marginBottom: 8 }}>{diag.root_cause}</p>
+      )}
+      {failed.length > 0 && (
+        <p style={{ color: "#fbbf24", fontSize: 13, marginBottom: 8 }}>
+          Could not read: {failed.join(", ")}
+        </p>
+      )}
+      {ranked.map((d, i) => (
+        <div key={i} style={{ borderLeft: `2px solid ${i === 0 ? o.fg : C.border}`, paddingLeft: 12,
+          marginBottom: 10 }}>
           <div style={{ color: C.text, fontSize: 14 }}>
-            <code style={{ color: C.sub }}>{s.rule_id}</code>{" "}
-            {s.weight != null && <span style={{ color: C.dim }}>[{Number(s.weight).toFixed(2)}]</span>}{" "}
-            {s.symptom} → <b>{s.affected}</b>
+            <b>#{i + 1}</b> <code style={{ color: C.sub }}>{d.rule}</code>{" "}
+            {d.score != null && <span style={{ color: C.dim }}>[{Number(d.score).toFixed(2)} {d.label}]</span>}{" "}
+            → <b>{d.location}</b>
           </div>
-          {(s.evidence || []).length > 0 && (
-            <ul style={{ margin: "6px 0 0 18px", color: C.sub, fontSize: 12.5 }}>
-              {s.evidence.map((e, j) => <li key={j}>{e}</li>)}
-            </ul>
-          )}
+          <div style={{ color: C.sub, fontSize: 12.5, marginTop: 4 }}>{d.cause}</div>
         </div>
       ))}
+      {disagreement && (
+        <div style={{ color: "#fbbf24", fontSize: 13, marginTop: 8 }}>
+          ⚠ LLM disagreement — {disagreement}
+        </div>
+      )}
+      {explanation && (
+        <div style={{ color: C.dim, fontSize: 12.5, marginTop: 8 }}>
+          LLM explanation (does not decide): {explanation}
+        </div>
+      )}
     </div>
   );
 }
@@ -251,7 +278,7 @@ function BeamTree({ state }) {
       label: chosen,
       conf: state.confidence || "?",
       retries: 0,
-      reason: "selected — highest evidence-weighted confidence",
+      reason: "ranked first by the structured diagnosis",
       status: "active",
     });
   }
@@ -482,7 +509,7 @@ function IntrospectionPanel({ sessionId, state, live, onUpdate }) {
       <BeamTree state={state} />
       <Timeline state={state} />
       <Paths state={state} />
-      <HypothesisEvidencePanel state={state} />
+      <DiagnosisPanel state={state} />
     </>
   );
 }

@@ -12,6 +12,8 @@ data:
   OLLAMA_MODEL: "mistral"
   OLLAMA_TIMEOUT: "180"
   VECTOR_STORE_PATH: "/data/index.faiss"
+  # sessions and checkpoints on the volume, not in the container's /app (fix plan H64)
+  KUBEWHISPERER_DB: "/data/kubeverdict.db"
   EMBEDDING_MODEL: "all-MiniLM-L6-v2"
   BFS_MAX_DEPTH: "3"
   JACCARD_THRESHOLD: "0.7"
@@ -67,7 +69,7 @@ spec:
           containers:
             - name: kubeverdict
               # Replace with your registry / image tag after `docker build`
-              image: ghcr.io/a1h8/kube-verdict:latest
+              image: ghcr.io/a1h8/kube-verdict:v0.1.4
               imagePullPolicy: IfNotPresent
               command: ["python", "main.py"]
               args:
@@ -121,7 +123,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: kubeverdict
-          image: ghcr.io/a1h8/kube-verdict:latest
+          image: ghcr.io/a1h8/kube-verdict:v0.1.4
           imagePullPolicy: IfNotPresent
           command: ["python", "main.py"]
           args:

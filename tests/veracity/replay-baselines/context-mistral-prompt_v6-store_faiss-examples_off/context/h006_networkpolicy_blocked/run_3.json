@@ -1,0 +1,65 @@
+{
+  "case": "h006_networkpolicy_blocked",
+  "case_hash": "44711f13ba8b1b6e3439ba5afbccde710b538ce7d33a671523e4aa50a206d05c",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM: While the DNS resolution issues are inferred rather than directly observed, they are the most probable cause given the repeated \"i/o timeout\" errors in the logs.",
+  "config": "C2",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": {
+    "anchors": 0,
+    "chart_anchors": 0,
+    "docs": 0,
+    "examples": 0,
+    "vectors": 19
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 119.6,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3133,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 105.4,
+      "prompt_tokens_read": 2793,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 7217,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 06:55:31 UTC\nTotal context chunks : 27\nContext quality score: MEDIUM (0.62/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 6 \u2192 0.15, Critical signals 2 \u2192 0.06, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (2)\n  - kind=Pod name=order-service-6f9b8c7d5-q4r2s namespace=production labels=[app.kubernetes.io/name=order-service app.kubernetes.io/instance=order-service app=order-service pod-template-hash=6f9b8c7d5] phase=Running node=worker-node-01 restarts=0 owner=ReplicaSet/order-service-6f9b8c7d5\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/order-service-6f9b8c7d5-q4r2s namespace=production count=24 message=Readiness probe failed: HTTP probe failed with statuscode: 503\n### ANCHOR FIX SUGGESTIONS \u2014 helm commands to restore declared values (1)\n  - Pod/production/order-service-6f9b8c7d5-q4r2s  NetworkPolicy 'order-service-restrict-egress' blocks all egress  \u2192  kubectl edit networkpolicy order-service-restrict-egress -n production  # add egress rules for required ports (e.g. 5432/tcp, 6379/tcp)\n### LOGS \u2014 Recent error/warn log lines (15)\n  - kind=LokiLog level=warn namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\"'\n  - kind=LokiLog level=warn namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\"'\n  - kind=LokiLog level=warn namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\"'\n  - kind=LokiLog level=warn namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\"'\n  - kind=LokiLog level=warn namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=warn msg=\"health check failing\" status=503 reason=\"database unreachable\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"cache connect failed\" err=\"dial tcp: lookup redis.production.svc.cluster.local: i/o timeout\"'\n  - kind=LokiLog level=error namespace=production pod=order-service-6f9b8c7d5-q4r2s message='level=error msg=\"db ping failed\" err=\"dial tcp: lookup db-primary.production.svc.cluster.local: i/o timeout\"'\n### WARNING \u2014 Kubernetes events (1)\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/order-service-6f9b8c7d5-q4r2s namespace=production count=24 message=Readiness probe failed: HTTP probe failed with statuscode: 503\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=order-service namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=2]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\norder-service requests fail in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe order-service in the production namespace is experiencing failures due to unreachable database and cache services.\n\n### 2. Affected resources\n- Pod/production/order-service-6f9b8c7d5-q4r2s \u2014 Running but unhealthy\n\n### 3. Root cause\nThe root cause appears to be DNS resolution issues for the database (db-primary.production.svc.cluster.local) and cache (redis.production.svc.cluster.local) services, as indicated by the repeated \"i/o timeout\" errors in the logs.\n\n### 4. Causal chain\n1. The order-service pod is unable to resolve the DNS names of the database and cache services.\n2. This results in the pod being unable to connect to the services, causing the repeated \"i/o timeout\" errors in the logs.\n3. The unhealthy status of the order-service pod is reported by the Kubernetes API, triggering the warning events.\n\n### 5. Remediation\n- Update the DNS configuration to ensure that the database and cache services can be resolved by the order-service pod. This could involve adding or modifying DNS entries, or adjusting the DNS policy for the pod.\n- If necessary, check the network policies for any restrictions that might be preventing the pod from reaching the database and cache services.\n\n### 6. Confidence\nMEDIUM: While the DNS resolution issues are inferred rather than directly observed, they are the most probable cause given the repeated \"i/o timeout\" errors in the logs.\n\n### 7. Checks\n- `kubectl get pod order-service-6f9b8c7d5-q4r2s -o yaml | grep dnsPolicy` \u2014 Verifies the DNS policy for the order-service pod | Confirms if: `dnsPolicy: ClusterFirst` | Refutes if: `dnsPolicy: None`\n- `kubectl get svc db-primary.production.svc.cluster.local -o yaml` \u2014 Verifies the existence and configuration of the database service | Confirms if: Service exists and is running | Refutes if: Service does not exist or is not running\n- `kubectl",
+  "reason": "cause concept(s) not named: networkpolicy|network policy",
+  "remediation": [
+    "Update the DNS configuration to ensure that the database and cache services can be resolved by the order-service pod. This could involve adding or modifying DNS entries, or adjusting the DNS policy for the pod.",
+    "If necessary, check the network policies for any restrictions that might be preventing the pod from reaching the database and cache services."
+  ],
+  "root_cause": "The root cause appears to be DNS resolution issues for the database (db-primary.production.svc.cluster.local) and cache (redis.production.svc.cluster.local) services, as indicated by the repeated \"i/o timeout\" errors in the logs.",
+  "run": 3,
+  "solver": "context",
+  "started_at": "2026-11-02T06:59:16.214906+00:00",
+  "store": "faiss",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 227.8
+}

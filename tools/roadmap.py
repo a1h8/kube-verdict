@@ -89,8 +89,14 @@ def _blocs() -> list[dict]:
                     "done": _exists("ingestion/helm_drift.py", "ingestion/anchor_engine.py"),
                 },
                 {
-                    "label": "GitOps collector (Flux / ArgoCD)",
+                    "label": "GitOps collector (charts rendered from Git)",
                     "done": _exists("ingestion/gitops_collector.py"),
+                },
+                {
+                    # an Application read as the declared state, its objects linked by its
+                    # tracking key (docs/fix-plan-001.md § Not in this PR); not collected today
+                    "label": "ArgoCD Applications as the declared state",
+                    "done": _grep(r"argocd\.argoproj\.io/tracking-id", "ingestion"),
                 },
                 {
                     "label": "OTel traces (Jaeger / Tempo)",
@@ -121,9 +127,10 @@ def _blocs() -> list[dict]:
                     "done": _exists("vectorstore/embedder.py"),
                 },
                 {
-                    "label": "SQLite persistence (survives restarts)",
-                    "done": _exists("persistence/vector_store_repo.py")
-                    and _grep(r"ON CONFLICT|upsert|persist_texts", "persistence/vector_store_repo.py"),
+                    # sessions and checkpoints; the index is rebuilt per investigation on purpose
+                    # (fix plan H40), its DB reconstruction path was dead and removed (H70)
+                    "label": "SQLite persistence (sessions survive restarts)",
+                    "done": _exists("persistence/session_repo.py"),
                 },
             ],
         },

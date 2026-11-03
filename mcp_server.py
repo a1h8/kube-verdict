@@ -54,7 +54,8 @@ _TOOLS = [
             "Run a full root-cause analysis on a Kubernetes namespace. "
             "Correlates pod events, Helm drift, and anchor violations into a "
             "ranked diagnosis with remediation commands and confidence score. "
-            "Works air-gapped (Ollama / Mistral, no external calls)."
+            "Inference runs locally via Ollama by default; with a remote LLM_PROVIDER the "
+            "prompt leaves the machine (docs/configuration.md)."
         ),
         inputSchema={
             "type": "object",
@@ -329,6 +330,11 @@ async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
     helm = HelmCollector(kubeconfig=kubeconfig, kube_context=kube_context)
     await asyncio.to_thread(helm.collect, graph, namespaces=[namespace])
     drift_count = await asyncio.to_thread(HelmDriftDetector().detect_all, graph)
+    # B — what Helm applied vs live, the workflow's own comparison (docs/three-states.md, H17)
+    from ingestion.manifest_differ import compare_applied_to_live
+    await asyncio.to_thread(compare_applied_to_live, graph, getattr(collector, "covered", None))
+    release_entity = next((r for r in graph.entities(ResourceKind.HELM_RELEASE)
+                           if r.name == release), None)
 
     # Drift annotations live on the drifted workloads (Deployment/StatefulSet/…),
     # which point at the release via a DRIFTS_FROM edge; sub-chart drift is
@@ -338,14 +344,22 @@ async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
         if rel.name != release:
             continue
         drifted = graph.neighbors(rel.uid, RelationshipType.DRIFTS_FROM, reverse=True)
-        for entity in [rel, *drifted]:
+        managed = graph.neighbors(rel.uid, RelationshipType.MANAGED_BY_HELM, reverse=True)
+        seen: set[str] = set()
+        for entity in [rel, *drifted, *managed]:
+            if entity.uid in seen:
+                continue
+            seen.add(entity.uid)
             for key, value in (entity.annotations or {}).items():
-                if not key.startswith("drift."):
+                prefix = key.split(".", 1)[0]
+                if prefix not in ("drift", "applied") or key == "applied.orphan":
                     continue
                 item = _parse_drift_annotation(key, value)
                 if item:
                     item["resource"] = f"{entity.kind.value}/{entity.name}"
-                    item["source"]   = "helm"
+                    item["source"]   = "helm" if prefix == "drift" else "applied"
+                    if prefix == "applied":
+                        item["provenance"] = "edited-outside-helm"
                     drift_items.append(item)
 
     # Mode-aware: if an expected-state source was pushed for this release, also
@@ -355,6 +369,7 @@ async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
         chart, rendered_items = await asyncio.to_thread(
             _rendered_expected_drift, graph,
             args.get("chart") or release, args.get("chart_version"), namespace,
+            None, getattr(release_entity, "applied_manifest", None) or None,
         )
         if chart is not None:
             expected_mode = chart.render_type
@@ -372,12 +387,17 @@ async def _helm_drift(args: dict[str, Any]) -> dict[str, Any]:
 
 
 def _rendered_expected_drift(graph, chart_name: str, version, namespace: str,
-                             chart_store=None):
+                             chart_store=None, applied: list[dict] | None = None):
     """
-    Render a pushed expected-state source at its pinned version and diff it
-    against the live graph. Mode-agnostic (Helm / Helmfile / Kustomize /
-    manifests). Returns (EnterpriseChart | None, [drift_item, …]); the chart is
-    None when nothing has been pushed for ``chart_name``.
+    Render a pushed expected-state source at its pinned version and compare it.
+
+    With the release's applied manifest (`helm get manifest`): declared → applied, comparison A
+    of docs/three-states.md (provenance ``git-vs-deployed``) — the workflow's comparison, not a
+    path of its own (fix plan H17). Without one (Kustomize, raw manifests, or no access to the
+    release Secrets): declared → live, labelled ``declared-vs-live`` — it cannot tell an edit
+    outside the deploy tool from a deploy that differs from the source.
+    Returns (EnterpriseChart | None, [drift_item, …]); the chart is None when nothing has been
+    pushed for ``chart_name``.
     """
     from ingestion.manifest_differ import ManifestDiffer
     from knowledge.chart_indexer import ChartIndexer
@@ -394,16 +414,24 @@ def _rendered_expected_drift(graph, chart_name: str, version, namespace: str,
         return None, []
 
     rendered = ChartIndexer(None).render(cs, chart, namespace=namespace)
-    drifts = ManifestDiffer().diff(rendered, graph)
+    if applied:
+        drifts = ManifestDiffer(track_orphans=False).diff_manifests(
+            rendered, applied, graph, namespace=namespace)
+        provenance = "git-vs-deployed"
+    else:
+        drifts = ManifestDiffer(track_orphans=False).diff(rendered, graph, namespace=namespace,
+                                                         prefix="declared")
+        provenance = "declared-vs-live"
     items = [
         {
-            "field":    d.field_path,
-            "declared": str(d.declared),
-            "observed": str(d.observed),
-            "severity": d.severity,
-            "source":   "rendered",
-            "chart":    f"{chart.name}@{chart.version}",
-            "mode":     chart.render_type,
+            "field":      d.field_path,
+            "declared":   str(d.declared),
+            "observed":   str(d.observed),
+            "severity":   d.severity,
+            "source":     "rendered",
+            "provenance": provenance,
+            "chart":      f"{chart.name}@{chart.version}",
+            "mode":       chart.render_type,
         }
         for d in drifts
     ]
@@ -423,9 +451,21 @@ async def _expected_state_drift(args: dict[str, Any]) -> dict[str, Any]:
 
     collector = K8sCollector(kubeconfig=kubeconfig, context=kube_context)
     graph = await asyncio.to_thread(collector.collect, namespaces=[namespace])
+    # what Helm applied for the release of that name, when there is one (comparison A)
+    applied = None
+    try:
+        from ingestion import HelmCollector
+        from ontology.entities import ResourceKind
+        helm = HelmCollector(kubeconfig=kubeconfig, kube_context=kube_context)
+        await asyncio.to_thread(helm.collect, graph, namespaces=[namespace])
+        rel = next((r for r in graph.entities(ResourceKind.HELM_RELEASE)
+                    if r.name == (args.get("release") or chart_name)), None)
+        applied = getattr(rel, "applied_manifest", None) or None
+    except Exception as exc:  # noqa: BLE001 — no Helm: declared vs live, labelled as such
+        log.info("expected_state_drift: no Helm release read (%s)", exc)
 
     chart, items = await asyncio.to_thread(
-        _rendered_expected_drift, graph, chart_name, version, namespace,
+        _rendered_expected_drift, graph, chart_name, version, namespace, None, applied,
     )
     if chart is None:
         return {
@@ -453,7 +493,7 @@ def _parse_drift_annotation(key: str, value: str) -> dict[str, str] | None:
     if not m:
         return None
     return {
-        "field":    key[len("drift."):],
+        "field":    key.split(".", 1)[1],
         "declared": m.group(1),
         "observed": m.group(2),
         "severity": m.group(3),

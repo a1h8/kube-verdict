@@ -19,6 +19,11 @@ from ontology.version import KubeVersion, detect_version
 
 log = logging.getLogger(__name__)
 
+# kinds collect() lists per namespace → the name its listing failure is recorded under
+_TYPED_PLURALS = {"Deployment": "deployments", "StatefulSet": "statefulsets", "DaemonSet": "daemonsets",
+                  "Service": "services", "Ingress": "ingresses", "ConfigMap": "configmaps",
+                  "PersistentVolumeClaim": "pvcs", "ServiceAccount": "serviceaccounts"}
+
 
 def _ts(obj):
     from datetime import datetime
@@ -82,6 +87,7 @@ class K8sCollector:
 
         self._core = k8s_client.CoreV1Api(self._api_client)
         self._apps = k8s_client.AppsV1Api(self._api_client)
+        self._netpol_api = k8s_client.NetworkingV1Api(self._api_client)
 
         # Ingress API depends on server version
         if self.kube_version.supports_networking_v1_ingress:
@@ -105,6 +111,22 @@ class K8sCollector:
                 self._ingress_lister = self._skip_ingresses
 
         self._discovery = APIServerDiscovery(self._api_client)
+
+    @property
+    def listing_failures(self) -> list[str]:
+        """Listings the API refused or failed in the last collect(): what is absent from the
+        graph because it could not be read, not because it does not exist (fix plan 001, H24)."""
+        return sorted(f"{kind} in {ns}" for ns, kind in getattr(self, "_listing_failed", set()))
+
+    def covered(self, kind: str, namespace: str) -> bool:
+        """Whether *kind* was listed in *namespace* by the last collect() (typed kinds only)."""
+        plural = _TYPED_PLURALS.get(kind)
+        return plural is not None and (namespace, plural) not in getattr(self, "_listing_failed", set())
+
+    @property
+    def api_client(self) -> k8s_client.ApiClient:
+        """The configured client, impersonation headers included — for collectors run alongside."""
+        return self._api_client
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -136,6 +158,7 @@ class K8sCollector:
             self._collect_pvcs(graph, ns)
             self._collect_serviceaccounts(graph, ns)
             self._collect_events(graph, ns)
+            self._collect_networkpolicies(ns)
             # after everything a pod can reference is in the graph
             self._link_pod_dependencies(graph, ns)
             self._annotate_missing_dependencies(graph, ns)
@@ -188,7 +211,7 @@ class K8sCollector:
                 name=item.metadata.name,
                 namespace=None,
                 labels=item.metadata.labels or {},
-                annotations=item.metadata.annotations or {},
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 phase=item.status.phase or "Active",
                 raw=item.to_dict(),
@@ -209,7 +232,7 @@ class K8sCollector:
                 name=item.metadata.name,
                 namespace=None,
                 labels=item.metadata.labels or {},
-                annotations=item.metadata.annotations or {},
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 ready=ready,
                 allocatable_cpu=alloc.get("cpu", ""),
@@ -225,6 +248,7 @@ class K8sCollector:
             items = self._core.list_namespaced_pod(namespace).items
         except ApiException as exc:
             log.warning("Cannot list pods in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "pods"))
             return
 
         ns_entity = self._find_by_name(graph, namespace, None, "Namespace")
@@ -249,7 +273,7 @@ class K8sCollector:
                 name=item.metadata.name,
                 namespace=namespace,
                 labels=item.metadata.labels or {},
-                annotations=item.metadata.annotations or {},
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 phase=item.status.phase or "Unknown",
                 node_name=item.spec.node_name or "",
@@ -314,6 +338,9 @@ class K8sCollector:
             configmaps=names("configmaps", "ConfigMap"),
             pvcs=names("pvcs", "PersistentVolumeClaim"),
             serviceaccounts=names("serviceaccounts", "ServiceAccount"),
+            # listed per namespace (docs/failing-cases-002.md S4); None when the listing failed
+            # None when not listed (refused, or not set up): unknown, never "no policy"
+            networkpolicies=getattr(self, "_netpols", {}).get(namespace),
             messages=[e.message for e in graph.entities(ResourceKind.EVENT)
                       if e.namespace == namespace],
         )
@@ -324,16 +351,31 @@ class K8sCollector:
             if entity is not None:
                 entity.annotations.update(detect_missing(api_pod, present))
 
+    def _collect_networkpolicies(self, namespace: str) -> None:
+        """NetworkPolicies of the namespace, API-shaped, for the readiness detector (S4)."""
+        self.__dict__.setdefault("_netpols", {})
+        api = getattr(self, "_netpol_api", None)
+        if api is None:
+            return                                   # not set up: unknown, never "none"
+        try:
+            items = api.list_namespaced_network_policy(namespace).items
+        except ApiException as exc:
+            log.warning("Cannot list networkpolicies in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "networkpolicies"))
+            return
+        self._netpols[namespace] = [self._api_client.sanitize_for_serialization(i) for i in items]
+
     def _collect_deployments(self, graph: OntologyGraph, namespace: str) -> None:
         try:
             items = self._apps.list_namespaced_deployment(namespace).items
         except ApiException as exc:
             log.warning("Cannot list deployments in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "deployments"))
             return
         ns_entity = self._find_by_name(graph, namespace, None, "Namespace")
         for item in items:
             s = item.status
-            ann = dict(item.metadata.annotations or {})
+            ann: dict[str, str] = {}     # kube-verdict's own keys only (H23)
             for c in (item.spec.template.spec.containers or []):
                 if c.image:
                     ann[f"spec.container.{c.name}.image"] = c.image
@@ -343,6 +385,7 @@ class K8sCollector:
                 namespace=namespace,
                 labels=item.metadata.labels or {},
                 annotations=ann,
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 replicas=item.spec.replicas or 0,
                 ready_replicas=s.ready_replicas or 0,
@@ -364,15 +407,17 @@ class K8sCollector:
             items = self._apps.list_namespaced_stateful_set(namespace).items
         except ApiException as exc:
             log.warning("Cannot list statefulsets in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "statefulsets"))
             return
         for item in items:
-            sts_ann = dict(item.metadata.annotations or {})
+            sts_ann: dict[str, str] = {}     # kube-verdict's own keys only (H23)
             for c in (item.spec.template.spec.containers or []):
                 if c.image:
                     sts_ann[f"spec.container.{c.name}.image"] = c.image
             graph.add_entity(StatefulSet(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
                 labels=item.metadata.labels or {}, annotations=sts_ann,
+                k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 replicas=item.spec.replicas or 0, ready_replicas=item.status.ready_replicas or 0,
                 selector=item.spec.selector.match_labels or {}, raw=item.to_dict(),
@@ -383,11 +428,12 @@ class K8sCollector:
             items = self._apps.list_namespaced_daemon_set(namespace).items
         except ApiException as exc:
             log.warning("Cannot list daemonsets in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "daemonsets"))
             return
         for item in items:
             graph.add_entity(DaemonSet(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 desired=item.status.desired_number_scheduled or 0,
                 ready=item.status.number_ready or 0,
@@ -399,6 +445,7 @@ class K8sCollector:
             items = self._apps.list_namespaced_replica_set(namespace).items
         except ApiException as exc:
             log.warning("Cannot list replicasets in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "replicasets"))
             return
         for item in items:
             owner_name = next(
@@ -407,7 +454,7 @@ class K8sCollector:
             )
             e = ReplicaSet(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 replicas=item.spec.replicas or 0, ready_replicas=item.status.ready_replicas or 0,
                 owner_ref_name=owner_name,
@@ -418,19 +465,26 @@ class K8sCollector:
                 deployment = self._find_by_name(graph, owner_name, namespace, "Deployment")
                 if deployment:
                     graph.add_edge(Edge(deployment.uid, e.uid, RelationshipType.OWNS))
+            # ReplicaSet → Pod from the pods' owner references: the link a pod's workload is
+            # read from, not its name (docs/fix-plan-001.md, H25). Pods are collected first.
+            for pod in graph.entities(ResourceKind.POD):
+                if (pod.namespace == namespace and pod.owner_ref_kind == "ReplicaSet"
+                        and pod.owner_ref_name == e.name):
+                    graph.add_edge(Edge(e.uid, pod.uid, RelationshipType.OWNS))
 
     def _collect_services(self, graph: OntologyGraph, namespace: str) -> None:
         try:
             items = self._core.list_namespaced_service(namespace).items
         except ApiException as exc:
             log.warning("Cannot list services in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "services"))
             return
         for item in items:
             ports = [{"port": p.port, "targetPort": str(p.target_port), "protocol": p.protocol}
                      for p in (item.spec.ports or [])]
             e = Service(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 service_type=item.spec.type or "ClusterIP",
                 cluster_ip=item.spec.cluster_ip or "",
@@ -452,6 +506,7 @@ class K8sCollector:
             items = self._ingress_api.list_namespaced_ingress(namespace).items
         except ApiException as exc:
             log.warning("Cannot list ingresses (v1) in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "ingresses"))
             return
         for item in items:
             ingress_class = item.spec.ingress_class_name or (
@@ -474,6 +529,7 @@ class K8sCollector:
             items = self._ingress_api.list_namespaced_ingress(namespace).items
         except ApiException as exc:
             log.warning("Cannot list ingresses (v1beta1) in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "ingresses"))
             return
         for item in items:
             ingress_class = (item.metadata.annotations or {}).get(
@@ -491,7 +547,7 @@ class K8sCollector:
     def _add_ingress(self, graph, item, namespace, rules, ingress_class) -> None:
         e = Ingress(
             uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-            labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+            labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
             created_at=_ts(item.metadata.creation_timestamp),
             rules=rules, ingress_class=ingress_class, raw=item.to_dict(),
         )
@@ -511,7 +567,7 @@ class K8sCollector:
         for item in items:
             graph.add_entity(ConfigMap(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 data_keys=list((item.data or {}).keys()), raw=item.to_dict(),
             ))
@@ -521,7 +577,7 @@ class K8sCollector:
             capacity = (item.spec.capacity or {}).get("storage", "")
             graph.add_entity(PersistentVolume(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=None,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 capacity=capacity, access_modes=item.spec.access_modes or [],
                 reclaim_policy=item.spec.persistent_volume_reclaim_policy or "Retain",
@@ -542,7 +598,7 @@ class K8sCollector:
                 req_storage = item.spec.resources.requests.get("storage", "")
             e = PersistentVolumeClaim(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 requested_storage=req_storage, access_modes=item.spec.access_modes or [],
                 status_phase=item.status.phase or "Pending",
@@ -565,7 +621,7 @@ class K8sCollector:
         for item in items:
             graph.add_entity(ServiceAccount(
                 uid=item.metadata.uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 secrets=[s.name for s in (item.secrets or [])], raw=item.to_dict(),
             ))
@@ -575,12 +631,13 @@ class K8sCollector:
             items = self._core.list_namespaced_event(namespace).items
         except ApiException as exc:
             log.warning("Cannot list events in %s: %s", namespace, exc)
+            self._listing_failed.add((namespace, "events"))
             return
         for item in items:
             uid = item.metadata.uid or f"event-{item.metadata.name}-{namespace}"
             e = K8sEvent(
                 uid=uid, name=item.metadata.name, namespace=namespace,
-                labels=item.metadata.labels or {}, annotations=item.metadata.annotations or {},
+                labels=item.metadata.labels or {}, k8s_annotations=dict(item.metadata.annotations or {}),
                 created_at=_ts(item.metadata.creation_timestamp),
                 reason=item.reason or "", message=item.message or "",
                 event_type=item.type or "Normal",

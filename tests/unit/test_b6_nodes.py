@@ -140,23 +140,24 @@ class TestLogPolicyDecision:
         )
         assert result["verdict"] == "NO_GO"
 
-    def test_unstable_mc_blocks_auto(self):
-        """HIGH + stable conditions except mc → HUMAN_REVIEW."""
-        result = self._run(
-            confidence="HIGH",
-            blast_radius=_BR_LOW_ROLLBACK,
-            mc_result={"win_rate": 0.50, "is_stable": False},
-        )
-        assert result["verdict"] == "HUMAN_REVIEW"
+    def test_the_monte_carlo_no_longer_decides(self):
+        """The Monte Carlo varies the old pre-LLM score: recorded, not passed to the gate
+        (docs/structured-in-product.md) — an unstable run no longer blocks AUTO."""
+        unstable = self._run(confidence="HIGH", blast_radius=_BR_LOW_ROLLBACK,
+                             mc_result={"win_rate": 0.50, "is_stable": False})
+        stable = self._run(confidence="HIGH", blast_radius=_BR_LOW_ROLLBACK,
+                           mc_result={"win_rate": 0.95, "is_stable": True})
+        assert unstable["verdict"] == stable["verdict"]
 
-    def test_beam_exhausted_no_go(self):
+    def test_the_unreachable_beam_exhausted_no_go_is_gone(self):
+        # it needed 3 path switches where at most 2 exist (docs/fix-plan-001.md, dead code)
         result = self._run(
             confidence="HIGH",
             blast_radius=_BR_LOW_ROLLBACK,
             mc_result={"win_rate": 0.95, "is_stable": True},
             max_switches_reached=True,
         )
-        assert result["verdict"] == "NO_GO"
+        assert result["verdict"] != "NO_GO"
 
     def test_writes_edge_log(self):
         result = self._run(

@@ -54,4 +54,4 @@ status:
   - type: Ready
     status: "False"
     reason: ContainersNotReady
-    message: "readiness probe failed: Get http://10.244.1.55:8080/healthz: connection refused"
+    message: "containers with unready status: [order-service]"   # kubelet's own wording

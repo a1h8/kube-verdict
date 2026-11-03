@@ -1,0 +1,62 @@
+{
+  "case": "h015_etcd_compaction",
+  "case_hash": "6a16d16e1c20e6bd4d070b321b1d22ba26a259042b1cc809658467e9e68078ed",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "config": "C1",
+  "corpus_hash": null,
+  "cut": "otel",
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [
+    "otel"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": null,
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 39.6,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2669,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 29.7,
+      "prompt_tokens_read": 1934,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 5964,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-03 02:16:55 UTC\nTotal context chunks : 22\nContext quality score: MEDIUM (0.68/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 14 \u2192 0.15, Critical signals 4 \u2192 0.12, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (4)\n  - kind=Pod name=inventory-api-7f9c8d6b5-x2qwe namespace=production labels=[app.kubernetes.io/name=inventory-api app.kubernetes.io/instance=inventory-api pod-template-hash=7f9c8d6b5] phase=Running node=worker-node-03 restarts=2 owner=ReplicaSet/inventory-api-7f9c8d6b5\n  - kind=Deployment name=inventory-api namespace=production labels=[app.kubernetes.io/name=inventory-api app.kubernetes.io/instance=inventory-api app.kubernetes.io/managed-by=Helm] replicas=3 ready=1 available=1\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=37 message=Readiness probe failed: Get \"http://10.0.3.22:8080/ready\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n  - kind=Event type=Warning reason=BackOff involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=12 message=Readiness probe failed, back-off 5s restarting failed container=inventory-api\n### WARNING \u2014 Kubernetes events (2)\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=37 message=Readiness probe failed: Get \"http://10.0.3.22:8080/ready\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n  - kind=Event type=Warning reason=BackOff involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=12 message=Readiness probe failed, back-off 5s restarting failed container=inventory-api\n### ANCHORS \u2014 Declared values & K8s schema (14)\n  - Deployment/production/inventory-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/production/inventory-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/production/inventory-api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/production/inventory-api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/production/inventory-api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/production/inventory-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/production/inventory-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/production/inventory-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=inventory-api namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=3]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\nwhy is inventory-api not ready\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nInventory API is not ready due to persistent readiness probe failures and a high number of back-off events.\n\n### 2. Affected resources\n- Pod/inventory-api-7f9c8d6b5-x2qwe \u2014 not ready\n- Deployment/production/inventory-api \u2014 unhealthy\n\n### 3. Root cause\nThe root cause is a misconfigured readiness probe in the Deployment/production/inventory-api. The readiness probe is failing with a \"context deadline exceeded\" error, which is causing the Kubernetes controller to back off and restart the container.\n\n### 4. Causal chain\n1. The Deployment/production/inventory-api is configured with a readiness probe that is failing.\n2. The failure of the readiness probe causes the Kubernetes controller to back off and restart the container.\n3. The container restarts, but the readiness probe continues to fail, leading to more back-off events.\n4. The high number of back-off events causes the Deployment to enter a \"BackOff\" state, indicating a failed rollout.\n5. The Pod/inventory-api-7f9c8d6b5-x2qwe remains in a \"NotReady\" state due to the failure of the readiness probe.\n\n### 5. Remediation\n- `kubectl rollout restart deployment/production/inventory-api` | restarts the deployment to apply the latest configuration.\n- `kubectl describe pod/inventory-api-7f9c8d6b5-x2qwe` | checks the current state of the Pod to confirm it is not ready.\n- `kubectl logs -f pod/inventory-api-7f9c8d6b5-x2qwe` | checks the logs of the Pod to see if there are any error messages related to the readiness probe.\n\n### 6. Confidence\nMEDIUM\n\n### 7. Checks\n- `kubectl get deployment/production/inventory-api -o yaml` | confirms the current configuration of the Deployment.\n- `kubectl get pod/inventory-api-7f9c8d6b5-x2qwe -o yaml` | confirms the current state of the Pod.\n- `kubectl describe deployment/production/inventory-api` | confirms the readiness probe configuration.\n- `kubectl describe pod/inventory-api-7f9c8d6b5-x2qwe` | confirms the Pod is not ready.\n- `kubectl get events -n production | grep inventory-api` | confirms there are no new events related to the",
+  "reason": "cause concept(s) not named: etcd, compaction|compacted|latency|slow",
+  "remediation": [
+    "`kubectl rollout restart deployment/production/inventory-api` | restarts the deployment to apply the latest configuration.",
+    "`kubectl describe pod/inventory-api-7f9c8d6b5-x2qwe` | checks the current state of the Pod to confirm it is not ready.",
+    "`kubectl logs -f pod/inventory-api-7f9c8d6b5-x2qwe` | checks the logs of the Pod to see if there are any error messages related to the readiness probe."
+  ],
+  "root_cause": "The root cause is a misconfigured readiness probe in the Deployment/production/inventory-api. The readiness probe is failing with a \"context deadline exceeded\" error, which is causing the Kubernetes controller to back off and restart the container.",
+  "run": 1,
+  "solver": "context",
+  "started_at": "2026-11-03T02:18:07.409696+00:00",
+  "store": "stub",
+  "tier": "B",
+  "veracity": "FAIL",
+  "wall_s": 71.92
+}

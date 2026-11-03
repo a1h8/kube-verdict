@@ -122,6 +122,6 @@ def test_to_dict_roundtrip_shape():
     d = proposal.to_dict()
     assert set(d) == {
         "release", "namespace", "file_path", "changes",
-        "diff", "new_content", "source_remediation",
+        "diff", "new_content", "source_remediation", "warnings",
     }
     assert d["changes"] == {"replicaCount": 2}

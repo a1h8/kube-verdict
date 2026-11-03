@@ -1,0 +1,71 @@
+{
+  "case": "h008_init_container_fail",
+  "case_hash": "979fe37ee542861fe72946cd29f34f5f7fac28c5e510512d5001fb1d644d95b7",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM \u2014 The root cause is probable, but the causal link between the missing 'user_tokens' relation and the failed database migration is inferred rather than directly observed in the evidence.",
+  "config": "C2",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": {
+    "anchors": 0,
+    "chart_anchors": 0,
+    "docs": 0,
+    "examples": 0,
+    "vectors": 5
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 118.2,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2088,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 81.3,
+      "prompt_tokens_read": 1824,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "migration",
+      "init|db-migrate"
+    ]
+  ],
+  "matched_keywords": [
+    "migration",
+    "init|db-migrate"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 4394,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 07:13:41 UTC\nTotal context chunks : 13\nContext quality score: MEDIUM (0.65/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 6 \u2192 0.15, Critical signals 3 \u2192 0.09, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (3)\n  - kind=Pod name=backend-6b9f7c8d5-mn4pq namespace=staging labels=[app.kubernetes.io/name=backend app.kubernetes.io/instance=backend pod-template-hash=6b9f7c8d5] phase=Pending node=worker-node-03 restarts=0 owner=ReplicaSet/backend-6b9f7c8d5\n  - kind=Event type=Warning reason=BackOff involved=Pod/backend-6b9f7c8d5-mn4pq namespace=staging count=3 message=Back-off restarting failed container db-migrate in pod backend-6b9f7c8d5-mn4pq_staging\n  - kind=Event type=Warning reason=Failed involved=Pod/backend-6b9f7c8d5-mn4pq namespace=staging count=3 message=Error: container db-migrate in pod backend-6b9f7c8d5-mn4pq exited with code 1: FATAL: database migration failed \u2014 relation 'user_tokens' does not exist\n### WARNING \u2014 Kubernetes events (2)\n  - kind=Event type=Warning reason=BackOff involved=Pod/backend-6b9f7c8d5-mn4pq namespace=staging count=3 message=Back-off restarting failed container db-migrate in pod backend-6b9f7c8d5-mn4pq_staging\n  - kind=Event type=Warning reason=Failed involved=Pod/backend-6b9f7c8d5-mn4pq namespace=staging count=3 message=Error: container db-migrate in pod backend-6b9f7c8d5-mn4pq exited with code 1: FATAL: database migration failed \u2014 relation 'user_tokens' does not exist\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/staging/backend-6b9f7c8d5-mn4pq: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=backend namespace=staging chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=1]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=staging\n\n---\n## Incident query\nbackend pod never becomes ready in staging\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe backend pod in the staging namespace is not becoming ready due to a failed database migration.\n\n### 2. Affected resources\n- kind=Pod name=backend-6b9f7c8d5-mn4pq namespace=staging \u2014 Pending status\n- kind=Event type=Warning reason=Failed involved=Pod/backend-6b9f7c8d5-mn4pq namespace=staging \u2014 Error: container db-migrate exited with code 1\n\n### 3. Root cause\nThe database migration container is exiting with a non-zero exit code (1), indicating an error during the migration process. The specific error message is \"FATAL: database migration failed \u2014 relation 'user_tokens' does not exist\". This suggests that the database schema may not be correctly initialized or synchronized with the application's expectations.\n\n### 4. Causal chain\n1. The backend pod is created with the specified container image, which includes a database migration script.\n2. The database migration script is executed during container startup, but it fails due to the missing 'user_tokens' relation in the database.\n3. The failed container is restarted three times, but each restart results in the same error, causing the pod to remain in a Pending state.\n\n### 5. Remediation\n- Ensure that the database schema is correctly initialized before starting the application. This could be done by creating the necessary database schema objects (e.g., tables, indexes, etc.) before running the migration script.\n- Check if the database migration script is designed to handle the case where the database schema is not fully initialized. If not, modify the script to handle this case gracefully, such as by creating the missing objects or by providing a user-friendly error message.\n\n### 6. Confidence\nMEDIUM \u2014 The root cause is probable, but the causal link between the missing 'user_tokens' relation and the failed database migration is inferred rather than directly observed in the evidence.\n\n### 7. Checks\n- `kubectl logs backend-6b9f7c8d5-mn4pq -c db-migrate -n staging` | verifies: Contents of the database migration container logs | confirms if: The logs contain the error message about the missing 'user",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Ensure that the database schema is correctly initialized before starting the application. This could be done by creating the necessary database schema objects (e.g., tables, indexes, etc.) before running the migration script.",
+    "Check if the database migration script is designed to handle the case where the database schema is not fully initialized. If not, modify the script to handle this case gracefully, such as by creating the missing objects or by providing a user-friendly error message."
+  ],
+  "root_cause": "The database migration container is exiting with a non-zero exit code (1), indicating an error during the migration process. The specific error message is \"FATAL: database migration failed \u2014 relation 'user_tokens' does not exist\". This suggests that the database schema may not be correctly initialized or synchronized with the application's expectations.",
+  "run": 3,
+  "solver": "context",
+  "started_at": "2026-11-02T07:17:01.357476+00:00",
+  "store": "faiss",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 202.18
+}

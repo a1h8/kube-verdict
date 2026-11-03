@@ -1,0 +1,68 @@
+{
+  "case": "h007_hpa_no_metrics",
+  "case_hash": "5b19d451233fe54c9ecbe465244e5612ccc380fdf811e4203d56e38a5484f0d8",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM: The root cause is directly indicated by the events in the kube/events.yaml file, but the underlying cause of the failure in the resource metrics API is not explicitly stated in the provided files.",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 54.4,
+      "answer_tokens": 310,
+      "estimated_prompt_tokens": 1644,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 0.2,
+      "prompt_tokens_read": 1589,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "metrics"
+    ]
+  ],
+  "matched_keywords": [
+    "metrics"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 4190,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 2,\n  \"image\": {\"repository\": \"ghcr.io/acme/api-service\", \"tag\": \"2.1.0\", \"pullPolicy\": \"IfNotPresent\"},\n  \"resources\": {\n    \"limits\": {\"memory\": \"512Mi\", \"cpu\": \"1\"},\n    \"requests\": {\"memory\": \"256Mi\", \"cpu\": \"200m\"}\n  },\n  \"service\": {\"type\": \"ClusterIP\", \"port\": 8080},\n  \"autoscaling\": {\n    \"enabled\": true,\n    \"minReplicas\": 2,\n    \"maxReplicas\": 10,\n    \"targetCPUUtilizationPercentage\": 70\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 2\nimage:\n  repository: ghcr.io/acme/api-service\n  tag: 2.1.0\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 512Mi\n    cpu: '1'\n  requests:\n    memory: 256Mi\n    cpu: 200m\nservice:\n  type: ClusterIP\n  port: 8080\nautoscaling:\n  enabled: true\n  minReplicas: 2\n  maxReplicas: 10\n  targetCPUUtilizationPercentage: 70\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nmetadata: {}\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: api-service-hpa.unable-metrics.001\n    namespace: production\n    uid: evt-hpa-nometrics-001\n  type: Warning\n  reason: FailedGetResourceMetric\n  message: 'failed to get cpu utilization: unable to get metrics for resource cpu:\n    no metrics returned from resource metrics API'\n  involvedObject:\n    kind: HorizontalPodAutoscaler\n    name: api-service\n    namespace: production\n  count: 143\n  firstTimestamp: '2026-05-14T08:00:00Z'\n  lastTimestamp: '2026-05-14T12:00:00Z'\n  reportingComponent: horizontal-pod-autoscaler\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: api-service-hpa.scale-failed.002\n    namespace: production\n    uid: evt-hpa-scale-fail-002\n  type: Warning\n  reason: FailedComputeMetricsReplicas\n  message: 'failed to compute desired number of replicas based on listed metrics for\n    Deployment/production/api-service: invalid metrics (1 invalid out of 1), first\n    error is: failed to get cpu resource metric value: failed to get cpu utilization:\n    unable to get metrics for resource cpu: no metrics returned from resource metrics\n    API'\n  involvedObject:\n    kind: HorizontalPodAutoscaler\n    name: api-service\n    namespace: production\n  count: 143\n  firstTimestamp: '2026-05-14T08:00:01Z'\n  lastTimestamp: '2026-05-14T12:00:01Z'\n  reportingComponent: horizontal-pod-autoscaler\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: api-service-7f8b9c6d5-kp2mn\n  namespace: production\n  uid: pod-prod-api-service-7f8b9c6d5-kp2mn\n  labels:\n    app.kubernetes.io/name: api-service\n    app.kubernetes.io/instance: api-service\n    pod-template-hash: 7f8b9c6d5\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: api-service-7f8b9c6d5\n    uid: rs-prod-api-service-7f8b9c6d5\n    controller: true\n    blockOwnerDeletion: true\n  annotations:\n    metrics_server/cpu_millicores: '180'\n    metrics_server/memory_mi: '210'\nspec:\n  nodeName: worker-node-01\n  serviceAccountName: api-service\n  containers:\n  - name: api-service\n    image: ghcr.io/acme/api-service:2.1.0\n    resources:\n      limits:\n        memory: 512Mi\n        cpu: '1'\n      requests:\n        memory: 256Mi\n        cpu: 200m\n    readinessProbe:\n      httpGet:\n        path: /health\n        port: 8080\n      initialDelaySeconds: 10\n      periodSeconds: 5\nstatus:\n  phase: Running\n  containerStatuses:\n  - name: api-service\n    ready: true\n    restartCount: 0\n    state:\n      running:\n        startedAt: '2026-05-14T10:00:00Z'\n  conditions:\n  - type: Ready\n    status: 'True'\n\n---\n## Incident query\napi-service does not scale up under load in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe Horizontal Pod Autoscaler (HPA) for the api-service in the production namespace is unable to scale up due to a failure in getting CPU utilization metrics.\n\n### 2. Affected resources\n- HorizontalPodAutoscaler/production/api-service \u2014 unable to scale up\n\n### 3. Root cause\nThe root cause is the failure to get CPU utilization metrics for the api-service in the production namespace, as indicated by the events in the kube/events.yaml file.\n\n### 4. Causal chain\n1. The HPA is configured to scale based on CPU utilization (kube/events.yaml).\n2. The HPA attempts to get CPU utilization metrics for the api-service (kube/events.yaml).\n3. The HPA fails to get CPU utilization metrics due to an issue with the resource metrics API (kube/events.yaml).\n\n### 5. Remediation\n1. Check the resource metrics API for any issues or misconfigurations.\n2. If the issue persists, consider using custom metrics or a different method for scaling the api-service.\n\n### 6. Confidence\nMEDIUM: The root cause is directly indicated by the events in the kube/events.yaml file, but the underlying cause of the failure in the resource metrics API is not explicitly stated in the provided files.",
+  "reason": "cause concept(s) not named: hpa|autoscal",
+  "remediation": [
+    "Check the resource metrics API for any issues or misconfigurations.",
+    "If the issue persists, consider using custom metrics or a different method for scaling the api-service."
+  ],
+  "root_cause": "The root cause is the failure to get CPU utilization metrics for the api-service in the production namespace, as indicated by the events in the kube/events.yaml file.",
+  "run": 2,
+  "solver": "raw",
+  "started_at": "2026-11-01T23:38:21.468521+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 54.57
+}

@@ -3,11 +3,26 @@
   "query": "kafka-2 never comes back after the rolling update in the data namespace",
   "namespace": "data",
   "release": "kafka",
-  "affected_resources": ["Pod/data/kafka-2"],
-  "root_cause_contains": ["pvc", "statefulset", "stuck", "volume", "pending"],
-  "fix_commands_contain": ["kubectl", "pvc"],
+  "affected_resources": [
+    "Pod/data/kafka-2"
+  ],
+  "root_cause_contains": [
+    "pvc",
+    "statefulset",
+    "stuck",
+    "volume",
+    "pending"
+  ],
+  "fix_commands_contain": [
+    "kubectl",
+    "pvc"
+  ],
   "confidence": "MEDIUM",
   "confidence_score_min": 0.35,
   "fallback_expected": false,
-  "notes": "StatefulSet kafka is performing a rolling update. Pod kafka-2 is stuck Pending because its PVC 'data-kafka-2' is bound to the old node 'worker-node-01' which was drained. The new pod cannot be scheduled because the PVC's volumeMode is ReadWriteOnce — only one node can mount it. Fix: delete the stuck PVC so Kubernetes recreates it on the new node, or annotate volume to allow re-binding."
+  "notes": "StatefulSet kafka rolls pod kafka-2. Its claim data-kafka-2 is Bound to a local volume pinned to worker-node-01, and worker-node-01 is cordoned for a drain: the scheduler reports a volume node affinity conflict on the free node and the two other nodes unschedulable, so kafka-2 stays Pending. Fix: uncordon worker-node-01 for the rollout, or move the data and recreate the claim. Corrected 2026-10-20 (docs/failing-cases-002.md S6): the claim was absent from the fixture (read as missing) and two event messages were invented.",
+  "root_cause_concepts": [
+    "volume|pvc|persistentvolumeclaim|data-kafka-2",
+    "bound to another node|node affinity|cordon"
+  ]
 }

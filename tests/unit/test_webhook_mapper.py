@@ -1,5 +1,6 @@
 from api.models import AlertmanagerAlert
-from api.webhook_mapper import alert_to_namespaces, alert_to_query, firing_alerts
+import config
+from api.webhook_mapper import alert_text, alert_to_namespaces, alert_to_query, firing_alerts
 
 
 def _alert(status="firing", **labels) -> AlertmanagerAlert:
@@ -34,14 +35,14 @@ def test_query_severity_warning():
     assert "[WARNING]" in q
 
 
-def test_query_includes_summary():
+def test_query_leaves_the_summary_to_the_alert_text():          # fix plan H71
     a = AlertmanagerAlert(
         status="firing",
         labels={"alertname": "ImagePullBackOff"},
         annotations={"summary": "Image not found in registry"},
     )
-    q = alert_to_query(a)
-    assert "Image not found in registry" in q
+    assert "Image not found in registry" not in alert_to_query(a)
+    assert alert_text(a) == "Image not found in registry"
 
 
 def test_query_no_labels_does_not_crash():
@@ -61,7 +62,8 @@ def test_namespaces_from_label():
     assert ns == ["staging"]
 
 
-def test_namespaces_empty_when_absent():
+def test_namespaces_empty_when_absent_and_none_configured(monkeypatch):
+    monkeypatch.setattr(config, "KUBE_NAMESPACES", [])
     ns = alert_to_namespaces(_alert(alertname="X"))
     assert ns == []
 

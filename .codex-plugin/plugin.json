@@ -1,7 +1,7 @@
 {
   "name": "kube-verdict",
   "version": "0.1.4",
-  "description": "Anchor-by-render root-cause analysis for Kubernetes incidents — reconstructs the expected state from Helm/GitOps rendered manifests, diffs it against the live cluster, and turns declared-vs-observed drift into a ranked diagnosis with remediation commands, a rollback plan and a confidence score. Runs air-gapped via local Ollama.",
+  "description": "Anchor-by-render root-cause analysis for Kubernetes incidents — compares what Git declares, what Helm applied and the live cluster, and turns each drift into a ranked structured diagnosis; an LLM, when configured, explains it and proposes remediation with a rollback plan. Local inference via Ollama by default; a remote provider receives the prompt.",
   "author": {
     "name": "a1h8",
     "url": "https://github.com/a1h8"
@@ -22,7 +22,7 @@
   "interface": {
     "displayName": "KubeVerdict",
     "shortDescription": "GitOps-aware Kubernetes incident RCA: render-vs-live drift → ranked diagnosis + remediation",
-    "longDescription": "KubeVerdict reconstructs the expected state from Helm/GitOps rendered manifests, compares it with the live cluster, and turns declared-vs-observed drift into evidence-ranked root-cause hypotheses before any LLM explanation. It proposes remediation commands with a rollback plan and a confidence score, and stops at a human approval gate. Runs air-gapped via local Ollama.",
+    "longDescription": "KubeVerdict compares what Git declares, what Helm applied and the live cluster, and turns each drift into a ranked structured diagnosis before any LLM explanation; the LLM explains it and proposes remediation commands with a rollback plan, and the run stops at a human approval gate. Local inference via Ollama by default; a remote provider receives the prompt.",
     "developerName": "a1h8",
     "category": "Developer Tools",
     "capabilities": [

@@ -1049,3 +1049,22 @@ class TestRenderedManifestWithEnv:
         assert len(replicas) == 1
         assert replicas[0].source == "manifest"
         assert replicas[0].declared_value == "7"
+
+
+# ── fix plan H61: the imagePullPolicy default follows the image tag ───────────
+
+class TestImagePullPolicyDefault:
+
+    def _defaults(self, *images):
+        pod = _pod()
+        pod.container_statuses = [{"name": f"c{i}", "image": im} for i, im in enumerate(images)]
+        records = AnchorEngine()._from_k8s_schema(_graph(pod))
+        return {r.field_path: r.declared_value for r in records if r.field_path.endswith("imagePullPolicy")}
+
+    def test_latest_and_untagged_images_default_to_always(self):
+        assert self._defaults("nginx:latest", "registry:5000/team/api") == {
+            "container.c0.imagePullPolicy": "Always", "container.c1.imagePullPolicy": "Always"}
+
+    def test_a_pinned_tag_or_digest_defaults_to_if_not_present(self):   # control
+        assert self._defaults("nginx:1.25", "api@sha256:abc") == {
+            "container.c0.imagePullPolicy": "IfNotPresent", "container.c1.imagePullPolicy": "IfNotPresent"}

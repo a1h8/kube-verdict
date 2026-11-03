@@ -1,0 +1,64 @@
+{
+  "case": "h026_rollout_in_progress",
+  "case_hash": "a997ac0c108165f69fccf6b1aa8d0dc2fccae526a3bc52bfe13d0d0596359485",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM: The evidence suggests a mismatch between the deployed image version and the expected image version, which could explain the failed readiness probe. However, further investigation might be needed to confirm the exact cause of the issue.",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/deployment.yaml",
+    "kube/events.yaml",
+    "kube/pods.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 110.0,
+      "answer_tokens": 431,
+      "estimated_prompt_tokens": 3246,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 0.2,
+      "prompt_tokens_read": 3356,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 8515,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 3,\n  \"image\": {\n    \"repository\": \"ghcr.io/acme/invoice\",\n    \"tag\": \"v2.4.0\",\n    \"pullPolicy\": \"IfNotPresent\"\n  },\n  \"resources\": {\n    \"limits\": {\n      \"memory\": \"512Mi\",\n      \"cpu\": \"1\"\n    },\n    \"requests\": {\n      \"memory\": \"256Mi\",\n      \"cpu\": \"200m\"\n    }\n  },\n  \"service\": {\n    \"type\": \"ClusterIP\",\n    \"port\": 8080\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 3\nimage:\n  repository: ghcr.io/acme/invoice\n  tag: v2.4.0\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 512Mi\n    cpu: '1'\n  requests:\n    memory: 256Mi\n    cpu: 200m\nservice:\n  type: ClusterIP\n  port: 8080\n\n=== kube/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: invoice\n  namespace: production\n  uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110026\n  creationTimestamp: '2026-09-02T09:00:00Z'\n  labels:\n    app.kubernetes.io/name: invoice\n    app.kubernetes.io/instance: invoice\n    app.kubernetes.io/managed-by: Helm\n  annotations:\n    deployment.kubernetes.io/revision: '6'\n    meta.helm.sh/release-name: invoice\n    meta.helm.sh/release-namespace: production\nspec:\n  replicas: 3\n  progressDeadlineSeconds: 600\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxSurge: 1\n      maxUnavailable: 0\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: invoice\n        app.kubernetes.io/instance: invoice\n    spec:\n      containers:\n      - name: invoice\n        image: ghcr.io/acme/invoice:v2.4.0\n        resources:\n          limits:\n            memory: 512Mi\n            cpu: '1'\n          requests:\n            memory: 256Mi\n            cpu: 200m\nstatus:\n  observedGeneration: 6\n  replicas: 4\n  updatedReplicas: 1\n  readyReplicas: 3\n  availableReplicas: 3\n  unavailableReplicas: 1\n  conditions:\n  - type: Available\n    status: 'True'\n    reason: MinimumReplicasAvailable\n    message: Deployment has minimum availability.\n  - type: Progressing\n    status: 'True'\n    reason: ReplicaSetUpdated\n    message: ReplicaSet \"invoice-6c8b7f9d4\" is progressing.\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: invoice.scaling\n    namespace: production\n  type: Normal\n  reason: ScalingReplicaSet\n  message: Scaled up replica set invoice-6c8b7f9d4 to 1\n  involvedObject:\n    kind: Deployment\n    name: invoice\n    namespace: production\n  count: 1\n  firstTimestamp: '2026-10-17T10:00:00Z'\n  lastTimestamp: '2026-10-17T10:00:00Z'\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: invoice-6c8b7f9d4-h5n3v.unhealthy\n    namespace: production\n  type: Warning\n  reason: Unhealthy\n  message: 'Readiness probe failed: Get \"http://10.0.4.17:8080/ready\": dial tcp 10.0.4.17:8080:\n    connect: connection refused'\n  involvedObject:\n    kind: Pod\n    name: invoice-6c8b7f9d4-h5n3v\n    namespace: production\n  count: 1\n  firstTimestamp: '2026-10-17T10:00:20Z'\n  lastTimestamp: '2026-10-17T10:00:20Z'\n\n=== kube/pods.yaml ===\napiVersion: v1\nkind: PodList\nitems:\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: invoice-5d7c9b8f6-k2m4p\n    namespace: production\n    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110031\n    creationTimestamp: '2026-10-10T08:00:00Z'\n    labels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n      pod-template-hash: 5d7c9b8f6\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: invoice-5d7c9b8f6\n      controller: true\n  spec:\n    nodeName: worker-node-01\n    serviceAccountName: invoice\n    containers:\n    - name: invoice\n      image: ghcr.io/acme/invoice:v2.3.0\n      ports:\n      - containerPort: 8080\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8080\n        initialDelaySeconds: 10\n        periodSeconds: 5\n  status:\n    phase: Running\n    conditions:\n    - type: Ready\n      status: 'True'\n    - type: ContainersReady\n      status: 'True'\n    - type: PodScheduled\n      status: 'True'\n    containerStatuses:\n    - name: invoice\n      ready: true\n      started: true\n      restartCount: 0\n      image: ghcr.io/acme/invoice:v2.3.0\n      state:\n        running:\n          startedAt: '2026-10-10T08:00:20Z'\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: invoice-5d7c9b8f6-r8t2w\n    namespace: production\n    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110032\n    creationTimestamp: '2026-10-10T08:00:00Z'\n    labels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n      pod-template-hash: 5d7c9b8f6\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: invoice-5d7c9b8f6\n      controller: true\n  spec:\n    nodeName: worker-node-02\n    serviceAccountName: invoice\n    containers:\n    - name: invoice\n      image: ghcr.io/acme/invoice:v2.3.0\n      ports:\n      - containerPort: 8080\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8080\n        initialDelaySeconds: 10\n        periodSeconds: 5\n  status:\n    phase: Running\n    conditions:\n    - type: Ready\n      status: 'True'\n    - type: ContainersReady\n      status: 'True'\n    - type: PodScheduled\n      status: 'True'\n    containerStatuses:\n    - name: invoice\n      ready: true\n      started: true\n      restartCount: 0\n      image: ghcr.io/acme/invoice:v2.3.0\n      state:\n        running:\n          startedAt: '2026-10-10T08:00:22Z'\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: invoice-5d7c9b8f6-x7q9z\n    namespace: production\n    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110033\n    creationTimestamp: '2026-10-10T08:00:00Z'\n    labels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n      pod-template-hash: 5d7c9b8f6\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: invoice-5d7c9b8f6\n      controller: true\n  spec:\n    nodeName: worker-node-03\n    serviceAccountName: invoice\n    containers:\n    - name: invoice\n      image: ghcr.io/acme/invoice:v2.3.0\n      ports:\n      - containerPort: 8080\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8080\n        initialDelaySeconds: 10\n        periodSeconds: 5\n  status:\n    phase: Running\n    conditions:\n    - type: Ready\n      status: 'True'\n    - type: ContainersReady\n      status: 'True'\n    - type: PodScheduled\n      status: 'True'\n    containerStatuses:\n    - name: invoice\n      ready: true\n      started: true\n      restartCount: 0\n      image: ghcr.io/acme/invoice:v2.3.0\n      state:\n        running:\n          startedAt: '2026-10-10T08:00:21Z'\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: invoice-6c8b7f9d4-h5n3v\n    namespace: production\n    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110034\n    creationTimestamp: '2026-10-17T10:00:00Z'\n    labels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n      pod-template-hash: 6c8b7f9d4\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: invoice-6c8b7f9d4\n      controller: true\n  spec:\n    nodeName: worker-node-04\n    serviceAccountName: invoice\n    containers:\n    - name: invoice\n      image: ghcr.io/acme/invoice:v2.4.0\n      ports:\n      - containerPort: 8080\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8080\n        initialDelaySeconds: 10\n        periodSeconds: 5\n  status:\n    phase: Running\n    conditions:\n    - type: Ready\n      status: 'False'\n    - type: ContainersReady\n      status: 'False'\n    - type: PodScheduled\n      status: 'True'\n    containerStatuses:\n    - name: invoice\n      ready: false\n      started: true\n      restartCount: 0\n      image: ghcr.io/acme/invoice:v2.4.0\n      state:\n        running:\n          startedAt: '2026-10-17T10:00:05Z'\n\n---\n## Incident query\nis something wrong with invoice in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nAn issue is observed with the 'invoice' deployment in the 'production' namespace, as it has one unavailable replica due to a failed readiness probe.\n\n### 2. Affected resources\n- Deployment: invoice \u2014 unavailable replicas\n- Pod: invoice-6c8b7f9d4-h5n3v \u2014 failed readiness probe\n\n### 3. Root cause\nThe root cause appears to be a mismatch between the deployed image version (v2.4.0) and the expected image version (v2.3.0) in the running pods. This discrepancy might cause the application to fail the readiness probe.\n\n### 4. Causal chain\n1. A new deployment with image tag v2.4.0 was created and scaled up to 3 replicas.\n2. One of the replicas, invoice-6c8b7f9d4-h5n3v, was scheduled on worker-node-04.\n3. The container in the pod was started using the image ghcr.io/acme/invoice:v2.4.0.\n4. The container failed the readiness probe due to a connection refused error when trying to access the '/ready' endpoint.\n\n### 5. Remediation\n1. Roll back the deployment to the previous version (v2.3.0) or update the pod template to use the correct image tag (v2.4.0).\n2. Scale down the deployment to zero replicas to allow the new configuration to propagate.\n3. Scale up the deployment to the desired number of replicas.\n\n### 6. Confidence\nMEDIUM: The evidence suggests a mismatch between the deployed image version and the expected image version, which could explain the failed readiness probe. However, further investigation might be needed to confirm the exact cause of the issue.",
+  "reason": "no_incident: confidence MEDIUM, LOW expected",
+  "remediation": [
+    "Roll back the deployment to the previous version (v2.3.0) or update the pod template to use the correct image tag (v2.4.0).",
+    "Scale down the deployment to zero replicas to allow the new configuration to propagate.",
+    "Scale up the deployment to the desired number of replicas."
+  ],
+  "root_cause": "The root cause appears to be a mismatch between the deployed image version (v2.4.0) and the expected image version (v2.3.0) in the running pods. This discrepancy might cause the application to fail the readiness probe.",
+  "run": 2,
+  "solver": "raw",
+  "started_at": "2026-11-02T01:04:32.600026+00:00",
+  "store": "stub",
+  "tier": "C",
+  "veracity": "FAIL",
+  "wall_s": 110.33
+}

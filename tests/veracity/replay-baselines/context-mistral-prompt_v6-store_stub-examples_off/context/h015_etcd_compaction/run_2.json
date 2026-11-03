@@ -1,0 +1,63 @@
+{
+  "case": "h015_etcd_compaction",
+  "case_hash": "6a16d16e1c20e6bd4d070b321b1d22ba26a259042b1cc809658467e9e68078ed",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM - While the causal chain is plausible, the exact cause of the slow startup or high resource contention is not directly observed in the provided context.",
+  "config": "C1",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": null,
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 126.3,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3233,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 192.7,
+      "prompt_tokens_read": 2847,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "compaction|compacted|latency|slow"
+    ]
+  ],
+  "matched_keywords": [
+    "compaction|compacted|latency|slow"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 7488,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 03:52:47 UTC\nTotal context chunks : 26\nContext quality score: MEDIUM (0.68/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 14 \u2192 0.15, Critical signals 4 \u2192 0.12, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (4)\n  - kind=Pod name=inventory-api-7f9c8d6b5-x2qwe namespace=production labels=[app.kubernetes.io/name=inventory-api app.kubernetes.io/instance=inventory-api pod-template-hash=7f9c8d6b5] phase=Running node=worker-node-03 restarts=2 owner=ReplicaSet/inventory-api-7f9c8d6b5\n  - kind=Deployment name=inventory-api namespace=production labels=[app.kubernetes.io/name=inventory-api app.kubernetes.io/instance=inventory-api app.kubernetes.io/managed-by=Helm] replicas=3 ready=1 available=1\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=37 message=Readiness probe failed: Get \"http://10.0.3.22:8080/ready\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n  - kind=Event type=Warning reason=BackOff involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=12 message=Readiness probe failed, back-off 5s restarting failed container=inventory-api\n### TRACES \u2014 OpenTelemetry error traces (4)\n  - kind=OtelTrace traceId=6f2a1e0c9d8b4a3f7e6d5c4b3a2f1e0d service=inventory-api status=ERROR duration=4820ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'\n  - kind=OtelTrace traceId=8b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e service=inventory-api status=ERROR duration=5103ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'\n  - kind=OtelTrace traceId=1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d service=inventory-api status=ERROR duration=4655ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'\n  - kind=OtelTrace traceId=3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f service=inventory-api status=ERROR duration=4988ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'\n### WARNING \u2014 Kubernetes events (2)\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=37 message=Readiness probe failed: Get \"http://10.0.3.22:8080/ready\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n  - kind=Event type=Warning reason=BackOff involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=12 message=Readiness probe failed, back-off 5s restarting failed container=inventory-api\n### ANCHORS \u2014 Declared values & K8s schema (14)\n  - Deployment/production/inventory-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/production/inventory-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/production/inventory-api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/production/inventory-api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/production/inventory-api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/production/inventory-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/production/inventory-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/production/inventory-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=inventory-api namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=3]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\nwhy is inventory-api not ready\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe `inventory-api` deployment is not ready due to repeated failures in the readiness probe, which is causing the pod to enter a backoff state.\n\n### 2. Affected resources\n- Pod/production/inventory-api-7f9c8d6b5-x2qwe \u2014 Running but not ready\n- Deployment/production/inventory-api \u2014 Unhealthy\n\n### 3. Root cause\nThe root cause appears to be a problem with the readiness probe of the `inventory-api` pod, which is failing repeatedly due to a context deadline exceeded error. This error is likely caused by the pod taking too long to become ready, possibly due to slow startup or high resource contention.\n\n### 4. Causal chain\n1. The `inventory-api` deployment is configured to use a readiness probe to determine when a pod is ready to serve traffic.\n2. The readiness probe makes an HTTP GET request to the pod's `/ready` endpoint.\n3. The readiness probe times out due to a context deadline exceeded error, likely because the pod is taking too long to become ready.\n4. The pod enters a backoff state, causing it to be marked as unready and triggering the deployment controller to restart the pod.\n5. The pod is restarted, but the same issue occurs, causing the pod to enter a backoff state again.\n\n### 5. Remediation\n- Increase the `minReadySeconds` value for the `inventory-api` deployment to give the pod more time to become ready before it is considered available.\n- Investigate the cause of the slow startup or high resource contention that is causing the readiness probe to fail.\n\n### 6. Confidence\nMEDIUM - While the causal chain is plausible, the exact cause of the slow startup or high resource contention is not directly observed in the provided context.\n\n### 7. Checks\n- `kubectl describe pod inventory-api-7f9c8d6b5-x2qwe` | verifies: Pod events and status | confirms if: The pod is in a backoff state and the readiness probe is failing repeatedly | refutes if: The pod is ready and the readiness probe is passing\n- `k",
+  "reason": "cause concept(s) not named: etcd",
+  "remediation": [
+    "Increase the `minReadySeconds` value for the `inventory-api` deployment to give the pod more time to become ready before it is considered available.",
+    "Investigate the cause of the slow startup or high resource contention that is causing the readiness probe to fail."
+  ],
+  "root_cause": "The root cause appears to be a problem with the readiness probe of the `inventory-api` pod, which is failing repeatedly due to a context deadline exceeded error. This error is likely caused by the pod taking too long to become ready, possibly due to slow startup or high resource contention.",
+  "run": 2,
+  "solver": "context",
+  "started_at": "2026-11-02T03:58:06.583448+00:00",
+  "store": "stub",
+  "tier": "B",
+  "veracity": "FAIL",
+  "wall_s": 319.4
+}

@@ -10,7 +10,7 @@ Strategy:
 """
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from ontology.graph import OntologyGraph
 import workflow.nodes as _nodes_mod
@@ -30,15 +30,10 @@ from workflow.nodes import (
     save_example_node,
     _get_infra,
     _get_llm,
-    _graph_snapshot,
-    _build_hypothesis_context,
     _rerank_candidates,
-    _parse_hypotheses,
     _exec_dry_run,
     _nested_get,
-    _anchor_hit_to_hypothesis,
     _extract_example_field,
-    _ANCHOR_FIELD_HYPOTHESES,
 )
 from workflow.state import RCAState
 
@@ -146,6 +141,20 @@ def test_metrics_node_fallback_on_error(monkeypatch):
     assert result["ingestion_stats"]["metrics"]["fallback"] is True
 
 
+def test_metrics_node_reports_a_refused_listing(monkeypatch):                # fix plan H52
+    import config as cfg
+    monkeypatch.setattr(cfg, "METRICS_SERVER_ENABLED", True)
+    collector = MagicMock(last_error="ns=prod: 403 Forbidden")
+    collector.collect.return_value = 0
+    with patch("ingestion.metrics_server_collector.MetricsServerCollector", return_value=collector):
+        stat = metrics_node(_state(), _config(graph=_empty_graph()))["ingestion_stats"]["metrics"]
+    assert stat["fallback"] is True and "403" in stat["error"]
+    collector.last_error = None                                                 # control
+    with patch("ingestion.metrics_server_collector.MetricsServerCollector", return_value=collector):
+        stat = metrics_node(_state(), _config(graph=_empty_graph()))["ingestion_stats"]["metrics"]
+    assert stat["fallback"] is False
+
+
 # ---------------------------------------------------------------------------
 # otel_node — skip (both disabled) + skip (no graph)
 # ---------------------------------------------------------------------------
@@ -163,8 +172,7 @@ def test_otel_node_empty_when_no_graph(monkeypatch):
     monkeypatch.setattr(cfg, "OTEL_ENABLED", True)
     monkeypatch.setattr(cfg, "LOKI_ENABLED", False)
     result = otel_node(_state(), _config())  # no graph
-    # node returns {} when no graph
-    assert result == {} or result.get("ingestion_stats", {}).get("otel", {}).get("skipped")
+    assert result == {}                                     # no graph: nothing to collect into (H6)
 
 
 # otel_node writes separate `otel` (traces) and `loki` (logs) entries, each with its
@@ -298,7 +306,7 @@ def test_gitops_node_skip_when_disabled(monkeypatch):
 def test_gitops_node_skip_when_no_url(monkeypatch):
     import config as cfg
     monkeypatch.setattr(cfg, "GITOPS_ENABLED", True)
-    monkeypatch.setattr(cfg, "GITOPS_REPO_URL", "")
+    monkeypatch.setattr(cfg, "GIT_REPOS", [])
     result = gitops_node(_state(), _config())
     assert result["ingestion_stats"]["gitops"]["skipped"] is True
 
@@ -306,13 +314,23 @@ def test_gitops_node_skip_when_no_url(monkeypatch):
 def test_gitops_node_fallback_on_error(monkeypatch):
     import config as cfg
     monkeypatch.setattr(cfg, "GITOPS_ENABLED", True)
-    monkeypatch.setattr(cfg, "GITOPS_REPO_URL", "https://github.com/acme/charts.git")
-    monkeypatch.setattr(cfg, "GITOPS_BRANCH", "main")
-    monkeypatch.setattr(cfg, "GITHUB_TOKEN", "")
+    monkeypatch.setattr(cfg, "GIT_REPOS", [{"url": "https://github.com/acme/charts.git"},
+                                           {"url": "https://git.example/acme/infra.git"}])
     graph = _empty_graph()
-    with patch("ingestion.git_provider.GithubProvider", side_effect=RuntimeError("api error")):
+    ok = MagicMock()
+    ok.collect.return_value = []
+
+    def make(url, **_):
+        if "github" in url:
+            raise RuntimeError("clone failed")
+        return MagicMock()
+
+    with patch("ingestion.git_provider.make_provider", side_effect=make), \
+         patch("ingestion.gitops_collector.GitopsCollector", return_value=ok):
         result = gitops_node(_state(), _config(graph=graph))
-    assert result["ingestion_stats"]["gitops"]["fallback"] is True
+    stat = result["ingestion_stats"]["gitops"]
+    assert stat["fallback"] is True and "clone failed" in stat["error"]
+    ok.collect.assert_called_once()          # the other repository is still read (H11)
 
 
 # ---------------------------------------------------------------------------
@@ -321,7 +339,7 @@ def test_gitops_node_fallback_on_error(monkeypatch):
 
 def test_anchor_node_empty_when_no_graph():
     result = anchor_node(_state(), _config())
-    assert result == {} or "anchor" not in result.get("ingestion_stats", {})
+    assert result == {}                                     # H6: one expected result
 
 
 def test_anchor_node_runs_with_empty_graph():
@@ -347,8 +365,7 @@ def test_index_node_runs_with_empty_graph():
     graph = _empty_graph()
     with patch("vectorstore.store.FAISSStore.save"):  # avoid file I/O
         result = index_node(_state(), _config(graph=graph))
-    # index_node returns {} on success
-    assert result == {} or "error" not in result
+    assert result == {}                                     # success: the store is cached, no error (H6)
 
 
 # ---------------------------------------------------------------------------
@@ -356,7 +373,10 @@ def test_index_node_runs_with_empty_graph():
 # ---------------------------------------------------------------------------
 
 def test_signal_analysis_node_fallback_on_error():
+    # a seed, so the analysis runs: without one nothing is analysed (fix plan H68)
+    from ontology.entities import Pod
     graph = _empty_graph()
+    graph.add_entity(Pod(uid="Pod/prod/api-0", name="api-0", namespace="prod", phase="Pending"))
     with patch("signals.analyzer.SignalAnalyzer.analyze", side_effect=RuntimeError("no data")):
         result = signal_analysis_node(_state(), _config(graph=graph))
     assert result["ingestion_stats"]["signals"]["fallback"] is True
@@ -369,29 +389,7 @@ def test_signal_analysis_node_fallback_on_error():
 def test_dry_run_node_with_no_remediation():
     state = _state(remediation=[])
     result = dry_run_node(state, _config())
-    assert result.get("dry_run_results", []) == [] or result == {}
-
-
-# ---------------------------------------------------------------------------
-# _parse_hypotheses
-# ---------------------------------------------------------------------------
-
-def test_parse_hypotheses_extracts_h_prefix_lines():
-    raw = "H1: Pod app CrashLoopBackOff\nH2: PVC stuck Pending\nH3: image pull error"
-    result = _parse_hypotheses(raw)
-    assert len(result) == 3
-    assert "CrashLoopBackOff" in result[0]
-
-
-def test_parse_hypotheses_empty_returns_empty():
-    assert _parse_hypotheses("") == []
-
-
-def test_parse_hypotheses_no_hX_prefix_returns_lines():
-    raw = "everything looks fine\nno issues detected"
-    result = _parse_hypotheses(raw)
-    # Falls back to non-empty lines
-    assert isinstance(result, list)
+    assert result == {}                                     # nothing to dry-run (H6)
 
 
 # ---------------------------------------------------------------------------
@@ -430,40 +428,12 @@ def test_nested_get_empty_path():
 
 
 # ---------------------------------------------------------------------------
-# _anchor_hit_to_hypothesis
-# ---------------------------------------------------------------------------
-
-def test_anchor_hit_replicas():
-    text = "ANCHOR VIOLATION: Deployment/prod/api field=spec.replicas 3 [manifest] vs 1"
-    assert _anchor_hit_to_hypothesis(text) == "Replica count drift — deployment scaling mismatch"
-
-
-def test_anchor_hit_image():
-    text = "ANCHOR VIOLATION: Pod/prod/api-xyz field=containers.0.image v1.0 [manifest] vs v1.1"
-    result = _anchor_hit_to_hypothesis(text)
-    assert result is not None
-
-def test_anchor_hit_unknown_field_returns_none():
-    text = "ANCHOR VIOLATION: Deployment/prod/api field=unknownField xyz [manifest] vs abc"
-    assert _anchor_hit_to_hypothesis(text) is None
-
-
-def test_anchor_field_map_covers_all_entries():
-    # Each entry in _ANCHOR_FIELD_HYPOTHESES should produce a non-empty hypothesis
-    for field_fragment, hypothesis in _ANCHOR_FIELD_HYPOTHESES:
-        text = f"ANCHOR VIOLATION: Pod/ns/name field={field_fragment} x [manifest] vs y"
-        result = _anchor_hit_to_hypothesis(text)
-        assert result == hypothesis, f"field_fragment={field_fragment!r} gave {result!r}"
-
-
-# ---------------------------------------------------------------------------
 # index_node — anchor violations wired up
 # ---------------------------------------------------------------------------
 
 def test_index_node_calls_anchor_violations(synthetic_graph):
     """index_node should call index_anchor_violations after index_graph."""
     with patch("vectorstore.store.FAISSStore.save"), \
-         patch("vectorstore.store.FAISSStore.persist_texts"), \
          patch("vectorstore.store.FAISSStore.index_anchor_violations", return_value=0) as mock_av:
         index_node(_state(), _config(graph=synthetic_graph))
     mock_av.assert_called_once_with(synthetic_graph)
@@ -508,72 +478,6 @@ def test_get_llm_falls_back_to_build_llm_client():
     with patch("llm.build_llm_client", return_value=mock_llm):
         result = _get_llm({"configurable": {}})
     assert result is mock_llm
-
-
-# ---------------------------------------------------------------------------
-# _graph_snapshot — entity signal paths (lines 479-513)
-# ---------------------------------------------------------------------------
-
-def test_graph_snapshot_with_unhealthy_entities(synthetic_graph):
-    result = _graph_snapshot(synthetic_graph)
-    assert isinstance(result, str)
-    # pod_bad has CrashLoopBackOff container status → covered
-    # deploy has degraded replicas → covered
-    # pvc has Pending phase → covered
-    assert "CrashLoopBackOff" in result or "degraded" in result or "phase=" in result
-
-
-def test_graph_snapshot_with_anchor_annotations():
-    """Cover anchor_keys section (lines 505-510)."""
-    from ontology.entities import Pod
-    graph = _empty_graph()
-    pod = Pod(
-        uid="pod-anchor-test", name="api-anchor", namespace="production",
-        phase="Running",
-        annotations={"anchor.spec.replicas": "3 [manifest] observed=1"},
-    )
-    graph.add_entity(pod)
-    result = _graph_snapshot(graph)
-    assert "anchor_violations" in result
-
-
-def test_graph_snapshot_empty_graph_returns_fallback():
-    result = _graph_snapshot(_empty_graph())
-    assert "no obvious" in result
-
-
-# ---------------------------------------------------------------------------
-# _build_hypothesis_context — rule/anchor/causal-chain sections (lines 538-647)
-# ---------------------------------------------------------------------------
-
-def test_build_hypothesis_context_with_synthetic_graph(synthetic_graph):
-    evidence, rule_sources = _build_hypothesis_context(
-        synthetic_graph, None, "pod CrashLoopBackOff api deployment"
-    )
-    assert isinstance(evidence, str)
-    assert isinstance(rule_sources, list)
-
-
-def test_build_hypothesis_context_returns_rule_evidence(synthetic_graph):
-    evidence, rule_sources = _build_hypothesis_context(
-        synthetic_graph, None, "api pod crashed"
-    )
-    # Should produce some evidence text (rules or causal chains)
-    assert len(evidence) > 0
-
-
-def test_build_hypothesis_context_with_anchor_entity():
-    """Cover anchor_lines section (lines 568-582)."""
-    from ontology.entities import Pod
-    graph = _empty_graph()
-    pod = Pod(
-        uid="pod-anch", name="api", namespace="prod",
-        phase="Running",
-        annotations={"anchor.spec.replicas": "3 [manifest] observed=1"},
-    )
-    graph.add_entity(pod)
-    evidence, _ = _build_hypothesis_context(graph, None, "replica mismatch")
-    assert "ANCHOR VIOLATIONS" in evidence or "anchor" in evidence.lower()
 
 
 # ---------------------------------------------------------------------------

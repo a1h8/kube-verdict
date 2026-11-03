@@ -3,6 +3,7 @@
   "query": "api pods keep crashing in production after the last deploy",
   "namespace": "production",
   "release": "api",
+  "drift_provenance": "git-vs-deployed",
   "path": "render-vs-live",
   "affected_resources": ["Deployment/production/api", "Pod/production/api-6d8f9b7c4-xvk2p"],
   "root_cause_contains": ["OOMKilled", "memory", "512Mi", "128Mi", "replicas", "drift"],

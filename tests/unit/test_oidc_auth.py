@@ -50,26 +50,26 @@ def _stub_jwks(monkeypatch, key):
 
 # ── verify_jwt ────────────────────────────────────────────────────────────────
 def test_verify_jwt_valid(monkeypatch, rsa_key):
-    monkeypatch.setattr(cfg, "OIDC_JWKS_URL", "https://idp/.well-known/jwks.json")
+    _oidc_on(monkeypatch)
     _stub_jwks(monkeypatch, rsa_key)
-    claims = oidc.verify_jwt(_make_token(rsa_key))
+    claims = oidc.verify_jwt(_make_token(rsa_key, claims={"iss": "https://idp/", "aud": "kv"}))
     assert claims["sub"] == "user-123"
 
 
 def test_verify_jwt_expired_rejected(monkeypatch, rsa_key):
-    monkeypatch.setattr(cfg, "OIDC_JWKS_URL", "https://idp/jwks")
+    _oidc_on(monkeypatch)
     _stub_jwks(monkeypatch, rsa_key)
-    token = _make_token(rsa_key, claims={"exp": int(time.time()) - 10})
+    token = _make_token(rsa_key, claims={"exp": int(time.time()) - 10,
+                                         "iss": "https://idp/", "aud": "kv"})
     with pytest.raises(HTTPException) as e:
         oidc.verify_jwt(token)
     assert e.value.status_code == 401
 
 
 def test_verify_jwt_bad_audience_rejected(monkeypatch, rsa_key):
-    monkeypatch.setattr(cfg, "OIDC_JWKS_URL", "https://idp/jwks")
-    monkeypatch.setattr(cfg, "OIDC_AUDIENCE", "kube-verdict")
+    _oidc_on(monkeypatch)
     _stub_jwks(monkeypatch, rsa_key)
-    token = _make_token(rsa_key, claims={"aud": "someone-else"})
+    token = _make_token(rsa_key, claims={"iss": "https://idp/", "aud": "someone-else"})
     with pytest.raises(HTTPException) as e:
         oidc.verify_jwt(token)
     assert e.value.status_code == 401
@@ -77,9 +77,10 @@ def test_verify_jwt_bad_audience_rejected(monkeypatch, rsa_key):
 
 # ── require_auth layering ─────────────────────────────────────────────────────
 def test_require_auth_jwt_returns_identity(monkeypatch, rsa_key):
-    monkeypatch.setattr(cfg, "OIDC_JWKS_URL", "https://idp/jwks")
+    _oidc_on(monkeypatch)
     _stub_jwks(monkeypatch, rsa_key)
-    claims = oidc.require_auth(f"Bearer {_make_token(rsa_key)}")
+    claims = oidc.require_auth(
+        f"Bearer {_make_token(rsa_key, claims={'iss': 'https://idp/', 'aud': 'kv'})}")
     assert claims["sub"] == "user-123"
 
 
@@ -114,3 +115,53 @@ def test_require_auth_oidc_required_rejects_shared_secret(monkeypatch):
     with pytest.raises(HTTPException) as e:
         oidc.require_auth("Bearer s3cret")
     assert e.value.status_code == 401
+
+
+# ── docs/fix-plan-001.md, H44 ─────────────────────────────────────────────────
+@pytest.mark.parametrize("issuer,audience", [(None, None), ("https://idp/", None), (None, "kv")])
+def test_a_jwt_is_refused_without_issuer_and_audience(monkeypatch, rsa_key, issuer, audience):
+    monkeypatch.setattr(cfg, "OIDC_JWKS_URL", "https://idp/jwks")
+    monkeypatch.setattr(cfg, "OIDC_ISSUER", issuer)
+    monkeypatch.setattr(cfg, "OIDC_AUDIENCE", audience)
+    _stub_jwks(monkeypatch, rsa_key)
+    token = _make_token(rsa_key, claims={"iss": "https://idp/", "aud": "other-app"})
+    with pytest.raises(HTTPException) as e:
+        oidc.verify_jwt(token)
+    assert e.value.status_code == 500
+
+
+def test_a_token_for_another_application_is_refused(monkeypatch, rsa_key):
+    _oidc_on(monkeypatch)
+    _stub_jwks(monkeypatch, rsa_key)
+    with pytest.raises(HTTPException) as e:
+        oidc.verify_jwt(_make_token(rsa_key, claims={"iss": "https://idp/", "aud": "other-app"}))
+    assert e.value.status_code == 401
+    # control: the same provider, our audience
+    assert oidc.verify_jwt(_make_token(rsa_key, claims={"iss": "https://idp/", "aud": "kv"}))["sub"]
+
+
+def test_an_unknown_kid_does_not_refetch_on_every_request(monkeypatch):
+    fetches = []
+
+    class _Keys:
+        keys = []
+
+    def fake_fetch(url):                      # the real cache logic, counting network fetches
+        if oidc._jwks_cache["keys"] is not None:
+            return oidc._jwks_cache["keys"]
+        fetches.append(url)
+        oidc._jwks_cache.update(keys=_Keys(), fetched_at=time.time())
+        return oidc._jwks_cache["keys"]
+
+    monkeypatch.setattr(oidc, "_fetch_jwks", fake_fetch)
+    monkeypatch.setattr(oidc.jwt, "get_unverified_header", lambda t: {"kid": "unknown"})
+    for _ in range(5):
+        with pytest.raises(HTTPException):
+            oidc._signing_key("x.y.z", "https://idp/jwks")
+    assert len(fetches) <= 2
+
+
+def _oidc_on(monkeypatch):
+    monkeypatch.setattr(cfg, "OIDC_JWKS_URL", "https://idp/jwks")
+    monkeypatch.setattr(cfg, "OIDC_ISSUER", "https://idp/")
+    monkeypatch.setattr(cfg, "OIDC_AUDIENCE", "kv")

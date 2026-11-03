@@ -1,0 +1,26 @@
+id: inc-0005
+title: Session cache pods killed every few minutes once they start
+family: probe
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/011_liveness_probe_failure
+  licence: Apache-2.0
+symptoms:
+  - session-cache pods restart every 2 to 3 minutes, restart count above 15
+  - Unhealthy events, liveness probe failed with connect connection refused
+  - the cache process logs a clean start each time before being killed
+signals: [k8s_events, helm]
+kinds: [Pod, Deployment]
+root_cause: >-
+  The liveness probe applied to the pods targets 6380, the cache protocol port, instead of 9090
+  where the HTTP health endpoint listens; the probe always fails and the kubelet kills the
+  container.
+cause_location: production/Deployment/session-cache
+looks_like: [the cache crashes, memory pressure]
+evidence:
+  - the probe port in the live Deployment differs from the one in the release values
+remediation:
+  - helm upgrade session-cache ./chart -n production --reuse-values --set livenessProbe.httpGet.port=9090
+rollback:
+  - helm rollback session-cache -n production

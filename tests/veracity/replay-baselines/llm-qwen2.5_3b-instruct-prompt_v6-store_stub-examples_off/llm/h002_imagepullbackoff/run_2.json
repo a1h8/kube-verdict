@@ -1,0 +1,70 @@
+{
+  "answerable": true,
+  "case": "h002_imagepullbackoff",
+  "case_hash": "54e3f7542fb9b0e98f56dd8cde7eb8b8648ab13a21cc889a765f4161ac96e486",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "config": "llm",
+  "corpus_hash": null,
+  "cut": null,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "explanation": "The drift in the image tag from `ghcr.io/acme/ml-inference:v2.0.5` to `ghcr.io/acme/ml-inference:v2.1.0-private` in the Helm release `ml-inference` deployed to the `production` namespace. This is evidenced by the drift item in the HelmRelease/production/ml-inference.",
+  "explanation_veracity": "PASS",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 39.5,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2430,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 24.7,
+      "prompt_tokens_read": 1841,
+      "temperature": 0.1
+    }
+  ],
+  "llm_disagreement": "",
+  "matched_groups": [
+    [
+      "image",
+      "tag|drift|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "image",
+    "tag|drift|declared"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "outcome": "cause",
+  "pre_llm_confidence_score": 0.72,
+  "prompt": "v6",
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 22:34:24 UTC\nTotal context chunks : 14\nContext quality score: HIGH (0.72/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 6 \u2192 0.15, Critical signals 3 \u2192 0.09, Helm drift items 1 \u2192 0.07\n\n### CRITICAL \u2014 Unhealthy resources (3)\n  - kind=Pod name=ml-inference-7c9d8b6f5-pq3r7 namespace=production labels=[app.kubernetes.io/name=ml-inference app.kubernetes.io/instance=ml-inference app.kubernetes.io/version=v2.1.0-private pod-template-hash=7c9d8b6f5] phase=Pending node=worker-node-03 restarts=0 owner=ReplicaSet/ml-inference-7c9d8b6f5\n  - kind=Event type=Warning reason=Failed involved=Pod/ml-inference-7c9d8b6f5-pq3r7 namespace=production count=12 message=Failed to pull image \"ghcr.io/acme/ml-inference:v2.1.0-private\": rpc error: code = Unknown desc = failed to pull and unpack image \"ghcr.io/acme/ml-inference:v2.1.0-private\": failed to resolve reference \"ghcr.io/acme/ml-inference:v2.1.0-private\": unexpected status code 401 Unauthorized: unauthorized: unauthenticated\n  - kind=Event type=Warning reason=BackOff involved=Pod/ml-inference-7c9d8b6f5-pq3r7 namespace=production count=8 message=Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\"\n### CRITICAL \u2014 Helm declared vs observed drift (1)\n  - HelmRelease/production/ml-inference: [deployed \u2260 Git] drift field=container.ml-inference.image declared=ghcr.io/acme/ml-inference:v2.0.5 observed=ghcr.io/acme/ml-inference:v2.1.0-private severity=warning\n### WARNING \u2014 Kubernetes events (2)\n  - kind=Event type=Warning reason=Failed involved=Pod/ml-inference-7c9d8b6f5-pq3r7 namespace=production count=12 message=Failed to pull image \"ghcr.io/acme/ml-inference:v2.1.0-private\": rpc error: code = Unknown desc = failed to pull and unpack image \"ghcr.io/acme/ml-inference:v2.1.0-private\": failed to resolve reference \"ghcr.io/acme/ml-inference:v2.1.0-private\": unexpected status code 401 Unauthorized: unauthorized: unauthenticated\n  - kind=Event type=Warning reason=BackOff involved=Pod/ml-inference-7c9d8b6f5-pq3r7 namespace=production count=8 message=Back-off pulling image \"ghcr.io/acme/ml-inference:v2.1.0-private\"\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: container.ml-inference.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/ml-inference-7c9d8b6f5-pq3r7: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=ml-inference namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=1]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\nHYPOTHESIS TO INVESTIGATE:\nThe image tag of ml-inference drifted: declared ghcr.io/acme/ml-inference:v2.0.5, deployed ghcr.io/acme/ml-inference:v2.1.0-private, and that image cannot be pulled.\n\nINCIDENT QUERY:\nml-inference pods do not start in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Update the image tag in the Helm release to match the actual deployed image tag:",
+    "helm upgrade ml-inference ml-inference --set image.tag=v2.1.0-private"
+  ],
+  "root_cause": "The image tag of ml-inference drifted: declared ghcr.io/acme/ml-inference:v2.0.5, deployed ghcr.io/acme/ml-inference:v2.1.0-private, and that image cannot be pulled.",
+  "run": 2,
+  "signals_mode": "none",
+  "solver": "llm",
+  "started_at": "2026-11-02T22:35:28.956672+00:00",
+  "store": "stub",
+  "tier": "A",
+  "unrecoverable": [],
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 64.34
+}

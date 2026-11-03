@@ -1,0 +1,67 @@
+{
+  "answerable": true,
+  "case": "h015_etcd_compaction",
+  "case_hash": "6a16d16e1c20e6bd4d070b321b1d22ba26a259042b1cc809658467e9e68078ed",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "llm",
+  "corpus_hash": null,
+  "cut": null,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "explanation": "The root cause is likely a timeout issue in the readiness probe of the inventory-api Pod, which is caused by the etcd server's slow response or compaction process. The evidence includes the repeated \"context deadline exceeded\" errors in the readiness probe failures.",
+  "explanation_veracity": "PASS",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 39.4,
+      "answer_tokens": 479,
+      "estimated_prompt_tokens": 3341,
+      "num_ctx": 5120,
+      "num_predict": 512,
+      "prompt_eval_s": 37.1,
+      "prompt_tokens_read": 2521,
+      "temperature": 0.1
+    }
+  ],
+  "llm_disagreement": "the LLM named another cause ('The root cause is likely a timeout issue in the readiness probe of the inventory-api Pod, which is caused by the etcd server\\'s slow response or compaction process. The evidence includes the repeated \"'); the structured diagnosis stands",
+  "matched_groups": [
+    [
+      "etcd",
+      "compaction|compacted|latency|slow"
+    ]
+  ],
+  "matched_keywords": [
+    "etcd",
+    "compaction|compacted|latency|slow"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "outcome": "cause",
+  "pre_llm_confidence_score": 0.68,
+  "prompt": "v6",
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 23:22:32 UTC\nTotal context chunks : 26\nContext quality score: MEDIUM (0.68/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 14 \u2192 0.15, Critical signals 4 \u2192 0.12, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (4)\n  - kind=Pod name=inventory-api-7f9c8d6b5-x2qwe namespace=production labels=[app.kubernetes.io/name=inventory-api app.kubernetes.io/instance=inventory-api pod-template-hash=7f9c8d6b5] phase=Running node=worker-node-03 restarts=2 owner=ReplicaSet/inventory-api-7f9c8d6b5\n  - kind=Deployment name=inventory-api namespace=production labels=[app.kubernetes.io/name=inventory-api app.kubernetes.io/instance=inventory-api app.kubernetes.io/managed-by=Helm] replicas=3 ready=1 available=1\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=37 message=Readiness probe failed: Get \"http://10.0.3.22:8080/ready\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n  - kind=Event type=Warning reason=BackOff involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=12 message=Readiness probe failed, back-off 5s restarting failed container=inventory-api\n### TRACES \u2014 OpenTelemetry error traces (4)\n  - kind=OtelTrace traceId=6f2a1e0c9d8b4a3f7e6d5c4b3a2f1e0d service=inventory-api status=ERROR duration=4820ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'\n  - kind=OtelTrace traceId=8b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e service=inventory-api status=ERROR duration=5103ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'\n  - kind=OtelTrace traceId=1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d service=inventory-api status=ERROR duration=4655ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'\n  - kind=OtelTrace traceId=3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f service=inventory-api status=ERROR duration=4988ms spans=3 namespace=production rootSpan='etcdserverpb.KV/Range' error='rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted' errorSpan='GET /inventory/sku' errorSpan='etcdserverpb.KV/Range'\n### WARNING \u2014 Kubernetes events (2)\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=37 message=Readiness probe failed: Get \"http://10.0.3.22:8080/ready\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n  - kind=Event type=Warning reason=BackOff involved=Pod/inventory-api-7f9c8d6b5-x2qwe namespace=production count=12 message=Readiness probe failed, back-off 5s restarting failed container=inventory-api\n### ANCHORS \u2014 Declared values & K8s schema (14)\n  - Deployment/production/inventory-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/production/inventory-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/production/inventory-api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/production/inventory-api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/production/inventory-api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/production/inventory-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/production/inventory-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/production/inventory-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/inventory-api-7f9c8d6b5-x2qwe: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=inventory-api namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=3]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\nHYPOTHESIS TO INVESTIGATE:\nCalls from inventory-api to etcd (etcdserverpb.KV/Range) fail (rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted): etcd is slow or compacting, and inventory-api times out.\n\nINCIDENT QUERY:\nwhy is inventory-api not ready\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "reason": "cause named, no decoy",
+  "remediation": [],
+  "root_cause": "Calls from inventory-api to etcd (etcdserverpb.KV/Range) fail (rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted): etcd is slow or compacting, and inventory-api times out.",
+  "run": 2,
+  "signals_mode": "none",
+  "solver": "llm",
+  "started_at": "2026-11-02T23:23:49.535943+00:00",
+  "store": "stub",
+  "tier": "B",
+  "unrecoverable": [],
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 76.66
+}

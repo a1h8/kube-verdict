@@ -1,0 +1,39 @@
+{
+  "answerable": null,
+  "case": "h013_slo_error_budget_burn",
+  "case_hash": "7cbe32006aedb481893590a8dbe8aa41eec7b6e645594f3033d1509fd2ef1c1c",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "config": "rules",
+  "corpus_hash": null,
+  "cut": null,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "model_digest": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause concept(s) not named: payments-gateway|payments gateway|dependenc|downstream, network",
+  "root_cause": "",
+  "rule_id": null,
+  "run": 1,
+  "signals_mode": null,
+  "solver": "rules",
+  "started_at": "2026-11-01T18:59:52.528726+00:00",
+  "store": "stub",
+  "tier": "B",
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.01
+}

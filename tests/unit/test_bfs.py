@@ -61,6 +61,11 @@ class TestExpandIncidentContext:
         uids = [e.uid for e in ctx]
         assert len(uids) == len(set(uids))
 
+    def test_no_seed_and_no_hit_is_no_context(self, synthetic_graph):     # fix plan H65
+        assert expand_incident_context(synthetic_graph, seeds=[], extra_uids=[], max_depth=2) == []
+        assert expand_incident_context(synthetic_graph, seeds=[], extra_uids=["svc-api"],
+                                       max_depth=0)                             # control
+
     def test_extra_uids_merged(self, synthetic_graph):
         ctx = expand_incident_context(
             synthetic_graph,

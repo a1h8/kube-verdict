@@ -348,6 +348,16 @@ class TestPolicyFixHints:
         hints = policy_fix_hints(g)
         assert "kubectl describe clusterpolicy" in hints[0]
 
+    def test_kyverno_hint_has_no_pipe_into_kyverno_test(self):            # fix plan H60
+        hints = policy_fix_hints(self._graph_with_kyverno_fail())
+        assert "kyverno test" not in hints[0] and "|" not in hints[0]
+        assert "kubectl get policyreport" in hints[0]                     # control: still a check
+
+    def test_the_ui_shows_no_kyverno_test_line(self):
+        from pathlib import Path
+        ui = (Path(__file__).resolve().parents[2] / "ui" / "app.py").read_text()
+        assert "kyverno test ." not in ui and "last-applied-patches" not in ui
+
     def test_gatekeeper_hint_suggests_constraint(self):
         g = _graph()
         v = PolicyViolation(

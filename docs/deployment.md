@@ -105,8 +105,7 @@ python main.py --query "pods are crashlooping in production" --stream
 
 | Mount | Content |
 |---|---|
-| `/data/index.faiss` | FAISS index (rebuilt on each CronJob run) |
-| `/data/index.meta.pkl` | FAISS metadata (parallel to index rows) |
+| `/data/index.faiss`, `/data/index.meta.pkl` | No longer written (2026-10-18): each investigation builds its index in memory |
 | `/root/.ollama/models` | Mistral model weights (~4 GB, persisted in `ollama-models` PVC) |
 | `/root/.kube/config` | Kubeconfig (not needed in-cluster — ServiceAccount is used) |
 

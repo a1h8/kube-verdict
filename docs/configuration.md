@@ -71,7 +71,7 @@ acceptable, don't silently adopt the smaller model's baseline.
 
 | Variable | Default | Description |
 |---|---|---|
-| `VECTOR_STORE_PATH` | `./data/index.faiss` | Path to persist the FAISS index. Mount a PVC here in K8s. |
+| `VECTOR_STORE_PATH` | `./data/index.faiss` | Default path of `FAISSStore.save()` / `load()`. Neither the API nor the workflow reads or writes it: each investigation indexes the cluster it collects, plus the knowledge base (`docs/fix-plan-001.md`, H40). |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence-transformers model name. Must match the model used to build the index. |
 
 ## Deduplication
@@ -114,7 +114,7 @@ Applied as a score multiplier in `FAISSStore.hybrid_search()`. Override any sour
 
 | Variable | Default | Description |
 |---|---|---|
-| `KUBEWHISPERER_DB` | `kubeverdict.db` | Path to the SQLite database. Stores session metadata, LangGraph checkpoints, and raw entity texts for FAISS reconstruction. Swap for a Postgres URL when scaling beyond a single pod. |
+| `KUBEWHISPERER_DB` | `kubeverdict.db` | Path to the SQLite database. Stores session metadata and LangGraph checkpoints. Always SQLite: a Postgres URL is read as a file name (no other backend is implemented). |
 
 ## Runtime
 

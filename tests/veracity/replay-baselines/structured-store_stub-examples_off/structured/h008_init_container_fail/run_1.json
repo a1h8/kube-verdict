@@ -1,0 +1,65 @@
+{
+  "answerable": null,
+  "case": "h008_init_container_fail",
+  "case_hash": "979fe37ee542861fe72946cd29f34f5f7fac28c5e510512d5001fb1d644d95b7",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": null,
+  "diagnoses": [
+    {
+      "family": "init-container",
+      "location": "Pod/staging/backend-6b9f7c8d5-mn4pq",
+      "rule": "init.failed",
+      "score": 0.65,
+      "signals": [
+        "09f01f74dc6c8947",
+        "80e419e86ebc7126"
+      ]
+    }
+  ],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    [
+      "migration",
+      "init|db-migrate"
+    ]
+  ],
+  "matched_keywords": [
+    "migration",
+    "init|db-migrate"
+  ],
+  "model": "",
+  "model_digest": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause named, no decoy",
+  "root_cause": "The init container db-migrate of backend-6b9f7c8d5-mn4pq fails (exit code 1: FATAL: database migration failed \u2014 relation 'user_tokens' does not exist), so the main containers never start.",
+  "rules_version": "rules/5",
+  "run": 1,
+  "signal_kinds": [
+    "container.crashloop",
+    "container.exited",
+    "init.failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-01T19:00:08.103226+00:00",
+  "store": "stub",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.09
+}

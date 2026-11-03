@@ -8,6 +8,10 @@ Three entry points:
   update_expect_from_sim   — rebuild expect.json from a single sim result
   update_input_from_sim    — enrich input.json anchors/symptom from the sim LLM output
   recalibrate_all          — recalibrate confidence_score_min for all cases with sim results
+
+The graded cases (tests/integration/cases/, the ones the veracity replay scores) are never
+rewritten from a run: their expectations are fixed before the numbers and change only through
+the case audit (docs/case-audit-001.md; docs/fix-plan-001.md, H75).
 """
 from __future__ import annotations
 
@@ -37,6 +41,12 @@ _K8S_CONCEPTS = {
 _K8S_COMMANDS = {"helm", "kubectl", "upgrade", "rollback", "patch", "apply", "describe"}
 
 _ALL_K8S = _K8S_ERROR_REASONS | _K8S_CONCEPTS | _K8S_COMMANDS
+
+GRADED_CASES_ROOT = Path(__file__).resolve().parents[1] / "tests" / "integration" / "cases"
+
+
+def is_graded_case(case_dir: Path) -> bool:
+    return Path(case_dir).resolve().is_relative_to(GRADED_CASES_ROOT)
 
 
 # ---------------------------------------------------------------------------
@@ -100,8 +110,13 @@ def update_expect_from_sim(
     Rebuild expect.json fields that can be derived from the sim result.
 
     Returns (new_expect_dict, list_of_changes).
-    If dry_run=True, nothing is written to disk.
+    If dry_run=True, nothing is written to disk. A graded case is refused (ValueError).
     """
+    if is_graded_case(case_dir):
+        raise ValueError(
+            f"{Path(case_dir).name} is a graded case: its expectations change only through the "
+            "case audit, never from a run's output"
+        )
     expect_path = case_dir / "expect.json"
     expect      = json.loads(expect_path.read_text())
 
@@ -207,7 +222,7 @@ def recalibrate_all(
     for sim_path in sorted(sim_results_dir.glob("*.json")):
         case_name = sim_path.stem
         case_dir  = cases_root / case_name
-        if not case_dir.is_dir():
+        if not case_dir.is_dir() or is_graded_case(case_dir):
             continue
 
         sim_json = json.loads(sim_path.read_text())

@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 from rca.signals import Signal, SignalSet
 
-RULES_VERSION = "rules/1"   # bump when a rule, a weight or a threshold changes
+RULES_VERSION = "rules/5"   # bump when a rule, a weight or a threshold changes (2: quota, connections; 3: netpol; 4: slo.dependency — docs/failing-cases-002.md; 5: an explained failure strengthens no other drift, P7)
 REPORT_MIN = 0.5            # a diagnosis below this is not reported
 GENERIC_CAP = 0.4           # a generic rule (drift alone, crash alone) never reaches REPORT_MIN
 BASE, STRENGTH, CONTRA = 0.5, 0.15, 0.3
@@ -77,9 +77,15 @@ def _name(fqn: str) -> str:
     return fqn.rsplit("/", 1)[-1]
 
 
-def _same_workload(pod: str, other: str) -> bool:
-    """A pod and a release / Deployment of the same app: same namespace, pod named after it."""
-    return _ns(pod) == _ns(other) and _name(pod).startswith(_name(other) + "-")
+
+
+_PROVENANCE_TEXT = {"git-vs-deployed": " It was deployed with a value Git does not declare.",
+                    "edited-outside-helm": " It was changed outside Helm after the release was applied."}
+
+
+def _provenance(drift: Signal) -> str:
+    """Who made the drift, when the comparison that found it says (docs/three-states.md, rule 5)."""
+    return _PROVENANCE_TEXT.get(drift.attr("provenance"), "")
 
 
 def _score(n_strengthening_sources: int, n_contradicting: int, generic: bool) -> float:
@@ -122,13 +128,13 @@ def _oom(ss: SignalSet) -> list[Diagnosis]:
     out = []
     memory_drifts = [d for d in ss.of("drift.config") if "memory" in d.attr("field")]
     for s in ss.of("container.oom_killed"):
-        drift = next((d for d in memory_drifts if "limits" in d.attr("field") and _same_workload(ss.subject(s), ss.subject(d))), None) \
-            or next((d for d in memory_drifts if _same_workload(ss.subject(s), ss.subject(d))), None)
+        drift = next((d for d in memory_drifts if "limits" in d.attr("field") and ss.same_workload(ss.subject(s), ss.subject(d))), None) \
+            or next((d for d in memory_drifts if ss.same_workload(ss.subject(s), ss.subject(d))), None)
         if drift:
             out.append(_diag("oom.memory_drift", "oom",
                              f"The memory limit of {_name(ss.subject(drift))} drifted from the declared value: "
                              f"{drift.attr('field')} is declared {drift.attr('declared')} but deployed "
-                             f"{drift.attr('observed')}, and the container is OOMKilled.",
+                             f"{drift.attr('observed')}, and the container is OOMKilled.{_provenance(drift)}",
                              ss.subject(drift), [s, drift],
                              checks=[f"helm get values {_name(ss.subject(drift))} -n {_ns(ss.subject(drift))}"]))
         else:
@@ -142,7 +148,7 @@ def _image_pull(ss: SignalSet) -> list[Diagnosis]:
     out = []
     for s in ss.of("image.pull_failed"):
         drift = next((d for d in ss.of("drift.config") if "image" in d.attr("field")
-                      and _same_workload(ss.subject(s), ss.subject(d))), None)
+                      and ss.same_workload(ss.subject(s), ss.subject(d))), None)
         code = s.attr("code").lower()
         if drift:
             cause = (f"The image tag of {_name(ss.subject(drift))} drifted: declared {drift.attr('declared')}, "
@@ -162,9 +168,17 @@ def _scheduling(ss: SignalSet) -> list[Diagnosis]:
     words = {"cpu": "not enough CPU on the nodes", "memory": "not enough memory on the nodes",
              "affinity": "no node matches its affinity or selector", "volume": "its volume is bound to another node",
              "unschedulable": "the matching nodes are cordoned", "taint": "the nodes carry taints it does not tolerate"}
-    return [_diag("scheduling", "scheduling",
-                  f"{_name(ss.subject(s))} cannot be scheduled: {words.get(s.attr('cls'), 'no node fits it')}.",
-                  ss.subject(s), [s]) for s in ss.of("scheduling.failed")]
+    out = []
+    for s in ss.of("scheduling.failed"):
+        why = words.get(s.attr("cls"), "no node fits it")
+        if s.attr("cls") == "volume" and s.attr("pvc"):
+            why = (f"its volume (PersistentVolumeClaim {s.attr('pvc')}) is bound to another node "
+                   f"(volume node affinity conflict)")
+        out.append(_diag("scheduling", "scheduling", f"{_name(ss.subject(s))} cannot be scheduled: {why}.",
+                         ss.subject(s), [s],
+                         checks=[f"kubectl get pvc {s.attr('pvc')} -n {_ns(ss.subject(s))} -o wide"]
+                         if s.attr("pvc") else []))
+    return out
 
 
 def _init_failed(ss: SignalSet) -> list[Diagnosis]:
@@ -256,12 +270,13 @@ def _etcd_slow(ss: SignalSet) -> list[Diagnosis]:
     by_workload: dict[str, list[Signal]] = {}
     for s in ss.of("etcd.slow"):
         subject = ss.subject(s)
-        key = subject if subject.startswith("Deployment/") else subject.rsplit("-", 2)[0]
+        key = subject if subject.startswith("Deployment/") else next(
+            (o for o in sorted(ss.workloads.get(subject, ())) if o.startswith("Deployment/")), subject)
         by_workload.setdefault(key, []).append(s)
     out = []
     for workload, spans in sorted(by_workload.items()):
         symptoms = [x for x in ss.signals if x.kind in ("probe.readiness_failed", "pod.not_ready")
-                    and (_same_workload(ss.subject(x), workload) or ss.subject(x).startswith(workload))]
+                    and ss.same_workload(ss.subject(x), workload)]
         error = next((x.attr("error") for x in spans if x.attr("error")), "")
         reported = f" ({error})" if error else ""
         out.append(_diag("etcd.slow", "etcd",
@@ -273,18 +288,132 @@ def _etcd_slow(ss: SignalSet) -> list[Diagnosis]:
     return out
 
 
-def _config_drift(ss: SignalSet, explained: set[str]) -> list[Diagnosis]:
+def _netpol_egress(ss: SignalSet) -> list[Diagnosis]:
+    """A NetworkPolicy selecting the pod allows no egress, and the pod fails to reach what it
+    needs (DNS, a service, its readiness check): the policy is the cause (S4). A policy alone,
+    with nothing failing, is not an incident."""
+    failing = ("dns.failed", "net.timeout", "dependency.unreachable", "probe.readiness_failed")
+    out, seen = [], set()
+    for s in ss.of("netpol.egress_blocked"):
+        pod, policy = ss.subject(s), s.attr("policy")
+        if (pod, policy) in seen:
+            continue
+        seen.add((pod, policy))
+        symptoms = [x for x in ss.signals if x.kind in failing and ss.subject(x) == pod]
+        if not symptoms:
+            continue
+        ns = _ns(pod)
+        out.append(_diag("netpol.egress_blocked", "network-policy",
+                         f"The NetworkPolicy {policy} selects {_name(pod)} and allows no egress: its DNS "
+                         f"lookups and outbound connections are dropped, so it cannot reach its "
+                         f"dependencies and stays not ready.",
+                         f"NetworkPolicy/{ns}/{policy}", [s, symptoms[0]], symptoms[1:],
+                         checks=[f"kubectl get networkpolicy {policy} -n {ns} -o yaml",
+                                 f"kubectl exec -n {ns} {_name(pod)} -- nslookup kubernetes.default"]))
+    return out
+
+
+def _slo_dependency(ss: SignalSet) -> list[Diagnosis]:
+    """An SLO burns on a workload whose pods are healthy, and its calls to one upstream are slow:
+    the upstream (or the network path to it) is the cause (docs/failing-cases-002.md, S5)."""
+    out, seen = [], set()
+    for burn in ss.of("slo.burn"):
+        wl = _owner_workload(ss, ss.subject(burn))
+        sick = [x for x in ss.signals if x.kind in _POD_FAULTS and _owner_workload(ss, ss.subject(x)) == wl]
+        if sick:
+            continue                                   # the pods themselves fail: not this rule
+        for up in ss.of("upstream.slow"):
+            dep = up.attr("upstream") or up.attr("destination_service")
+            if not dep or _owner_workload(ss, ss.subject(up)) != wl or (wl, dep) in seen:
+                continue
+            seen.add((wl, dep))
+            out.append(_diag("slo.dependency", "dependency-latency",
+                             f"{_name(wl)} burns its SLO because its calls to {dep} are slow: the dependency, "
+                             f"or the network path to it, adds the latency; {_name(wl)}'s own pods are healthy.",
+                             f"outside:{dep}", [burn, up],
+                             [x for x in ss.of("slo.burn") if x is not burn and _owner_workload(ss, ss.subject(x)) == wl],
+                             checks=[f"kubectl get pods -n {_ns(wl)} -l app.kubernetes.io/name={dep} -o wide",
+                                     f"kubectl top pods -n {_ns(wl)}"]))
+    return out
+
+
+# signals that say a workload's own pods fail (then an SLO burn is theirs, not a dependency's)
+_POD_FAULTS = {"container.crashloop", "container.oom_killed", "container.exited", "container.config_error",
+               "image.pull_failed", "pod.not_ready", "probe.readiness_failed", "probe.liveness_failed"}
+
+
+def _quota_exceeded(ss: SignalSet) -> list[Diagnosis]:
+    """The replicaset controller cannot create pods: a namespace ResourceQuota is exhausted
+    (docs/failing-cases-002.md, S2). A Deployment of the namespace that is not available is the
+    symptom it explains."""
+    out, seen = [], set()
+    for s in ss.of("quota.exceeded"):
+        quota, ns = s.attr("quota"), _ns(ss.subject(s))
+        if not quota or (ns, quota) in seen:
+            continue
+        seen.add((ns, quota))
+        blocked = [r for r in ss.of("rollout.progressing") + ss.of("rollout.stalled")
+                   if _ns(ss.subject(r)) == ns and r.attr("available") != "true"]
+        out.append(_diag("quota.exceeded", "quota",
+                         f"The ResourceQuota {quota} of namespace {ns} is exhausted: the replicaset controller "
+                         f"cannot create the pods it needs (exceeded quota).",
+                         f"ResourceQuota/{ns}/{quota}", [s], blocked,
+                         checks=[f"kubectl describe resourcequota {quota} -n {ns}",
+                                 f"kubectl get events -n {ns} --field-selector reason=FailedCreate"]))
+    return out
+
+
+def _owner_workload(ss: SignalSet, subject: str) -> str:
+    """The Deployment / StatefulSet a signal's subject belongs to (itself if it is one)."""
+    if subject.startswith(("Deployment/", "StatefulSet/")):
+        return subject
+    return next((o for o in sorted(ss.workloads.get(subject, ()))
+                 if o.startswith(("Deployment/", "StatefulSet/"))), subject)
+
+
+def _connections_exhausted(ss: SignalSet) -> list[Diagnosis]:
+    """The database's connection limit is reached by a workload's pools (S3): exhaustion seen
+    by the database (alert) or the pods (logs), with the workload's own pool timeouts or failed
+    connects. Its replica count is named: pools × replicas is what fills the limit."""
+    by_wl: dict[str, list[Signal]] = {}
+    for s in ss.of("db.connections_exhausted"):
+        by_wl.setdefault(_owner_workload(ss, ss.subject(s)), []).append(s)
+    out = []
+    for wl, exhausted in sorted(by_wl.items()):
+        own = [x for k in ("db.pool_timeout", "db.connect_failed") for x in ss.of(k)
+               if _owner_workload(ss, ss.subject(x)) == wl or wl in ss.subjects(x)]
+        if not own:
+            continue                       # exhaustion with no failing connect from the workload
+        db = next((x.attr("db") for x in exhausted if x.attr("db")), "")
+        replicas = ss.replicas.get(wl)
+        scale = f" with {replicas} replicas" if replicas else ""
+        symptoms = [x for x in ss.signals if x.kind in ("pod.not_ready", "probe.readiness_failed")
+                    and _owner_workload(ss, ss.subject(x)) == wl]
+        out.append(_diag("db.connections_exhausted", "database",
+                         f"The connection limit of {db or 'the database'} (max_connections) is reached: "
+                         f"{_name(wl)}{scale} opens more pooled connections than it allows, so new pods "
+                         f"time out getting a connection and stay not ready.",
+                         f"outside:{db}" if db else wl, exhausted[:1] + own[:1], exhausted[1:] + own[1:] + symptoms,
+                         checks=[f"kubectl get deployment {_name(wl)} -n {_ns(wl)} -o jsonpath='{{.spec.replicas}}'",
+                                 "psql -c 'SHOW max_connections' -c 'SELECT count(*) FROM pg_stat_activity'"]))
+    return out
+
+
+def _config_drift(ss: SignalSet, explained: set[str], explained_subjects: set[str] = frozenset()) -> list[Diagnosis]:
     """A configuration drift alone is generic; it is reported when a workload of the same
-    release is failing and no more specific rule already used that drift."""
-    faults = [s for s in ss.signals if s.kind not in CONTEXT_KINDS | {"drift.config"}]
+    release is failing and no more specific rule already used that drift. A failure a specific
+    rule already explains (its pod) does not strengthen another drift: h003's OOM, explained by
+    `oom.memory_drift`, used to lift the requests drift above it (fix plan P7)."""
+    faults = [s for s in ss.signals if s.kind not in CONTEXT_KINDS | {"drift.config"}
+              and ss.subject(s) not in explained_subjects]
     out = []
     for d in ss.of("drift.config"):
         if d.payload_ref in explained:
             continue
-        failing = [f for f in faults if _same_workload(ss.subject(f), ss.subject(d))]
+        failing = [f for f in faults if ss.same_workload(ss.subject(f), ss.subject(d))]
         out.append(_diag("config.drift", "helm-drift",
                          f"{_name(ss.subject(d))} drifted from its declared configuration: {d.attr('field')} is declared "
-                         f"{d.attr('declared')} but deployed {d.attr('observed')}.",
+                         f"{d.attr('declared')} but deployed {d.attr('observed')}.{_provenance(d)}",
                          ss.subject(d), [d], failing, generic=not failing))
     return out
 
@@ -299,10 +428,13 @@ def _crash(ss: SignalSet, explained_pods: set[str]) -> list[Diagnosis]:
 # every rule id ``diagnose`` can produce — docs/diagnosis-coverage.md checks rows against it
 RULE_IDS: frozenset[str] = frozenset({"dependency.missing", "oom.memory_drift", "oom.limit", "image.pull",
                                        "scheduling", "config.drift", "container.crash",
-                                       "init.failed", "rbac", "hpa.metrics", "cert.expired", "etcd.slow"})
+                                       "init.failed", "rbac", "hpa.metrics", "cert.expired", "etcd.slow",
+                                       "quota.exceeded", "db.connections_exhausted", "netpol.egress_blocked", "slo.dependency"})
 
 RULES: list[Callable[[SignalSet], list[Diagnosis]]] = [_dependency_missing, _oom, _image_pull, _scheduling,
-                                                       _init_failed, _rbac, _hpa_metrics, _cert_expired, _etcd_slow]
+                                                       _init_failed, _rbac, _hpa_metrics, _cert_expired, _etcd_slow,
+                                                       _quota_exceeded, _connections_exhausted, _netpol_egress,
+                                                       _slo_dependency]
 
 
 def _starting_in_rollout(ss: SignalSet) -> set[str]:
@@ -310,7 +442,7 @@ def _starting_in_rollout(ss: SignalSet) -> set[str]:
     available — the same rule as the seed guard (dedup/bfs.py, docs/test-cases.md § h026)."""
     rolling = [ss.subject(r) for r in ss.of("rollout.progressing") if r.attr("available") == "true"]
     return {ss.subject(p) for p in ss.of("pod.not_ready") if p.attr("starting") == "true"
-            and any(_same_workload(ss.subject(p), dep) for dep in rolling)}
+            and any(ss.same_workload(ss.subject(p), dep) for dep in rolling)}
 
 
 def _is_fault(ss: SignalSet, s: Signal, starting: set[str]) -> bool:
@@ -330,7 +462,8 @@ def diagnose(ss: SignalSet) -> Outcome:
         found += rule(ss)
     explained_drifts = {s.payload_ref for d in found for s in d.supports if s.kind == "drift.config"}
     explained_pods = {ss.subject(s) for d in found for s in d.supports}
-    found += _config_drift(ss, explained_drifts)
+    explained_faults = {ss.subject(s) for d in found for s in d.supports if s.kind != "drift.config"}
+    found += _config_drift(ss, explained_drifts, explained_faults)
     found += _crash(ss, explained_pods)
     found.sort(key=lambda d: (-d.score, d.rule, d.cause_location))
     reported = []

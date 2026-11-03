@@ -326,9 +326,10 @@ class TestStep7RemediationEngine:
         # (no OOMKill / CrashLoop / PVC signals). Accept zero or more.
         assert isinstance(hypotheses, list)
 
-    def test_any_hypothesis_fires(self, hypotheses):
-        rule_ids = [h.rule_id for h in hypotheses]
-        print(f"\n  Fired rules (may be empty for netpol case): {rule_ids}")
+    def test_no_rule_of_the_old_engine_claims_the_network_policy(self, hypotheses):
+        # it printed the fired rules and asserted nothing (docs/fix-plan-001.md H6). The old
+        # engine has no NetworkPolicy rule: whatever fires names something else.
+        assert not any("networkpolicy" in h.rule_id.lower() for h in hypotheses)
 
     def test_weights_are_sorted_descending(self, hypotheses):
         weights = [h.weight for h in hypotheses]

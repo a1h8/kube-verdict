@@ -14,8 +14,9 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
+from api.models import refuse_server_only_fields
 from api.oidc import require_auth
 from api.verdict_contract import VerdictEnvelope
 from services.investigation_service import run_investigation
@@ -31,7 +32,8 @@ class InvestigateRequest(BaseModel):
     environment: str | None = None
     signal: str | None = None
     namespaces: list[str] | None = None
-    kube_context: str | None = None
+
+    _refuse_server_only = model_validator(mode="before")(refuse_server_only_fields)
 
 
 def _effective_query(body: InvestigateRequest) -> str:
@@ -47,18 +49,12 @@ def _effective_query(body: InvestigateRequest) -> str:
 
 @router.post("/investigate", response_model=VerdictEnvelope, dependencies=[Depends(require_auth)])
 async def investigate(body: InvestigateRequest) -> VerdictEnvelope:
-    # Import the route module lazily so the preloaded FAISS store set by the
-    # app lifespan is reused (avoids re-embedding on every call).
-    from api.routes import sessions as sessions_mod
-
     namespaces = body.namespaces or ([body.namespace] if body.namespace else None)
     session_id = uuid.uuid4().hex
 
     final_state = await run_investigation(
         query=_effective_query(body),
         namespaces=namespaces,
-        kube_context=body.kube_context,
-        store=sessions_mod._faiss_store,
         thread_id=session_id,
     )
     return VerdictEnvelope.from_state(

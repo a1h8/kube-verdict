@@ -1,0 +1,70 @@
+{
+  "case": "h001_crashloopbackoff",
+  "case_hash": "c9c7c7e195f4717e1aa49e1e5fdf64bfd33534744a80853bae52b924c1b89d3e",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 22.6,
+      "answer_tokens": 280,
+      "estimated_prompt_tokens": 2594,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 0.1,
+      "prompt_tokens_read": 2534,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "secret",
+      "not found|missing"
+    ]
+  ],
+  "matched_keywords": [
+    "secret",
+    "not found|missing"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 6756,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 2,\n  \"image\": {\n    \"repository\": \"ghcr.io/acme/payment-service\",\n    \"tag\": \"1.4.2\",\n    \"pullPolicy\": \"IfNotPresent\"\n  },\n  \"existingSecret\": \"payment-db-secret\",\n  \"resources\": {\n    \"limits\": {\n      \"memory\": \"256Mi\",\n      \"cpu\": \"500m\"\n    },\n    \"requests\": {\n      \"memory\": \"128Mi\",\n      \"cpu\": \"100m\"\n    }\n  },\n  \"env\": {\n    \"DB_HOST\": \"db-primary.production.svc.cluster.local\",\n    \"DB_PORT\": \"5432\",\n    \"DB_NAME\": \"payments\"\n  },\n  \"service\": {\n    \"type\": \"ClusterIP\",\n    \"port\": 8080\n  },\n  \"autoscaling\": {\n    \"enabled\": false\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 2\nimage:\n  repository: ghcr.io/acme/payment-service\n  tag: 1.4.2\n  pullPolicy: IfNotPresent\nexistingSecret: payment-db-secret\nresources:\n  limits:\n    memory: 256Mi\n    cpu: 500m\n  requests:\n    memory: 128Mi\n    cpu: 100m\nenv:\n  DB_HOST: db-primary.production.svc.cluster.local\n  DB_PORT: '5432'\n  DB_NAME: payments\nservice:\n  type: ClusterIP\n  port: 8080\nautoscaling:\n  enabled: false\nreadinessProbe:\n  httpGet:\n    path: /healthz\n    port: 8080\n  initialDelaySeconds: 10\n  periodSeconds: 5\nlivenessProbe:\n  httpGet:\n    path: /healthz\n    port: 8080\n  initialDelaySeconds: 30\n  periodSeconds: 10\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nmetadata:\n  resourceVersion: '4829500'\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: payment-service-6d8f9b7c4-xk9p2.backoff.001\n    namespace: production\n    uid: c5e3a9b1-5b8d-11ef-b3a4-0242ac110005\n    resourceVersion: '4829490'\n  type: Warning\n  reason: BackOff\n  message: Back-off restarting failed container payment-service in pod payment-service-6d8f9b7c4-xk9p2_production\n  involvedObject:\n    kind: Pod\n    name: payment-service-6d8f9b7c4-xk9p2\n    namespace: production\n    uid: a3c1e7f2-5b8d-11ef-b3a4-0242ac110005\n  count: 47\n  firstTimestamp: '2026-05-14T06:00:15Z'\n  lastTimestamp: '2026-05-14T09:10:10Z'\n  reportingComponent: kubelet\n  reportingInstance: worker-node-02\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: payment-service-6d8f9b7c4-xk9p2.failed.secret\n    namespace: production\n    uid: d6f4b0c2-5b8d-11ef-b3a4-0242ac110005\n    resourceVersion: '4829410'\n  type: Warning\n  reason: Failed\n  message: 'Error: secret \"payment-db-secret\" not found'\n  involvedObject:\n    kind: Pod\n    name: payment-service-6d8f9b7c4-xk9p2\n    namespace: production\n    uid: a3c1e7f2-5b8d-11ef-b3a4-0242ac110005\n  count: 1\n  firstTimestamp: '2026-05-14T06:00:08Z'\n  lastTimestamp: '2026-05-14T06:00:08Z'\n  reportingComponent: kubelet\n  reportingInstance: worker-node-02\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: payment-service-6d8f9b7c4-xk9p2.failed.rootfs\n    namespace: production\n    uid: e7a5c1d3-5b8d-11ef-b3a4-0242ac110005\n    resourceVersion: '4829420'\n  type: Warning\n  reason: Failed\n  message: 'Error: failed to create containerd task: failed to create shim task: OCI\n    runtime create failed: container_linux.go:380: starting container process caused:\n    process_linux.go:545: container init caused: rootfs_linux.go:76: mounting \"/var/lib/kubelet/pods/a3c1e7f2/volumes/kubernetes.io~secret/payment-db-secret\"\n    to rootfs at \"/run/secrets/payment-db-secret\" caused: mount through procfd: not\n    a directory: unknown'\n  involvedObject:\n    kind: Pod\n    name: payment-service-6d8f9b7c4-xk9p2\n    namespace: production\n    uid: a3c1e7f2-5b8d-11ef-b3a4-0242ac110005\n  count: 47\n  firstTimestamp: '2026-05-14T06:00:09Z'\n  lastTimestamp: '2026-05-14T09:10:05Z'\n  reportingComponent: kubelet\n  reportingInstance: worker-node-02\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: payment-service-6d8f9b7c4-xk9p2\n  namespace: production\n  uid: a3c1e7f2-5b8d-11ef-b3a4-0242ac110005\n  resourceVersion: '4829371'\n  creationTimestamp: '2026-05-14T06:00:00Z'\n  labels:\n    app.kubernetes.io/name: payment-service\n    app.kubernetes.io/instance: payment-service\n    app.kubernetes.io/version: 1.4.2\n    pod-template-hash: 6d8f9b7c4\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: payment-service-6d8f9b7c4\n    uid: b4d2f8a3-5b8d-11ef-b3a4-0242ac110005\n    controller: true\n    blockOwnerDeletion: true\nspec:\n  nodeName: worker-node-02\n  serviceAccountName: payment-service\n  containers:\n  - name: payment-service\n    image: ghcr.io/acme/payment-service:1.4.2\n    envFrom:\n    - secretRef:\n        name: payment-db-secret\n    resources:\n      limits:\n        memory: 256Mi\n        cpu: 500m\n      requests:\n        memory: 128Mi\n        cpu: 100m\n    readinessProbe:\n      httpGet:\n        path: /healthz\n        port: 8080\n      initialDelaySeconds: 10\n      periodSeconds: 5\n    livenessProbe:\n      httpGet:\n        path: /healthz\n        port: 8080\n      initialDelaySeconds: 30\n      periodSeconds: 10\n  restartPolicy: Always\n  terminationGracePeriodSeconds: 30\n  dnsPolicy: ClusterFirst\nstatus:\n  phase: Running\n  podIP: 10.244.3.47\n  hostIP: 192.168.1.12\n  containerStatuses:\n  - name: payment-service\n    ready: false\n    restartCount: 47\n    image: ghcr.io/acme/payment-service:1.4.2\n    imageID: ghcr.io/acme/payment-service@sha256:abc123def456\n    state:\n      waiting:\n        reason: CrashLoopBackOff\n        message: back-off 5m0s restarting failed container=payment-service pod=payment-service-6d8f9b7c4-xk9p2_production\n    lastState:\n      terminated:\n        reason: Error\n        exitCode: 1\n        startedAt: '2026-05-14T09:10:00Z'\n        finishedAt: '2026-05-14T09:10:03Z'\n        containerID: containerd://deadbeef1234\n  conditions:\n  - type: Initialized\n    status: 'True'\n    lastTransitionTime: '2026-05-14T06:00:05Z'\n  - type: Ready\n    status: 'False'\n    reason: ContainersNotReady\n    message: 'containers with unready status: [payment-service]'\n    lastTransitionTime: '2026-05-14T06:00:10Z'\n  - type: ContainersReady\n    status: 'False'\n    reason: ContainersNotReady\n    lastTransitionTime: '2026-05-14T06:00:10Z'\n  - type: PodScheduled\n    status: 'True'\n    lastTransitionTime: '2026-05-14T06:00:00Z'\n\n---\n## Incident query\npayment-service pods keep crashing in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nPayment service pods are crashing repeatedly in the production environment.\n\n### 2. Affected resources\n- Pod/payment-service-6d8f9b7c4-xk9p2 \u2014 CrashLoopBackOff status\n- Secret/payment-db-secret \u2014 Error: secret not found\n\n### 3. Root cause\nThe root cause is the missing `payment-db-secret` secret, which is required for the `payment-service` deployment. This is evidenced by the `Event` in `kube/events.yaml` stating \"Error: secret 'payment-db-secret' not found\".\n\n### 4. Causal chain\n1. The deployment of the `payment-service` fails because the required secret `payment-db-secret` is not found.\n2. The deployment is not successful, resulting in a failed container creation as seen in the `Event` in `kube/events.yaml`.\n3. The deployment process restarts the container multiple times, leading to the observed `CrashLoopBackOff` status in the `Pod/payment-service-6d8f9b7c4-xk9p2` status.\n\n### 5. Remediation\n1. Create the `payment-db-secret` secret in the `production` namespace.\n2. Ensure the `payment-db-secret` is properly configured with the correct credentials and data.\n\n### 6. Confidence\nMEDIUM",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Create the `payment-db-secret` secret in the `production` namespace.",
+    "Ensure the `payment-db-secret` is properly configured with the correct credentials and data."
+  ],
+  "root_cause": "The root cause is the missing `payment-db-secret` secret, which is required for the `payment-service` deployment. This is evidenced by the `Event` in `kube/events.yaml` stating \"Error: secret 'payment-db-secret' not found\".",
+  "run": 2,
+  "solver": "raw",
+  "started_at": "2026-11-02T23:59:16.826424+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 22.69
+}

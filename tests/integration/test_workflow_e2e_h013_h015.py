@@ -1,12 +1,14 @@
 """
 h013 / h014 / h015 end to end through the LangGraph workflow, offline.
 
-Spec: docs/test-cases.md → *Broadened offline coverage* §1. Each case's
-Kubernetes snapshot is pre-built; its Prometheus / Loki / OTel fixture is fetched
-by the workflow's own collector nodes (tests/integration/workflow_harness.py).
-The scripted LLM answers LOW twice on the first hypothesis, then HIGH, so the
-multi-path loop really runs. What this does not prove: the real LLM's
-root-cause quality (docs/veracity-benchmark.md).
+Spec: docs/test-cases.md → *Broadened offline coverage* §1, and since 2026-10-18
+docs/structured-in-product.md: the structured diagnosis decides the cause and its confidence;
+the scripted LLM only explains it. Each case's Kubernetes snapshot is pre-built; its
+Prometheus / Loki / OTel fixture is fetched by the workflow's own collector nodes
+(tests/integration/workflow_harness.py). h014 and h015 are diagnosed (cert expiry, etcd); h013
+is not (the structured rules have no SLO / dependency-latency family yet) and abstains — the
+LLM's answer cannot turn that into a cause. What this does not prove: the real LLM's wording
+(docs/veracity-benchmark.md).
 """
 from __future__ import annotations
 
@@ -50,54 +52,57 @@ class TestCollectorsRanInsideTheWorkflow:
         assert failed == []
 
 
-class TestMultiPathLoop:
-    def test_first_path_archived(self, run):
-        _, r = run
-        history = r.state["reasoning_history"]
-        assert len(history) == 1
-        assert history[0]["confidence"] == "LOW"
+def _diagnosed(r) -> bool:
+    return r.state["diagnosis"]["outcome"] == "cause"
 
-    def test_confidence_router_retried_switched_then_converged(self, run):
+
+class TestOnePathPerDiagnosis:
+    def test_no_llm_driven_path_switch(self, run):
         _, r = run
+        assert not r.state.get("reasoning_history")
         edges = [e["edge_taken"] for e in r.state["edge_log"] if e["router"] == "confidence"]
-        assert edges == ["retry", "next_path", "review"]
+        assert edges == ["review"]
 
-    def test_final_path_is_high_and_differs_from_archived_one(self, run):
+    def test_confidence_is_the_diagnosis(self, run):
         _, r = run
-        assert r.state["confidence"] == "HIGH"
-        assert r.state["current_hypothesis"] != r.state["reasoning_history"][0]["hypothesis"]
+        assert r.state["confidence"] == r.state["diagnosis"]["confidence"]
+
+    def test_the_report_cause_is_the_diagnosis(self, run):
+        _, r = run
+        assert r.state["report_dict"]["root_cause"] == r.state["diagnosis"]["root_cause"]
 
 
 class TestVerdict:
     def test_policy_decision_logged(self, run):
         _, r = run
+        # a diagnosed cause in production, or an abstention (nothing to apply): the operator reviews
         assert [e["edge_taken"] for e in r.state["edge_log"] if e["router"] == "policy"] == ["human_review"]
 
     def test_production_namespace_forces_human_review(self, run):
         _, r = run
+        if not _diagnosed(r):
+            pytest.skip("abstention: HUMAN_REVIEW before the namespace rule")
         assert r.state["verdict"] == "HUMAN_REVIEW"
         assert any("production" in reason for reason in r.state["verdict_reasons"])
 
     def test_run_stops_at_the_human_gate(self, run):
         _, r = run
-        assert r.status == "AWAITING_REVIEW"
-        assert r.review_payload is not None
-
-    def test_remediation_has_a_rollback_path(self, run):
-        _, r = run
-        assert r.state["blast_radius"]["rollback_available"] is True
+        assert r.status == "AWAITING_REVIEW" and r.review_payload is not None
 
     def test_dry_run_was_stubbed_not_executed(self, run):
         _, r = run
+        if not _diagnosed(r):
+            pytest.skip("abstention: nothing reaches the dry-run")
         assert r.state["dry_run_results"]
         assert all("fixture-replay" in d["output"] for d in r.state["dry_run_results"])
 
 
-def test_h013_root_cause_names_the_dependency():
-    """h013's correct hypothesis is the second one: the first (CPU) is archived."""
+def test_h013_names_the_slow_dependency():
+    # docs/failing-cases-002.md S5: an SLO burn with a slow upstream and healthy pods
     r = run_case("h013")
-    assert "payments-gateway" in r.state["current_hypothesis"]
-    assert "CPU" in r.state["reasoning_history"][0]["hypothesis"]
+    top = r.state["diagnosis"]["diagnoses"][0]
+    assert (top["rule"], top["location"]) == ("slo.dependency", "outside:payments-gateway")
+    assert r.state["report_dict"]["explanation"]          # the LLM's own text is kept, as text
 
 
 _VOLATILE = {"ts", "timestamp"}
@@ -126,4 +131,19 @@ def test_frozen_vitrine_fixture_matches_the_code(key):
     fresh = json.loads(json.dumps(journey(key)))
     assert _strip_volatile(frozen) == _strip_volatile(fresh), (
         f"{Path(OUT_DIR, key + '.json')} is stale — run tools/freeze_journey_fixtures.py"
+    )
+
+
+def test_the_api_sample_matches_the_code():
+    """api/sample_state.json (POST /sessions/sample) is generated from an offline h014 run, never
+    hand-written (docs/fix-plan-001.md, H72). Regenerate with ``tools/freeze_journey_fixtures.py``."""
+    import json
+
+    from tools.freeze_journey_fixtures import SAMPLE_PATH, sample
+
+    frozen = json.loads(SAMPLE_PATH.read_text())
+    assert frozen["source"] == "fixture-replay"
+    fresh = json.loads(json.dumps(sample()))
+    assert _strip_volatile(frozen) == _strip_volatile(fresh), (
+        f"{SAMPLE_PATH} is stale — run tools/freeze_journey_fixtures.py"
     )

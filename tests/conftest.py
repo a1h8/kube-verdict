@@ -87,14 +87,63 @@ def skip_if_no_embedding_model() -> None:
         pytest.skip(_MODEL_UNAVAILABLE_REASON)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _isolated_example_store(tmp_path_factory):
-    """No test writes to the real resolved-incident store (data/examples/): every
-    ExampleStore built without a directory lands in a per-session temp dir."""
+# No test writes to a real store or database (docs/fix-plan-001.md, H81): the resolved-incident
+# store (data/examples/), the document and chart stores (data/docs/, data/charts/), the session
+# database and its checkpoints (kubeverdict.db) and the vector index all land in one temp dir
+# for the whole run. Set in pytest_configure, not in a fixture: collection already opens the
+# database (pytest inspects the attributes of api.session_store's lazy ``store`` proxy, which
+# opens it). A test that needs another path still sets its own.
+#
+# The guard: the run fails when a real store or database changed while it ran — where it was
+# started, in the repository, or wherever the environment pointed before the isolation.
+def pytest_configure(config):
+    import tempfile
+    from pathlib import Path
+
+    import config as cfg
+    from knowledge.chart_store import ChartStore
+    from knowledge.doc_store import DocStore
+    from tools.veracity_replay import fingerprint, watched_stores
+
+    config._kv_stores = watched_stores()
+    config._kv_stores_before = fingerprint(config._kv_stores)
+    root = Path(tempfile.mkdtemp(prefix="kv-test-stores-"))
     mp = pytest.MonkeyPatch()
-    mp.setenv("KUBEVERDICT_EXAMPLE_DIR", str(tmp_path_factory.mktemp("examples")))
-    yield
-    mp.undo()
+    mp.setenv("KUBEVERDICT_EXAMPLE_DIR", str(root / "examples"))
+    mp.setenv("KUBEVERDICT_CHART_DIR", str(root / "charts"))
+    mp.setenv("KUBEWHISPERER_DB", str(root / "kubeverdict.db"))
+    # their default directory is bound when the class is defined: patched where it is read
+    mp.setattr(DocStore.__init__, "__defaults__", (root / "docs",))
+    mp.setattr(ChartStore.__init__, "__defaults__", (root / "charts",))
+    mp.setattr(cfg, "VECTOR_STORE_PATH", root / "index.faiss")
+    config._kv_store_root, config._kv_store_patch = root, mp
+
+
+def pytest_sessionfinish(session, exitstatus):
+    from tools.veracity_replay import fingerprint, store_changes
+    config = session.config
+    changed = store_changes(config._kv_stores_before, fingerprint(config._kv_stores))
+    if changed:
+        reporter = config.pluginmanager.get_plugin("terminalreporter")
+        lines = ["The test suite wrote to a real store or database (docs/fix-plan-001.md, H81):",
+                 *(f"  {path}" for path in changed)]
+        for line in lines:
+            if reporter:
+                reporter.write_line(line, red=True)
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
+def pytest_unconfigure(config):
+    import shutil
+    if getattr(config, "_kv_store_patch", None):
+        config._kv_store_patch.undo()
+        shutil.rmtree(config._kv_store_root, ignore_errors=True)
+
+
+@pytest.fixture
+def isolated_store_root(pytestconfig):
+    """The temp dir every store and database of this run points at."""
+    return pytestconfig._kv_store_root
 
 
 @pytest.fixture(scope="session", autouse=True)

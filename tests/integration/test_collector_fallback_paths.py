@@ -64,14 +64,18 @@ class TestEvidenceIsGone:
 
 
 class TestVerdictIsNotSilentlyTheSame:
-    def test_connected_run_reaches_high(self, degraded):
-        key, _, _, _ = degraded
-        assert run_case(key).state["confidence"] == "HIGH"
+    def test_the_degraded_run_is_never_more_confident(self, degraded):
+        # the confidence is the structured diagnosis' (docs/structured-in-product.md): losing a
+        # collector can lower it, never raise it
+        key, _, run, _ = degraded
+        rank = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
+        assert rank[run.state["confidence"]] <= rank[run_case(key).state["confidence"]]
 
-    def test_degraded_run_never_reaches_high(self, degraded):
-        _, _, run, _ = degraded
-        assert run.state["confidence"] != "HIGH"
-        assert all(h["confidence"] != "HIGH" for h in run.state["reasoning_history"])
+    def test_a_degraded_no_incident_is_never_claimed(self, degraded):
+        _, script, run, _ = degraded
+        assert run.state["diagnosis"]["outcome"] != "no_incident"
+        if run.state["diagnosis"]["outcome"] == "insufficient_evidence":
+            assert script.collector in run.state["diagnosis"]["failed_collectors"]
 
     def test_a_verdict_is_still_produced(self, degraded):
         _, _, run, _ = degraded

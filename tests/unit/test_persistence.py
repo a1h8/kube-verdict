@@ -24,10 +24,10 @@ def conn(tmp_path, monkeypatch):
 @pytest.fixture
 def mem_conn():
     """In-memory connection — no file, schema created manually."""
-    from persistence.db import _SESSION_DDL, _VECTOR_STORE_DDL
+    from persistence.db import _SESSION_DDL
     c = sqlite3.connect(":memory:")
     c.row_factory = sqlite3.Row
-    c.executescript(_SESSION_DDL + _VECTOR_STORE_DDL)
+    c.executescript(_SESSION_DDL)
     yield c
     c.close()
 
@@ -178,54 +178,6 @@ class TestSessionStore:
         row = session_repo.get_session_row(mem_conn, "orphan")
         assert row["status"] == "FAILED"
         assert row["error"] is not None
-
-
-# ── vector_store_repo ────────────────────────────────────────────────────────
-
-class TestVectorStoreRepo:
-    from persistence import vector_store_repo as _repo
-
-    @pytest.fixture
-    def repo(self):
-        from persistence import vector_store_repo
-        return vector_store_repo
-
-    _SAMPLE = [
-        {"uid": "pod/ns/foo", "name": "foo", "kind": "Pod",
-         "namespace": "ns", "text": "kind=Pod name=foo", "kube_version": "1.29", "doc_source": "cluster"},
-        {"uid": "svc/ns/bar", "name": "bar", "kind": "Service",
-         "namespace": "ns", "text": "kind=Service name=bar", "kube_version": "1.29", "doc_source": "cluster"},
-    ]
-
-    def test_persist_and_count(self, mem_conn, repo):
-        n = repo.persist_texts(mem_conn, self._SAMPLE)
-        assert n == 2
-        assert repo.count_docs(mem_conn) == 2
-
-    def test_load_roundtrip(self, mem_conn, repo):
-        repo.persist_texts(mem_conn, self._SAMPLE)
-        rows = repo.load_texts(mem_conn)
-        uids = {r["uid"] for r in rows}
-        assert uids == {"pod/ns/foo", "svc/ns/bar"}
-        assert rows[0]["text"] is not None
-
-    def test_upsert_overwrites(self, mem_conn, repo):
-        repo.persist_texts(mem_conn, self._SAMPLE)
-        updated = [{**self._SAMPLE[0], "text": "updated text"}]
-        repo.persist_texts(mem_conn, updated)
-        rows = repo.load_texts(mem_conn)
-        foo = next(r for r in rows if r["uid"] == "pod/ns/foo")
-        assert foo["text"] == "updated text"
-        assert repo.count_docs(mem_conn) == 2  # no duplicate
-
-    def test_empty_persist(self, mem_conn, repo):
-        assert repo.persist_texts(mem_conn, []) == 0
-        assert repo.count_docs(mem_conn) == 0
-
-    def test_delete_all(self, mem_conn, repo):
-        repo.persist_texts(mem_conn, self._SAMPLE)
-        repo.delete_all(mem_conn)
-        assert repo.count_docs(mem_conn) == 0
 
 
 # ── init_db idempotency ───────────────────────────────────────────────────────

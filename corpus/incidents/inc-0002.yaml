@@ -1,0 +1,25 @@
+id: inc-0002
+title: Video transcoding pods never get a node after the accelerator pool was renamed
+family: scheduling
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/007_node_affinity_unmet
+  licence: Apache-2.0
+symptoms:
+  - video-transcoder pods stay Pending, PodScheduled is False with reason Unschedulable
+  - FailedScheduling event says 0 of 4 nodes are available and preemption is not helpful
+  - the transcoding queue keeps growing
+signals: [k8s_events]
+kinds: [Pod, Deployment, Node]
+root_cause: >-
+  The Deployment requires nodes labelled accelerator=nvidia-a100, and no node in the cluster
+  carries that label; the GPU pool was provisioned with another label value.
+cause_location: production/Deployment/video-transcoder
+looks_like: [insufficient CPU, resource quota]
+evidence:
+  - kubectl get nodes -L accelerator shows no node with the value the nodeSelector asks for
+remediation:
+  - kubectl label node gpu-node-01 accelerator=nvidia-a100
+rollback:
+  - kubectl label node gpu-node-01 accelerator-

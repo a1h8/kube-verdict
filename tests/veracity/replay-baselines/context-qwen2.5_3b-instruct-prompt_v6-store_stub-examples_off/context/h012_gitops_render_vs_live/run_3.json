@@ -1,0 +1,63 @@
+{
+  "case": "h012_gitops_render_vs_live",
+  "case_hash": "38195851ec0592bf9a69a4ab528d567b869ac567076e072f7c8e7b82b3729b33",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "config": "C1",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": null,
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 36.1,
+      "answer_tokens": 481,
+      "estimated_prompt_tokens": 2439,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 22.7,
+      "prompt_tokens_read": 1745,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "memory"
+    ]
+  ],
+  "matched_keywords": [
+    "memory"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 5342,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-03 01:38:18 UTC\nTotal context chunks : 21\nContext quality score: HIGH (0.76/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 14 \u2192 0.15, Critical signals 2 \u2192 0.06, Helm drift items 2 \u2192 0.14\n\n### CRITICAL \u2014 Unhealthy resources (2)\n  - kind=Deployment name=api namespace=production labels=[app.kubernetes.io/name=api app.kubernetes.io/instance=api app.kubernetes.io/managed-by=Helm helm.sh/chart=api-1.4.0] replicas=1 ready=0 available=0\n  - kind=Event type=Warning reason=OOMKilling involved=Pod/api-6d8f9b7c4-xvk2p namespace=production count=4 message=Memory cgroup out of memory: Killed process in container api (memory limit 128Mi exceeded)\n### CRITICAL \u2014 Helm declared vs observed drift (2)\n  - Deployment/production/api: [deployed \u2260 Git] drift field=spec.replicas declared=3 observed=1 severity=critical\n  - Deployment/production/api: [deployed \u2260 Git] drift field=container.api.resources.limits.memory declared=512Mi observed=128Mi severity=warning\n### WARNING \u2014 Kubernetes events (1)\n  - kind=Event type=Warning reason=OOMKilling involved=Pod/api-6d8f9b7c4-xvk2p namespace=production count=4 message=Memory cgroup out of memory: Killed process in container api (memory limit 128Mi exceeded)\n### ANCHORS \u2014 Declared values & K8s schema (14)\n  - Deployment/production/api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/production/api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/production/api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/production/api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/production/api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/production/api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/production/api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/production/api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Pod/production/api-6d8f9b7c4-xvk2p: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/api-6d8f9b7c4-xvk2p: container.api.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/api-6d8f9b7c4-xvk2p: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/api-6d8f9b7c4-xvk2p: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/api-6d8f9b7c4-xvk2p: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/api-6d8f9b7c4-xvk2p: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=api namespace=production chart= chartVersion= appVersion= status=deployed source=helm\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\napi pods keep crashing in production after the last deploy\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe production API deployment is crashing due to insufficient memory limits, leading to pod termination and restarts.\n\n### 2. Affected resources\n- Deployment/production/api \u2014 Memory limits are set too low, causing pods to be killed by the OOMKilling event.\n- Pod/production/api-6d8f9b7c4-xvk2p \u2014 Pods are restarted due to the OOMKilling event.\n\n### 3. Root cause\nThe root cause is the incorrect memory limits set for the production API deployment. The deployment's `spec.container.api.resources.limits.memory` is set to `128Mi`, which is too low given the observed OOMKilling events.\n\n### 4. Causal chain\n1. The deployment's memory limits are set to `128Mi`.\n2. The deployment's `spec.replicas` is set to `1`, indicating a single pod is desired.\n3. The deployment's memory limits are insufficient, causing the pod to be killed by the OOMKilling event.\n4. The deployment is restarted due to the OOMKilling event, leading to pod instability and crashes.\n\n### 5. Remediation\n```shell\nkubectl patch deployment production/api --type=patch -p '{\"spec\": {\"replicas\": 3}}'\nkubectl scale deployment production/api --replicas=3\n```\n\n### 6. Confidence\nMEDIUM\n\n### 7. Checks\n- kubectl get deployment production/api | confirms if: the deployment has been patched | refutes if: the deployment's replicas are still set to 1\n- kubectl describe deployment production/api | confirms if: the memory limits are set to 512Mi | refutes if: the memory limits are still set to 128Mi\n- kubectl get pod production/api-6d8f9b7c4-xvk2p | confirms if: the pod is running | refutes if: the pod is still being restarted\n- kubectl logs production/api-6d8f9b7c4-xvk2p | confirms if: the pod is not crashing | refutes if: the pod is still crashing\n- kubectl top pod | confirms if: the memory usage is within limits | refutes if: the memory usage is still high",
+  "reason": "cause concept(s) not named: drift|512mi|declared|render|expected state",
+  "remediation": [
+    "kubectl patch deployment production/api --type=patch -p '{\"spec\": {\"replicas\": 3}}'",
+    "kubectl scale deployment production/api --replicas=3"
+  ],
+  "root_cause": "The root cause is the incorrect memory limits set for the production API deployment. The deployment's `spec.container.api.resources.limits.memory` is set to `128Mi`, which is too low given the observed OOMKilling events.",
+  "run": 3,
+  "solver": "context",
+  "started_at": "2026-11-03T01:39:17.202127+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 58.98
+}

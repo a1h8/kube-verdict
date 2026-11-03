@@ -87,8 +87,21 @@ h009, h024); the failures below are strict xfails in `tests/unit/test_reasoning_
 | P2 | h022 seeds | any past restart makes a pod a seed, however old: the healthy cluster has an "unhealthy" pod — **fixed 2026-10-17** |
 | P3 | h007 seeds | the fixture has no Deployment, HPA or metrics-server |
 | P4 | h007, h008, h016 rule | no rule for HPA metrics, init-container failure, connection exhaustion |
-| P5 | h016 rule | `helm_drift` on the decoy catalog-api ranks first |
+| P5 | h016 rule | `helm_drift` on the decoy catalog-api ranks first — **fixed 2026-10-18**: the drift was false, made by linking every object of the namespace to the case's release (`docs/fix-plan-001.md`, H26); `drift.config` is now forbidden for h016 |
 | P6 | h008 rule | `pending_unschedulable` fires for an init container that exits non-zero |
+
+**The rule step grades the structured diagnoses (2026-10-19, `docs/structured-in-product.md`
+rule 7).** The old `RemediationEngine` is no longer the product's engine, so the step ranks
+`diagnose()`'s diagnoses (rule, cause location), top 3. Each case's expected rule was rewritten
+from its declared `cause` (the absent object, the object, the outside dependency), never from
+the output: h001 / h004 / h024 `dependency.missing` on the absent object; h003 / h024
+`oom.memory_drift` on the Deployment; h007 `hpa.metrics`; h008 `init.failed`; h009
+`config.drift` on the release; the decoys map family to family (`crashloop_db` →
+`container.crash`, `pending_unschedulable` → `scheduling`, `helm_drift` on catalog-api →
+`config.drift` there). **P4 (h007, h008) and P6 are fixed** by the structured families; P4 stays
+for h016 (no connection-exhaustion family). Found: on h003 the generic `config.drift` of the
+memory *request* (0.65) ranks above `oom.memory_drift` (0.5) — the specific rule is in the top 3,
+the ordering is a finding (P7), not changed here.
 
 **Fix of P1 / P2 (2026-10-17).** A pod is a seed when it is not Running or a container is
 not ready; a past restart alone is not. A not-ready pod is skipped only when it starts

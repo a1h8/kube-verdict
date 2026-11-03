@@ -1,0 +1,20 @@
+# The claim exists and is Bound: the volume is pinned to worker-node-01 (a local / zonal
+# volume), which is cordoned for a drain — the pod can go nowhere else.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-kafka-2
+  namespace: data
+  uid: pvc-data-kafka-2
+  labels:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/instance: kafka
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  volumeName: pvc-7f3a2c1e-kafka-2
+  resources:
+    requests:
+      storage: 100Gi
+status:
+  phase: Bound

@@ -1,0 +1,56 @@
+{
+  "answerable": null,
+  "case": "h008_init_container_fail",
+  "case_hash": "979fe37ee542861fe72946cd29f34f5f7fac28c5e510512d5001fb1d644d95b7",
+  "commit": "f2289e1755927c584dc8f680984a484aa880f8f0",
+  "confidence": "HIGH",
+  "config": "R0",
+  "corpus_hash": "85ba60e739b820e28613dbb490edd81b28e28b11056502a5a53703a4786c1779",
+  "corpus_records": 11,
+  "cut": null,
+  "examples": "on",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched": "inc-0010",
+  "matched_family": "helm-drift",
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "model_digest": "",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause concept(s) not named: migration, init|db-migrate",
+  "root_cause": "The Deployment runs 1 replica while the release values say 4; the live object no longer matches what Helm applied, and one pod cannot carry the load.",
+  "run": 1,
+  "signals_mode": null,
+  "solver": "retrieval",
+  "started_at": "2026-10-24T13:47:44.790025+00:00",
+  "store": "faiss",
+  "threshold": 0.65,
+  "tier": "A",
+  "top": [
+    {
+      "id": "inc-0010",
+      "score": 0.7518
+    },
+    {
+      "id": "inc-0004",
+      "score": 0.707
+    },
+    {
+      "id": "inc-0005",
+      "score": 0.7066
+    }
+  ],
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.46
+}

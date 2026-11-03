@@ -71,7 +71,8 @@ _SCHEMA: dict[str, dict[str, FieldMeta]] = {
             severity_on_drift="info",
         ),
         "container.*.imagePullPolicy": FieldMeta(
-            description="IfNotPresent skips pull if image is cached. Always re-pulls every start.",
+            description="IfNotPresent skips pull if image is cached. Always re-pulls every start. "
+                        "Default: Always for :latest or an untagged image, else IfNotPresent.",
             k8s_default="IfNotPresent",
             valid_values=("Always", "IfNotPresent", "Never"),
             severity_on_drift="warning",

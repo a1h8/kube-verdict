@@ -1,0 +1,25 @@
+id: inc-0006
+title: Profile service never becomes ready after a schema change
+family: init-container
+origin: synthetic
+source:
+  kind: legacy-case
+  ref: cases/012_init_container_failure
+  licence: Apache-2.0
+symptoms:
+  - profile-service pods stay in Init:CrashLoopBackOff
+  - the init container schema-migrate exits with code 1 on every attempt
+  - the main container never starts, no log from it
+signals: [k8s_events, helm]
+kinds: [Pod, Deployment]
+root_cause: >-
+  The init container's DB_NAME is profile_db in the running pods while the release values say
+  profiles; the migration connects to a database that does not exist and exits.
+cause_location: production/Deployment/profile-service
+looks_like: [database down, network policy]
+evidence:
+  - the init container's log names the database it could not open, which differs from the release values
+remediation:
+  - helm upgrade profile-service ./chart -n production --reuse-values --set migrate.dbName=profiles
+rollback:
+  - helm rollback profile-service -n production

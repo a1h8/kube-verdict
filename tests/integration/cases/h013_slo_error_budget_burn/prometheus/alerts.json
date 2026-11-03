@@ -46,7 +46,24 @@
     },
     "annotations": {
       "summary": "checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)",
-      "description": "histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s. The increase is isolated to calls to upstream=payments-gateway; CPU, memory and restart counts on checkout-api are flat, which points at the network path to the dependency rather than at the pod."
+      "description": "histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s."
+    },
+    "state": "firing",
+    "activeAt": "2026-05-21T08:57:40.902Z",
+    "value": "1.84e+00"
+  },
+  {
+    "labels": {
+      "alertname": "UpstreamLatencyHigh",
+      "severity": "warning",
+      "namespace": "production",
+      "deployment": "checkout-api",
+      "upstream": "payments-gateway",
+      "quantile": "p99"
+    },
+    "annotations": {
+      "summary": "checkout-api p99 latency of calls to payments-gateway is 1.71s (baseline 120ms)",
+      "description": "histogram_quantile(0.99, sum by (le, upstream) (rate(http_client_request_duration_seconds_bucket{deployment=\"checkout-api\"}[5m]))) = 1.71s for upstream=payments-gateway; other upstreams flat."
     },
     "state": "firing",
     "activeAt": "2026-05-21T08:57:40.902Z",

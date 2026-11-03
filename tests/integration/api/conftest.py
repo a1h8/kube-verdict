@@ -113,6 +113,8 @@ def clean_store():
     """Give each test a fresh in-memory session store."""
     import api.session_store as _ss_mod
     _ss_mod.init_store(":memory:")
+    import api.routes.webhook as _wh
+    _wh._running.clear()
     yield
     # no teardown needed — in-memory DB is discarded automatically
 

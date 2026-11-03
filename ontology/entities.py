@@ -48,7 +48,11 @@ class K8sEntity:
     kind: ResourceKind = field(default=ResourceKind.NAMESPACE)
     namespace: str | None = None
     labels: dict[str, str] = field(default_factory=dict)
+    # Evidence written by kube-verdict's collectors (drift.*, missing.*, alert.*, signal.*…).
     annotations: dict[str, str] = field(default_factory=dict)
+    # metadata.annotations as read from the cluster: anyone who can patch the object writes
+    # them, so they are never evidence nor prompt text (docs/fix-plan-001.md, H23).
+    k8s_annotations: dict[str, str] = field(default_factory=dict)
     created_at: datetime | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -126,7 +130,18 @@ class Pod(K8sEntity):
 
     @property
     def is_unhealthy(self) -> bool:
-        return self.phase not in ("Running", "Succeeded")
+        return self.phase not in ("Running", "Succeeded") and not self.is_replaced_leftover
+
+    @property
+    def is_replaced_leftover(self) -> bool:
+        """A Failed pod its controller already replaced (eviction, node shutdown, preemption).
+
+        Kubernetes keeps it until garbage collection; it says nothing about the workload now,
+        whose own state does (docs/fix-plan-001.md, H38: an Evicted pod of yesterday was a seed).
+        """
+        reason = ((self.raw or {}).get("status") or {}).get("reason") or ""
+        return (self.phase == "Failed" and reason in _REPLACED_REASONS
+                and self.owner_ref_kind in ("ReplicaSet", "StatefulSet", "DaemonSet"))
 
     @property
     def is_not_ready(self) -> bool:
@@ -139,9 +154,9 @@ class Pod(K8sEntity):
     def is_starting(self) -> bool:
         """Running, every container running, never restarted: a pod coming up, not failing."""
         return self.phase == "Running" and bool(self.container_statuses) and all(
-            "running" in (cs.get("state") or {})
+            "running" in (cs.get("state") if isinstance(cs.get("state"), dict) else {})
             and not cs.get("restartCount")
-            and "terminated" not in (cs.get("lastState") or {})
+            and "terminated" not in (cs.get("lastState") if isinstance(cs.get("lastState"), dict) else {})
             for cs in self.container_statuses
         )
 
@@ -159,6 +174,9 @@ class Pod(K8sEntity):
 
 
 _ROLLOUT_REASONS = frozenset({"ReplicaSetUpdated", "NewReplicaSetCreated", "FoundNewReplicaSet"})
+# status.reason of a pod Kubernetes terminated and its controller replaces
+_REPLACED_REASONS = frozenset({"Evicted", "Shutdown", "NodeShutdown", "Terminated", "Preempting",
+                               "NodeAffinity", "OutOfcpu", "OutOfmemory"})
 
 
 @dataclass
@@ -347,6 +365,8 @@ class HelmRelease(K8sEntity):
     environment: str = ""         # helmfile environment name
     value_files: list[str] = field(default_factory=list)   # paths of value files used
     needs: list[str] = field(default_factory=list)         # helmfile needs: references
+    # `helm get manifest`: what Helm applied at the last install / upgrade (docs/three-states.md)
+    applied_manifest: list[dict] = field(default_factory=list, repr=False)
 
     def __post_init__(self):
         self.kind = ResourceKind.HELM_RELEASE

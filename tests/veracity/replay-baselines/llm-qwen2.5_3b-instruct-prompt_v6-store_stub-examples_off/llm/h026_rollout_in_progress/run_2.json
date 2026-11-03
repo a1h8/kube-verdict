@@ -1,0 +1,63 @@
+{
+  "answerable": null,
+  "case": "h026_rollout_in_progress",
+  "case_hash": "a997ac0c108165f69fccf6b1aa8d0dc2fccae526a3bc52bfe13d0d0596359485",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "confidence_raw": "LOW",
+  "config": "llm",
+  "corpus_hash": null,
+  "cut": null,
+  "examples": "off",
+  "expected_outcome": "no_incident",
+  "explanation": "The root cause is likely a misconfiguration in the invoice deployment, specifically the `spec.minReadySeconds` set to `0`, which is contrary to Kubernetes best practices. This setting should be set to a non-zero value to ensure pods are considered available only after they have successfully passed their readiness probes.",
+  "explanation_veracity": "FAIL",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 42.8,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3500,
+      "num_ctx": 5120,
+      "num_predict": 512,
+      "prompt_eval_s": 39.6,
+      "prompt_tokens_read": 2695,
+      "temperature": 0.1
+    }
+  ],
+  "llm_disagreement": "",
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "outcome": "no_incident",
+  "pre_llm_confidence_score": 0.33,
+  "prompt": "v6",
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 23:42:00 UTC\nTotal context chunks : 33\nContext quality score: LOW (0.33/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 0% \u2192 0.00, TF-IDF features 0/20 \u2192 0.00, Anchors matched 30 \u2192 0.15, Critical signals 1 \u2192 0.03, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (1)\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/invoice-6c8b7f9d4-h5n3v namespace=production count=1 message=Readiness probe failed: Get \"http://10.0.4.17:8080/ready\": dial tcp 10.0.4.17:8080: connect: connection refused\n### WARNING \u2014 Kubernetes events (1)\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/invoice-6c8b7f9d4-h5n3v namespace=production count=1 message=Readiness probe failed: Get \"http://10.0.4.17:8080/ready\": dial tcp 10.0.4.17:8080: connect: connection refused\n### ANCHORS \u2014 Declared values & K8s schema (30)\n  - Deployment/production/invoice: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/production/invoice: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/production/invoice: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/production/invoice: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/production/invoice: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/production/invoice: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/production/invoice: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/production/invoice: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Pod/production/invoice-5d7c9b8f6-k2m4p: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/invoice-5d7c9b8f6-k2m4p: container.invoice.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/invoice-5d7c9b8f6-k2m4p: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/invoice-5d7c9b8f6-k2m4p: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/invoice-5d7c9b8f6-k2m4p: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/invoice-5d7c9b8f6-k2m4p: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - Pod/production/invoice-5d7c9b8f6-r8t2w: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/invoice-5d7c9b8f6-r8t2w: container.invoice.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/invoice-5d7c9b8f6-r8t2w: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/invoice-5d7c9b8f6-r8t2w: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/invoice-5d7c9b8f6-r8t2w: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/invoice-5d7c9b8f6-r8t2w: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - Pod/production/invoice-5d7c9b8f6-x7q9z: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/invoice-5d7c9b8f6-x7q9z: container.invoice.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/invoice-5d7c9b8f6-x7q9z: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/invoice-5d7c9b8f6-x7q9z: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/invoice-5d7c9b8f6-x7q9z: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/invoice-5d7c9b8f6-x7q9z: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - Pod/production/invoice-6c8b7f9d4-h5n3v: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/invoice-6c8b7f9d4-h5n3v: container.invoice.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/invoice-6c8b7f9d4-h5n3v: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/invoice-6c8b7f9d4-h5n3v: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=invoice namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=3]\n\n---\n## Incident query\nis something wrong with invoice in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "reason": "no_incident: LOW and no cause named",
+  "remediation": [
+    "kubectl patch deployment production/invoice --type='json' -p='[{\"op\": \"replace\", \"path\": \"/spec/minReadySeconds\", \"value\": \"30\"}]'"
+  ],
+  "root_cause": "No incident: no fault signal in the evidence.",
+  "run": 2,
+  "signals_mode": "none",
+  "solver": "llm",
+  "started_at": "2026-11-02T23:43:22.535083+00:00",
+  "store": "stub",
+  "tier": "C",
+  "unrecoverable": [
+    "kubectl patch deployment production/invoice --type='json' -p='[{\"op\": \"replace\", \"path\": \"/spec/minReadySeconds\", \"value\": \"30\"}]'"
+  ],
+  "veracity": "PASS",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 82.56
+}

@@ -1,0 +1,29 @@
+# Declared chart values — what the team intends to deploy
+replicaCount: 2
+
+image:
+  repository: ghcr.io/acme/api
+  tag: "v3.2.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    memory: 512Mi
+    cpu: "1"
+  requests:
+    memory: 256Mi
+    cpu: 200m
+
+service:
+  type: ClusterIP
+  port: 8080
+
+autoscaling:
+  enabled: false
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
