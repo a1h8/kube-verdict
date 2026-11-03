@@ -1,0 +1,72 @@
+{
+  "case": "h011_statefulset_pvc_stuck",
+  "case_hash": "3bff3e1a62fb31125f2be2f7ed6f0df1e02783e68850df7291f200004b414b12",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml",
+    "kube/pvc.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 27.7,
+      "answer_tokens": 395,
+      "estimated_prompt_tokens": 1399,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 0.1,
+      "prompt_tokens_read": 1158,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "volume|pvc|persistentvolumeclaim|data-kafka-2",
+      "bound to another node|node affinity|cordon"
+    ]
+  ],
+  "matched_keywords": [
+    "volume|pvc|persistentvolumeclaim|data-kafka-2",
+    "bound to another node|node affinity|cordon"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 3530,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 3,\n  \"image\": {\"repository\": \"confluentinc/cp-kafka\", \"tag\": \"7.5.0\", \"pullPolicy\": \"IfNotPresent\"},\n  \"resources\": {\n    \"limits\": {\"memory\": \"4Gi\", \"cpu\": \"2\"},\n    \"requests\": {\"memory\": \"2Gi\", \"cpu\": \"1\"}\n  },\n  \"persistence\": {\n    \"enabled\": true,\n    \"storageClass\": \"standard\",\n    \"size\": \"50Gi\",\n    \"accessMode\": \"ReadWriteOnce\"\n  },\n  \"service\": {\"type\": \"ClusterIP\", \"port\": 9092}\n}\n\n=== helm/values.yaml ===\nreplicaCount: 3\nimage:\n  repository: confluentinc/cp-kafka\n  tag: 7.5.0\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 4Gi\n    cpu: '2'\n  requests:\n    memory: 2Gi\n    cpu: '1'\npersistence:\n  enabled: true\n  storageClass: standard\n  size: 50Gi\n  accessMode: ReadWriteOnce\nservice:\n  type: ClusterIP\n  port: 9092\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nmetadata: {}\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: kafka-2.scheduling.failed.001\n    namespace: data\n    uid: evt-data-kafka-pvc-001\n  type: Warning\n  reason: FailedScheduling\n  message: '0/3 nodes are available: 1 node(s) had volume node affinity conflict,\n    2 node(s) were unschedulable.'\n  involvedObject:\n    kind: Pod\n    name: kafka-2\n    namespace: data\n  count: 72\n  firstTimestamp: '2026-05-14T09:00:00Z'\n  lastTimestamp: '2026-05-14T13:00:00Z'\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: kafka-2\n  namespace: data\n  uid: pod-data-kafka-2\n  labels:\n    app.kubernetes.io/name: kafka\n    app.kubernetes.io/instance: kafka\n    statefulset.kubernetes.io/pod-name: kafka-2\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: StatefulSet\n    name: kafka\n    uid: sts-data-kafka\n    controller: true\n    blockOwnerDeletion: true\nspec:\n  nodeName: ''\n  serviceAccountName: kafka\n  containers:\n  - name: kafka\n    image: confluentinc/cp-kafka:7.5.0\n    resources:\n      limits:\n        memory: 4Gi\n        cpu: '2'\n      requests:\n        memory: 2Gi\n        cpu: '1'\n  volumes:\n  - name: data\n    persistentVolumeClaim:\n      claimName: data-kafka-2\nstatus:\n  phase: Pending\n  containerStatuses: []\n  conditions:\n  - type: PodScheduled\n    status: 'False'\n    reason: Unschedulable\n    message: '0/3 nodes are available: 1 node(s) had volume node affinity conflict,\n      2 node(s) were unschedulable.'\n  - type: Ready\n    status: 'False'\n    reason: PodNotScheduled\n\n=== kube/pvc.yaml ===\napiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: data-kafka-2\n  namespace: data\n  uid: pvc-data-kafka-2\n  labels:\n    app.kubernetes.io/name: kafka\n    app.kubernetes.io/instance: kafka\nspec:\n  accessModes:\n  - ReadWriteOnce\n  storageClassName: local-path\n  volumeName: pvc-7f3a2c1e-kafka-2\n  resources:\n    requests:\n      storage: 100Gi\nstatus:\n  phase: Bound\n\n---\n## Incident query\nkafka-2 never comes back after the rolling update in the data namespace\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nKafka pod kafka-2 in the data namespace failed to schedule after a rolling update due to persistent volume claim conflicts.\n\n### 2. Affected resources\n- Pod/data-kafka-2 \u2014 Pending phase\n- PersistentVolumeClaim/data-kafka-2 \u2014 Bound phase\n\n### 3. Root cause\nThe root cause is a conflict in the persistent volume claim (PVC) for the Kafka pod. The PVC is bound to a storage class named \"local-path\" which is not compatible with the node affinity required by the PVC. The PVC is bound to a volume named \"pvc-7f3a2c1e-kafka-2\" which is not compatible with the node affinity.\n\nEvidence:\n- `kube/pvc.yaml` shows the PVC is bound to a volume named \"pvc-7f3a2c1e-kafka-2\".\n- `kube/events.yaml` shows a warning message indicating that 1 node(s) had volume node affinity conflict.\n\n### 4. Causal chain\n1. Rolling update of the Kafka deployment in the data namespace.\n2. The new deployment created a new PVC with the \"local-path\" storage class.\n3. The new PVC was bound to a volume named \"pvc-7f3a2c1e-kafka-2\".\n4. The volume \"pvc-7f3a2c1e-kafka-2\" had node affinity requirements that conflicted with the node's configuration.\n5. The Kubernetes scheduler could not schedule the pod due to the volume node affinity conflict.\n6. The pod remained in the Pending phase and never came back.\n\n### 5. Remediation\n1. Update the PVC to use a compatible storage class, e.g., \"standard\".\n2. Update the volume's node affinity to match the node's configuration.\n3. Reschedule the pod.\n\n### 6. Confidence\nHIGH",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Update the PVC to use a compatible storage class, e.g., \"standard\".",
+    "Update the volume's node affinity to match the node's configuration.",
+    "Reschedule the pod."
+  ],
+  "root_cause": "The root cause is a conflict in the persistent volume claim (PVC) for the Kafka pod. The PVC is bound to a storage class named \"local-path\" which is not compatible with the node affinity required by the PVC. The PVC is bound to a volume named \"pvc-7f3a2c1e-kafka-2\" which is not compatible with the node affinity.\n\nEvidence:\n- `kube/pvc.yaml` shows the PVC is bound to a volume named \"pvc-7f3a2c1e-kafka-2\".\n- `kube/events.yaml` shows a warning message indicating that 1 node(s) had volume node affinity conflict.",
+  "run": 3,
+  "solver": "raw",
+  "started_at": "2026-11-03T00:22:59.022811+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 27.86
+}

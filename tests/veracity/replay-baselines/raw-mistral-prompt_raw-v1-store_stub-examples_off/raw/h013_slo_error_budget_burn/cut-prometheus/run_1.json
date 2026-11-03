@@ -1,0 +1,66 @@
+{
+  "case": "h013_slo_error_budget_burn",
+  "case_hash": "7cbe32006aedb481893590a8dbe8aa41eec7b6e645594f3033d1509fd2ef1c1c",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM\nThe root cause is based on the provided SLO configuration and the observed latency in the deployment and service. However, further investigation may be required to confirm the exact cause and potential solutions.",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": "prometheus",
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [
+    "prometheus"
+  ],
+  "files": [
+    "helm/values.yaml",
+    "kube/deployment.yaml",
+    "kube/pod.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 63.0,
+      "answer_tokens": 360,
+      "estimated_prompt_tokens": 1562,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 58.0,
+      "prompt_tokens_read": 1547,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 3969,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/values.yaml ===\nreplicaCount: 3\nimage:\n  repository: ghcr.io/acme/checkout-api\n  tag: 4.2.1\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 512Mi\n    cpu: '1'\n  requests:\n    memory: 256Mi\n    cpu: 250m\nservice:\n  type: ClusterIP\n  port: 8080\nslo:\n  availability: 0.995\n  latencyP99Ms: 400\n  latencyP95Ms: 250\n  windowDays: 30\n\n=== kube/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: checkout-api\n  namespace: production\n  uid: 7a1b3c5d-9e2f-11ef-d5c6-0242ac110013\n  resourceVersion: '7300112'\n  creationTimestamp: '2026-05-12T07:00:00Z'\n  labels:\n    app.kubernetes.io/name: checkout-api\n    app.kubernetes.io/instance: checkout-api\n    app.kubernetes.io/managed-by: Helm\n  annotations:\n    deployment.kubernetes.io/revision: '7'\n    meta.helm.sh/release-name: checkout-api\n    meta.helm.sh/release-namespace: production\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: checkout-api\n      app.kubernetes.io/instance: checkout-api\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxUnavailable: 1\n      maxSurge: 1\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: checkout-api\n        app.kubernetes.io/instance: checkout-api\n    spec:\n      containers:\n      - name: checkout-api\n        image: ghcr.io/acme/checkout-api:4.2.1\n        resources:\n          limits:\n            memory: 512Mi\n            cpu: '1'\n          requests:\n            memory: 256Mi\n            cpu: 250m\n        ports:\n        - containerPort: 8080\n          protocol: TCP\nstatus:\n  observedGeneration: 7\n  replicas: 3\n  updatedReplicas: 3\n  readyReplicas: 3\n  availableReplicas: 3\n  conditions:\n  - type: Available\n    status: 'True'\n    reason: MinimumReplicasAvailable\n    message: Deployment has minimum availability.\n    lastTransitionTime: '2026-05-19T07:00:05Z'\n  - type: Progressing\n    status: 'True'\n    reason: NewReplicaSetAvailable\n    message: ReplicaSet \"checkout-api-6d8f5b7c9\" has successfully progressed.\n    lastTransitionTime: '2026-05-19T07:00:05Z'\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: checkout-api-6d8f5b7c9-q4lmn\n  namespace: production\n  uid: pod-prod-checkout-api-6d8f5b7c9-q4lmn\n  labels:\n    app.kubernetes.io/name: checkout-api\n    app.kubernetes.io/instance: checkout-api\n    pod-template-hash: 6d8f5b7c9\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: checkout-api-6d8f5b7c9\n    uid: rs-prod-checkout-api-6d8f5b7c9\n    controller: true\n    blockOwnerDeletion: true\nspec:\n  nodeName: worker-node-02\n  serviceAccountName: checkout-api\n  containers:\n  - name: checkout-api\n    image: ghcr.io/acme/checkout-api:4.2.1\n    resources:\n      limits:\n        memory: 512Mi\n        cpu: '1'\n      requests:\n        memory: 256Mi\n        cpu: 250m\n    readinessProbe:\n      httpGet:\n        path: /ready\n        port: 8080\n      initialDelaySeconds: 10\n      periodSeconds: 10\n      timeoutSeconds: 2\n      failureThreshold: 3\nstatus:\n  phase: Running\n  containerStatuses:\n  - name: checkout-api\n    ready: true\n    restartCount: 0\n    state:\n      running:\n        startedAt: '2026-05-19T07:00:00Z'\n    lastState: {}\n  conditions:\n  - type: Ready\n    status: 'True'\n\n---\n## Incident query\nwhy do checkout-api requests take so long\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe latency of checkout-api requests is higher than expected due to the application's response time being slower than the specified SLO.\n\n### 2. Affected resources\n- Deployment: `apps/v1/production/checkout-api \u2014 higher than expected latency`\n- Service: `ClusterIP/production/checkout-api \u2014 higher than expected latency`\n\n### 3. Root cause\nThe application's response time (latencyP99Ms: 400, latencyP95Ms: 250) in the SLO configuration is higher than the expected latency, which may indicate that the application itself is not optimized for performance or is experiencing internal issues.\n\n### 4. Causal chain\n1. The application's response time is slower than the specified SLO (400ms for P99 and 250ms for P95).\n2. The slower response time is observed in the checkout-api deployment and service.\n\n### 5. Remediation\n1. Analyze the application's code and configuration to identify performance bottlenecks and optimize for better response times.\n2. Consider implementing caching, load balancing, or other performance optimization techniques to improve the application's performance.\n3. Monitor the application's performance over time to identify trends and further optimize as needed.\n\n### 6. Confidence\nMEDIUM\nThe root cause is based on the provided SLO configuration and the observed latency in the deployment and service. However, further investigation may be required to confirm the exact cause and potential solutions.",
+  "reason": "cause concept(s) not named: payments-gateway|payments gateway|dependenc|downstream, network",
+  "remediation": [
+    "Analyze the application's code and configuration to identify performance bottlenecks and optimize for better response times.",
+    "Consider implementing caching, load balancing, or other performance optimization techniques to improve the application's performance.",
+    "Monitor the application's performance over time to identify trends and further optimize as needed."
+  ],
+  "root_cause": "The application's response time (latencyP99Ms: 400, latencyP95Ms: 250) in the SLO configuration is higher than the expected latency, which may indicate that the application itself is not optimized for performance or is experiencing internal issues.",
+  "run": 1,
+  "solver": "raw",
+  "started_at": "2026-11-02T01:12:47.153598+00:00",
+  "store": "stub",
+  "tier": "B",
+  "veracity": "FAIL",
+  "wall_s": 121.07
+}

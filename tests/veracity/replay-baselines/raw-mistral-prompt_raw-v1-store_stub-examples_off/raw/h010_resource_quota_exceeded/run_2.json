@@ -1,0 +1,70 @@
+{
+  "case": "h010_resource_quota_exceeded",
+  "case_hash": "82cea462f684626184e30fe04b6d646063cf65bb30e2bc32ec7ee4660b84d5ef",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/deployment.yaml",
+    "kube/events.yaml",
+    "kube/quota.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 57.4,
+      "answer_tokens": 328,
+      "estimated_prompt_tokens": 1588,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 0.2,
+      "prompt_tokens_read": 1527,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "quota"
+    ]
+  ],
+  "matched_keywords": [
+    "quota"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 4040,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 2,\n  \"image\": {\"repository\": \"ghcr.io/acme/worker-service\", \"tag\": \"1.4.0\", \"pullPolicy\": \"IfNotPresent\"},\n  \"resources\": {\n    \"limits\": {\"memory\": \"256Mi\", \"cpu\": \"1\"},\n    \"requests\": {\"memory\": \"128Mi\", \"cpu\": \"500m\"}\n  },\n  \"service\": {\"type\": \"ClusterIP\", \"port\": 8080}\n}\n\n=== helm/values.yaml ===\nreplicaCount: 2\nimage:\n  repository: ghcr.io/acme/worker-service\n  tag: 1.4.0\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 256Mi\n    cpu: '1'\n  requests:\n    memory: 128Mi\n    cpu: 500m\nservice:\n  type: ClusterIP\n  port: 8080\n\n=== kube/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: worker-service\n  namespace: staging\n  uid: dep-staging-worker-service\n  labels:\n    app.kubernetes.io/name: worker-service\n    app.kubernetes.io/instance: worker-service\n    app.kubernetes.io/managed-by: Helm\n  annotations:\n    meta.helm.sh/release-name: worker-service\n    meta.helm.sh/release-namespace: staging\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: worker-service\n      app.kubernetes.io/instance: worker-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: worker-service\n        app.kubernetes.io/instance: worker-service\n    spec:\n      serviceAccountName: worker-service\n      containers:\n      - name: worker-service\n        image: ghcr.io/acme/worker-service:1.4.0\n        resources:\n          limits:\n            memory: 256Mi\n            cpu: '1'\n          requests:\n            memory: 128Mi\n            cpu: 500m\nstatus:\n  replicas: 0\n  readyReplicas: 0\n  availableReplicas: 0\n  unavailableReplicas: 2\n  conditions:\n  - type: Available\n    status: 'False'\n    reason: MinimumReplicasUnavailable\n    message: Deployment does not have minimum availability.\n  - type: ReplicaFailure\n    status: 'True'\n    reason: FailedCreate\n    message: 'pods \"worker-service-7d8f9c6b5-\" is forbidden: exceeded quota: staging-compute-quota,\n      requested: requests.cpu=500m, used: requests.cpu=3800m, limited: requests.cpu=4'\n  - type: Progressing\n    status: 'True'\n    reason: ReplicaSetUpdated\n    message: ReplicaSet \"worker-service-7d8f9c6b5\" is progressing.\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nmetadata: {}\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: worker-service-7d8f9c6b5.quota.exceeded.001\n    namespace: staging\n    uid: evt-staging-quota-exceeded-001\n  type: Warning\n  reason: FailedCreate\n  message: 'Error creating: pods \"worker-service-7d8f9c6b5-\" is forbidden: exceeded\n    quota: staging-compute-quota, requested: requests.cpu=500m, used: requests.cpu=3800m,\n    limited: requests.cpu=4'\n  involvedObject:\n    kind: ReplicaSet\n    name: worker-service-7d8f9c6b5\n    namespace: staging\n  count: 12\n  firstTimestamp: '2026-05-14T15:00:01Z'\n  lastTimestamp: '2026-05-14T15:45:01Z'\n  reportingComponent: replicaset-controller\n\n=== kube/quota.yaml ===\napiVersion: v1\nkind: ResourceQuota\nmetadata:\n  name: staging-compute-quota\n  namespace: staging\n  uid: rq-staging-compute-quota-001\nspec:\n  hard:\n    requests.cpu: '4'\n    requests.memory: 8Gi\n    pods: '20'\nstatus:\n  hard:\n    requests.cpu: '4'\n    requests.memory: 8Gi\n    pods: '20'\n  used:\n    requests.cpu: 3800m\n    requests.memory: 6Gi\n    pods: '15'\n\n---\n## Incident query\nworker-service pod never starts in staging\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe worker-service pod in the staging namespace is not starting due to exceeding the CPU quota in the staging namespace.\n\n### 2. Affected resources\n- Deployment/staging/worker-service \u2014 pod never starts\n- ResourceQuota/staging/staging-compute-quota \u2014 CPU quota exceeded\n\n### 3. Root cause\nThe worker-service pod is not starting because it requires 500m of CPU, which exceeds the 4 CPU limit set in the staging-compute-quota resource quota.\n\n### 4. Causal chain\n1. The worker-service deployment is configured to request 500m of CPU and 128Mi of memory.\n2. The staging namespace has a resource quota of 4 CPU and 8Gi of memory.\n3. The worker-service pod is created, but it exceeds the CPU quota in the staging namespace.\n4. The pod creation is denied due to the exceeded quota, causing the pod to remain in an unavailable state.\n\n### 5. Remediation\n1. Increase the CPU limit in the staging-compute-quota resource quota to accommodate the worker-service pod's requirements.\n2. Apply the updated resource quota:\n   ```\n   kubectl apply -f kube/quota.yaml\n   ```\n\n### 6. Confidence\nHIGH",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Increase the CPU limit in the staging-compute-quota resource quota to accommodate the worker-service pod's requirements.",
+    "Apply the updated resource quota:",
+    "kubectl apply -f kube/quota.yaml"
+  ],
+  "root_cause": "The worker-service pod is not starting because it requires 500m of CPU, which exceeds the 4 CPU limit set in the staging-compute-quota resource quota.",
+  "run": 2,
+  "solver": "raw",
+  "started_at": "2026-11-01T23:53:37.102315+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 57.55
+}

@@ -1,0 +1,70 @@
+{
+  "case": "h005_rbac_forbidden",
+  "case_hash": "d3b538b0ae1f44256639db33e355e86c1728d9d325138b73aa9276ab309a52ad",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": "loki",
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [
+    "loki"
+  ],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml",
+    "kube/rbac/clusterrole.yaml",
+    "kube/serviceaccount.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 31.7,
+      "answer_tokens": 451,
+      "estimated_prompt_tokens": 1225,
+      "num_ctx": 2048,
+      "num_predict": 512,
+      "prompt_eval_s": 15.2,
+      "prompt_tokens_read": 1047,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 3058,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 1,\n  \"image\": { \"repository\": \"ghcr.io/acme/audit-exporter\", \"tag\": \"v2.1.0\" },\n  \"serviceAccount\": { \"name\": \"audit-exporter-sa\", \"create\": true },\n  \"rbac\": { \"create\": false },\n  \"watchNamespace\": \"production\",\n  \"resources\": {\n    \"limits\": { \"memory\": \"128Mi\", \"cpu\": \"200m\" },\n    \"requests\": { \"memory\": \"64Mi\", \"cpu\": \"50m\" }\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 1\nimage:\n  repository: ghcr.io/acme/audit-exporter\n  tag: v2.1.0\n  pullPolicy: IfNotPresent\nserviceAccount:\n  name: audit-exporter-sa\n  create: true\nrbac:\n  create: false\nwatchNamespace: production\nresources:\n  limits:\n    memory: 128Mi\n    cpu: 200m\n  requests:\n    memory: 64Mi\n    cpu: 50m\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nitems: []\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: audit-exporter-7b8d6c9f5-m3p1q\n  namespace: monitoring\n  uid: d6f3a9b2-7d0f-11ef-b3a4-0242ac110007\n  labels:\n    app.kubernetes.io/name: audit-exporter\n    app.kubernetes.io/instance: audit-exporter\n    pod-template-hash: 7b8d6c9f5\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: audit-exporter-7b8d6c9f5\n    controller: true\nspec:\n  nodeName: worker-node-03\n  serviceAccountName: audit-exporter-sa\n  containers:\n  - name: audit-exporter\n    image: ghcr.io/acme/audit-exporter:v2.1.0\n    env:\n    - name: WATCH_NAMESPACE\n      value: production\n    ports:\n    - containerPort: 9090\n    resources:\n      limits:\n        memory: 128Mi\n        cpu: 200m\n      requests:\n        memory: 64Mi\n        cpu: 50m\nstatus:\n  phase: Running\n  podIP: 10.244.2.31\n  containerStatuses:\n  - name: audit-exporter\n    ready: true\n    restartCount: 0\n    state:\n      running:\n        startedAt: '2026-05-14T11:00:00Z'\n  conditions:\n  - type: Ready\n    status: 'True'\n\n=== kube/rbac/clusterrole.yaml ===\napiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: audit-exporter-role\nrules:\n- apiGroups:\n  - ''\n  resources:\n  - pods\n  - events\n  - namespaces\n  verbs:\n  - get\n  - list\n  - watch\n- apiGroups:\n  - apps\n  resources:\n  - deployments\n  - replicasets\n  verbs:\n  - get\n  - list\n  - watch\n\n=== kube/serviceaccount.yaml ===\napiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: audit-exporter-sa\n  namespace: monitoring\n\n---\n## Incident query\naudit-exporter keeps crashing in the monitoring namespace\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\naudit-exporter pods in the monitoring namespace are consistently crashing.\n\n### 2. Affected resources\n- Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q \u2014 consistently crashes\n\n### 3. Root cause\nThe audit-exporter deployment is not receiving the expected traffic. The `watchNamespace` environment variable is set to `production`, but the audit-exporter is running in the `monitoring` namespace. This misconfiguration causes the pod to crash.\n\n### 4. Causal chain\n1. The deployment is configured to watch the `production` namespace, but the pod is running in the `monitoring` namespace.\n2. The pod is unable to access the resources it is supposed to watch, leading to a crash.\n3. The pod crashes and does not restart, resulting in a consistent failure.\n\n### 5. Remediation\n- Update the `watchNamespace` environment variable in the deployment to `monitoring`.\n  ```yaml\n  apiVersion: apps/v1\n  kind: Deployment\n  metadata:\n    name: audit-exporter\n    namespace: monitoring\n  spec:\n    selector:\n      matchLabels:\n        app.kubernetes.io/name: audit-exporter\n        app.kubernetes.io/instance: audit-exporter\n        pod-template-hash: 7b8d6c9f5\n    template:\n      metadata:\n        labels:\n          app.kubernetes.io/name: audit-exporter\n          app.kubernetes.io/instance: audit-exporter\n          pod-template-hash: 7b8d6c9f5\n      spec:\n        containers:\n        - name: audit-exporter\n          image: ghcr.io/acme/audit-exporter:v2.1.0\n          env:\n          - name: WATCH_NAMESPACE\n            value: monitoring\n          ports:\n          - containerPort: 9090\n          resources:\n            limits:\n              memory: 128Mi\n              cpu: 200m\n            requests:\n              memory: 64Mi\n              cpu: 50m\n  ```\n\n### 6. Confidence\nHIGH",
+  "reason": "cause concept(s) not named: serviceaccount|service account|audit-exporter-sa, rbac|binding|permission",
+  "remediation": [
+    "Update the `watchNamespace` environment variable in the deployment to `monitoring`.",
+    "name: audit-exporter",
+    "name: WATCH_NAMESPACE",
+    "containerPort: 9090"
+  ],
+  "root_cause": "The audit-exporter deployment is not receiving the expected traffic. The `watchNamespace` environment variable is set to `production`, but the audit-exporter is running in the `monitoring` namespace. This misconfiguration causes the pod to crash.",
+  "run": 1,
+  "solver": "raw",
+  "started_at": "2026-11-03T00:49:06.464256+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 49.34
+}

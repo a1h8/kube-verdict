@@ -1,0 +1,66 @@
+{
+  "answerable": false,
+  "case": "h005_rbac_forbidden",
+  "case_hash": "d3b538b0ae1f44256639db33e355e86c1728d9d325138b73aa9276ab309a52ad",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "confidence_raw": "LOW",
+  "config": "llm",
+  "corpus_hash": null,
+  "cut": "loki",
+  "examples": "off",
+  "expected_outcome": "cause",
+  "explanation": "The declared image pull policy for the audit-exporter container is 'IfNotPresent', but the actual image pull policy is not observed in the context. This could lead to the container crashing due to an outdated or missing image.",
+  "explanation_veracity": "FAIL",
+  "fallbacks": [
+    "loki"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 84.7,
+      "answer_tokens": 494,
+      "estimated_prompt_tokens": 1636,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 55.3,
+      "prompt_tokens_read": 1390,
+      "temperature": 0.1
+    }
+  ],
+  "llm_disagreement": "",
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "outcome": "insufficient_evidence",
+  "pre_llm_confidence_score": 0.3,
+  "prompt": "v6",
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-01 22:24:39 UTC\nTotal context chunks : 7\nContext quality score: LOW (0.30/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 0% \u2192 0.00, TF-IDF features 0/20 \u2192 0.00, Anchors matched 6 \u2192 0.15, Critical signals 0 \u2192 0.00, Helm drift items 0 \u2192 0.00\n\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=audit-exporter namespace=monitoring chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=1 watchNamespace=production]\n\n---\n## Incident query\naudit-exporter keeps crashing in the monitoring namespace\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "reason": "cause concept(s) not named: serviceaccount|service account|audit-exporter-sa, rbac|binding|permission",
+  "remediation": [
+    "Update the Helm chart for audit-exporter to use an appropriate image pull policy (e.g., 'Always' or 'Never').",
+    "Redeploy the audit-exporter using Helm."
+  ],
+  "root_cause": "Insufficient evidence: no fault signal, but collection failed for loki \u2014 what they hold is unknown.",
+  "run": 1,
+  "signals_mode": "none",
+  "solver": "llm",
+  "started_at": "2026-11-01T22:27:03.568258+00:00",
+  "store": "stub",
+  "tier": "A",
+  "unrecoverable": [],
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 144.58
+}

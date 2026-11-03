@@ -1,0 +1,65 @@
+{
+  "case": "h001_crashloopbackoff",
+  "case_hash": "c9c7c7e195f4717e1aa49e1e5fdf64bfd33534744a80853bae52b924c1b89d3e",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "C1",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": null,
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 75.0,
+      "answer_tokens": 378,
+      "estimated_prompt_tokens": 2600,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 89.4,
+      "prompt_tokens_read": 2241,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "secret",
+      "not found|missing"
+    ]
+  ],
+  "matched_keywords": [
+    "secret",
+    "not found|missing"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 5779,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-01 18:47:14 UTC\nTotal context chunks : 16\nContext quality score: MEDIUM (0.68/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 6 \u2192 0.15, Critical signals 4 \u2192 0.12, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (4)\n  - kind=Pod name=payment-service-6d8f9b7c4-xk9p2 namespace=production labels=[app.kubernetes.io/name=payment-service app.kubernetes.io/instance=payment-service app.kubernetes.io/version=1.4.2 pod-template-hash=6d8f9b7c4] phase=Running node=worker-node-02 restarts=47 owner=ReplicaSet/payment-service-6d8f9b7c4\n  - kind=Event type=Warning reason=BackOff involved=Pod/payment-service-6d8f9b7c4-xk9p2 namespace=production count=47 message=Back-off restarting failed container payment-service in pod payment-service-6d8f9b7c4-xk9p2_production\n  - kind=Event type=Warning reason=Failed involved=Pod/payment-service-6d8f9b7c4-xk9p2 namespace=production count=1 message=Error: secret \"payment-db-secret\" not found\n  - kind=Event type=Warning reason=Failed involved=Pod/payment-service-6d8f9b7c4-xk9p2 namespace=production count=47 message=Error: failed to create containerd task: failed to create shim task: OCI runtime create failed: container_linux.go:380: starting container process caused: process_linux.go:545: container init caused: rootfs_linux.go:76: mounting \"/var/lib/kubelet/pods/a3c1e7f2/volumes/kubernetes.io~secret/payment-db-secret\" to rootfs at \"/run/secrets/payment-db-secret\" caused: mount through procfd: not a directory: unknown\n### ANCHOR FIX SUGGESTIONS \u2014 helm commands to restore declared values (1)\n  - Pod/production/payment-service-6d8f9b7c4-xk9p2  secret 'payment-db-secret' missing  \u2192  kubectl create secret generic payment-db-secret -n production --from-literal=KEY=VALUE\n### WARNING \u2014 Kubernetes events (3)\n  - kind=Event type=Warning reason=BackOff involved=Pod/payment-service-6d8f9b7c4-xk9p2 namespace=production count=47 message=Back-off restarting failed container payment-service in pod payment-service-6d8f9b7c4-xk9p2_production\n  - kind=Event type=Warning reason=Failed involved=Pod/payment-service-6d8f9b7c4-xk9p2 namespace=production count=47 message=Error: failed to create containerd task: failed to create shim task: OCI runtime create failed: container_linux.go:380: starting container process caused: process_linux.go:545: container init caused: rootfs_linux.go:76: mounting \"/var/lib/kubelet/pods/a3c1e7f2/volumes/kubernetes.io~secret/payment-db-secret\" to rootfs at \"/run/secrets/payment-db-secret\" caused: mount through procfd: not a directory: unknown\n  - kind=Event type=Warning reason=Failed involved=Pod/payment-service-6d8f9b7c4-xk9p2 namespace=production count=1 message=Error: secret \"payment-db-secret\" not found\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/production/payment-service-6d8f9b7c4-xk9p2: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/payment-service-6d8f9b7c4-xk9p2: container.payment-service.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/payment-service-6d8f9b7c4-xk9p2: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/payment-service-6d8f9b7c4-xk9p2: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/payment-service-6d8f9b7c4-xk9p2: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/payment-service-6d8f9b7c4-xk9p2: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=payment-service namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=2 existingSecret=payment-db-secret]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\npayment-service pods keep crashing in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe payment-service pod in the production namespace is crashing due to a missing secret required for its operation.\n\n### 2. Affected resources\n- Pod/production/payment-service-6d8f9b7c4-xk9p2 \u2014 crashing and restarting frequently\n- Event/production/payment-service-6d8f9b7c4-xk9p2 \u2014 warning events indicating failed container and missing secret\n\n### 3. Root cause\nThe root cause is the absence of the secret \"payment-db-secret\" in the production namespace, which is required by the payment-service pod.\n\n### 4. Causal chain\n1. The payment-service pod is configured to use the \"payment-db-secret\" secret.\n2. The \"payment-db-secret\" secret is missing in the production namespace.\n3. The missing secret causes the payment-service pod to fail to start, leading to frequent restarts.\n\n### 5. Remediation\n- Create the missing secret \"payment-db-secret\" in the production namespace:\n  ```\n  kubectl create secret generic payment-db-secret -n production --from-literal=KEY=VALUE\n  ```\n\n### 6. Confidence\nHIGH\n\n### 7. Checks\n- `kubectl get secret payment-db-secret -n production`\n  - verifies: The existence and details of the secret \"payment-db-secret\" in the production namespace\n  - confirms if: The secret exists and contains the expected key-value pair\n  - refutes if: The secret does not exist or does not contain the expected key-value pair",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Create the missing secret \"payment-db-secret\" in the production namespace:",
+    "kubectl create secret generic payment-db-secret -n production --from-literal=KEY=VALUE"
+  ],
+  "root_cause": "The root cause is the absence of the secret \"payment-db-secret\" in the production namespace, which is required by the payment-service pod.",
+  "run": 1,
+  "solver": "context",
+  "started_at": "2026-11-01T18:50:11.854661+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 177.26
+}

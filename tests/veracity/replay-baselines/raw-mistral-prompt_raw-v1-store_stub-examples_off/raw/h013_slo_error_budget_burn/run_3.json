@@ -1,0 +1,69 @@
+{
+  "case": "h013_slo_error_budget_burn",
+  "case_hash": "7cbe32006aedb481893590a8dbe8aa41eec7b6e645594f3033d1509fd2ef1c1c",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "helm/values.yaml",
+    "kube/deployment.yaml",
+    "kube/pod.yaml",
+    "prometheus/alerts.json"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 75.2,
+      "answer_tokens": 322,
+      "estimated_prompt_tokens": 2933,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 0.2,
+      "prompt_tokens_read": 3001,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "payments-gateway|payments gateway|dependenc|downstream"
+    ]
+  ],
+  "matched_keywords": [
+    "payments-gateway|payments gateway|dependenc|downstream"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 7670,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/values.yaml ===\nreplicaCount: 3\nimage:\n  repository: ghcr.io/acme/checkout-api\n  tag: 4.2.1\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 512Mi\n    cpu: '1'\n  requests:\n    memory: 256Mi\n    cpu: 250m\nservice:\n  type: ClusterIP\n  port: 8080\nslo:\n  availability: 0.995\n  latencyP99Ms: 400\n  latencyP95Ms: 250\n  windowDays: 30\n\n=== kube/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: checkout-api\n  namespace: production\n  uid: 7a1b3c5d-9e2f-11ef-d5c6-0242ac110013\n  resourceVersion: '7300112'\n  creationTimestamp: '2026-05-12T07:00:00Z'\n  labels:\n    app.kubernetes.io/name: checkout-api\n    app.kubernetes.io/instance: checkout-api\n    app.kubernetes.io/managed-by: Helm\n  annotations:\n    deployment.kubernetes.io/revision: '7'\n    meta.helm.sh/release-name: checkout-api\n    meta.helm.sh/release-namespace: production\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: checkout-api\n      app.kubernetes.io/instance: checkout-api\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxUnavailable: 1\n      maxSurge: 1\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: checkout-api\n        app.kubernetes.io/instance: checkout-api\n    spec:\n      containers:\n      - name: checkout-api\n        image: ghcr.io/acme/checkout-api:4.2.1\n        resources:\n          limits:\n            memory: 512Mi\n            cpu: '1'\n          requests:\n            memory: 256Mi\n            cpu: 250m\n        ports:\n        - containerPort: 8080\n          protocol: TCP\nstatus:\n  observedGeneration: 7\n  replicas: 3\n  updatedReplicas: 3\n  readyReplicas: 3\n  availableReplicas: 3\n  conditions:\n  - type: Available\n    status: 'True'\n    reason: MinimumReplicasAvailable\n    message: Deployment has minimum availability.\n    lastTransitionTime: '2026-05-19T07:00:05Z'\n  - type: Progressing\n    status: 'True'\n    reason: NewReplicaSetAvailable\n    message: ReplicaSet \"checkout-api-6d8f5b7c9\" has successfully progressed.\n    lastTransitionTime: '2026-05-19T07:00:05Z'\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: checkout-api-6d8f5b7c9-q4lmn\n  namespace: production\n  uid: pod-prod-checkout-api-6d8f5b7c9-q4lmn\n  labels:\n    app.kubernetes.io/name: checkout-api\n    app.kubernetes.io/instance: checkout-api\n    pod-template-hash: 6d8f5b7c9\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: checkout-api-6d8f5b7c9\n    uid: rs-prod-checkout-api-6d8f5b7c9\n    controller: true\n    blockOwnerDeletion: true\nspec:\n  nodeName: worker-node-02\n  serviceAccountName: checkout-api\n  containers:\n  - name: checkout-api\n    image: ghcr.io/acme/checkout-api:4.2.1\n    resources:\n      limits:\n        memory: 512Mi\n        cpu: '1'\n      requests:\n        memory: 256Mi\n        cpu: 250m\n    readinessProbe:\n      httpGet:\n        path: /ready\n        port: 8080\n      initialDelaySeconds: 10\n      periodSeconds: 10\n      timeoutSeconds: 2\n      failureThreshold: 3\nstatus:\n  phase: Running\n  containerStatuses:\n  - name: checkout-api\n    ready: true\n    restartCount: 0\n    state:\n      running:\n        startedAt: '2026-05-19T07:00:00Z'\n    lastState: {}\n  conditions:\n  - type: Ready\n    status: 'True'\n\n=== prometheus/alerts.json ===\n[\n  {\n    \"labels\": {\n      \"alertname\": \"SLOErrorBudgetBurnFast\",\n      \"severity\": \"critical\",\n      \"namespace\": \"production\",\n      \"deployment\": \"checkout-api\",\n      \"slo\": \"checkout-availability\",\n      \"window\": \"1h/5m\",\n      \"burn_rate\": \"14.4\"\n    },\n    \"annotations\": {\n      \"summary\": \"checkout-api is burning its 30d error budget 14.4x too fast (1h/5m windows)\",\n      \"description\": \"At this rate 2% of the 30-day error budget is consumed every hour and the whole budget is gone in ~2 days. SLI (requests answered successfully within 1s) is 92.8% against a 99.5% objective.\"\n    },\n    \"state\": \"firing\",\n    \"activeAt\": \"2026-05-21T09:12:11.481Z\",\n    \"value\": \"1.44e+01\"\n  },\n  {\n    \"labels\": {\n      \"alertname\": \"SLOErrorBudgetBurnSlow\",\n      \"severity\": \"warning\",\n      \"namespace\": \"production\",\n      \"deployment\": \"checkout-api\",\n      \"slo\": \"checkout-availability\",\n      \"window\": \"6h/30m\",\n      \"burn_rate\": \"6\"\n    },\n    \"annotations\": {\n      \"summary\": \"checkout-api is burning its 30d error budget 6x too fast (6h/30m windows)\",\n      \"description\": \"5% of the 30-day error budget was consumed in the last 6 hours - a sustained degradation, not a blip. SLI is 97.0% against a 99.5% objective.\"\n    },\n    \"state\": \"firing\",\n    \"activeAt\": \"2026-05-21T08:41:03.117Z\",\n    \"value\": \"6e+00\"\n  },\n  {\n    \"labels\": {\n      \"alertname\": \"LatencySLOBreach\",\n      \"severity\": \"warning\",\n      \"namespace\": \"production\",\n      \"deployment\": \"checkout-api\",\n      \"slo\": \"checkout-latency\",\n      \"quantile\": \"p99\"\n    },\n    \"annotations\": {\n      \"summary\": \"checkout-api p99 latency 1.84s exceeds the 400ms SLO (p95 0.92s vs 250ms)\",\n      \"description\": \"histogram_quantile(0.99, http_request_duration_seconds) = 1.84s for 15m; p95 = 0.92s.\"\n    },\n    \"state\": \"firing\",\n    \"activeAt\": \"2026-05-21T08:57:40.902Z\",\n    \"value\": \"1.84e+00\"\n  },\n  {\n    \"labels\": {\n      \"alertname\": \"UpstreamLatencyHigh\",\n      \"severity\": \"warning\",\n      \"namespace\": \"production\",\n      \"deployment\": \"checkout-api\",\n      \"upstream\": \"payments-gateway\",\n      \"quantile\": \"p99\"\n    },\n    \"annotations\": {\n      \"summary\": \"checkout-api p99 latency of calls to payments-gateway is 1.71s (baseline 120ms)\",\n      \"description\": \"histogram_quantile(0.99, sum by (le, upstream) (rate(http_client_request_duration_seconds_bucket{deployment=\\\"checkout-api\\\"}[5m]))) = 1.71s for upstream=payments-gateway; other upstreams flat.\"\n    },\n    \"state\": \"firing\",\n    \"activeAt\": \"2026-05-21T08:57:40.902Z\",\n    \"value\": \"1.84e+00\"\n  },\n  {\n    \"labels\": {\n      \"alertname\": \"LatencyP95Pending\",\n      \"severity\": \"info\",\n      \"namespace\": \"production\",\n      \"deployment\": \"checkout-api\",\n      \"slo\": \"checkout-latency\",\n      \"quantile\": \"p95\"\n    },\n    \"annotations\": {\n      \"summary\": \"checkout-api p95 latency above 250ms for less than the required 10m\",\n      \"description\": \"Pending only - has not been above threshold long enough to fire.\"\n    },\n    \"state\": \"pending\",\n    \"activeAt\": \"2026-05-21T09:20:00.000Z\",\n    \"value\": \"9.2e-01\"\n  },\n  {\n    \"labels\": {\n      \"alertname\": \"SLOErrorBudgetBurnFast\",\n      \"severity\": \"critical\",\n      \"namespace\": \"production\",\n      \"deployment\": \"reporting-batch\",\n      \"slo\": \"reporting-freshness\",\n      \"window\": \"1h/5m\",\n      \"burn_rate\": \"15.1\"\n    },\n    \"annotations\": {\n      \"summary\": \"reporting-batch is burning its error budget 15.1x too fast\",\n      \"description\": \"Firing, but reporting-batch is not part of this investigation's cluster snapshot - no entity to correlate with.\"\n    },\n    \"state\": \"firing\",\n    \"activeAt\": \"2026-05-21T09:05:00.000Z\",\n    \"value\": \"1.51e+01\"\n  }\n]\n\n---\n## Incident query\nwhy do checkout-api requests take so long\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe checkout-api requests are taking longer than expected due to high latency in the upstream payments-gateway service.\n\n### 2. Affected resources\n- Deployment: checkout-api \u2014 p99 latency exceeds the SLO (1.84s vs 400ms)\n- Upstream: payments-gateway \u2014 p99 latency is 1.71s (baseline 120ms)\n\n### 3. Root cause\nThe high latency in the upstream payments-gateway service is causing the increased latency in the checkout-api requests.\n\n### 4. Causal chain\n1. The checkout-api deployment is making calls to the payments-gateway upstream service.\n2. The payments-gateway service is experiencing high latency, causing increased response times for the checkout-api requests.\n3. The increased response times result in the p99 latency of the checkout-api requests exceeding the SLO of 400ms.\n\n### 5. Remediation\n1. Investigate the cause of the high latency in the payments-gateway service.\n2. If necessary, scale up or optimize the payments-gateway service to reduce latency.\n3. Monitor the checkout-api requests and payments-gateway service to ensure latency remains within acceptable limits.\n\n### 6. Confidence\nHIGH",
+  "reason": "cause concept(s) not named: network",
+  "remediation": [
+    "Investigate the cause of the high latency in the payments-gateway service.",
+    "If necessary, scale up or optimize the payments-gateway service to reduce latency.",
+    "Monitor the checkout-api requests and payments-gateway service to ensure latency remains within acceptable limits."
+  ],
+  "root_cause": "The high latency in the upstream payments-gateway service is causing the increased latency in the checkout-api requests.",
+  "run": 3,
+  "solver": "raw",
+  "started_at": "2026-11-02T00:09:37.146052+00:00",
+  "store": "stub",
+  "tier": "B",
+  "veracity": "FAIL",
+  "wall_s": 75.47
+}

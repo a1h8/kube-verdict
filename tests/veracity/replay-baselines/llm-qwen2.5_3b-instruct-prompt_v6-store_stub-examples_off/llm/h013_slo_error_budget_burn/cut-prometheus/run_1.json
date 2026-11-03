@@ -1,0 +1,71 @@
+{
+  "answerable": false,
+  "case": "h013_slo_error_budget_burn",
+  "case_hash": "7cbe32006aedb481893590a8dbe8aa41eec7b6e645594f3033d1509fd2ef1c1c",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "confidence_raw": "LOW",
+  "config": "llm",
+  "corpus_hash": null,
+  "cut": "prometheus",
+  "examples": "off",
+  "expected_outcome": "cause",
+  "explanation": "The deployment's rolling update strategy is set to `RollingUpdate` with `maxSurge` and `maxUnavailable` both set to `25%`. This configuration can lead to uneven scaling and increased latency if not properly managed.",
+  "explanation_veracity": "FAIL",
+  "fallbacks": [
+    "prometheus"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 40.0,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2088,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 19.4,
+      "prompt_tokens_read": 1480,
+      "temperature": 0.1
+    }
+  ],
+  "llm_disagreement": "",
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "outcome": "insufficient_evidence",
+  "pre_llm_confidence_score": 0.3,
+  "prompt": "v6",
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 23:47:13 UTC\nTotal context chunks : 15\nContext quality score: LOW (0.30/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 0% \u2192 0.00, TF-IDF features 0/20 \u2192 0.00, Anchors matched 14 \u2192 0.15, Critical signals 0 \u2192 0.00, Helm drift items 0 \u2192 0.00\n\n### ANCHORS \u2014 Declared values & K8s schema (14)\n  - Deployment/production/checkout-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/production/checkout-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/production/checkout-api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/production/checkout-api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/production/checkout-api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/production/checkout-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/production/checkout-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/checkout-api-6d8f5b7c9-q4lmn: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/checkout-api-6d8f5b7c9-q4lmn: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=checkout-api namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=3]\n\n---\n## Incident query\nwhy do checkout-api requests take so long\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "reason": "cause concept(s) not named: payments-gateway|payments gateway|dependenc|downstream, network",
+  "remediation": [
+    "Change the `spec.strategy` to `Recreate` to ensure a complete restart of all pods during the update.",
+    "kubectl patch deployment/production/checkout-api -p '{\"spec\": {\"strategy\": {\"type\": \"Recreate\"}}}' --type=merge",
+    "Verify the update was applied correctly.",
+    "Roll out the deployment to apply the changes.",
+    "kubectl rollout restart deployment/production/checkout-api"
+  ],
+  "root_cause": "Insufficient evidence: no fault signal, but collection failed for prometheus \u2014 what they hold is unknown.",
+  "run": 1,
+  "signals_mode": "none",
+  "solver": "llm",
+  "started_at": "2026-11-02T23:48:13.438255+00:00",
+  "store": "stub",
+  "tier": "B",
+  "unrecoverable": [
+    "kubectl patch deployment/production/checkout-api -p '{\"spec\": {\"strategy\": {\"type\": \"Recreate\"}}}' --type=merge"
+  ],
+  "veracity": "FAIL",
+  "verdict": "HUMAN_REVIEW",
+  "wall_s": 59.57
+}

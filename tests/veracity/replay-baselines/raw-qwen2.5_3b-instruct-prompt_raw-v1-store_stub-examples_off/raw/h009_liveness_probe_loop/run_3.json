@@ -1,0 +1,73 @@
+{
+  "case": "h009_liveness_probe_loop",
+  "case_hash": "864d1eeb5e4d30be80b0dd6f891e0f2281361bb803609fb2133598d302f91f79",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "chart/Chart.yaml",
+    "chart/templates/deployment.yaml",
+    "chart/values.yaml",
+    "helm/manifest.yaml",
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 31.8,
+      "answer_tokens": 396,
+      "estimated_prompt_tokens": 2804,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 0.1,
+      "prompt_tokens_read": 2317,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "liveness"
+    ]
+  ],
+  "matched_keywords": [
+    "liveness"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 7323,
+  "prompts": [
+    "## Files of the incident\n\n=== chart/Chart.yaml ===\napiVersion: v2\nname: search-service\nversion: 1.0.0\n\n=== chart/templates/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ .Release.Name }}\n  namespace: {{ .Release.Namespace }}\n  labels:\n    app.kubernetes.io/name: {{ .Release.Name }}\n    app.kubernetes.io/instance: {{ .Release.Name }}\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: {{ .Values.replicaCount }}\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: {{ .Release.Name }}\n      app.kubernetes.io/instance: {{ .Release.Name }}\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: {{ .Release.Name }}\n        app.kubernetes.io/instance: {{ .Release.Name }}\n    spec:\n      containers:\n        - name: {{ .Release.Name }}\n          image: \"{{ .Values.image.repository }}:{{ .Values.image.tag }}\"\n          imagePullPolicy: {{ .Values.image.pullPolicy }}\n          resources:\n            {{- toYaml .Values.resources | nindent 12 }}\n          {{- with .Values.livenessProbe }}\n          livenessProbe:\n            {{- toYaml . | nindent 12 }}\n          {{- end }}\n          {{- with .Values.readinessProbe }}\n          readinessProbe:\n            {{- toYaml . | nindent 12 }}\n          {{- end }}\n\n=== chart/values.yaml ===\nreplicaCount: 2\nimage:\n  repository: ghcr.io/acme/search-service\n  tag: 3.0.1\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 1Gi\n    cpu: '2'\n  requests:\n    memory: 512Mi\n    cpu: 500m\nservice:\n  type: ClusterIP\n  port: 9200\nlivenessProbe:\n  httpGet:\n    path: /health\n    port: 9200\n  initialDelaySeconds: 30\n  periodSeconds: 10\n  timeoutSeconds: 5\n  failureThreshold: 3\n\n=== helm/manifest.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: search-service\n  namespace: production\n  labels:\n    app.kubernetes.io/name: search-service\n    app.kubernetes.io/instance: search-service\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: search-service\n      app.kubernetes.io/instance: search-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: search-service\n        app.kubernetes.io/instance: search-service\n    spec:\n      containers:\n      - name: search-service\n        image: ghcr.io/acme/search-service:3.0.1\n        imagePullPolicy: IfNotPresent\n        resources:\n          limits:\n            cpu: '2'\n            memory: 1Gi\n          requests:\n            cpu: 500m\n            memory: 512Mi\n        livenessProbe:\n          failureThreshold: 3\n          httpGet:\n            path: /health\n            port: 9200\n          initialDelaySeconds: 30\n          periodSeconds: 10\n          timeoutSeconds: 1\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 2,\n  \"image\": {\"repository\": \"ghcr.io/acme/search-service\", \"tag\": \"3.0.1\", \"pullPolicy\": \"IfNotPresent\"},\n  \"resources\": {\n    \"limits\": {\"memory\": \"1Gi\", \"cpu\": \"2\"},\n    \"requests\": {\"memory\": \"512Mi\", \"cpu\": \"500m\"}\n  },\n  \"service\": {\"type\": \"ClusterIP\", \"port\": 9200},\n  \"livenessProbe\": {\n    \"httpGet\": {\"path\": \"/health\", \"port\": 9200},\n    \"initialDelaySeconds\": 30,\n    \"periodSeconds\": 10,\n    \"timeoutSeconds\": 1,\n    \"failureThreshold\": 3\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 2\nimage:\n  repository: ghcr.io/acme/search-service\n  tag: 3.0.1\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 1Gi\n    cpu: '2'\n  requests:\n    memory: 512Mi\n    cpu: 500m\nservice:\n  type: ClusterIP\n  port: 9200\nlivenessProbe:\n  httpGet:\n    path: /health\n    port: 9200\n  initialDelaySeconds: 30\n  periodSeconds: 10\n  timeoutSeconds: 5\n  failureThreshold: 3\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nmetadata: {}\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: search-service.liveness.unhealthy.001\n    namespace: production\n    uid: evt-prod-liveness-unhealthy-001\n  type: Warning\n  reason: Unhealthy\n  message: 'Liveness probe failed: Get \"http://10.0.2.15:9200/health\": context deadline\n    exceeded (Client.Timeout exceeded while awaiting headers)'\n  involvedObject:\n    kind: Pod\n    name: search-service-5c9b7d6f4-rk8st\n    namespace: production\n  count: 54\n  firstTimestamp: '2026-05-14T13:00:00Z'\n  lastTimestamp: '2026-05-14T14:00:00Z'\n  reportingComponent: kubelet\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: search-service.killing.001\n    namespace: production\n    uid: evt-prod-liveness-killing-001\n  type: Normal\n  reason: Killing\n  message: Container search-service failed liveness probe, will be restarted\n  involvedObject:\n    kind: Pod\n    name: search-service-5c9b7d6f4-rk8st\n    namespace: production\n  count: 18\n  firstTimestamp: '2026-05-14T13:01:00Z'\n  lastTimestamp: '2026-05-14T14:00:10Z'\n  reportingComponent: kubelet\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: search-service.backoff.001\n    namespace: production\n    uid: evt-prod-liveness-backoff-001\n  type: Warning\n  reason: BackOff\n  message: Back-off restarting failed container search-service in pod search-service-5c9b7d6f4-rk8st_production\n  involvedObject:\n    kind: Pod\n    name: search-service-5c9b7d6f4-rk8st\n    namespace: production\n  count: 18\n  firstTimestamp: '2026-05-14T13:01:30Z'\n  lastTimestamp: '2026-05-14T14:00:30Z'\n  reportingComponent: kubelet\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: search-service-5c9b7d6f4-rk8st\n  namespace: production\n  uid: pod-prod-search-service-5c9b7d6f4-rk8st\n  labels:\n    app.kubernetes.io/name: search-service\n    app.kubernetes.io/instance: search-service\n    pod-template-hash: 5c9b7d6f4\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: search-service-5c9b7d6f4\n    uid: rs-prod-search-service-5c9b7d6f4\n    controller: true\n    blockOwnerDeletion: true\nspec:\n  nodeName: worker-node-02\n  serviceAccountName: search-service\n  containers:\n  - name: search-service\n    image: ghcr.io/acme/search-service:3.0.1\n    resources:\n      limits:\n        memory: 1Gi\n        cpu: '2'\n      requests:\n        memory: 512Mi\n        cpu: 500m\n    livenessProbe:\n      httpGet:\n        path: /health\n        port: 9200\n      initialDelaySeconds: 30\n      periodSeconds: 10\n      timeoutSeconds: 1\n      failureThreshold: 3\nstatus:\n  phase: Running\n  containerStatuses:\n  - name: search-service\n    ready: false\n    restartCount: 18\n    state:\n      waiting:\n        reason: CrashLoopBackOff\n    lastState:\n      terminated:\n        exitCode: 137\n        reason: Error\n        finishedAt: '2026-05-14T14:00:00Z'\n  conditions:\n  - type: Ready\n    status: 'False'\n    reason: ContainersNotReady\n\n---\n## Incident query\nsearch-service goes down every few minutes in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nsearch-service pods repeatedly fail liveness probes, leading to frequent restarts and eventual unavailability.\n\n### 2. Affected resources\n- Deployment/search-service-production \u2014 liveness probe failure\n- Pod/search-service-5c9b7d6f4-rk8st \u2014 CrashLoopBackOff status\n- Event/search-service.liveness.unhealthy.001 \u2014 Warning event indicating liveness probe failure\n\n### 3. Root cause\nThe liveness probe is failing due to a timeout, causing the container to be restarted repeatedly. This is evidenced by the liveness probe configuration in the `helm/manifest.yaml` and `helm/values.yaml` files, which specifies a timeout of 1 second. The container is crashing with an exit code of 137, indicating a memory or CPU limit exceeded.\n\n### 4. Causal chain\n1. The liveness probe is configured to check the `/health` endpoint on port 9200.\n2. The container is running with a CPU limit of 2 and a memory limit of 1Gi.\n3. The liveness probe times out after 1 second, triggering a restart.\n4. The container crashes due to exceeding its CPU and memory limits.\n5. The pod enters a CrashLoopBackOff state, restarting repeatedly.\n6. The liveness probe continues to fail, leading to more restarts.\n\n### 5. Remediation\n1. Update the liveness probe timeout to a higher value, e.g., 30 seconds, in the `helm/manifest.yaml` or `helm/values.yaml` files.\n2. Ensure the container's CPU and memory limits are appropriate for the workload, possibly increasing the memory limit to 2Gi or reducing the CPU limit to 1.\n3. Verify the application's health check endpoint is correctly implemented and does not cause the container to exceed its limits.\n\n### 6. Confidence\nHIGH",
+  "reason": "cause concept(s) not named: drift|timeoutseconds|declared|too short|too aggressive",
+  "remediation": [
+    "Update the liveness probe timeout to a higher value, e.g., 30 seconds, in the `helm/manifest.yaml` or `helm/values.yaml` files.",
+    "Ensure the container's CPU and memory limits are appropriate for the workload, possibly increasing the memory limit to 2Gi or reducing the CPU limit to 1.",
+    "Verify the application's health check endpoint is correctly implemented and does not cause the container to exceed its limits."
+  ],
+  "root_cause": "The liveness probe is failing due to a timeout, causing the container to be restarted repeatedly. This is evidenced by the liveness probe configuration in the `helm/manifest.yaml` and `helm/values.yaml` files, which specifies a timeout of 1 second. The container is crashing with an exit code of 137, indicating a memory or CPU limit exceeded.",
+  "run": 3,
+  "solver": "raw",
+  "started_at": "2026-11-03T00:18:52.548151+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 31.9
+}

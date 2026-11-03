@@ -1,0 +1,79 @@
+{
+  "case": "h024_multi_cause",
+  "case_hash": "587fb43acdb09f5797e12a87dd44d355361baaf26c93d94d19ec615761b68e8f",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "config": "C2",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": {
+    "anchors": 0,
+    "chart_anchors": 0,
+    "docs": 0,
+    "examples": 0,
+    "vectors": 7
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 41.9,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3283,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 35.6,
+      "prompt_tokens_read": 2517,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "secret|queue-credentials",
+      "missing|not found"
+    ],
+    [
+      "memory|oom",
+      "drift|1gi|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "secret|queue-credentials",
+    "missing|not found",
+    "memory|oom",
+    "drift|1gi|declared"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 7623,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-03 03:33:14 UTC\nTotal context chunks : 32\nContext quality score: HIGH (0.85/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 20 \u2192 0.15, Critical signals 5 \u2192 0.15, Helm drift items 2 \u2192 0.14\n\n### CRITICAL \u2014 Unhealthy resources (5)\n  - kind=Pod name=api-6b8d4f7c9-q7r2t namespace=production labels=[app.kubernetes.io/name=api app.kubernetes.io/instance=api pod-template-hash=6b8d4f7c9] phase=Running node=worker-node-02 restarts=6 owner=ReplicaSet/api-6b8d4f7c9\n  - kind=Pod name=worker-58c9d7b6f-h4m8n namespace=production labels=[app.kubernetes.io/name=worker app.kubernetes.io/instance=worker pod-template-hash=58c9d7b6f] phase=Pending node=worker-node-01 restarts=0 owner=ReplicaSet/worker-58c9d7b6f\n  - kind=Deployment name=api namespace=production labels=[app.kubernetes.io/name=api app.kubernetes.io/instance=api app.kubernetes.io/managed-by=Helm] replicas=1 ready=0 available=0\n  - kind=Event type=Warning reason=BackOff involved=Pod/api-6b8d4f7c9-q7r2t namespace=production count=6 message=Back-off restarting failed container api in pod api-6b8d4f7c9-q7r2t (last state: OOMKilled, exit code 137)\n  - kind=Event type=Warning reason=Failed involved=Pod/worker-58c9d7b6f-h4m8n namespace=production count=8 message=Error: secret \"queue-credentials\" not found\n### CRITICAL \u2014 Helm declared vs observed drift (2)\n  - Deployment/production/api: [deployed \u2260 Git] drift field=container.api.resources.limits.memory declared=1Gi observed=256Mi severity=warning\n  - Deployment/production/api: [deployed \u2260 Git] drift field=container.api.resources.requests.memory declared=512Mi observed=128Mi severity=info\n### ANCHOR FIX SUGGESTIONS \u2014 helm commands to restore declared values (1)\n  - Pod/production/worker-58c9d7b6f-h4m8n  secret 'queue-credentials' missing  \u2192  kubectl create secret generic queue-credentials -n production --from-literal=KEY=VALUE\n### WARNING \u2014 Kubernetes events (2)\n  - kind=Event type=Warning reason=Failed involved=Pod/worker-58c9d7b6f-h4m8n namespace=production count=8 message=Error: secret \"queue-credentials\" not found\n  - kind=Event type=Warning reason=BackOff involved=Pod/api-6b8d4f7c9-q7r2t namespace=production count=6 message=Back-off restarting failed container api in pod api-6b8d4f7c9-q7r2t (last state: OOMKilled, exit code 137)\n### ANCHORS \u2014 Declared values & K8s schema (20)\n  - Deployment/production/api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/production/api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/production/api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/production/api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/production/api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/production/api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/production/api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/production/api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Pod/production/api-6b8d4f7c9-q7r2t: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/api-6b8d4f7c9-q7r2t: container.api.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/api-6b8d4f7c9-q7r2t: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/api-6b8d4f7c9-q7r2t: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/api-6b8d4f7c9-q7r2t: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/api-6b8d4f7c9-q7r2t: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - Pod/production/worker-58c9d7b6f-h4m8n: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/worker-58c9d7b6f-h4m8n: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/worker-58c9d7b6f-h4m8n: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/worker-58c9d7b6f-h4m8n: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/worker-58c9d7b6f-h4m8n: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/worker-58c9d7b6f-h4m8n: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=api namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=1]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\nwhy are api and worker down in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe production environment is experiencing issues with the `api` and `worker` pods, leading to their unavailability.\n\n### 2. Affected resources\n- Pod/production/api-6b8d4f7c9-q7r2t \u2014 Back-off restarting failed container api\n- Pod/production/worker-58c9d7b6f-h4m8n \u2014 Error: secret \"queue-credentials\" not found\n\n### 3. Root cause\nThe root cause is a drift between the Helm chart and the observed deployment. The `api` deployment has drifted to use a memory limit of `256Mi` instead of the declared `1Gi`, which is causing the `api` pod to restart due to OOMKilled. Additionally, the `worker` pod is missing the required secret `queue-credentials`.\n\n### 4. Causal chain\n1. The `api` deployment has drifted to use a memory limit of `256Mi` instead of the declared `1Gi`.\n2. The `api` pod is restarted due to OOMKilled, leading to the observed symptom.\n3. The `worker` pod is missing the required secret `queue-credentials`, causing it to fail.\n\n### 5. Remediation\n1. Fix the memory limit drift:\n   ```sh\n   kubectl patch deployment api -n production --type=json -p='[{\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/resources/limits/memory\", \"value\": \"1Gi\"}]'\n   ```\n2. Ensure the `queue-credentials` secret is available:\n   ```sh\n   kubectl create secret generic queue-credentials -n production --from-literal=KEY=VALUE\n   ```\n\n### 6. Confidence\nMEDIUM\n\n### 7. Checks\n- kubectl get deployment api -n production | confirms if: deployment is updated | refutes if: deployment is unchanged\n- kubectl describe deployment api -n production | confirms if: memory limit is set to 1Gi | refutes if: memory limit is set to 256Mi\n- kubectl get secret queue-credentials -n production | confirms if: secret exists | refutes if: secret does not exist\n- kubectl get pod api-6b8d4f7c9-q7r2t -n production | confirms if: pod is running | refutes if: pod is",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Fix the memory limit drift:",
+    "kubectl patch deployment api -n production --type=json -p='[{\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/resources/limits/memory\", \"value\": \"1Gi\"}]'",
+    "Ensure the `queue-credentials` secret is available:",
+    "kubectl create secret generic queue-credentials -n production --from-literal=KEY=VALUE"
+  ],
+  "root_cause": "The root cause is a drift between the Helm chart and the observed deployment. The `api` deployment has drifted to use a memory limit of `256Mi` instead of the declared `1Gi`, which is causing the `api` pod to restart due to OOMKilled. Additionally, the `worker` pod is missing the required secret `queue-credentials`.",
+  "run": 1,
+  "solver": "context",
+  "started_at": "2026-11-03T03:34:32.514784+00:00",
+  "store": "faiss",
+  "tier": "C",
+  "veracity": "PASS",
+  "wall_s": 80.29
+}

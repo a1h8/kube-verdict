@@ -1,0 +1,51 @@
+{
+  "answerable": null,
+  "case": "h015_etcd_compaction",
+  "case_hash": "6a16d16e1c20e6bd4d070b321b1d22ba26a259042b1cc809658467e9e68078ed",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": "otel",
+  "diagnoses": [],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [
+    "otel"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "model_digest": "",
+  "outcome": "insufficient_evidence",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause concept(s) not named: etcd, compaction|compacted|latency|slow",
+  "root_cause": "Insufficient evidence: fault signals exist but no rule explains them.",
+  "rules_version": "rules/5",
+  "run": 1,
+  "signal_kinds": [
+    "pod.not_ready",
+    "probe.readiness_failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-01T19:00:25.565678+00:00",
+  "store": "stub",
+  "tier": "B",
+  "unclassified": {
+    "k8s_event": 1
+  },
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.09
+}

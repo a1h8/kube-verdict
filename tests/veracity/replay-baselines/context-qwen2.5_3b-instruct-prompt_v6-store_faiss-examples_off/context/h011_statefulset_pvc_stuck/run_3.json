@@ -1,0 +1,69 @@
+{
+  "case": "h011_statefulset_pvc_stuck",
+  "case_hash": "3bff3e1a62fb31125f2be2f7ed6f0df1e02783e68850df7291f200004b414b12",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "confidence_raw": "LOW",
+  "config": "C2",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": {
+    "anchors": 0,
+    "chart_anchors": 0,
+    "docs": 0,
+    "examples": 0,
+    "vectors": 5
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 37.7,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 2135,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 18.3,
+      "prompt_tokens_read": 1513,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "volume|pvc|persistentvolumeclaim|data-kafka-2"
+    ]
+  ],
+  "matched_keywords": [
+    "volume|pvc|persistentvolumeclaim|data-kafka-2"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 4521,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-03 03:02:52 UTC\nTotal context chunks : 15\nContext quality score: MEDIUM (0.63/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 2/20 \u2192 0.02, Anchors matched 9 \u2192 0.15, Critical signals 2 \u2192 0.06, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (2)\n  - kind=Pod name=kafka-2 namespace=data labels=[app.kubernetes.io/name=kafka app.kubernetes.io/instance=kafka statefulset.kubernetes.io/pod-name=kafka-2] phase=Pending node= restarts=0 owner=StatefulSet/kafka\n  - kind=Event type=Warning reason=FailedScheduling involved=Pod/kafka-2 namespace=data count=72 message=0/3 nodes are available: 1 node(s) had volume node affinity conflict, 2 node(s) were unschedulable.\n### WARNING \u2014 Kubernetes events (1)\n  - kind=Event type=Warning reason=FailedScheduling involved=Pod/kafka-2 namespace=data count=72 message=0/3 nodes are available: 1 node(s) had volume node affinity conflict, 2 node(s) were unschedulable.\n### ANCHORS \u2014 Declared values & K8s schema (9)\n  - Pod/data/kafka-2: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/data/kafka-2: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/data/kafka-2: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/data/kafka-2: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/data/kafka-2: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/data/kafka-2: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - PersistentVolumeClaim/data/data-kafka-2: spec.accessModes: valid=ReadWriteOnce|ReadOnlyMany|ReadWriteMany|ReadWriteOncePod | ReadWriteOnce = single node. ReadWriteMany = multi-node (NFS/Ceph).\n  - PersistentVolumeClaim/data/data-kafka-2: spec.persistentVolumeReclaimPolicy: declared='Delete' [k8s_defaults] | valid=Retain|Delete|Recycle | Delete removes volume when PVC is deleted. Retain keeps data.\n  - PersistentVolumeClaim/data/data-kafka-2: spec.volumeMode: declared='Filesystem' [k8s_defaults] | valid=Filesystem|Block | Filesystem = mounted as dir; Block = raw block device.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=kafka namespace=data chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=3]\n### Related context (2 chunks after dedup)\n  - kind=PersistentVolumeClaim name=data-kafka-2 namespace=data labels=[app.kubernetes.io/name=kafka app.kubernetes.io/instance=kafka] storage=100Gi phase=Bound volume=pvc-7f3a2c1e-kafka-2\n  - kind=Namespace name=data\n\n---\n## Incident query\nkafka-2 never comes back after the rolling update in the data namespace\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe Kafka pod `kafka-2` in the `data` namespace never comes back after a rolling update.\n\n### 2. Affected resources\n- Pod/data/kafka-2 \u2014 phase is Pending\n- PersistentVolumeClaim/data/data-kafka-2 \u2014 phase is Bound\n\n### 3. Root cause\nThe root cause is a PersistentVolume (PV) or PersistentVolumeClaim (PVC) issue, specifically the PV `pvc-7f3a2c1e-kafka-2` in the `data` namespace is not bound, causing the Kafka pod to fail to start.\n\n### 4. Causal chain\n1. The PersistentVolumeClaim `data/data-kafka-2` is bound to the PersistentVolume `pvc-7f3a2c1e-kafka-2` in the `data` namespace.\n2. The PersistentVolume `pvc-7f3a2c1e-kafka-2` is not bound, resulting in the PersistentVolumeClaim `data/data-kafka-2` being in a `Bound` phase but the underlying PersistentVolume not being bound.\n3. The Kafka pod `data/kafka-2` is unable to mount the PersistentVolume `pvc-7f3a2c1e-kafka-2`, leading to the pod being in a `Pending` phase.\n4. The Kubernetes event `FailedScheduling` indicates that the node affinity conflict is preventing the pod from being scheduled.\n\n### 5. Remediation\n- Check the PersistentVolume `pvc-7f3a2c1e-kafka-2` to ensure it is correctly bound: `kubectl get pvc pvc-7f3a2c1e-kafka-2 -n data`\n- If the PersistentVolume is not bound, attempt to manually bind it: `kubectl apply -f <path_to_pvc_binding_yaml>`\n\n### 6. Confidence\nLOW\n\n### 7. Checks\n- kubectl get pvc pvc-7f3a2c1e-kafka-2 -n data | verifies: Bound status of PVC | confirms if: Bound | refutes if: Pending\n- kubectl describe pvc pvc-7f3a2c1e-kafka-2 -n data | verifies: Details of PVC | confirms if: Bound status is shown | refutes if: Not bound\n- kubectl get pv pvc-7f",
+  "reason": "cause concept(s) not named: bound to another node|node affinity|cordon",
+  "remediation": [
+    "Check the PersistentVolume `pvc-7f3a2c1e-kafka-2` to ensure it is correctly bound: `kubectl get pvc pvc-7f3a2c1e-kafka-2 -n data`",
+    "If the PersistentVolume is not bound, attempt to manually bind it: `kubectl apply -f <path_to_pvc_binding_yaml>`"
+  ],
+  "root_cause": "The root cause is a PersistentVolume (PV) or PersistentVolumeClaim (PVC) issue, specifically the PV `pvc-7f3a2c1e-kafka-2` in the `data` namespace is not bound, causing the Kafka pod to fail to start.",
+  "run": 3,
+  "solver": "context",
+  "started_at": "2026-11-03T03:03:48.123216+00:00",
+  "store": "faiss",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 58.69
+}

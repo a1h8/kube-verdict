@@ -1,0 +1,64 @@
+{
+  "case": "h022_no_incident",
+  "case_hash": "2efcaa9816cd942c86492c065c8de3a33911a52152f799a6b83697fb1b2451a7",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM \u2014 The root cause is probable but one link in the causal chain is inferred rather than directly observed in the context.",
+  "config": "C2",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": {
+    "anchors": 0,
+    "chart_anchors": 0,
+    "docs": 0,
+    "examples": 0,
+    "vectors": 7
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 112.3,
+      "answer_tokens": 499,
+      "estimated_prompt_tokens": 3318,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 110.3,
+      "prompt_tokens_read": 2950,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 7716,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 22:00:24 UTC\nTotal context chunks : 32\nContext quality score: MEDIUM (0.51/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 60% \u2192 0.15, TF-IDF features 3/20 \u2192 0.03, Anchors matched 26 \u2192 0.15, Critical signals 1 \u2192 0.03, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (1)\n  - kind=Event type=Warning reason=BackOff involved=Pod/ledger-7d9f8c6b5-a1b2c namespace=production count=1 message=Back-off restarting failed container ledger in pod ledger-7d9f8c6b5-a1b2c\n### WARNING \u2014 Kubernetes events (1)\n  - kind=Event type=Warning reason=BackOff involved=Pod/ledger-7d9f8c6b5-a1b2c namespace=production count=1 message=Back-off restarting failed container ledger in pod ledger-7d9f8c6b5-a1b2c\n### ANCHORS \u2014 Declared values & K8s schema (26)\n  - Deployment/production/ledger: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/production/ledger: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/production/ledger: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/production/ledger: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/production/ledger: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/production/ledger: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/production/ledger: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/production/ledger: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Pod/production/ledger-7d9f8c6b5-a1b2c: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/ledger-7d9f8c6b5-a1b2c: container.ledger.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/ledger-7d9f8c6b5-a1b2c: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/ledger-7d9f8c6b5-a1b2c: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/ledger-7d9f8c6b5-a1b2c: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/ledger-7d9f8c6b5-a1b2c: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - Pod/production/ledger-7d9f8c6b5-d3e4f: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/ledger-7d9f8c6b5-d3e4f: container.ledger.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/ledger-7d9f8c6b5-d3e4f: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/ledger-7d9f8c6b5-d3e4f: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/ledger-7d9f8c6b5-d3e4f: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/ledger-7d9f8c6b5-d3e4f: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - Pod/production/ledger-7d9f8c6b5-g5h6j: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/ledger-7d9f8c6b5-g5h6j: container.ledger.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/ledger-7d9f8c6b5-g5h6j: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/ledger-7d9f8c6b5-g5h6j: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/ledger-7d9f8c6b5-g5h6j: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/ledger-7d9f8c6b5-g5h6j: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=ledger namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=3]\n### Related context (3 chunks after dedup)\n  - kind=Deployment name=ledger namespace=production labels=[app.kubernetes.io/name=ledger app.kubernetes.io/instance=ledger app.kubernetes.io/managed-by=Helm] replicas=3 ready=3 available=3\n  - kind=Pod name=ledger-7d9f8c6b5-d3e4f namespace=production labels=[app.kubernetes.io/name=ledger app.kubernetes.io/instance=ledger pod-template-hash=7d9f8c6b5] phase=Running node=worker-node-02 restarts=0 owner=ReplicaSet/ledger-7d9f8c6b5\n  - kind=Namespace name=production\n\n---\n## Incident query\nis something wrong with ledger in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe ledger deployment in the production namespace is experiencing issues due to a failed container.\n\n### 2. Affected resources\n- Pod/production/ledger-7d9f8c6b5-a1b2c \u2014 failed container ledger\n\n### 3. Root cause\nThe root cause appears to be a failed container restart due to an unspecified error, as indicated by the Warning event.\n\n### 4. Causal chain\n1. The deployment for ledger in the production namespace was deployed using Helm.\n2. The deployment has a specified replica count of 3.\n3. One of the replicas, ledger-7d9f8c6b5-a1b2c, is experiencing a failed container restart.\n4. The failure is causing the pod to enter a BackOff state, as indicated by the Warning event.\n\n### 5. Remediation\n- To investigate the cause of the failed container, you can use the following command:\n  ```\n  kubectl describe pod/production/ledger-7d9f8c6b5-a1b2c\n  ```\n- If necessary, you can restart the failed container using:\n  ```\n  kubectl rollout restart deployment/production/ledger\n  ```\n\n### 6. Confidence\nMEDIUM \u2014 The root cause is probable but one link in the causal chain is inferred rather than directly observed in the context.\n\n### 7. Checks\n- `kubectl describe pod/production/ledger-7d9f8c6b5-a1b2c` | verifies: detailed pod information | confirms if: the container status is not \"Running\" | refutes if: the container status is \"Running\"\n- `kubectl get events --field-selector involvedObject.name=ledger-7d9f8c6b5-a1b2c,involvedObject.kind=Pod -o jsonpath='{.items[*].message}'` | verifies: event messages | confirms if: the messages contain information about the failed container | refutes if: the messages do not contain information about the failed container",
+  "reason": "no_incident: confidence MEDIUM, LOW expected",
+  "remediation": [
+    "To investigate the cause of the failed container, you can use the following command:",
+    "If necessary, you can restart the failed container using:",
+    "kubectl rollout restart deployment/production/ledger"
+  ],
+  "root_cause": "The root cause appears to be a failed container restart due to an unspecified error, as indicated by the Warning event.",
+  "run": 3,
+  "solver": "context",
+  "started_at": "2026-11-02T22:04:07.541391+00:00",
+  "store": "faiss",
+  "tier": "C",
+  "veracity": "FAIL",
+  "wall_s": 225.33
+}

@@ -1,0 +1,72 @@
+{
+  "case": "h011_statefulset_pvc_stuck",
+  "case_hash": "3bff3e1a62fb31125f2be2f7ed6f0df1e02783e68850df7291f200004b414b12",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM: The causal chain is probable but one link in the causal chain is inferred rather than directly observed in the context.",
+  "config": "C2",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": {
+    "anchors": 0,
+    "chart_anchors": 0,
+    "docs": 0,
+    "examples": 0,
+    "vectors": 5
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 120.7,
+      "answer_tokens": 494,
+      "estimated_prompt_tokens": 2135,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 67.3,
+      "prompt_tokens_read": 1779,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "volume|pvc|persistentvolumeclaim|data-kafka-2",
+      "bound to another node|node affinity|cordon"
+    ]
+  ],
+  "matched_keywords": [
+    "volume|pvc|persistentvolumeclaim|data-kafka-2",
+    "bound to another node|node affinity|cordon"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 4521,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 20:04:36 UTC\nTotal context chunks : 15\nContext quality score: MEDIUM (0.63/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 2/20 \u2192 0.02, Anchors matched 9 \u2192 0.15, Critical signals 2 \u2192 0.06, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (2)\n  - kind=Pod name=kafka-2 namespace=data labels=[app.kubernetes.io/name=kafka app.kubernetes.io/instance=kafka statefulset.kubernetes.io/pod-name=kafka-2] phase=Pending node= restarts=0 owner=StatefulSet/kafka\n  - kind=Event type=Warning reason=FailedScheduling involved=Pod/kafka-2 namespace=data count=72 message=0/3 nodes are available: 1 node(s) had volume node affinity conflict, 2 node(s) were unschedulable.\n### WARNING \u2014 Kubernetes events (1)\n  - kind=Event type=Warning reason=FailedScheduling involved=Pod/kafka-2 namespace=data count=72 message=0/3 nodes are available: 1 node(s) had volume node affinity conflict, 2 node(s) were unschedulable.\n### ANCHORS \u2014 Declared values & K8s schema (9)\n  - Pod/data/kafka-2: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/data/kafka-2: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/data/kafka-2: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/data/kafka-2: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/data/kafka-2: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/data/kafka-2: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - PersistentVolumeClaim/data/data-kafka-2: spec.accessModes: valid=ReadWriteOnce|ReadOnlyMany|ReadWriteMany|ReadWriteOncePod | ReadWriteOnce = single node. ReadWriteMany = multi-node (NFS/Ceph).\n  - PersistentVolumeClaim/data/data-kafka-2: spec.persistentVolumeReclaimPolicy: declared='Delete' [k8s_defaults] | valid=Retain|Delete|Recycle | Delete removes volume when PVC is deleted. Retain keeps data.\n  - PersistentVolumeClaim/data/data-kafka-2: spec.volumeMode: declared='Filesystem' [k8s_defaults] | valid=Filesystem|Block | Filesystem = mounted as dir; Block = raw block device.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=kafka namespace=data chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=3]\n### Related context (2 chunks after dedup)\n  - kind=PersistentVolumeClaim name=data-kafka-2 namespace=data labels=[app.kubernetes.io/name=kafka app.kubernetes.io/instance=kafka] storage=100Gi phase=Bound volume=pvc-7f3a2c1e-kafka-2\n  - kind=Namespace name=data\n\n---\n## Incident query\nkafka-2 never comes back after the rolling update in the data namespace\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe kafka-2 pod in the data namespace is stuck in the Pending state due to a volume node affinity conflict and unschedulable nodes, preventing the pod from being scheduled and causing it to never come back after the rolling update.\n\n### 2. Affected resources\n- Pod/data/kafka-2 \u2014 Pending\n- Event/data/kafka-2 \u2014 Warning: FailedScheduling\n\n### 3. Root cause\nThe root cause is a volume node affinity conflict and unschedulable nodes, which are preventing the kafka-2 pod from being scheduled. This is inferred from the Warning event stating that 1 node had volume node affinity conflict, and 2 nodes were unschedulable.\n\n### 4. Causal chain\n1. The kafka-2 pod is updated during a rolling update.\n2. The updated pod is scheduled to be deployed on nodes, but one node has a volume node affinity conflict, and 2 nodes are unschedulable.\n3. Due to the volume node affinity conflict and unschedulable nodes, the kafka-2 pod is unable to be scheduled and remains in the Pending state.\n\n### 5. Remediation\n- Identify the nodes with the volume node affinity conflict and resolve the conflict.\n- Ensure that all nodes are schedulable and can accommodate the kafka-2 pod.\n- If necessary, add more nodes to the cluster to increase the number of available nodes.\n\n### 6. Confidence\nMEDIUM: The causal chain is probable but one link in the causal chain is inferred rather than directly observed in the context.\n\n### 7. Checks\n- `kubectl get nodes -o wide` | verifies: Node status and labels | confirms if: Nodes are schedulable and do not have a volume node affinity conflict.\n- `kubectl describe pod kafka-2` | verifies: Pod events and status | confirms if: The pod is no longer in the Pending state and is running.\n- `kubectl logs kafka-2` | verifies: Pod logs | confirms if: The logs show that the pod is running and functioning correctly.",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Identify the nodes with the volume node affinity conflict and resolve the conflict.",
+    "Ensure that all nodes are schedulable and can accommodate the kafka-2 pod.",
+    "If necessary, add more nodes to the cluster to increase the number of available nodes."
+  ],
+  "root_cause": "The root cause is a volume node affinity conflict and unschedulable nodes, which are preventing the kafka-2 pod from being scheduled. This is inferred from the Warning event stating that 1 node had volume node affinity conflict, and 2 nodes were unschedulable.",
+  "run": 2,
+  "solver": "context",
+  "started_at": "2026-11-02T20:07:44.332516+00:00",
+  "store": "faiss",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 190.72
+}

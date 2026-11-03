@@ -1,0 +1,60 @@
+{
+  "case": "h005_rbac_forbidden",
+  "case_hash": "d3b538b0ae1f44256639db33e355e86c1728d9d325138b73aa9276ab309a52ad",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "config": "C1",
+  "corpus_hash": null,
+  "cut": "loki",
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [
+    "loki"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": null,
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 35.0,
+      "answer_tokens": 491,
+      "estimated_prompt_tokens": 1636,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 17.5,
+      "prompt_tokens_read": 1193,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 3174,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-03 02:12:25 UTC\nTotal context chunks : 7\nContext quality score: LOW (0.30/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 0% \u2192 0.00, TF-IDF features 0/20 \u2192 0.00, Anchors matched 6 \u2192 0.15, Critical signals 0 \u2192 0.00, Helm drift items 0 \u2192 0.00\n\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=audit-exporter namespace=monitoring chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=1 watchNamespace=production]\n\n---\n## Incident query\naudit-exporter keeps crashing in the monitoring namespace\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe audit-exporter pod in the monitoring namespace keeps crashing.\n\n### 2. Affected resources\n- Pod/monitoring/audit-exporter-7b8d6c9f5-m3p1q \u2014 frequent restarts and crashes\n\n### 3. Root cause\nThe audit-exporter deployment is configured with a low terminationGracePeriodSeconds of 30 seconds, which is too short for the pod to properly shut down and restart. This can lead to resource leaks and instability.\n\n### 4. Causal chain\n1. The audit-exporter deployment is set to restart on failure with a terminationGracePeriodSeconds of 30 seconds.\n2. The pod crashes due to some internal error, causing the terminationGracePeriodSeconds to expire.\n3. The pod is terminated immediately, leading to resource leaks and instability.\n4. The pod restarts again, but the internal error persists, leading to frequent restarts and crashes.\n\n### 5. Remediation\n```shell\nkubectl patch deployment audit-exporter --patch '{\"spec\": {\"terminationGracePeriodSeconds\": 60}}' --type=merge\n```\n\n### 6. Confidence\nMEDIUM\n\n### 7. Checks\n- kubectl get deployment audit-exporter | confirms if: terminationGracePeriodSeconds is set to 60 | refutes if: terminationGracePeriodSeconds is still set to 30\n- kubectl describe deployment audit-exporter | confirms if: container restartPolicy is set to Always | refutes if: container restartPolicy is set to Never\n- kubectl get pod audit-exporter-7b8d6c9f5-m3p1q -o yaml | confirms if: restartCount is less than the number of observed restarts | refutes if: restartCount matches the number of observed restarts\n- kubectl logs audit-exporter-7b8d6c9f5-m3p1q -c audit-exporter | confirms if: there are no error messages indicating internal issues | refutes if: there are error messages indicating internal issues\n- kubectl top pod audit-exporter-7b8d6c9f5-m3p1q | confirms if: the pod is using less CPU and Memory resources compared to before the change | refutes if: the pod is using more CPU and Memory resources compared to before the change",
+  "reason": "cause concept(s) not named: serviceaccount|service account|audit-exporter-sa, rbac|binding|permission",
+  "remediation": [
+    "kubectl patch deployment audit-exporter --patch '{\"spec\": {\"terminationGracePeriodSeconds\": 60}}' --type=merge"
+  ],
+  "root_cause": "The audit-exporter deployment is configured with a low terminationGracePeriodSeconds of 30 seconds, which is too short for the pod to properly shut down and restart. This can lead to resource leaks and instability.",
+  "run": 1,
+  "solver": "context",
+  "started_at": "2026-11-03T02:13:20.689340+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 54.98
+}

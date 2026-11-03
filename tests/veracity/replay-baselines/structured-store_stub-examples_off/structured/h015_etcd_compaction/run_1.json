@@ -1,0 +1,68 @@
+{
+  "answerable": null,
+  "case": "h015_etcd_compaction",
+  "case_hash": "6a16d16e1c20e6bd4d070b321b1d22ba26a259042b1cc809658467e9e68078ed",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": null,
+  "diagnoses": [
+    {
+      "family": "etcd",
+      "location": "outside:etcd",
+      "rule": "etcd.slow",
+      "score": 0.8,
+      "signals": [
+        "2c11c8bd488ed27a",
+        "e40b2c549d091784",
+        "d38de12e9a633a7d"
+      ]
+    }
+  ],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    [
+      "etcd",
+      "compaction|compacted|latency|slow"
+    ]
+  ],
+  "matched_keywords": [
+    "etcd",
+    "compaction|compacted|latency|slow"
+  ],
+  "model": "",
+  "model_digest": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause named, no decoy",
+  "root_cause": "Calls from inventory-api to etcd (etcdserverpb.KV/Range) fail (rpc error: code = DeadlineExceeded desc = context deadline exceeded: etcdserver: mvcc: required revision has been compacted): etcd is slow or compacting, and inventory-api times out.",
+  "rules_version": "rules/5",
+  "run": 1,
+  "signal_kinds": [
+    "etcd.slow",
+    "pod.not_ready",
+    "probe.readiness_failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-01T19:00:08.757428+00:00",
+  "store": "stub",
+  "tier": "B",
+  "unclassified": {
+    "k8s_event": 1
+  },
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.09
+}

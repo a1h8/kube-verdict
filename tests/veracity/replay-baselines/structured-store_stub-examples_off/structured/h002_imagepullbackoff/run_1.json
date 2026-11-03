@@ -1,0 +1,64 @@
+{
+  "answerable": null,
+  "case": "h002_imagepullbackoff",
+  "case_hash": "54e3f7542fb9b0e98f56dd8cde7eb8b8648ab13a21cc889a765f4161ac96e486",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": null,
+  "diagnoses": [
+    {
+      "family": "image-pull",
+      "location": "HelmRelease/production/ml-inference",
+      "rule": "image.pull",
+      "score": 0.65,
+      "signals": [
+        "bc328c119af7451b",
+        "1341209b5d024fd1"
+      ]
+    }
+  ],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "matched_groups": [
+    [
+      "image",
+      "tag|drift|declared"
+    ]
+  ],
+  "matched_keywords": [
+    "image",
+    "tag|drift|declared"
+  ],
+  "model": "",
+  "model_digest": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause named, no decoy",
+  "root_cause": "The image tag of ml-inference drifted: declared ghcr.io/acme/ml-inference:v2.0.5, deployed ghcr.io/acme/ml-inference:v2.1.0-private, and that image cannot be pulled.",
+  "rules_version": "rules/5",
+  "run": 1,
+  "signal_kinds": [
+    "drift.config",
+    "image.pull_failed"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-01T19:00:07.488942+00:00",
+  "store": "stub",
+  "tier": "A",
+  "unclassified": {},
+  "veracity": "PASS",
+  "verdict": null,
+  "wall_s": 0.1
+}

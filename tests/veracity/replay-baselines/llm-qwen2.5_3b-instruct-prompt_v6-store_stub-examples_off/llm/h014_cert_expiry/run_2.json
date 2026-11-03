@@ -1,0 +1,70 @@
+{
+  "answerable": true,
+  "case": "h014_cert_expiry",
+  "case_hash": "83a022beaed08d75a8d0e809689bd39174207db495215a77ce3a27b9bcfc9d59",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM",
+  "config": "llm",
+  "corpus_hash": null,
+  "cut": null,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "explanation": "The TLS certificate used by the billing-gateway pods has expired, causing the `x509: certificate has expired or is not yet valid` error. The ACME account registration for the issuer `letsencrypt-prod` also failed, preventing the renewal of the TLS certificate.",
+  "explanation_veracity": "PASS",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 46.9,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 4349,
+      "num_ctx": 5120,
+      "num_predict": 512,
+      "prompt_eval_s": 55.5,
+      "prompt_tokens_read": 3515,
+      "temperature": 0.1
+    }
+  ],
+  "llm_disagreement": "",
+  "matched_groups": [
+    [
+      "certificate|x509|tls",
+      "expired|expir|renew"
+    ]
+  ],
+  "matched_keywords": [
+    "certificate|x509|tls",
+    "expired|expir|renew"
+  ],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "outcome": "cause",
+  "pre_llm_confidence_score": 0.64,
+  "prompt": "v6",
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 23:17:30 UTC\nTotal context chunks : 40\nContext quality score: MEDIUM (0.64/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 67% \u2192 0.17, TF-IDF features 2/20 \u2192 0.02, Anchors matched 20 \u2192 0.15, Critical signals 6 \u2192 0.15, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (6)\n  - kind=Pod name=billing-gateway-5b7d9c8f6-4hxkd namespace=production labels=[app.kubernetes.io/name=billing-gateway app.kubernetes.io/instance=billing-gateway pod-template-hash=5b7d9c8f6] phase=Running node=worker-node-01 restarts=0 owner=ReplicaSet/billing-gateway-5b7d9c8f6\n  - kind=Pod name=billing-gateway-5b7d9c8f6-v9m2t namespace=production labels=[app.kubernetes.io/name=billing-gateway app.kubernetes.io/instance=billing-gateway pod-template-hash=5b7d9c8f6] phase=Running node=worker-node-02 restarts=0 owner=ReplicaSet/billing-gateway-5b7d9c8f6\n  - kind=Deployment name=billing-gateway namespace=production labels=[app.kubernetes.io/name=billing-gateway app.kubernetes.io/instance=billing-gateway app.kubernetes.io/managed-by=Helm] replicas=2 ready=0 available=0\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-4hxkd namespace=production count=92 message=Readiness probe failed: HTTP probe failed with statuscode: 503\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-v9m2t namespace=production count=90 message=Readiness probe failed: HTTP probe failed with statuscode: 503\n  - kind=Event type=Warning reason=ErrRegisterACMEAccount involved=Issuer/letsencrypt-prod namespace=production count=1800 message=Failed to register ACME account: Post \"https://acme-v02.api.letsencrypt.org/acme/new-acct\": dial tcp 172.65.32.248:443: i/o timeout\n### LOGS \u2014 Recent error/warn log lines (8)\n  - kind=LokiLog level=error namespace=production pod=billing-gateway-5b7d9c8f6-4hxkd message='level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:14:02Z is after 2026-05-22T00:00:00Z\"'\n  - kind=LokiLog level=error namespace=production pod=billing-gateway-5b7d9c8f6-4hxkd message='level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:13:29Z is after 2026-05-22T00:00:00Z\"'\n  - kind=LokiLog level=warn namespace=production pod=billing-gateway-5b7d9c8f6-4hxkd message='level=warn msg=\"readiness check failing\" reason=\"upstream payments-backend unreachable\"'\n  - kind=LokiLog level=error namespace=production pod=billing-gateway-5b7d9c8f6-4hxkd message='level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:11:03Z is after 2026-05-22T00:00:00Z\"'\n  - kind=LokiLog level=error namespace=production pod=billing-gateway-5b7d9c8f6-v9m2t message='level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:14:44Z is after 2026-05-22T00:00:00Z\"'\n  - kind=LokiLog level=error namespace=production pod=billing-gateway-5b7d9c8f6-v9m2t message='level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:13:29Z is after 2026-05-22T00:00:00Z\"'\n  - kind=LokiLog level=warn namespace=production pod=billing-gateway-5b7d9c8f6-v9m2t message='level=warn msg=\"readiness check failing\" reason=\"upstream payments-backend unreachable\"'\n  - kind=LokiLog level=error namespace=production pod=billing-gateway-5b7d9c8f6-v9m2t message='level=error msg=\"upstream tls handshake failed\" upstream=payments-backend err=\"x509: certificate has expired or is not yet valid: current time 2026-05-22T06:11:03Z is after 2026-05-22T00:00:00Z\"'\n### WARNING \u2014 Kubernetes events (3)\n  - kind=Event type=Warning reason=ErrRegisterACMEAccount involved=Issuer/letsencrypt-prod namespace=production count=1800 message=Failed to register ACME account: Post \"https://acme-v02.api.letsencrypt.org/acme/new-acct\": dial tcp 172.65.32.248:443: i/o timeout\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-4hxkd namespace=production count=92 message=Readiness probe failed: HTTP probe failed with statuscode: 503\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/billing-gateway-5b7d9c8f6-v9m2t namespace=production count=90 message=Readiness probe failed: HTTP probe failed with statuscode: 503\n### ANCHORS \u2014 Declared values & K8s schema (20)\n  - Deployment/production/billing-gateway: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/production/billing-gateway: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/production/billing-gateway: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/production/billing-gateway: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/production/billing-gateway: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/production/billing-gateway: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/production/billing-gateway: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/billing-gateway-5b7d9c8f6-4hxkd: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/billing-gateway-5b7d9c8f6-4hxkd: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/billing-gateway-5b7d9c8f6-v9m2t: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/billing-gateway-5b7d9c8f6-v9m2t: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=billing-gateway namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=2]\n### Related context (2 chunks after dedup)\n  - kind=Namespace name=production\n  - kind=LokiLog level=info namespace=production pod=billing-gateway-5b7d9c8f6-4hxkd message='level=info msg=\"serving request\" method=POST path=/v1/charges status=502 duration_ms=41'\n\n---\n## Incident query\nHYPOTHESIS TO INVESTIGATE:\nThe TLS certificate used by billing-gateway-5b7d9c8f6-4hxkd, billing-gateway-5b7d9c8f6-v9m2t has expired (x509), and the issuer letsencrypt-prod fails (ErrRegisterACMEAccount), so it was not renewed.\n\nINCIDENT QUERY:\nwhy is billing-gateway not ready\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "`kubectl rollout restart deployment/billing-gateway` | restarts the deployment to attempt renewal of the TLS certificate.",
+    "`helm upgrade billing-gateway billing-gateway --set tls.acme.enabled=true` | upgrades the Helm release to enable ACME account registration for TLS certificate renewal."
+  ],
+  "root_cause": "The TLS certificate used by billing-gateway-5b7d9c8f6-4hxkd, billing-gateway-5b7d9c8f6-v9m2t has expired (x509), and the issuer letsencrypt-prod fails (ErrRegisterACMEAccount), so it was not renewed.",
+  "run": 2,
+  "signals_mode": "none",
+  "solver": "llm",
+  "started_at": "2026-11-02T23:19:12.874411+00:00",
+  "store": "stub",
+  "tier": "B",
+  "unrecoverable": [],
+  "veracity": "PASS",
+  "verdict": "NO_GO",
+  "wall_s": 102.62
+}

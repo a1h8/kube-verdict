@@ -1,0 +1,65 @@
+{
+  "case": "h004_missing_configmap",
+  "case_hash": "f81a1205780be5ba3f94d5e2c68a69b61220087cd72c1a0f24d24f9e50a74e73",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "C1",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": null,
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 80.2,
+      "answer_tokens": 417,
+      "estimated_prompt_tokens": 2314,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 69.2,
+      "prompt_tokens_read": 2035,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "configmap|api-gateway-config",
+      "missing|not found"
+    ]
+  ],
+  "matched_keywords": [
+    "configmap|api-gateway-config",
+    "missing|not found"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 5005,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-02 02:06:42 UTC\nTotal context chunks : 17\nContext quality score: MEDIUM (0.68/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 6 \u2192 0.15, Critical signals 4 \u2192 0.12, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (4)\n  - kind=Pod name=api-gateway-5c7d9b8f4-x2k9p namespace=production labels=[app.kubernetes.io/name=api-gateway app.kubernetes.io/instance=api-gateway pod-template-hash=5c7d9b8f4] phase=Pending node=worker-node-01 restarts=0 owner=ReplicaSet/api-gateway-5c7d9b8f4\n  - kind=Event type=Warning reason=Failed involved=Pod/api-gateway-5c7d9b8f4-x2k9p namespace=production count=5 message=Error: couldn't find key LOG_LEVEL in ConfigMap production/api-gateway-config\n  - kind=Event type=Warning reason=Failed involved=Pod/api-gateway-5c7d9b8f4-x2k9p namespace=production count=5 message=Error: configmap \"api-gateway-config\" not found\n  - kind=Event type=Warning reason=Failed involved=Pod/api-gateway-5c7d9b8f4-x2k9p namespace=production count=3 message=Error: secret \"db-credentials\" not found\n### ANCHOR FIX SUGGESTIONS \u2014 helm commands to restore declared values (2)\n  - Pod/production/api-gateway-5c7d9b8f4-x2k9p  configmap 'api-gateway-config' missing  \u2192  kubectl create configmap api-gateway-config -n production --from-literal=KEY=VALUE\n  - Pod/production/api-gateway-5c7d9b8f4-x2k9p  secret 'db-credentials' missing  \u2192  kubectl create secret generic db-credentials -n production --from-literal=KEY=VALUE\n### WARNING \u2014 Kubernetes events (3)\n  - kind=Event type=Warning reason=Failed involved=Pod/api-gateway-5c7d9b8f4-x2k9p namespace=production count=5 message=Error: couldn't find key LOG_LEVEL in ConfigMap production/api-gateway-config\n  - kind=Event type=Warning reason=Failed involved=Pod/api-gateway-5c7d9b8f4-x2k9p namespace=production count=5 message=Error: configmap \"api-gateway-config\" not found\n  - kind=Event type=Warning reason=Failed involved=Pod/api-gateway-5c7d9b8f4-x2k9p namespace=production count=3 message=Error: secret \"db-credentials\" not found\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/production/api-gateway-5c7d9b8f4-x2k9p: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/api-gateway-5c7d9b8f4-x2k9p: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/api-gateway-5c7d9b8f4-x2k9p: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/api-gateway-5c7d9b8f4-x2k9p: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/api-gateway-5c7d9b8f4-x2k9p: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/api-gateway-5c7d9b8f4-x2k9p: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=api-gateway namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=2]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\napi-gateway pod does not start in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe api-gateway pod in the production namespace is not starting due to missing ConfigMap and Secret resources.\n\n### 2. Affected resources\n- Pod/production/api-gateway-5c7d9b8f4-x2k9p \u2014 Pending status\n- ConfigMap/production/api-gateway-config \u2014 not found\n- Secret/production/db-credentials \u2014 not found\n\n### 3. Root cause\nThe api-gateway pod is unable to start because it is waiting for the ConfigMap \"api-gateway-config\" and Secret \"db-credentials\" that are declared in its deployment but not found in the production namespace.\n\n### 4. Causal chain\n1. Helm deploys the api-gateway application with the required ConfigMap and Secret resources.\n2. The api-gateway pod is created with references to the ConfigMap and Secret.\n3. The ConfigMap and Secret are not found in the production namespace, causing the pod to remain in the Pending state.\n\n### 5. Remediation\n- Create the missing ConfigMap: `kubectl create configmap api-gateway-config -n production --from-literal=KEY=VALUE`\n- Create the missing Secret: `kubectl create secret generic db-credentials -n production --from-literal=KEY=VALUE`\n\n### 6. Confidence\nHIGH\n\n### 7. Checks\n- `kubectl get configmaps api-gateway-config -n production` | verifies: existence of the ConfigMap | confirms if: ConfigMap is present | refutes if: ConfigMap is absent\n- `kubectl get secrets db-credentials -n production` | verifies: existence of the Secret | confirms if: Secret is present | refutes if: Secret is absent",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Create the missing ConfigMap: `kubectl create configmap api-gateway-config -n production --from-literal=KEY=VALUE`",
+    "Create the missing Secret: `kubectl create secret generic db-credentials -n production --from-literal=KEY=VALUE`"
+  ],
+  "root_cause": "The api-gateway pod is unable to start because it is waiting for the ConfigMap \"api-gateway-config\" and Secret \"db-credentials\" that are declared in its deployment but not found in the production namespace.",
+  "run": 3,
+  "solver": "context",
+  "started_at": "2026-11-02T02:09:12.288095+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 149.56
+}

@@ -1,0 +1,64 @@
+{
+  "case": "h026_rollout_in_progress",
+  "case_hash": "a997ac0c108165f69fccf6b1aa8d0dc2fccae526a3bc52bfe13d0d0596359485",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/deployment.yaml",
+    "kube/events.yaml",
+    "kube/pods.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 36.3,
+      "answer_tokens": 429,
+      "estimated_prompt_tokens": 3246,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 0.1,
+      "prompt_tokens_read": 2928,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 8515,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 3,\n  \"image\": {\n    \"repository\": \"ghcr.io/acme/invoice\",\n    \"tag\": \"v2.4.0\",\n    \"pullPolicy\": \"IfNotPresent\"\n  },\n  \"resources\": {\n    \"limits\": {\n      \"memory\": \"512Mi\",\n      \"cpu\": \"1\"\n    },\n    \"requests\": {\n      \"memory\": \"256Mi\",\n      \"cpu\": \"200m\"\n    }\n  },\n  \"service\": {\n    \"type\": \"ClusterIP\",\n    \"port\": 8080\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 3\nimage:\n  repository: ghcr.io/acme/invoice\n  tag: v2.4.0\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 512Mi\n    cpu: '1'\n  requests:\n    memory: 256Mi\n    cpu: 200m\nservice:\n  type: ClusterIP\n  port: 8080\n\n=== kube/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: invoice\n  namespace: production\n  uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110026\n  creationTimestamp: '2026-09-02T09:00:00Z'\n  labels:\n    app.kubernetes.io/name: invoice\n    app.kubernetes.io/instance: invoice\n    app.kubernetes.io/managed-by: Helm\n  annotations:\n    deployment.kubernetes.io/revision: '6'\n    meta.helm.sh/release-name: invoice\n    meta.helm.sh/release-namespace: production\nspec:\n  replicas: 3\n  progressDeadlineSeconds: 600\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxSurge: 1\n      maxUnavailable: 0\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: invoice\n        app.kubernetes.io/instance: invoice\n    spec:\n      containers:\n      - name: invoice\n        image: ghcr.io/acme/invoice:v2.4.0\n        resources:\n          limits:\n            memory: 512Mi\n            cpu: '1'\n          requests:\n            memory: 256Mi\n            cpu: 200m\nstatus:\n  observedGeneration: 6\n  replicas: 4\n  updatedReplicas: 1\n  readyReplicas: 3\n  availableReplicas: 3\n  unavailableReplicas: 1\n  conditions:\n  - type: Available\n    status: 'True'\n    reason: MinimumReplicasAvailable\n    message: Deployment has minimum availability.\n  - type: Progressing\n    status: 'True'\n    reason: ReplicaSetUpdated\n    message: ReplicaSet \"invoice-6c8b7f9d4\" is progressing.\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: invoice.scaling\n    namespace: production\n  type: Normal\n  reason: ScalingReplicaSet\n  message: Scaled up replica set invoice-6c8b7f9d4 to 1\n  involvedObject:\n    kind: Deployment\n    name: invoice\n    namespace: production\n  count: 1\n  firstTimestamp: '2026-10-17T10:00:00Z'\n  lastTimestamp: '2026-10-17T10:00:00Z'\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: invoice-6c8b7f9d4-h5n3v.unhealthy\n    namespace: production\n  type: Warning\n  reason: Unhealthy\n  message: 'Readiness probe failed: Get \"http://10.0.4.17:8080/ready\": dial tcp 10.0.4.17:8080:\n    connect: connection refused'\n  involvedObject:\n    kind: Pod\n    name: invoice-6c8b7f9d4-h5n3v\n    namespace: production\n  count: 1\n  firstTimestamp: '2026-10-17T10:00:20Z'\n  lastTimestamp: '2026-10-17T10:00:20Z'\n\n=== kube/pods.yaml ===\napiVersion: v1\nkind: PodList\nitems:\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: invoice-5d7c9b8f6-k2m4p\n    namespace: production\n    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110031\n    creationTimestamp: '2026-10-10T08:00:00Z'\n    labels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n      pod-template-hash: 5d7c9b8f6\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: invoice-5d7c9b8f6\n      controller: true\n  spec:\n    nodeName: worker-node-01\n    serviceAccountName: invoice\n    containers:\n    - name: invoice\n      image: ghcr.io/acme/invoice:v2.3.0\n      ports:\n      - containerPort: 8080\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8080\n        initialDelaySeconds: 10\n        periodSeconds: 5\n  status:\n    phase: Running\n    conditions:\n    - type: Ready\n      status: 'True'\n    - type: ContainersReady\n      status: 'True'\n    - type: PodScheduled\n      status: 'True'\n    containerStatuses:\n    - name: invoice\n      ready: true\n      started: true\n      restartCount: 0\n      image: ghcr.io/acme/invoice:v2.3.0\n      state:\n        running:\n          startedAt: '2026-10-10T08:00:20Z'\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: invoice-5d7c9b8f6-r8t2w\n    namespace: production\n    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110032\n    creationTimestamp: '2026-10-10T08:00:00Z'\n    labels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n      pod-template-hash: 5d7c9b8f6\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: invoice-5d7c9b8f6\n      controller: true\n  spec:\n    nodeName: worker-node-02\n    serviceAccountName: invoice\n    containers:\n    - name: invoice\n      image: ghcr.io/acme/invoice:v2.3.0\n      ports:\n      - containerPort: 8080\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8080\n        initialDelaySeconds: 10\n        periodSeconds: 5\n  status:\n    phase: Running\n    conditions:\n    - type: Ready\n      status: 'True'\n    - type: ContainersReady\n      status: 'True'\n    - type: PodScheduled\n      status: 'True'\n    containerStatuses:\n    - name: invoice\n      ready: true\n      started: true\n      restartCount: 0\n      image: ghcr.io/acme/invoice:v2.3.0\n      state:\n        running:\n          startedAt: '2026-10-10T08:00:22Z'\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: invoice-5d7c9b8f6-x7q9z\n    namespace: production\n    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110033\n    creationTimestamp: '2026-10-10T08:00:00Z'\n    labels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n      pod-template-hash: 5d7c9b8f6\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: invoice-5d7c9b8f6\n      controller: true\n  spec:\n    nodeName: worker-node-03\n    serviceAccountName: invoice\n    containers:\n    - name: invoice\n      image: ghcr.io/acme/invoice:v2.3.0\n      ports:\n      - containerPort: 8080\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8080\n        initialDelaySeconds: 10\n        periodSeconds: 5\n  status:\n    phase: Running\n    conditions:\n    - type: Ready\n      status: 'True'\n    - type: ContainersReady\n      status: 'True'\n    - type: PodScheduled\n      status: 'True'\n    containerStatuses:\n    - name: invoice\n      ready: true\n      started: true\n      restartCount: 0\n      image: ghcr.io/acme/invoice:v2.3.0\n      state:\n        running:\n          startedAt: '2026-10-10T08:00:21Z'\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: invoice-6c8b7f9d4-h5n3v\n    namespace: production\n    uid: 4b7e1d2a-8c4f-11ef-a1b2-0242ac110034\n    creationTimestamp: '2026-10-17T10:00:00Z'\n    labels:\n      app.kubernetes.io/name: invoice\n      app.kubernetes.io/instance: invoice\n      pod-template-hash: 6c8b7f9d4\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: invoice-6c8b7f9d4\n      controller: true\n  spec:\n    nodeName: worker-node-04\n    serviceAccountName: invoice\n    containers:\n    - name: invoice\n      image: ghcr.io/acme/invoice:v2.4.0\n      ports:\n      - containerPort: 8080\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8080\n        initialDelaySeconds: 10\n        periodSeconds: 5\n  status:\n    phase: Running\n    conditions:\n    - type: Ready\n      status: 'False'\n    - type: ContainersReady\n      status: 'False'\n    - type: PodScheduled\n      status: 'True'\n    containerStatuses:\n    - name: invoice\n      ready: false\n      started: true\n      restartCount: 0\n      image: ghcr.io/acme/invoice:v2.4.0\n      state:\n        running:\n          startedAt: '2026-10-17T10:00:05Z'\n\n---\n## Incident query\nis something wrong with invoice in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe deployment of the `invoice` application in the `production` namespace has resulted in a degraded state, with one of the pods failing readiness probes.\n\n### 2. Affected resources\n- Deployment/production/invoice \u2014 Deployment is at 1 replica out of 3.\n- Pod/production/invoice-6c8b7f9d4-h5n3v \u2014 Failing readiness probe.\n\n### 3. Root cause\nThe root cause is that the `invoice-6c8b7f9d4-h5n3v` pod is failing readiness probes due to a connection refused error. This is evidenced by the `events.yaml` file which shows a warning message indicating that the readiness probe failed with a connection refused error.\n\n### 4. Causal chain\n1. The `invoice` deployment was scaled down to 1 replica, as indicated by the `events.yaml` file.\n2. The `invoice-6c8b7f9d4-h5n3v` pod, which was part of the deployment, failed its readiness probe, causing it to be marked as unavailable.\n3. The `invoice` deployment was then scaled back up to 3 replicas, but the `invoice-6c8b7f9d4-h5n3v` pod remains unavailable, leading to the observed symptom.\n\n### 5. Remediation\n1. Scale the `invoice` deployment back to 1 replica using the command: `kubectl scale deployment/invoice --replicas=1 --namespace=production`\n2. Check the logs of the `invoice-6c8b7f9d4-h5n3v` pod to diagnose the issue: `kubectl logs -n production -f invoice-6c8b7f9d4-h5n3v`\n3. Once the issue is diagnosed, manually restart the `invoice-6c8b7f9d4-h5n3v` pod: `kubectl rollout restart deployment/invoice --namespace=production`\n\n### 6. Confidence\nHIGH",
+  "reason": "no_incident: confidence HIGH, LOW expected",
+  "remediation": [
+    "Scale the `invoice` deployment back to 1 replica using the command: `kubectl scale deployment/invoice --replicas=1 --namespace=production`",
+    "Check the logs of the `invoice-6c8b7f9d4-h5n3v` pod to diagnose the issue: `kubectl logs -n production -f invoice-6c8b7f9d4-h5n3v`",
+    "Once the issue is diagnosed, manually restart the `invoice-6c8b7f9d4-h5n3v` pod: `kubectl rollout restart deployment/invoice --namespace=production`"
+  ],
+  "root_cause": "The root cause is that the `invoice-6c8b7f9d4-h5n3v` pod is failing readiness probes due to a connection refused error. This is evidenced by the `events.yaml` file which shows a warning message indicating that the readiness probe failed with a connection refused error.",
+  "run": 2,
+  "solver": "raw",
+  "started_at": "2026-11-03T00:47:08.067192+00:00",
+  "store": "stub",
+  "tier": "C",
+  "veracity": "FAIL",
+  "wall_s": 36.5
+}

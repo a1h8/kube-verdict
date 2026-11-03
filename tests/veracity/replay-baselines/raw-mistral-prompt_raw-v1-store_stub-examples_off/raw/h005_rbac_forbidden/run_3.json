@@ -1,0 +1,72 @@
+{
+  "case": "h005_rbac_forbidden",
+  "case_hash": "d3b538b0ae1f44256639db33e355e86c1728d9d325138b73aa9276ab309a52ad",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "HIGH",
+  "confidence_raw": "HIGH",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [],
+  "files": [
+    "helm/release.json",
+    "helm/values.yaml",
+    "kube/events.yaml",
+    "kube/pod.yaml",
+    "kube/rbac/clusterrole.yaml",
+    "kube/serviceaccount.yaml",
+    "loki/streams.json"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 68.9,
+      "answer_tokens": 319,
+      "estimated_prompt_tokens": 2610,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 0.2,
+      "prompt_tokens_read": 2702,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "serviceaccount|service account|audit-exporter-sa",
+      "rbac|binding|permission"
+    ]
+  ],
+  "matched_keywords": [
+    "serviceaccount|service account|audit-exporter-sa",
+    "rbac|binding|permission"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 6800,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/release.json ===\n{\n  \"replicaCount\": 1,\n  \"image\": { \"repository\": \"ghcr.io/acme/audit-exporter\", \"tag\": \"v2.1.0\" },\n  \"serviceAccount\": { \"name\": \"audit-exporter-sa\", \"create\": true },\n  \"rbac\": { \"create\": false },\n  \"watchNamespace\": \"production\",\n  \"resources\": {\n    \"limits\": { \"memory\": \"128Mi\", \"cpu\": \"200m\" },\n    \"requests\": { \"memory\": \"64Mi\", \"cpu\": \"50m\" }\n  }\n}\n\n=== helm/values.yaml ===\nreplicaCount: 1\nimage:\n  repository: ghcr.io/acme/audit-exporter\n  tag: v2.1.0\n  pullPolicy: IfNotPresent\nserviceAccount:\n  name: audit-exporter-sa\n  create: true\nrbac:\n  create: false\nwatchNamespace: production\nresources:\n  limits:\n    memory: 128Mi\n    cpu: 200m\n  requests:\n    memory: 64Mi\n    cpu: 50m\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nitems: []\n\n=== kube/pod.yaml ===\napiVersion: v1\nkind: Pod\nmetadata:\n  name: audit-exporter-7b8d6c9f5-m3p1q\n  namespace: monitoring\n  uid: d6f3a9b2-7d0f-11ef-b3a4-0242ac110007\n  labels:\n    app.kubernetes.io/name: audit-exporter\n    app.kubernetes.io/instance: audit-exporter\n    pod-template-hash: 7b8d6c9f5\n  ownerReferences:\n  - apiVersion: apps/v1\n    kind: ReplicaSet\n    name: audit-exporter-7b8d6c9f5\n    controller: true\nspec:\n  nodeName: worker-node-03\n  serviceAccountName: audit-exporter-sa\n  containers:\n  - name: audit-exporter\n    image: ghcr.io/acme/audit-exporter:v2.1.0\n    env:\n    - name: WATCH_NAMESPACE\n      value: production\n    ports:\n    - containerPort: 9090\n    resources:\n      limits:\n        memory: 128Mi\n        cpu: 200m\n      requests:\n        memory: 64Mi\n        cpu: 50m\nstatus:\n  phase: Running\n  podIP: 10.244.2.31\n  containerStatuses:\n  - name: audit-exporter\n    ready: true\n    restartCount: 0\n    state:\n      running:\n        startedAt: '2026-05-14T11:00:00Z'\n  conditions:\n  - type: Ready\n    status: 'True'\n\n=== kube/rbac/clusterrole.yaml ===\napiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: audit-exporter-role\nrules:\n- apiGroups:\n  - ''\n  resources:\n  - pods\n  - events\n  - namespaces\n  verbs:\n  - get\n  - list\n  - watch\n- apiGroups:\n  - apps\n  resources:\n  - deployments\n  - replicasets\n  verbs:\n  - get\n  - list\n  - watch\n\n=== kube/serviceaccount.yaml ===\napiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: audit-exporter-sa\n  namespace: monitoring\n\n=== loki/streams.json ===\n[\n  {\n    \"stream\": {\n      \"k8s_pod_name\": \"audit-exporter-7b8d6c9f5-m3p1q\",\n      \"k8s_namespace_name\": \"monitoring\",\n      \"k8s_container_name\": \"audit-exporter\"\n    },\n    \"values\": [\n      [\n        \"1778756460000000000\",\n        \"E0514 11:01:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot list resource \\\"pods\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756490000000000\",\n        \"E0514 11:01:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot watch resource \\\"events\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756520000000000\",\n        \"E0514 11:02:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot list resource \\\"pods\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756550000000000\",\n        \"E0514 11:02:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot watch resource \\\"events\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756580000000000\",\n        \"E0514 11:03:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot list resource \\\"pods\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756610000000000\",\n        \"E0514 11:03:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot watch resource \\\"events\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756640000000000\",\n        \"E0514 11:04:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot list resource \\\"pods\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756670000000000\",\n        \"E0514 11:04:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot watch resource \\\"events\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756700000000000\",\n        \"E0514 11:05:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot list resource \\\"pods\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756730000000000\",\n        \"E0514 11:05:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot watch resource \\\"events\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756760000000000\",\n        \"E0514 11:06:00.000000       1 reflector.go:147] failed to list *v1.Pod: pods is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot list resource \\\"pods\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ],\n      [\n        \"1778756790000000000\",\n        \"E0514 11:06:30.000000       1 reflector.go:147] failed to watch *v1.Event: events is forbidden: User \\\"system:serviceaccount:monitoring:audit-exporter-sa\\\" cannot watch resource \\\"events\\\" in API group \\\"\\\" in the namespace \\\"production\\\"\"\n      ]\n    ]\n  }\n]\n\n---\n## Incident query\naudit-exporter keeps crashing in the monitoring namespace\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe audit-exporter in the monitoring namespace is crashing due to insufficient RBAC permissions.\n\n### 2. Affected resources\n- Pod: audit-exporter-7b8d6c9f5-m3p1q \u2014 Crashing\n- Namespace: monitoring \u2014 Insufficient RBAC permissions\n\n### 3. Root cause\nThe audit-exporter ServiceAccount (audit-exporter-sa) in the monitoring namespace lacks the necessary RBAC permissions to list and watch Pods and Events in the production namespace.\n\n### 4. Causal chain\n1. The audit-exporter ServiceAccount was created with insufficient RBAC permissions (kube/serviceaccount.yaml).\n2. The audit-exporter pod was created with the audit-exporter-sa ServiceAccount (kube/pod.yaml).\n3. The audit-exporter pod attempted to list and watch Pods and Events in the production namespace, but was denied due to insufficient RBAC permissions (loki/streams.json).\n4. The audit-exporter pod crashed as a result of the failed RBAC checks.\n\n### 5. Remediation\n1. Create a ClusterRoleBinding to grant the audit-exporter ServiceAccount the necessary RBAC permissions in the production namespace (kube/rbac/clusterrolebinding.yaml).\n\n### 6. Confidence\nHIGH",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Create a ClusterRoleBinding to grant the audit-exporter ServiceAccount the necessary RBAC permissions in the production namespace (kube/rbac/clusterrolebinding.yaml)."
+  ],
+  "root_cause": "The audit-exporter ServiceAccount (audit-exporter-sa) in the monitoring namespace lacks the necessary RBAC permissions to list and watch Pods and Events in the production namespace.",
+  "run": 3,
+  "solver": "raw",
+  "started_at": "2026-11-01T23:28:34.402378+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "PASS",
+  "wall_s": 69.1
+}

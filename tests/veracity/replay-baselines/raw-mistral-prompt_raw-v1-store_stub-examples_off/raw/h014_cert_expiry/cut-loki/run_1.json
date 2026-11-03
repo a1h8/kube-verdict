@@ -1,0 +1,74 @@
+{
+  "case": "h014_cert_expiry",
+  "case_hash": "83a022beaed08d75a8d0e809689bd39174207db495215a77ce3a27b9bcfc9d59",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "MEDIUM",
+  "confidence_raw": "MEDIUM: The root cause is based on the evidence from the provided files, but further investigation is needed to determine the exact cause of the failed readiness probes and the certificate registration",
+  "config": "raw",
+  "corpus_hash": null,
+  "cut": "loki",
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [
+    "loki"
+  ],
+  "files": [
+    "helm/values.yaml",
+    "kube/deployment.yaml",
+    "kube/events.yaml",
+    "kube/pods.yaml",
+    "kube/secret.yaml"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 122.0,
+      "answer_tokens": 512,
+      "estimated_prompt_tokens": 3038,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 125.4,
+      "prompt_tokens_read": 3007,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    [
+      "certificate|x509|tls",
+      "expired|expir|renew"
+    ]
+  ],
+  "matched_keywords": [
+    "certificate|x509|tls",
+    "expired|expir|renew"
+  ],
+  "model": "mistral",
+  "model_digest": "6577803aa9a036369e481d648a2baebb381ebc6e897f2bb9a766a2aa7bfbc1cf",
+  "num_ctx_max": 16384,
+  "prompt": "raw-v1",
+  "prompt_chars": 7953,
+  "prompts": [
+    "## Files of the incident\n\n=== helm/values.yaml ===\nreplicaCount: 2\nimage:\n  repository: ghcr.io/acme/billing-gateway\n  tag: 3.1.0\n  pullPolicy: IfNotPresent\nresources:\n  limits:\n    memory: 256Mi\n    cpu: 500m\n  requests:\n    memory: 128Mi\n    cpu: 100m\nservice:\n  type: ClusterIP\n  port: 8443\ntls:\n  secretName: billing-gateway-tls\n  issuerRef: letsencrypt-prod\n  renewBefore: 360h\n\n=== kube/deployment.yaml ===\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: billing-gateway\n  namespace: production\n  uid: 8b2c4d6e-af30-11ef-d5c6-0242ac110014\n  resourceVersion: '7411208'\n  creationTimestamp: '2026-05-12T07:00:00Z'\n  labels:\n    app.kubernetes.io/name: billing-gateway\n    app.kubernetes.io/instance: billing-gateway\n    app.kubernetes.io/managed-by: Helm\n  annotations:\n    deployment.kubernetes.io/revision: '4'\n    meta.helm.sh/release-name: billing-gateway\n    meta.helm.sh/release-namespace: production\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: billing-gateway\n      app.kubernetes.io/instance: billing-gateway\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxUnavailable: 1\n      maxSurge: 1\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: billing-gateway\n        app.kubernetes.io/instance: billing-gateway\n    spec:\n      containers:\n      - name: billing-gateway\n        image: ghcr.io/acme/billing-gateway:3.1.0\n        resources:\n          limits:\n            memory: 256Mi\n            cpu: 500m\n          requests:\n            memory: 128Mi\n            cpu: 100m\n        ports:\n        - containerPort: 8443\n          protocol: TCP\nstatus:\n  observedGeneration: 4\n  replicas: 2\n  updatedReplicas: 2\n  readyReplicas: 0\n  availableReplicas: 0\n  conditions:\n  - type: Available\n    status: 'False'\n    reason: MinimumReplicasUnavailable\n    message: Deployment does not have minimum availability.\n    lastTransitionTime: '2026-05-22T00:00:40Z'\n  - type: Progressing\n    status: 'True'\n    reason: NewReplicaSetAvailable\n    message: ReplicaSet \"billing-gateway-5b7d9c8f6\" has successfully progressed.\n    lastTransitionTime: '2026-05-19T07:00:05Z'\n\n=== kube/events.yaml ===\napiVersion: v1\nkind: EventList\nmetadata: {}\nitems:\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: billing-gateway.readiness.unhealthy.4hxkd\n    namespace: production\n    uid: evt-prod-billing-gateway-readiness-4hxkd\n  type: Warning\n  reason: Unhealthy\n  message: 'Readiness probe failed: HTTP probe failed with statuscode: 503'\n  involvedObject:\n    kind: Pod\n    name: billing-gateway-5b7d9c8f6-4hxkd\n    namespace: production\n  count: 92\n  firstTimestamp: '2026-05-22T00:01:10Z'\n  lastTimestamp: '2026-05-22T06:15:00Z'\n  reportingComponent: kubelet\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: billing-gateway.readiness.unhealthy.v9m2t\n    namespace: production\n    uid: evt-prod-billing-gateway-readiness-v9m2t\n  type: Warning\n  reason: Unhealthy\n  message: 'Readiness probe failed: HTTP probe failed with statuscode: 503'\n  involvedObject:\n    kind: Pod\n    name: billing-gateway-5b7d9c8f6-v9m2t\n    namespace: production\n  count: 90\n  firstTimestamp: '2026-05-22T00:01:20Z'\n  lastTimestamp: '2026-05-22T06:15:00Z'\n  reportingComponent: kubelet\n- apiVersion: v1\n  kind: Event\n  metadata:\n    name: letsencrypt-prod.acme.register.failed\n    namespace: production\n    uid: evt-prod-letsencrypt-prod-acme-register\n  type: Warning\n  reason: ErrRegisterACMEAccount\n  message: 'Failed to register ACME account: Post \"https://acme-v02.api.letsencrypt.org/acme/new-acct\":\n    dial tcp 172.65.32.248:443: i/o timeout'\n  involvedObject:\n    kind: Issuer\n    name: letsencrypt-prod\n    namespace: production\n  count: 1800\n  firstTimestamp: '2026-05-07T02:00:00Z'\n  lastTimestamp: '2026-05-22T06:14:00Z'\n  reportingComponent: cert-manager-issuers\n\n=== kube/pods.yaml ===\napiVersion: v1\nkind: PodList\nmetadata: {}\nitems:\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: billing-gateway-5b7d9c8f6-4hxkd\n    namespace: production\n    uid: pod-prod-billing-gateway-5b7d9c8f6-4hxkd\n    labels:\n      app.kubernetes.io/name: billing-gateway\n      app.kubernetes.io/instance: billing-gateway\n      pod-template-hash: 5b7d9c8f6\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: billing-gateway-5b7d9c8f6\n      uid: rs-prod-billing-gateway-5b7d9c8f6\n      controller: true\n      blockOwnerDeletion: true\n  spec:\n    nodeName: worker-node-01\n    containers:\n    - name: billing-gateway\n      image: ghcr.io/acme/billing-gateway:3.1.0\n      resources:\n        limits:\n          memory: 256Mi\n          cpu: 500m\n        requests:\n          memory: 128Mi\n          cpu: 100m\n      volumeMounts:\n      - name: tls\n        mountPath: /etc/tls\n        readOnly: true\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8443\n          scheme: HTTPS\n        periodSeconds: 10\n        timeoutSeconds: 2\n        failureThreshold: 3\n    volumes:\n    - name: tls\n      secret:\n        secretName: billing-gateway-tls\n  status:\n    phase: Running\n    containerStatuses:\n    - name: billing-gateway\n      ready: false\n      restartCount: 0\n      state:\n        running:\n          startedAt: '2026-05-19T07:00:00Z'\n      lastState: {}\n    conditions:\n    - type: Ready\n      status: 'False'\n      reason: ContainersNotReady\n      message: 'containers with unready status: [billing-gateway]'\n- apiVersion: v1\n  kind: Pod\n  metadata:\n    name: billing-gateway-5b7d9c8f6-v9m2t\n    namespace: production\n    uid: pod-prod-billing-gateway-5b7d9c8f6-v9m2t\n    labels:\n      app.kubernetes.io/name: billing-gateway\n      app.kubernetes.io/instance: billing-gateway\n      pod-template-hash: 5b7d9c8f6\n    ownerReferences:\n    - apiVersion: apps/v1\n      kind: ReplicaSet\n      name: billing-gateway-5b7d9c8f6\n      uid: rs-prod-billing-gateway-5b7d9c8f6\n      controller: true\n      blockOwnerDeletion: true\n  spec:\n    nodeName: worker-node-02\n    containers:\n    - name: billing-gateway\n      image: ghcr.io/acme/billing-gateway:3.1.0\n      resources:\n        limits:\n          memory: 256Mi\n          cpu: 500m\n        requests:\n          memory: 128Mi\n          cpu: 100m\n      volumeMounts:\n      - name: tls\n        mountPath: /etc/tls\n        readOnly: true\n      readinessProbe:\n        httpGet:\n          path: /ready\n          port: 8443\n          scheme: HTTPS\n        periodSeconds: 10\n        timeoutSeconds: 2\n        failureThreshold: 3\n    volumes:\n    - name: tls\n      secret:\n        secretName: billing-gateway-tls\n  status:\n    phase: Running\n    containerStatuses:\n    - name: billing-gateway\n      ready: false\n      restartCount: 0\n      state:\n        running:\n          startedAt: '2026-05-19T07:00:00Z'\n      lastState: {}\n    conditions:\n    - type: Ready\n      status: 'False'\n      reason: ContainersNotReady\n      message: 'containers with unready status: [billing-gateway]'\n\n=== kube/secret.yaml ===\napiVersion: v1\nkind: Secret\nmetadata:\n  name: billing-gateway-tls\n  namespace: production\n  uid: secret-prod-billing-gateway-tls\n  annotations:\n    cert-manager.io/certificate-name: billing-gateway-tls\n    cert-manager.io/issuer-name: letsencrypt-prod\n    cert-manager.io/issuer-kind: Issuer\ntype: kubernetes.io/tls\n\n---\n## Incident query\nwhy is billing-gateway not ready\n\n---\n## Task \u2014 Root Cause Analysis\n\nThe files above are everything known about the incident. If nothing is wrong, say so: answer\n\"no incident\" in section 3.\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and evidence from the files.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause.\n\n### 6. Confidence\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe billing-gateway deployment in the production namespace is not ready due to failed readiness probes and a certificate registration issue.\n\n### 2. Affected resources\n- Deployment: billing-gateway \u2014 not ready\n- Pod: billing-gateway-5b7d9c8f6-4hxkd \u2014 readiness probe failed\n- Pod: billing-gateway-5b7d9c8f6-v9m2t \u2014 readiness probe failed\n- Secret: billing-gateway-tls \u2014 used for TLS termination\n- Issuer: letsencrypt-prod \u2014 certificate issuer\n\n### 3. Root cause\nThe root cause appears to be a combination of failed readiness probes and an issue with certificate registration for the billing-gateway deployment. The readiness probes are failing with a 503 status code, indicating an unhealthy condition. Additionally, the letsencrypt-prod issuer has failed to register an ACME account, which is necessary for obtaining and renewing TLS certificates.\n\n### 4. Causal chain\n1. The billing-gateway deployment is created with a readiness probe that checks the /ready endpoint.\n2. The readiness probe fails with a 503 status code, marking the pods as unhealthy.\n3. The failed readiness probe prevents the deployment from being considered ready, as it does not meet the minimum availability requirement.\n4. The letsencrypt-prod issuer fails to register an ACME account, which is required for obtaining and renewing TLS certificates.\n\n### 5. Remediation\n1. Investigate the reason for the failed readiness probes by checking the logs of the billing-gateway pods.\n2. If necessary, adjust the readiness probe configuration or troubleshoot the application to ensure it responds correctly to the readiness probe.\n3. Investigate the issue with the letsencrypt-prod issuer and attempt to register the ACME account manually or consult the cert-manager documentation for troubleshooting steps.\n\n### 6. Confidence\nMEDIUM: The root cause is based on the evidence from the provided files, but further investigation is needed to determine the exact cause of the failed readiness probes and the certificate registration",
+  "reason": "cause named, no decoy",
+  "remediation": [
+    "Investigate the reason for the failed readiness probes by checking the logs of the billing-gateway pods.",
+    "If necessary, adjust the readiness probe configuration or troubleshoot the application to ensure it responds correctly to the readiness probe.",
+    "Investigate the issue with the letsencrypt-prod issuer and attempt to register the ACME account manually or consult the cert-manager documentation for troubleshooting steps."
+  ],
+  "root_cause": "The root cause appears to be a combination of failed readiness probes and an issue with certificate registration for the billing-gateway deployment. The readiness probes are failing with a 503 status code, indicating an unhealthy condition. Additionally, the letsencrypt-prod issuer has failed to register an ACME account, which is necessary for obtaining and renewing TLS certificates.",
+  "run": 1,
+  "solver": "raw",
+  "started_at": "2026-11-02T01:17:05.945237+00:00",
+  "store": "stub",
+  "tier": "B",
+  "veracity": "PASS",
+  "wall_s": 252.31
+}

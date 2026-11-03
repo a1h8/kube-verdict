@@ -1,0 +1,60 @@
+{
+  "case": "h006_networkpolicy_blocked",
+  "case_hash": "44711f13ba8b1b6e3439ba5afbccde710b538ce7d33a671523e4aa50a206d05c",
+  "commit": "13877d10be34a6d08843bf5403e246be251072fe",
+  "confidence": "LOW",
+  "confidence_raw": "LOW",
+  "config": "C1",
+  "corpus_hash": null,
+  "cut": "loki",
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "cause",
+  "fallbacks": [
+    "loki"
+  ],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "05715ed00f771fb904fc174be4e4579859e5cf2be6ec1bb80570a22a8c4cce21"
+  },
+  "index": null,
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 31.8,
+      "answer_tokens": 435,
+      "estimated_prompt_tokens": 2045,
+      "num_ctx": 3072,
+      "num_predict": 512,
+      "prompt_eval_s": 19.0,
+      "prompt_tokens_read": 1521,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 4278,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-03 02:13:27 UTC\nTotal context chunks : 12\nContext quality score: MEDIUM (0.62/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 100% \u2192 0.25, TF-IDF features 1/20 \u2192 0.01, Anchors matched 6 \u2192 0.15, Critical signals 2 \u2192 0.06, Helm drift items 0 \u2192 0.00\n\n### CRITICAL \u2014 Unhealthy resources (2)\n  - kind=Pod name=order-service-6f9b8c7d5-q4r2s namespace=production labels=[app.kubernetes.io/name=order-service app.kubernetes.io/instance=order-service app=order-service pod-template-hash=6f9b8c7d5] phase=Running node=worker-node-01 restarts=0 owner=ReplicaSet/order-service-6f9b8c7d5\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/order-service-6f9b8c7d5-q4r2s namespace=production count=24 message=Readiness probe failed: HTTP probe failed with statuscode: 503\n### ANCHOR FIX SUGGESTIONS \u2014 helm commands to restore declared values (1)\n  - Pod/production/order-service-6f9b8c7d5-q4r2s  NetworkPolicy 'order-service-restrict-egress' blocks all egress  \u2192  kubectl edit networkpolicy order-service-restrict-egress -n production  # add egress rules for required ports (e.g. 5432/tcp, 6379/tcp)\n### WARNING \u2014 Kubernetes events (1)\n  - kind=Event type=Warning reason=Unhealthy involved=Pod/order-service-6f9b8c7d5-q4r2s namespace=production count=24 message=Readiness probe failed: HTTP probe failed with statuscode: 503\n### ANCHORS \u2014 Declared values & K8s schema (6)\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: container.*.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/production/order-service-6f9b8c7d5-q4r2s: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=order-service namespace=production chart= chartVersion= appVersion= status=deployed source=helm values=[replicaCount=2]\n### Related context (1 chunks after dedup)\n  - kind=Namespace name=production\n\n---\n## Incident query\norder-service requests fail in production\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nOrder-service pods in the production namespace are failing readiness probes, leading to failed requests.\n\n### 2. Affected resources\n- Pod/order-service-6f9b8c7d5-q4r2s \u2014 readiness probe failure\n- Pod/order-service-6f9b8c7d5-r7h8j \u2014 readiness probe failure\n\n### 3. Root cause\nThe readiness probe failure is due to a 503 HTTP status code, indicating a backend service is unavailable.\n\n### 4. Causal chain\n1. The readiness probe fails, causing the order-service pods to be marked as unhealthy.\n2. The order-service pods are restarted, but continue to fail the readiness probe.\n3. The readiness probe failure is logged as a warning event.\n4. The readiness probe failure is due to the backend service (e.g., database) not being available.\n\n### 5. Remediation\n- None directly applicable based on the provided context. Further investigation is needed.\n\n### 6. Confidence\nLOW\n\n### 7. Checks\n- kubectl get pods order-service-6f9b8c7d5-q4r2s -o yaml | confirms if: readinessProbe.httpGet.path is /healthz | refutes if: readinessProbe.httpGet.path is /status\n- kubectl logs order-service-6f9b8c7d5-q4r2s -c order-service | confirms if: logs show readiness probe failure | refutes if: logs show successful readiness probe\n- kubectl describe pod order-service-6f9b8c7d5-q4r2s | confirms if: readinessProbe.failureThreshold is set to a value greater than 0 | refutes if: readinessProbe.failureThreshold is set to 0\n- kubectl describe service order-service | confirms if: service is available and healthy | refutes if: service is not available or unhealthy\n- kubectl get deployment order-service -o yaml | confirms if: replicas is set to the expected value | refutes if: replicas is not set or incorrect",
+  "reason": "cause concept(s) not named: networkpolicy|network policy",
+  "remediation": [
+    "None directly applicable based on the provided context. Further investigation is needed."
+  ],
+  "root_cause": "The readiness probe failure is due to a 503 HTTP status code, indicating a backend service is unavailable.",
+  "run": 1,
+  "solver": "context",
+  "started_at": "2026-11-03T02:14:18.617281+00:00",
+  "store": "stub",
+  "tier": "A",
+  "veracity": "FAIL",
+  "wall_s": 50.96
+}
