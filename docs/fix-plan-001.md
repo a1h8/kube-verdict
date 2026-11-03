@@ -470,7 +470,7 @@ item says how it was checked; the fix comes with a test that fails on today's co
 
 ## 5. Live validation (once, at the end)
 
-- [ ] **H45 — the project's chart grants no Secrets**, where Helm 3 stores its releases, nor
+- [x] **H45 — the project's chart grants no Secrets**, where Helm 3 stores its releases, nor
   quotas, limit ranges, webhooks or impersonation: deployed with it, kube-verdict sees no release.
   → to confirm live, then the chart grants what the collectors read and the docs say what
   dry-run needs.
@@ -508,6 +508,8 @@ item says how it was checked; the fix comes with a test that fails on today's co
     listed namespace, never a ClusterRole on Secrets, no `impersonate` unless configured), CI
     installing Helm (checksum checked) so they never skip there; the two code fixes, each with
     a test that fails without it.
+  *Confirmed live 2026-11-03 at `643dea3`:* positive and negative controls pass
+  (`docs/live-validation-001.md`, § Results).
 
 - [ ] **H80 — steps of the live run written nowhere but in the protocols.** → listed in the
   live-run spec, in this order, each checked before the first measured run: Ollama alone on the
@@ -535,7 +537,8 @@ item says how it was checked; the fix comes with a test that fails on today's co
 
 HPAs, ResourceQuotas, LimitRanges, NetworkPolicies and RoleBindings collected live as typed objects
 (needed for the HPA case of F9, F6 and h005/h006 live); Monte Carlo out of the decision path; a
-dependency lockfile.
+dependency lockfile; the chart's ClusterRole against the 39 kinds discovery is refused
+(`docs/live-validation-001.md`, § Results): grant them or stop asking; support for kubernetes 37 (H82).
 
 The blast radius calibrated on the gate's history (`docs/design-choices-evidence.md`, choice 8:
 no pre-registered test yet), after the merge, spec first. A precondition comes before any rule:
