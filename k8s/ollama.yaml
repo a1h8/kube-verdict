@@ -56,6 +56,12 @@ spec:
           env:
             - name: OLLAMA_MODELS
               value: /root/.ollama/models
+            # one model in memory, no prompt cache: at 16 Gi Ollama was OOM-killed with two models
+            # resident and llama-server's prompt cache on (docs/live-validation-001.md, 2026-11-01)
+            - name: OLLAMA_MAX_LOADED_MODELS
+              value: "1"
+            - name: LLAMA_ARG_CACHE_RAM
+              value: "0"
           volumeMounts:
             - name: models
               mountPath: /root/.ollama/models

@@ -40,6 +40,9 @@
 | CPI-25 | GAP | medium | RESOLVED in text (2026-10-27) |
 | CPI-26 | GAP | blocking | RESOLVED (2026-10-30) |
 | CPI-27 | INCONSISTENT | blocking | RESOLVED (2026-10-30) |
+| CPI-28 | INCONSISTENT | low | OPEN, found after block B (2026-11-03) |
+| CPI-29 | GAP | medium | OPEN, found after block B (2026-11-03) |
+| CPI-30 | INCONSISTENT | low | OPEN, found after block B (2026-11-03) |
 
 ---
 
@@ -319,3 +322,36 @@ is not computable offline) and the measurement counts only if Ollama does not re
 The measurement uses the replay's client timeout (900 s).
 **Corrected again (2026-10-30).** 12 Gi was OOM-killed too (8.1 GB anonymous memory, 3.8 GB file
 cache); the limit is 16 Gi, and the pod's memory is sampled during the block.
+
+## CPI-28: "No irreversible command" counts commands with no computed inverse (OPEN)
+
+Found after block B, so it changes no result of that block. No decision reads this column.
+**Symptom.** `docs/veracity-replay.md` § Comparison and the tables say "irreversible". The value
+comes from `unrecoverable_commands` (`rca/analyzer.py`, H19): any action `_generate_rollback` has
+no inverse for. In the `llm:` runs that is mostly `kubectl edit`, `apply` and `patch`, which are not
+irreversible in the ordinary sense. One `kubectl get`, followed by the model's own text, is also
+counted (qwen, h006).
+**Direction.** Rename it "no computed inverse" in the tool, its test and the text; no threshold moves.
+
+## CPI-29: the risk of a proposed command is not measured (OPEN)
+
+Found after block B, so it changes no result of that block.
+**Symptom.** CPI-28's criterion asks whether a command can be undone, not what it does. Read after
+the block, over the 342 + 114 runs without a cut: 3 runs propose `cluster-admin` (qwen `llm:`, h005,
+2 runs; mistral `context:`, h002, 1 run), and 1 line matches a list of destructive verbs written
+after the fact (`kubectl delete pod`, mistral `context:`, h026, a case with no incident). These
+counts come from that list, not from a pre-registered rule, and are not a measurement.
+**Direction.** Protocol 002 decides whether it measures the risk of remediations, with its list
+fixed before its runs.
+
+## CPI-30: step 4 lists as not fitting two raw prompts the runs did send (OPEN)
+
+Found after block B, so it changes no result of that block.
+**Symptom.** Both token tables list h016 `raw:` (whole, and with Prometheus cut) as `did_not_fit`:
+`tools/token_measure.py` checks them against `OLLAMA_NUM_CTX_MAX` (8 192). The replay runs `raw:`
+under its own ceiling (`RAW_NUM_CTX_MAX`, 16 384), so those runs were sent at `num_ctx` 9 216, read
+whole (8 512 and 7 952 tokens for mistral, 7 371 and 6 895 for qwen) and graded; no record has
+`did_not_fit`. Step 4's text, which names only 8 192, and the table are both off for `raw:`.
+**Effect.** All those runs are FAIL on what they answered, and the raw configurations draw no
+decision (they fail the negative control), so no outcome changes.
+**Direction.** `tools/token_measure.py` uses the ceiling of the solver it measures.
