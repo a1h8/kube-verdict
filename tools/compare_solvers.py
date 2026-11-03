@@ -150,7 +150,7 @@ def row(name: str, recs: list[dict]) -> list[str]:
 
 
 HEADER = ["Configuration", "Report correct", "Explanation correct", "LLM disagrees",
-          "Remediation proposed", "No irreversible command", "Missing", "Invalid", "Did not fit",
+          "Remediation proposed", "No computed inverse", "Missing", "Invalid", "Did not fit",
           "Median wall s", "Median prompt tokens"]
 
 

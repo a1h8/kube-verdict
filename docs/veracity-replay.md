@@ -192,8 +192,9 @@ fixture corrections), `EXAMPLE_LOOKUP_DISABLED=1`, stub store:
 
 1. *Per configuration*, over all expected runs (a missing run is a FAIL, H7):
    report correct (%) · explanation correct (%) · LLM disagrees with the diagnosis (%) ·
-   remediation proposed (% of diagnosed runs with ≥ 1 command) · remediation without an
-   irreversible command (%) · missing runs · median wall s · median prompt tokens read.
+   remediation proposed (% of diagnosed runs with ≥ 1 command) · remediation without a
+   computed inverse (%; "irreversible command" until 2026-11-03, same value, CPI-28) · missing
+   runs · median wall s · median prompt tokens read.
 2. *Per tier* (A / B / C): the same columns.
 3. *Per case*: report and explanation, `x/3` per configuration.
 

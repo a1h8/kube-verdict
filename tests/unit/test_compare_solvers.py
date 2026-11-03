@@ -26,7 +26,7 @@ def test_rates_and_missing_runs(tmp_path):
     assert cells["Explanation correct"] == "33 % (1/3)"
     assert cells["LLM disagrees"] == "50 % (1/2)"
     assert cells["Remediation proposed"] == "100 % (2/2)"
-    assert cells["No irreversible command"] == "50 % (1/2)"
+    assert cells["No computed inverse"] == "50 % (1/2)"
     assert cells["Missing"] == "1"
 
 

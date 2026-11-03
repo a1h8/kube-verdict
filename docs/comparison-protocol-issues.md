@@ -40,7 +40,7 @@
 | CPI-25 | GAP | medium | RESOLVED in text (2026-10-27) |
 | CPI-26 | GAP | blocking | RESOLVED (2026-10-30) |
 | CPI-27 | INCONSISTENT | blocking | RESOLVED (2026-10-30) |
-| CPI-28 | INCONSISTENT | low | OPEN, found after block B (2026-11-03) |
+| CPI-28 | INCONSISTENT | low | RESOLVED, found after block B (2026-11-03) |
 | CPI-29 | GAP | medium | OPEN, found after block B (2026-11-03) |
 | CPI-30 | INCONSISTENT | low | OPEN, found after block B (2026-11-03) |
 
@@ -323,7 +323,7 @@ The measurement uses the replay's client timeout (900 s).
 **Corrected again (2026-10-30).** 12 Gi was OOM-killed too (8.1 GB anonymous memory, 3.8 GB file
 cache); the limit is 16 Gi, and the pod's memory is sampled during the block.
 
-## CPI-28: "No irreversible command" counts commands with no computed inverse (OPEN)
+## CPI-28: "No irreversible command" counts commands with no computed inverse (RESOLVED)
 
 Found after block B, so it changes no result of that block. No decision reads this column.
 **Symptom.** `docs/veracity-replay.md` § Comparison and the tables say "irreversible". The value
@@ -331,7 +331,9 @@ comes from `unrecoverable_commands` (`rca/analyzer.py`, H19): any action `_gener
 no inverse for. In the `llm:` runs that is mostly `kubectl edit`, `apply` and `patch`, which are not
 irreversible in the ordinary sense. One `kubectl get`, followed by the model's own text, is also
 counted (qwen, h006).
-**Direction.** Rename it "no computed inverse" in the tool, its test and the text; no threshold moves.
+**Resolved (2026-11-03).** Renamed "No computed inverse" in the tool, its test, the text and the
+generated tables. The same records give the same values, no threshold moves, and the block is not
+restarted: only a label changes. The `kubectl get` above is still counted; it is left as it is.
 
 ## CPI-29: the risk of a proposed command is not measured (OPEN)
 

@@ -173,8 +173,8 @@ still the structured diagnosis, so those two 19/19 are the same result, not a mo
   new cases. Protocol 002 asks that question.
 - A cause counts as named by its grading keywords; the answers were not read one by one.
 - C2 on 19 cases with small stores is a pilot; it does not settle the vector search at scale.
-- "No irreversible command" in the tables means "no computed inverse" (CPI-28), and the proposed
-  commands' risk is not measured (CPI-29).
+- "No computed inverse" says whether the tool can compute how to undo a command (CPI-28), not how
+  risky the command is, which is not measured (CPI-29).
 
 ## Amendments
 
