@@ -521,6 +521,16 @@ item says how it was checked; the fix comes with a test that fails on today's co
   control, stop rules. The tokenizer measurement it names (step 4): `tools/token_measure.py`,
   tested offline (`tests/unit/test_token_measure.py`); to run live.
 
+- [x] **H82 — a fresh image cannot read the cluster (found by the H45 control, 2026-11-03).**
+  `kubernetes>=29.0.0` has no upper bound: the image took 37.0.1, whose `ApiClient.call_api` has
+  another signature, and the raw calls of `ontology/discovery.py` and `ingestion/k8s_schema.py`
+  raise `TypeError`. Every investigation then falls back before reading the cluster, and ends
+  `COMPLETED`. The suite could not see it: `tests/integration/fake_kube_api.py` mocks the discovery.
+  → Bounded `<37` in
+  `requirements.txt` and `pyproject.toml`; `tests/unit/test_kubernetes_client_contract.py` fails on
+  a client without those parameters. Supporting 37 is open work, not done here. Most other
+  dependencies have no upper bound either, so an image is not reproducible: not addressed here.
+
 ## Not in this PR (open work, not corrections)
 
 HPAs, ResourceQuotas, LimitRanges, NetworkPolicies and RoleBindings collected live as typed objects

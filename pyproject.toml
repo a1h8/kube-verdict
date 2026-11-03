@@ -16,7 +16,7 @@ dependencies = [
     "fastapi>=0.111.0",
     "uvicorn[standard]>=0.29.0",
     # K8s client
-    "kubernetes>=29.0.0",
+    "kubernetes>=29.0.0,<37",  # 37 changes ApiClient.call_api (docs/fix-plan-001.md, H82)
     # LangGraph workflow + SQLite checkpointer
     "langgraph>=0.2.14",
     "langgraph-checkpoint-sqlite>=2.0.0",
