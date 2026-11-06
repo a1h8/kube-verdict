@@ -1,0 +1,90 @@
+{
+  "catalog-api": {
+    "image": {
+      "tag": "3.2.0"
+    },
+    "resources": {
+      "requests": {
+        "cpu": "500m",
+        "memory": "1Gi"
+      }
+    },
+    "replicaCount": 4
+  },
+  "cart-api": {
+    "image": {
+      "tag": "2.3.1"
+    },
+    "resources": {
+      "requests": {
+        "cpu": "250m",
+        "memory": "1Gi"
+      }
+    },
+    "replicaCount": 2
+  },
+  "billing-worker": {
+    "image": {
+      "tag": "1.8.0"
+    },
+    "resources": {
+      "requests": {
+        "cpu": "500m",
+        "memory": "2Gi"
+      }
+    },
+    "replicaCount": 2
+  },
+  "search-api": {
+    "image": {
+      "tag": "4.0.2"
+    },
+    "resources": {
+      "requests": {
+        "cpu": "500m",
+        "memory": "1Gi"
+      }
+    },
+    "replicaCount": 3
+  },
+  "checkout-web": {
+    "image": {
+      "tag": "5.1.0"
+    },
+    "resources": {
+      "requests": {
+        "cpu": "200m",
+        "memory": "512Mi"
+      }
+    },
+    "replicaCount": 2
+  },
+  "inventory-api": {
+    "image": {
+      "tag": "2.0.4"
+    },
+    "resources": {
+      "requests": {
+        "cpu": "200m",
+        "memory": "512Mi"
+      }
+    },
+    "replicaCount": 1
+  },
+  "notify-worker": {
+    "image": {
+      "tag": "1.1.0"
+    },
+    "resources": {
+      "requests": {
+        "cpu": "100m",
+        "memory": "512Mi"
+      }
+    },
+    "replicaCount": 1
+  },
+  "reportExport": {
+    "schedule": "*/10 * * * *",
+    "concurrencyPolicy": "Forbid"
+  }
+}

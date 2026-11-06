@@ -1,0 +1,1815 @@
+apiVersion: v1
+kind: PodList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-07e13
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-07e13
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-09d02
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-09d02
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-005b1
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-005b1
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-024a0
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-024a0
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-0438f
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-0438f
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:10:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-0627e
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-0627e
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:11:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-0816d
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-0816d
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:12:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-0a05c
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-0a05c
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:13:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-0090b
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-0090b
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:14:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-027fa
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-027fa
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:15:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-046e9
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-046e9
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:16:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-065d8
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-065d8
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:17:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-084c7
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-084c7
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:18:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-0a3b6
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-0a3b6
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:19:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-00c65
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-00c65
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-02b54
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-02b54
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:21:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-04a43
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-04a43
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:22:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-06932
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-06932
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:23:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-08821
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-08821
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:24:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-api-5f6b7d9c8-0a710
+    namespace: shop
+    uid: pod-shop-catalog-api-5f6b7d9c8-0a710
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5f6b7d9c8
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-api-5f6b7d9c8
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: catalog-api
+      image: ghcr.io/acme/catalog-api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:25:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: cart-api-5d6f8c7b9-0ae88
+    namespace: shop
+    uid: pod-shop-cart-api-5d6f8c7b9-0ae88
+    labels:
+      app.kubernetes.io/name: cart-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5d6f8c7b9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: cart-api-5d6f8c7b9
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.2
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 250m
+          memory: 1Gi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: cart-api-5d6f8c7b9-01737
+    namespace: shop
+    uid: pod-shop-cart-api-5d6f8c7b9-01737
+    labels:
+      app.kubernetes.io/name: cart-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5d6f8c7b9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: cart-api-5d6f8c7b9
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.2
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 250m
+          memory: 1Gi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T07:23:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: billing-worker-84b7c6d5f-04d9e
+    namespace: shop
+    uid: pod-shop-billing-worker-84b7c6d5f-04d9e
+    labels:
+      app.kubernetes.io/name: billing-worker
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 84b7c6d5f
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: billing-worker-84b7c6d5f
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: billing-worker
+      image: ghcr.io/acme/billing-worker:1.8.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: billing-worker
+      image: ghcr.io/acme/billing-worker:1.8.0
+      ready: true
+      restartCount: 1
+      state:
+        running:
+          startedAt: '2026-10-18T08:00:00Z'
+      lastState:
+        terminated:
+          reason: OOMKilled
+          exitCode: 137
+          startedAt: '2026-10-18T08:00:00Z'
+          finishedAt: '2026-10-20T04:30:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: billing-worker-84b7c6d5f-06c8d
+    namespace: shop
+    uid: pod-shop-billing-worker-84b7c6d5f-06c8d
+    labels:
+      app.kubernetes.io/name: billing-worker
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 84b7c6d5f
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: billing-worker-84b7c6d5f
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: billing-worker
+      image: ghcr.io/acme/billing-worker:1.8.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: billing-worker
+      image: ghcr.io/acme/billing-worker:1.8.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T07:23:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: search-api-6f9c8d7b4-0517a
+    namespace: shop
+    uid: pod-shop-search-api-6f9c8d7b4-0517a
+    labels:
+      app.kubernetes.io/name: search-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 6f9c8d7b4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: search-api-6f9c8d7b4
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: search-api-6f9c8d7b4-07069
+    namespace: shop
+    uid: pod-shop-search-api-6f9c8d7b4-07069
+    labels:
+      app.kubernetes.io/name: search-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 6f9c8d7b4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: search-api-6f9c8d7b4
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T07:23:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: search-api-6f9c8d7b4-08f58
+    namespace: shop
+    uid: pod-shop-search-api-6f9c8d7b4-08f58
+    labels:
+      app.kubernetes.io/name: search-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 6f9c8d7b4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: search-api-6f9c8d7b4
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T06:46:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: checkout-web-9b8c7d6f5-0aaac
+    namespace: shop
+    uid: pod-shop-checkout-web-9b8c7d6f5-0aaac
+    labels:
+      app.kubernetes.io/name: checkout-web
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 9b8c7d6f5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: checkout-web-9b8c7d6f5
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: checkout-web
+      image: ghcr.io/acme/checkout-web:5.1.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+        limits:
+          cpu: 400m
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: checkout-web
+      image: ghcr.io/acme/checkout-web:5.1.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: checkout-web-9b8c7d6f5-0135b
+    namespace: shop
+    uid: pod-shop-checkout-web-9b8c7d6f5-0135b
+    labels:
+      app.kubernetes.io/name: checkout-web
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 9b8c7d6f5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: checkout-web-9b8c7d6f5
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: checkout-web
+      image: ghcr.io/acme/checkout-web:5.1.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+        limits:
+          cpu: 400m
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: checkout-web
+      image: ghcr.io/acme/checkout-web:5.1.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T07:23:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: inventory-api-7d6c5b8f9-02105
+    namespace: shop
+    uid: pod-shop-inventory-api-7d6c5b8f9-02105
+    labels:
+      app.kubernetes.io/name: inventory-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 7d6c5b8f9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: inventory-api-7d6c5b8f9
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: inventory-api
+      image: ghcr.io/acme/inventory-api:2.0.4
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+        limits:
+          cpu: 400m
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: inventory-api
+      image: ghcr.io/acme/inventory-api:2.0.4
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: notify-worker-5c8b9d7f6-02105
+    namespace: shop
+    uid: pod-shop-notify-worker-5c8b9d7f6-02105
+    labels:
+      app.kubernetes.io/name: notify-worker
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5c8b9d7f6
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: notify-worker-5c8b9d7f6
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: notify-worker
+      image: ghcr.io/acme/notify-worker:1.1.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: 200m
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: notify-worker
+      image: ghcr.io/acme/notify-worker:1.1.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-18T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: report-export-29342400-02105
+    namespace: shop
+    uid: pod-shop-report-export-29342400-02105
+    labels:
+      app.kubernetes.io/name: report-export
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: job
+    ownerReferences:
+    - apiVersion: batch/v1
+      kind: Job
+      name: report-export-29342400
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: report-export
+      image: ghcr.io/acme/report-export:1.3.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Succeeded
+    conditions:
+    - type: Ready
+      status: 'False'
+      reason: PodCompleted
+    containerStatuses:
+    - name: report-export
+      image: ghcr.io/acme/report-export:1.3.0
+      ready: false
+      restartCount: 0
+      state:
+        terminated:
+          reason: Completed
+          exitCode: 0
+          finishedAt: '2026-10-20T09:11:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: report-export-29342410-03ff4
+    namespace: shop
+    uid: pod-shop-report-export-29342410-03ff4
+    labels:
+      app.kubernetes.io/name: report-export
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: job
+    ownerReferences:
+    - apiVersion: batch/v1
+      kind: Job
+      name: report-export-29342410
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: report-export
+      image: ghcr.io/acme/report-export:1.3.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Succeeded
+    conditions:
+    - type: Ready
+      status: 'False'
+      reason: PodCompleted
+    containerStatuses:
+    - name: report-export
+      image: ghcr.io/acme/report-export:1.3.0
+      ready: false
+      restartCount: 0
+      state:
+        terminated:
+          reason: Completed
+          exitCode: 0
+          finishedAt: '2026-10-20T09:21:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: reports-db-6c7d8b9f4-0517a
+    namespace: data
+    uid: pod-data-reports-db-6c7d8b9f4-0517a
+    labels:
+      app.kubernetes.io/name: reports-db
+      app.kubernetes.io/instance: reports
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 6c7d8b9f4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: reports-db-6c7d8b9f4
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: reports-db
+      image: ghcr.io/acme/reports-db:15.4
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: '1'
+          memory: 4Gi
+        limits:
+          cpu: 2000m
+          memory: 4Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: reports-db
+      image: ghcr.io/acme/reports-db:15.4
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: reports-db-proxy-7b8c9d6f5-00f7f
+    namespace: data
+    uid: pod-data-reports-db-proxy-7b8c9d6f5-00f7f
+    labels:
+      app.kubernetes.io/name: reports-db-proxy
+      app.kubernetes.io/instance: reports
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 7b8c9d6f5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: reports-db-proxy-7b8c9d6f5
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: reports-db-proxy
+      image: ghcr.io/acme/reports-db-proxy:1.21.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: reports-db-proxy
+      image: ghcr.io/acme/reports-db-proxy:1.21.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: prometheus-server-5b6c7d8e9-05b07
+    namespace: monitoring
+    uid: pod-monitoring-prometheus-server-5b6c7d8e9-05b07
+    labels:
+      app.kubernetes.io/name: prometheus-server
+      app.kubernetes.io/instance: prometheus
+      app.kubernetes.io/managed-by: Helm
+      pod-template-hash: 5b6c7d8e9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: prometheus-server-5b6c7d8e9
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: prometheus-server
+      image: ghcr.io/acme/prometheus-server:2.53.0
+      ports:
+      - containerPort: 8080
+        name: http
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: prometheus-server
+      image: ghcr.io/acme/prometheus-server:2.53.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-12T00:00:00Z'
+      lastState: {}

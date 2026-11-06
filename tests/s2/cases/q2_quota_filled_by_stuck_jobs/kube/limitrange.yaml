@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: shop-limits
+  namespace: shop
+  uid: lr-shop-limits
+spec:
+  limits:
+  - type: Container
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    default:
+      cpu: 200m
+      memory: 256Mi
+    max:
+      cpu: '2'
+      memory: 4Gi

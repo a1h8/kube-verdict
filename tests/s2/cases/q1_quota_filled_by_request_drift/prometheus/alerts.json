@@ -1,0 +1,49 @@
+[
+  {
+    "labels": {
+      "alertname": "CPUThrottlingHigh",
+      "severity": "info",
+      "namespace": "monitoring",
+      "pod": "prometheus-server-5b6c7d8e9-05b07",
+      "container": "prometheus-server"
+    },
+    "annotations": {
+      "summary": "Processes experience elevated CPU throttling.",
+      "description": "31.2% throttling of CPU in namespace monitoring for container prometheus-server."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T03:00:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubeHpaMaxedOut",
+      "severity": "warning",
+      "namespace": "shop",
+      "horizontalpodautoscaler": "catalog-api"
+    },
+    "annotations": {
+      "summary": "HPA is running at max replicas",
+      "description": "HPA shop/catalog-api has been running at max replicas for longer than 15 minutes."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T08:39:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubeQuotaFullyUsed",
+      "severity": "info",
+      "namespace": "shop",
+      "resource": "requests.memory",
+      "resourcequota": "shop-quota"
+    },
+    "annotations": {
+      "summary": "Namespace quota is fully used.",
+      "description": "Namespace shop is using 97% of its requests.memory quota."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T08:40:00Z",
+    "value": "1"
+  }
+]

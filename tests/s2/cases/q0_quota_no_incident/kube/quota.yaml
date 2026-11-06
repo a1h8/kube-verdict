@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: shop-quota
+  namespace: shop
+  uid: rq-shop-quota
+spec:
+  hard: &id001
+    requests.cpu: '16'
+    requests.memory: 32Gi
+    pods: '40'
+status:
+  hard: *id001
+  used:
+    requests.cpu: 5700m
+    requests.memory: 15Gi
+    pods: '15'

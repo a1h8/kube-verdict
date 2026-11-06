@@ -1,0 +1,54 @@
+{
+  "set": "S2",
+  "family": "quota",
+  "namespace": "shop",
+  "release": "shop",
+  "sources": [
+    "prometheus-operator/runbooks@a685d14 KubeQuotaFullyUsed",
+    "prometheus-operator/runbooks@a685d14 KubeHpaMaxedOut",
+    "prometheus-operator/runbooks@a685d14 KubePodNotReady",
+    "https://kubernetes.io/docs/concepts/policy/resource-quotas/",
+    "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+    "https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/"
+  ],
+  "spec": "docs/s2/family-quota.md",
+  "scenario": "A namespace memory quota refuses billing-worker's new pod; another workload filled it",
+  "query": "why can't billing-worker roll out in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Deployment/shop/catalog-api",
+  "mechanism": "catalog-api's live CPU request (100m) is below its applied 500m, so its HPA reads five times the utilization, scales it to its maximum of 20, and those replicas' 1Gi memory requests fill the namespace's requests.memory quota",
+  "chain": [
+    "billing-worker's new pod is refused: exceeded quota on requests.memory",
+    "ResourceQuota/shop/shop-quota is at its requests.memory limit",
+    "20 replicas of Deployment/shop/catalog-api use most of it",
+    "HorizontalPodAutoscaler/shop/catalog-api scaled it from 4 to its max of 20",
+    "catalog-api's live CPU request is 100m against 500m applied"
+  ],
+  "decoys": [
+    {
+      "object": "Deployment/shop/cart-api",
+      "why_not": "runs a newer image patch than applied; every pod is Ready"
+    },
+    {
+      "object": "Pod/shop/billing-worker (old OOMKilled restart)",
+      "why_not": "resolved hours before the rollout"
+    },
+    {
+      "object": "Pod/monitoring/prometheus-server (CPUThrottlingHigh)",
+      "why_not": "another namespace, no quota involved"
+    },
+    {
+      "object": "LimitRange/shop/shop-limits",
+      "why_not": "every container declares its own requests"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/billing-worker"
+  ],
+  "root_cause_concepts": [
+    "catalog-api",
+    "request",
+    "hpa|autoscal|scaled|replicas"
+  ],
+  "notes": "Secondary keyword grading only; primary grading is on cause_object and mechanism (protocol 002, A1)."
+}

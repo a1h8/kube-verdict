@@ -1,0 +1,64 @@
+[
+  {
+    "labels": {
+      "alertname": "CPUThrottlingHigh",
+      "severity": "info",
+      "namespace": "monitoring",
+      "pod": "prometheus-server-5b6c7d8e9-05b07",
+      "container": "prometheus-server"
+    },
+    "annotations": {
+      "summary": "Processes experience elevated CPU throttling.",
+      "description": "31.2% throttling of CPU in namespace monitoring for container prometheus-server."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T03:00:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubeHpaReplicasMismatch",
+      "severity": "warning",
+      "namespace": "shop",
+      "horizontalpodautoscaler": "search-api"
+    },
+    "annotations": {
+      "summary": "HPA has not matched desired number of replicas.",
+      "description": "HPA shop/search-api has not matched the desired number of replicas for longer than 15 minutes."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T12:30:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubeQuotaFullyUsed",
+      "severity": "info",
+      "namespace": "shop",
+      "resource": "pods",
+      "resourcequota": "shop-quota"
+    },
+    "annotations": {
+      "summary": "Namespace quota is fully used.",
+      "description": "Namespace shop is using 100% of its pods quota."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T12:00:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubePodNotReady",
+      "severity": "warning",
+      "namespace": "data",
+      "pod": "reports-db-6c7d8b9f4-x2k9p"
+    },
+    "annotations": {
+      "summary": "Pod has been in a non-ready state for more than 15 minutes.",
+      "description": "Pod data/reports-db-6c7d8b9f4-x2k9p has been in a non-ready state for longer than 15 minutes."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T08:15:00Z",
+    "value": "1"
+  }
+]

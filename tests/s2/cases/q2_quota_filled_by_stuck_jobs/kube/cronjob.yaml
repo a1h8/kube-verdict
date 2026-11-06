@@ -1,0 +1,98 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: report-export
+  namespace: shop
+  uid: cj-shop-report-export
+  labels:
+    app.kubernetes.io/name: report-export
+    app.kubernetes.io/instance: shop
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: shop
+    meta.helm.sh/release-namespace: shop
+spec:
+  schedule: '*/10 * * * *'
+  concurrencyPolicy: Allow
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: report-export
+            image: ghcr.io/acme/report-export:1.3.0
+            ports:
+            - containerPort: 8080
+              name: http
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
+            readinessProbe:
+              httpGet:
+                path: /ready
+                port: 8080
+              periodSeconds: 10
+            args:
+            - --db
+            - reports-db.data.svc.cluster.local:5432
+status:
+  active:
+  - kind: Job
+    name: report-export-29342400
+  - kind: Job
+    name: report-export-29342410
+  - kind: Job
+    name: report-export-29342420
+  - kind: Job
+    name: report-export-29342430
+  - kind: Job
+    name: report-export-29342440
+  - kind: Job
+    name: report-export-29342450
+  - kind: Job
+    name: report-export-29342460
+  - kind: Job
+    name: report-export-29342470
+  - kind: Job
+    name: report-export-29342480
+  - kind: Job
+    name: report-export-29342490
+  - kind: Job
+    name: report-export-29342500
+  - kind: Job
+    name: report-export-29342510
+  - kind: Job
+    name: report-export-29342520
+  - kind: Job
+    name: report-export-29342530
+  - kind: Job
+    name: report-export-29342540
+  - kind: Job
+    name: report-export-29342550
+  - kind: Job
+    name: report-export-29342560
+  - kind: Job
+    name: report-export-29342570
+  - kind: Job
+    name: report-export-29342580
+  - kind: Job
+    name: report-export-29342590
+  - kind: Job
+    name: report-export-29342600
+  - kind: Job
+    name: report-export-29342610
+  - kind: Job
+    name: report-export-29342620
+  - kind: Job
+    name: report-export-29342630
+  - kind: Job
+    name: report-export-29342640
+  lastScheduleTime: '2026-10-20T12:30:00Z'
