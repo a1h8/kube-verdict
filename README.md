@@ -43,10 +43,11 @@ A case passes at 2 runs of 3, or 1 of 1 without a model. With a model explanatio
 What these numbers say, and do not say:
 
 - **19/19 is in sample.** The rules were written with these 19 cases, so it is an upper bound and says nothing about incidents they have not seen. Those are not measured yet.
-- **"Beats the models" is not a decision.** The gap is wide, but every model-alone configuration names a cause on at least one case with no incident, and the rules fixed in advance draw no decision from a configuration that fails that control.
+- **"Beats the models" is not a decision.** Every model-alone configuration names a cause on at least one case with no incident, and the rules fixed in advance draw no decision from a configuration that fails that control.
+- **The grading favours the structured diagnosis.** Causes are graded by keywords written with these same cases, and the diagnosis's own wording uses them. Rereading two cases: on h013 all 12 model answers name the right cause and fail on one missing word; on h016 some name the saturation in other words, while many miss the replica count that explains it. How much of the gap this accounts for is not measured yet.
 - **The model is not reliable as an explainer here.** Its explanation is correct in 80 % (mistral) and 75 % (qwen) of diagnosed runs, and it disagrees with the diagnosis in 31 % and 27 %, against a maximum of 10 %. The rule recommends `LLM_PROVIDER=none`; the default has not changed yet.
 - **Vector search earned nothing measurable here.** mistral gains 1 case, within run-to-run variation; qwen loses 2 and adds a false alarm. The rule takes it out of the default path; the code has not changed yet.
-- **Causes are graded by keywords,** and the risk of the commands a model proposes is not measured.
+- **The risk of the commands a model proposes is not measured.**
 - **Live, real cluster:** the diagnosis of a real incident is **not measured yet**. On a live cluster only the chart's access to Helm releases is confirmed, with a negative control. The earlier captures of 2026-09-26 (0/2) do not count: the scenarios were staged ([case-audit-001.md](docs/case-audit-001.md) F3).
 
 ## Why it matters
