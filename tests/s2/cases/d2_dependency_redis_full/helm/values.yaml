@@ -1,0 +1,9 @@
+image:
+  repository: ghcr.io/acme/pricing
+  tag: 1.8.0
+replicaCount: 3
+containerPort: 8080
+cache:
+  enabled: true
+  ttlSeconds: 0
+  address: redis.cache.svc.cluster.local:6379

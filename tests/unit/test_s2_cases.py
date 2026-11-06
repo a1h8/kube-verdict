@@ -15,8 +15,9 @@ from tests.integration.cases.case_loader import build_graph, load_case
 ROOT = Path(__file__).resolve().parents[2]
 CASES = ROOT / "tests/s2/cases"
 NAMES = ["q0_quota_no_incident", "q1_quota_filled_by_request_drift", "q2_quota_filled_by_stuck_jobs",
-         "n0_netpol_no_incident", "n1_netpol_namespace_relabel", "n2_netpol_pod_labels_changed"]
-BUILDERS = ["build_family_quota.py", "build_family_netpol.py"]
+         "n0_netpol_no_incident", "n1_netpol_namespace_relabel", "n2_netpol_pod_labels_changed",
+         "d0_dependency_no_incident", "d1_dependency_service_wrong_port", "d2_dependency_redis_full"]
+BUILDERS = ["build_family_quota.py", "build_family_netpol.py", "build_family_dependency.py"]
 
 
 def _used(case: str) -> dict:
@@ -48,6 +49,17 @@ def test_the_netpol_cases_break_only_by_labels():
     assert orders and all("app" not in p["metadata"]["labels"] for p in orders)             # n2: the label is gone
 
 
+def test_the_dependency_cases_break_where_the_chain_says():
+    import yaml as _y
+    def target(case):
+        svcs = _y.safe_load((CASES / case / "kube/services.yaml").read_text())["items"]
+        return [s for s in svcs if s["metadata"]["name"] == "inventory"][0]["spec"]["ports"][0]["targetPort"]
+    assert target("d1_dependency_service_wrong_port") == 8080                       # the pods listen on 9090
+    assert target("d0_dependency_no_incident") == 9090                              # control
+    assert "maxmemory" in (CASES / "d2_dependency_redis_full/loki/streams.json").read_text()
+    assert "maxmemory" not in (CASES / "d0_dependency_no_incident/loki/streams.json").read_text()
+
+
 def test_the_quotas_are_full_where_the_chain_says_and_only_there():
     assert _used("q1_quota_filled_by_request_drift")["requests.memory"] == "31Gi"   # + a 2Gi pod > 32Gi
     assert _used("q2_quota_filled_by_stuck_jobs")["pods"] == "40"                  # the limit
@@ -61,13 +73,13 @@ def test_no_fixture_names_the_answer(case):
         if path.is_file() and path.name != "expect.json":
             text = path.read_text().lower()
             assert not any(w in text for w in ("decoy", "cause", "why_not", "s2", "q1_", "q2_", "q0_",
-                                               "n1_", "n2_", "n0_")), path
+                                               "n1_", "n2_", "n0_", "d1_", "d2_", "d0_")), path
 
 
 @pytest.mark.parametrize("case", NAMES)
 def test_every_case_states_its_answer(case):
     expect = json.loads((CASES / case / "expect.json").read_text())
-    assert expect["set"] == "S2" and expect["family"] in ("quota", "netpol") and expect["sources"]
+    assert expect["set"] == "S2" and expect["family"] in ("quota", "netpol", "dependency") and expect["sources"]
     if expect["expected_outcome"] == "cause":
         kind = expect["cause_object"].split("/")[0]
         slashes = 1 if kind in ("Namespace", "Node", "ClusterRole", "PersistentVolume") else 2   # cluster-scoped

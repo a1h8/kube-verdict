@@ -1,0 +1,158 @@
+[
+  {
+    "trace_id": "000000000000000000000000006a1f00",
+    "service_name": "checkout-api",
+    "status": "ERROR",
+    "duration_ms": 212,
+    "span_count": 4,
+    "root_span": "POST /checkout",
+    "error_message": "pricing returned 503",
+    "started_at": "2026-10-20T11:02:00Z",
+    "error_spans": [
+      {
+        "name": "POST /checkout",
+        "duration_ms": 212,
+        "status": "ERROR"
+      },
+      {
+        "name": "GET pricing.platform/v1/price",
+        "duration_ms": 31,
+        "status": "ERROR",
+        "attributes": {
+          "http.status_code": 503,
+          "server.address": "pricing.platform.svc.cluster.local"
+        }
+      }
+    ]
+  },
+  {
+    "trace_id": "000000000000000000000000007b2e00",
+    "service_name": "pricing",
+    "status": "ERROR",
+    "duration_ms": 29,
+    "span_count": 3,
+    "root_span": "GET /v1/price",
+    "error_message": "OOM command not allowed when used memory > 'maxmemory'.",
+    "started_at": "2026-10-20T11:02:00Z",
+    "error_spans": [
+      {
+        "name": "GET /v1/price",
+        "duration_ms": 29,
+        "status": "ERROR"
+      },
+      {
+        "name": "SET",
+        "duration_ms": 2,
+        "status": "ERROR",
+        "attributes": {
+          "db.system": "redis",
+          "server.address": "redis.cache.svc.cluster.local"
+        }
+      }
+    ]
+  },
+  {
+    "trace_id": "000000000000000000000000006a1f01",
+    "service_name": "checkout-api",
+    "status": "ERROR",
+    "duration_ms": 213,
+    "span_count": 4,
+    "root_span": "POST /checkout",
+    "error_message": "pricing returned 503",
+    "started_at": "2026-10-20T11:07:00Z",
+    "error_spans": [
+      {
+        "name": "POST /checkout",
+        "duration_ms": 213,
+        "status": "ERROR"
+      },
+      {
+        "name": "GET pricing.platform/v1/price",
+        "duration_ms": 31,
+        "status": "ERROR",
+        "attributes": {
+          "http.status_code": 503,
+          "server.address": "pricing.platform.svc.cluster.local"
+        }
+      }
+    ]
+  },
+  {
+    "trace_id": "000000000000000000000000007b2e01",
+    "service_name": "pricing",
+    "status": "ERROR",
+    "duration_ms": 30,
+    "span_count": 3,
+    "root_span": "GET /v1/price",
+    "error_message": "OOM command not allowed when used memory > 'maxmemory'.",
+    "started_at": "2026-10-20T11:07:00Z",
+    "error_spans": [
+      {
+        "name": "GET /v1/price",
+        "duration_ms": 30,
+        "status": "ERROR"
+      },
+      {
+        "name": "SET",
+        "duration_ms": 2,
+        "status": "ERROR",
+        "attributes": {
+          "db.system": "redis",
+          "server.address": "redis.cache.svc.cluster.local"
+        }
+      }
+    ]
+  },
+  {
+    "trace_id": "000000000000000000000000006a1f02",
+    "service_name": "checkout-api",
+    "status": "ERROR",
+    "duration_ms": 214,
+    "span_count": 4,
+    "root_span": "POST /checkout",
+    "error_message": "pricing returned 503",
+    "started_at": "2026-10-20T11:12:00Z",
+    "error_spans": [
+      {
+        "name": "POST /checkout",
+        "duration_ms": 214,
+        "status": "ERROR"
+      },
+      {
+        "name": "GET pricing.platform/v1/price",
+        "duration_ms": 31,
+        "status": "ERROR",
+        "attributes": {
+          "http.status_code": 503,
+          "server.address": "pricing.platform.svc.cluster.local"
+        }
+      }
+    ]
+  },
+  {
+    "trace_id": "000000000000000000000000007b2e02",
+    "service_name": "pricing",
+    "status": "ERROR",
+    "duration_ms": 31,
+    "span_count": 3,
+    "root_span": "GET /v1/price",
+    "error_message": "OOM command not allowed when used memory > 'maxmemory'.",
+    "started_at": "2026-10-20T11:12:00Z",
+    "error_spans": [
+      {
+        "name": "GET /v1/price",
+        "duration_ms": 31,
+        "status": "ERROR"
+      },
+      {
+        "name": "SET",
+        "duration_ms": 2,
+        "status": "ERROR",
+        "attributes": {
+          "db.system": "redis",
+          "server.address": "redis.cache.svc.cluster.local"
+        }
+      }
+    ]
+  }
+]

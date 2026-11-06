@@ -1,0 +1,86 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "checkout-api-6d9f7c8b5-32d2c",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "checkout-api"
+    },
+    "values": [
+      [
+        "1792494060000000000",
+        "level=error msg=\"price lookup failed\" upstream=pricing.platform.svc.cluster.local status=503"
+      ],
+      [
+        "1792494360000000000",
+        "level=error msg=\"price lookup failed\" upstream=pricing.platform.svc.cluster.local status=503"
+      ],
+      [
+        "1792494780000000000",
+        "level=error msg=\"price lookup failed\" upstream=pricing.platform.svc.cluster.local status=503"
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "checkout-api-6d9f7c8b5-34c1b",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "checkout-api"
+    },
+    "values": [
+      [
+        "1792494060000000000",
+        "level=error msg=\"price lookup failed\" upstream=pricing.platform.svc.cluster.local status=503"
+      ],
+      [
+        "1792494360000000000",
+        "level=error msg=\"price lookup failed\" upstream=pricing.platform.svc.cluster.local status=503"
+      ],
+      [
+        "1792494780000000000",
+        "level=error msg=\"price lookup failed\" upstream=pricing.platform.svc.cluster.local status=503"
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "pricing-59d8c7b6f-b2faf",
+      "k8s_namespace_name": "platform",
+      "k8s_container_name": "pricing"
+    },
+    "values": [
+      [
+        "1792494060000000000",
+        "level=error msg=\"cache write failed\" addr=redis.cache.svc.cluster.local:6379 err=\"OOM command not allowed when used memory > 'maxmemory'.\""
+      ],
+      [
+        "1792494240000000000",
+        "level=error msg=\"cache write failed\" addr=redis.cache.svc.cluster.local:6379 err=\"OOM command not allowed when used memory > 'maxmemory'.\""
+      ],
+      [
+        "1792494540000000000",
+        "level=error msg=\"cache write failed\" addr=redis.cache.svc.cluster.local:6379 err=\"OOM command not allowed when used memory > 'maxmemory'.\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "pricing-59d8c7b6f-b4e9e",
+      "k8s_namespace_name": "platform",
+      "k8s_container_name": "pricing"
+    },
+    "values": [
+      [
+        "1792494060000000000",
+        "level=error msg=\"cache write failed\" addr=redis.cache.svc.cluster.local:6379 err=\"OOM command not allowed when used memory > 'maxmemory'.\""
+      ],
+      [
+        "1792494240000000000",
+        "level=error msg=\"cache write failed\" addr=redis.cache.svc.cluster.local:6379 err=\"OOM command not allowed when used memory > 'maxmemory'.\""
+      ],
+      [
+        "1792494540000000000",
+        "level=error msg=\"cache write failed\" addr=redis.cache.svc.cluster.local:6379 err=\"OOM command not allowed when used memory > 'maxmemory'.\""
+      ]
+    ]
+  }
+]

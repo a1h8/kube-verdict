@@ -1,0 +1,16 @@
+[
+  {
+    "revision": 4,
+    "updated": "2026-09-20T08:00:00Z",
+    "status": "superseded",
+    "chart": "inventory-1.9.0",
+    "description": "Upgrade complete"
+  },
+  {
+    "revision": 5,
+    "updated": "2026-10-18T22:40:00Z",
+    "status": "deployed",
+    "chart": "inventory-2.0.0",
+    "description": "Upgrade complete"
+  }
+]

@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pricing
+  namespace: platform
+  uid: dep-platform-pricing
+  labels:
+    app.kubernetes.io/name: pricing
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: pricing
+    meta.helm.sh/release-namespace: platform
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pricing
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pricing
+    spec:
+      containers:
+      - name: pricing
+        image: ghcr.io/acme/pricing:1.8.0
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          periodSeconds: 10

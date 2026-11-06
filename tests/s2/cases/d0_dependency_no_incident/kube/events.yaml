@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: inventory-7b9c8d6f4-e61e1.unhealthy.-1d4c0
+    namespace: platform
+    uid: evt-platform-inventory-7b9c8d6f4-e61e1-unhealthy--1d4c0
+  type: Warning
+  reason: Unhealthy
+  message: 'Readiness probe failed: Get "http://10.42.1.39:9090/ready": dial tcp 10.42.1.39:9090: connect: connection refused'
+  involvedObject:
+    kind: Pod
+    name: inventory-7b9c8d6f4-e61e1
+    namespace: platform
+  count: 1
+  firstTimestamp: '2026-10-18T22:40:00Z'
+  lastTimestamp: '2026-10-18T22:40:00Z'
+  reportingComponent: kubelet

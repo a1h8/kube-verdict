@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: inventory-7b9c8d6f4-e61e1.unhealthy.-1d4c0
+    namespace: platform
+    uid: evt-platform-inventory-7b9c8d6f4-e61e1-unhealthy--1d4c0
+  type: Warning
+  reason: Unhealthy
+  message: 'Readiness probe failed: Get "http://10.42.1.39:9090/ready": dial tcp 10.42.1.39:9090: connect: connection refused'
+  involvedObject:
+    kind: Pod
+    name: inventory-7b9c8d6f4-e61e1
+    namespace: platform
+  count: 1
+  firstTimestamp: '2026-10-18T22:40:00Z'
+  lastTimestamp: '2026-10-18T22:40:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: pricing.scalingreplicaset.0
+    namespace: platform
+    uid: evt-platform-pricing-scalingreplicaset-0
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set pricing-59d8c7b6f to 3
+  involvedObject:
+    kind: Deployment
+    name: pricing
+    namespace: platform
+  count: 1
+  firstTimestamp: '2026-10-20T08:00:00Z'
+  lastTimestamp: '2026-10-20T08:00:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: pricing.scalingreplicaset.2c88
+    namespace: platform
+    uid: evt-platform-pricing-scalingreplicaset-2c88
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set pricing-59d8c7b6f to 5 from 3
+  involvedObject:
+    kind: Deployment
+    name: pricing
+    namespace: platform
+  count: 1
+  firstTimestamp: '2026-10-20T11:10:00Z'
+  lastTimestamp: '2026-10-20T11:10:00Z'
+  reportingComponent: deployment-controller

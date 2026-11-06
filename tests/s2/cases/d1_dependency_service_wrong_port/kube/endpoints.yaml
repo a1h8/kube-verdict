@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: EndpointsList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: checkout-api
+    namespace: shop
+  subsets:
+  - addresses:
+    - ip: 10.42.1.30
+      targetRef:
+        kind: Pod
+        name: checkout-api-6d9f7c8b5-32d2c
+    - ip: 10.42.2.31
+      targetRef:
+        kind: Pod
+        name: checkout-api-6d9f7c8b5-34c1b
+    - ip: 10.42.3.32
+      targetRef:
+        kind: Pod
+        name: checkout-api-6d9f7c8b5-36b0a
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: cart-api
+    namespace: shop
+  subsets:
+  - addresses:
+    - ip: 10.42.2.33
+      targetRef:
+        kind: Pod
+        name: cart-api-5d6f8c7b9-cc8c8
+    - ip: 10.42.3.34
+      targetRef:
+        kind: Pod
+        name: cart-api-5d6f8c7b9-ce7b7
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: web
+    namespace: shop
+  subsets:
+  - addresses:
+    - ip: 10.42.3.36
+      targetRef:
+        kind: Pod
+        name: web-8c7b6d5f9-4cb4b
+    - ip: 10.42.1.37
+      targetRef:
+        kind: Pod
+        name: web-8c7b6d5f9-4ea3a
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: inventory
+    namespace: platform
+  subsets:
+  - addresses:
+    - ip: 10.42.1.39
+      targetRef:
+        kind: Pod
+        name: inventory-7b9c8d6f4-e61e1
+    - ip: 10.42.2.40
+      targetRef:
+        kind: Pod
+        name: inventory-7b9c8d6f4-e80d0
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: pricing
+    namespace: platform
+  subsets:
+  - addresses:
+    - ip: 10.42.2.42
+      targetRef:
+        kind: Pod
+        name: pricing-59d8c7b6f-b2faf
+    - ip: 10.42.3.43
+      targetRef:
+        kind: Pod
+        name: pricing-59d8c7b6f-b4e9e
+    - ip: 10.42.1.44
+      targetRef:
+        kind: Pod
+        name: pricing-59d8c7b6f-b6d8d
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: catalog
+    namespace: platform
+  subsets:
+  - addresses:
+    - ip: 10.42.3.45
+      targetRef:
+        kind: Pod
+        name: catalog-6f7b8c9d5-b2faf
+    - ip: 10.42.1.46
+      targetRef:
+        kind: Pod
+        name: catalog-6f7b8c9d5-b4e9e
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: redis
+    namespace: cache
+  subsets:
+  - addresses:
+    - ip: 10.42.1.48
+      targetRef:
+        kind: Pod
+        name: redis-84c9d7b6f-7fd7d
+    ports:
+    - port: 6379
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: prometheus-server
+    namespace: monitoring
+  subsets:
+  - addresses:
+    - ip: 10.42.2.51
+      targetRef:
+        kind: Pod
+        name: prometheus-server-5b6c7d8e9-b2aa9
+    ports:
+    - port: 9090

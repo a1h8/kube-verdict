@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: NamespaceList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: shop
+    uid: ns-shop
+    labels:
+      kubernetes.io/metadata.name: shop
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: platform
+    uid: ns-platform
+    labels:
+      kubernetes.io/metadata.name: platform
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: cache
+    uid: ns-cache
+    labels:
+      kubernetes.io/metadata.name: cache
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: monitoring
+    uid: ns-monitoring
+    labels:
+      kubernetes.io/metadata.name: monitoring
