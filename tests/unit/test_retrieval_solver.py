@@ -45,7 +45,7 @@ def test_the_top_record_answers_above_the_threshold(tmp_path, monkeypatch):
 def test_below_the_threshold_r0_abstains(tmp_path, monkeypatch):
     monkeypatch.setattr(nodes, "EXAMPLE_MATCH_THRESHOLD", 1e9)
     r = vr.solve_retrieval(H001, _corpus(tmp_path, "payment-service pods keep crashing in production"))
-    assert r["matched"] is None and r["root_cause"] == "" and r["confidence"] == "LOW"
+    assert r["matched"] is None and r["root_cause"] == vr.NO_HYPOTHESIS and r["confidence"] == "LOW"
     assert r["veracity"] == "FAIL" and r["top"]                     # scored, not taken
 
 

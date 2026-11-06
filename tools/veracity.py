@@ -14,13 +14,16 @@ Fields read from ``expect``:
   root cause is a FAIL, even when the keywords above match.
 - ``expected_outcome`` — ``cause`` (default), ``no_incident`` or
   ``insufficient_evidence``. For the last two the answer PASSes when its
-  confidence label is LOW and it names no forbidden keyword.
+  confidence label is LOW and it names no forbidden keyword; a ``no_incident``
+  answer must also open by saying there is no incident, with no "but" after it
+  (protocol 002, amendment A2: an invented "paused Deployment" passed before).
 - ``expected_verdict`` — when set, the policy verdict must equal it
   (h022: ``HUMAN_REVIEW``, nothing to approve and nothing to block).
 """
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -28,6 +31,17 @@ import yaml
 from decision.labels import normalize_label  # noqa: F401 — one normaliser (fix plan 001, H20)
 
 OUTCOMES = ("cause", "no_incident", "insufficient_evidence")
+
+# protocol 002, amendment A2: the answer itself says there is no incident, and claims nothing after it
+_NO_INCIDENT = re.compile(r"^[\W_]*(there is no|there's no|no)\s+(clear |active |current )?incident\b"
+                          r"|^[\W_]*nothing is wrong\b")
+_BUT = re.compile(r"\b(but|however|although|except|yet)\b")
+
+
+def states_no_incident(text: str) -> bool:
+    """The answer opens with "no incident" (or "nothing is wrong") and adds no fault after it."""
+    t = (text or "").strip().lower()
+    return bool(_NO_INCIDENT.search(t)) and not _BUT.search(t)
 
 
 _SYNONYMS_FILE = Path(__file__).resolve().parent.parent / "tests/veracity/synonyms.yaml"
@@ -119,9 +133,12 @@ def grade(root_cause: str, expect: dict, confidence: str = "", verdict: str = ""
             reason = f"{outcome}: confidence {label or 'missing'}, LOW expected"
         elif forbidden:
             reason = f"{outcome}: names a cause anyway: {forbidden}"
+        elif outcome == "no_incident" and not states_no_incident(root_cause):
+            reason = "no_incident: the answer does not say there is no incident"
         else:
             reason = f"{outcome}: LOW and no cause named"
-        passed = label == "LOW" and not forbidden
+        passed = label == "LOW" and not forbidden and (
+            outcome != "no_incident" or states_no_incident(root_cause))
 
     expected_verdict = expect.get("expected_verdict")
     if passed and expected_verdict and (verdict or "") != expected_verdict:
