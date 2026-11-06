@@ -20,9 +20,9 @@ deferred:        protocol 001's C3 and CPI-18 (protocol 001, amendment 2026-10-2
 not_applied:     the decisions on choices 4 and 6: the code has not changed yet
 known_bias:      the rules were written and tuned on the 19 cases — structured 19/19 is
                  in-sample: an upper bound of the pipeline's advantage, not a generalisation;
-                 the grading keywords come from the same cases and favour the diagnosis's wording
-                 (h013, h016 reread after block B): the gap to the models is overstated by an
-                 amount not measured yet
+                 the grading keywords come from the same cases: too strict on the models'
+                 causes, too lenient on cases with no incident (an invented "paused deployment"
+                 passes); one external blind pass keeps the gap wide, a second is needed
 ```
 
 ## 1. The choices
