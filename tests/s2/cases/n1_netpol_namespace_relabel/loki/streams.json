@@ -1,0 +1,65 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "checkout-api-6d9f7c8b5-32d2c",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "checkout-api"
+    },
+    "values": [
+      [
+        "1792483260000000000",
+        "level=error msg=\"payment authorization failed\" upstream=payments.pay.svc.cluster.local:8443 err=\"dial tcp 10.43.12.9:8443: i/o timeout\""
+      ],
+      [
+        "1792483500000000000",
+        "level=error msg=\"payment authorization failed\" upstream=payments.pay.svc.cluster.local:8443 err=\"dial tcp 10.43.12.9:8443: i/o timeout\""
+      ],
+      [
+        "1792483800000000000",
+        "level=error msg=\"payment authorization failed\" upstream=payments.pay.svc.cluster.local:8443 err=\"dial tcp 10.43.12.9:8443: i/o timeout\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "checkout-api-6d9f7c8b5-34c1b",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "checkout-api"
+    },
+    "values": [
+      [
+        "1792483260000000000",
+        "level=error msg=\"payment authorization failed\" upstream=payments.pay.svc.cluster.local:8443 err=\"dial tcp 10.43.12.9:8443: i/o timeout\""
+      ],
+      [
+        "1792483500000000000",
+        "level=error msg=\"payment authorization failed\" upstream=payments.pay.svc.cluster.local:8443 err=\"dial tcp 10.43.12.9:8443: i/o timeout\""
+      ],
+      [
+        "1792483800000000000",
+        "level=error msg=\"payment authorization failed\" upstream=payments.pay.svc.cluster.local:8443 err=\"dial tcp 10.43.12.9:8443: i/o timeout\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "orders-db-6c7d8b9f4-e61e1",
+      "k8s_namespace_name": "data",
+      "k8s_container_name": "orders-db"
+    },
+    "values": [
+      [
+        "1792472100000000000",
+        "FATAL:  sorry, too many clients already"
+      ],
+      [
+        "1792472160000000000",
+        "FATAL:  sorry, too many clients already"
+      ],
+      [
+        "1792472280000000000",
+        "FATAL:  sorry, too many clients already"
+      ]
+    ]
+  }
+]

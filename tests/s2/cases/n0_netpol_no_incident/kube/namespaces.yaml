@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: NamespaceList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: shop
+    uid: ns-shop
+    labels:
+      kubernetes.io/metadata.name: shop
+      team: storefront
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: pay
+    uid: ns-pay
+    labels:
+      kubernetes.io/metadata.name: pay
+      team: payments
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: data
+    uid: ns-data
+    labels:
+      kubernetes.io/metadata.name: data
+      team: data
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: kube-system
+    uid: ns-kube-system
+    labels:
+      kubernetes.io/metadata.name: kube-system

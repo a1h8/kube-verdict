@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: coredns-7db6d8ff4-b2faf.started.-16da0
+    namespace: kube-system
+    uid: evt-kube-system-coredns-7db6d8ff4-b2faf-started--16da0
+  type: Normal
+  reason: Started
+  message: Started container coredns
+  involvedObject:
+    kind: Pod
+    name: coredns-7db6d8ff4-b2faf
+    namespace: kube-system
+  count: 1
+  firstTimestamp: '2026-10-19T06:00:00Z'
+  lastTimestamp: '2026-10-19T06:00:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: payments.scalingreplicaset.-4b0
+    namespace: pay
+    uid: evt-pay-payments-scalingreplicaset--4b0
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set payments-9d8c7f6b5 to 3
+  involvedObject:
+    kind: Deployment
+    name: payments
+    namespace: pay
+  count: 1
+  firstTimestamp: '2026-10-20T07:40:00Z'
+  lastTimestamp: '2026-10-20T07:40:00Z'
+  reportingComponent: deployment-controller

@@ -70,7 +70,7 @@ lenient on a case with no incident (an invented "paused deployment" passed, beca
 for a LOW label and no forbidden word). For S2:
 
 - **Primary: the cause object and its mechanism.** `expect.json` names the cause as `kind/namespace/name`
-  and states the mechanism in one sentence. An answer passes when it names that object and that mechanism.
+  and states the mechanism in one sentence (`kind/name` for a cluster-scoped object such as a Namespace). An answer passes when it names that object and that mechanism.
 - **Graded blind by two graders,** not told which arm wrote each answer, with the instructions written
   before any run: two models from different providers, or one person and one model. Their agreement is
   reported; a disagreement goes to a third reading, and the case is reported as disputed.

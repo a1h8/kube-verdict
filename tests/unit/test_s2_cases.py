@@ -1,0 +1,75 @@
+"""S2's families (docs/s2/): the committed fixtures are what the builders write, they load, the quota
+arithmetic holds, and nothing in them names the cause or a decoy."""
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+import yaml
+
+from tests.integration.cases.case_loader import build_graph, load_case
+
+ROOT = Path(__file__).resolve().parents[2]
+CASES = ROOT / "tests/s2/cases"
+NAMES = ["q0_quota_no_incident", "q1_quota_filled_by_request_drift", "q2_quota_filled_by_stuck_jobs",
+         "n0_netpol_no_incident", "n1_netpol_namespace_relabel", "n2_netpol_pod_labels_changed"]
+BUILDERS = ["build_family_quota.py", "build_family_netpol.py"]
+
+
+def _used(case: str) -> dict:
+    return yaml.safe_load((CASES / case / "kube/quota.yaml").read_text())["status"]["used"]
+
+
+def test_the_fixtures_are_what_the_builder_writes(tmp_path):
+    before = {p.relative_to(CASES): p.read_bytes() for p in CASES.rglob("*") if p.is_file()}
+    for builder in BUILDERS:
+        subprocess.run([sys.executable, str(ROOT / "tests/s2" / builder)], check=True, cwd=ROOT, capture_output=True)
+    after = {p.relative_to(CASES): p.read_bytes() for p in CASES.rglob("*") if p.is_file()}
+    assert after == before
+
+
+@pytest.mark.parametrize("case", NAMES)
+def test_each_case_loads_with_the_products_loader(case):
+    graph = build_graph(load_case(CASES / case))
+    assert any(e.kind.value == "Pod" for e in graph.entities())
+
+
+def test_the_netpol_cases_break_only_by_labels():
+    import yaml as _y
+    ns = {d["metadata"]["name"]: d["metadata"]["labels"] for d in _y.safe_load((CASES / "n1_netpol_namespace_relabel/kube/namespaces.yaml").read_text())["items"]}
+    assert ns["shop"]["team"] == "shop"                                                  # n1: the relabel
+    ok = {d["metadata"]["name"]: d["metadata"]["labels"] for d in _y.safe_load((CASES / "n0_netpol_no_incident/kube/namespaces.yaml").read_text())["items"]}
+    assert ok["shop"]["team"] == "storefront"                                            # control
+    pods = _y.safe_load((CASES / "n2_netpol_pod_labels_changed/kube/pods.yaml").read_text())["items"]
+    orders = [p for p in pods if p["metadata"]["name"].startswith("orders-api-")]
+    assert orders and all("app" not in p["metadata"]["labels"] for p in orders)             # n2: the label is gone
+
+
+def test_the_quotas_are_full_where_the_chain_says_and_only_there():
+    assert _used("q1_quota_filled_by_request_drift")["requests.memory"] == "31Gi"   # + a 2Gi pod > 32Gi
+    assert _used("q2_quota_filled_by_stuck_jobs")["pods"] == "40"                  # the limit
+    healthy = _used("q0_quota_no_incident")
+    assert healthy["requests.memory"] == "15Gi" and healthy["pods"] == "15"       # control: room left
+
+
+@pytest.mark.parametrize("case", NAMES)
+def test_no_fixture_names_the_answer(case):
+    for path in (CASES / case).rglob("*"):
+        if path.is_file() and path.name != "expect.json":
+            text = path.read_text().lower()
+            assert not any(w in text for w in ("decoy", "cause", "why_not", "s2", "q1_", "q2_", "q0_",
+                                               "n1_", "n2_", "n0_")), path
+
+
+@pytest.mark.parametrize("case", NAMES)
+def test_every_case_states_its_answer(case):
+    expect = json.loads((CASES / case / "expect.json").read_text())
+    assert expect["set"] == "S2" and expect["family"] in ("quota", "netpol") and expect["sources"]
+    if expect["expected_outcome"] == "cause":
+        kind = expect["cause_object"].split("/")[0]
+        slashes = 1 if kind in ("Namespace", "Node", "ClusterRole", "PersistentVolume") else 2   # cluster-scoped
+        assert expect["cause_object"].count("/") == slashes and expect["mechanism"] and len(expect["chain"]) >= 3
+    assert len(expect["decoys"]) >= 2

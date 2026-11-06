@@ -1,0 +1,23 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "orders-db-6c7d8b9f4-e61e1",
+      "k8s_namespace_name": "data",
+      "k8s_container_name": "orders-db"
+    },
+    "values": [
+      [
+        "1792472100000000000",
+        "FATAL:  sorry, too many clients already"
+      ],
+      [
+        "1792472160000000000",
+        "FATAL:  sorry, too many clients already"
+      ],
+      [
+        "1792472280000000000",
+        "FATAL:  sorry, too many clients already"
+      ]
+    ]
+  }
+]

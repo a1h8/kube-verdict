@@ -1,0 +1,17 @@
+{
+  "image": {
+    "repository": "ghcr.io/acme/checkout-api",
+    "tag": "1.9.2"
+  },
+  "replicaCount": 3,
+  "resources": {
+    "requests": {
+      "cpu": "200m",
+      "memory": "256Mi"
+    },
+    "limits": {
+      "cpu": "1",
+      "memory": "512Mi"
+    }
+  }
+}
