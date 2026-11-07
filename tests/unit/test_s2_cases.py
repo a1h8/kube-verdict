@@ -16,8 +16,10 @@ ROOT = Path(__file__).resolve().parents[2]
 CASES = ROOT / "tests/s2/cases"
 NAMES = ["q0_quota_no_incident", "q1_quota_filled_by_request_drift", "q2_quota_filled_by_stuck_jobs",
          "n0_netpol_no_incident", "n1_netpol_namespace_relabel", "n2_netpol_pod_labels_changed",
-         "d0_dependency_no_incident", "d1_dependency_service_wrong_port", "d2_dependency_redis_full"]
-BUILDERS = ["build_family_quota.py", "build_family_netpol.py", "build_family_dependency.py"]
+         "d0_dependency_no_incident", "d1_dependency_service_wrong_port", "d2_dependency_redis_full",
+         "l0_limitrange_no_incident", "l1_limitrange_default_injected", "l2_limitrange_max_lowered"]
+BUILDERS = ["build_family_quota.py", "build_family_netpol.py", "build_family_dependency.py",
+            "build_family_limitrange.py"]
 
 
 def _used(case: str) -> dict:
@@ -60,6 +62,22 @@ def test_the_dependency_cases_break_where_the_chain_says():
     assert "maxmemory" not in (CASES / "d0_dependency_no_incident/loki/streams.json").read_text()
 
 
+def test_the_limitrange_cases_set_what_the_chain_says():
+    import yaml as _y
+    def lr(case):
+        return _y.safe_load((CASES / case / "kube/limitrange.yaml").read_text())["spec"]["limits"][0]
+    def worker_limit(case):
+        pods = _y.safe_load((CASES / case / "kube/pods.yaml").read_text())["items"]
+        p = [p for p in pods if p["metadata"]["name"].startswith("report-worker-")][0]
+        return p["spec"]["containers"][0]["resources"]["limits"]["memory"], p["metadata"]["annotations"]
+    limit, ann = worker_limit("l1_limitrange_default_injected")
+    assert limit == "256Mi" == lr("l1_limitrange_default_injected")["default"]["memory"]
+    assert "kubernetes.io/limit-ranger" in ann                                          # set by admission
+    assert lr("l2_limitrange_max_lowered")["max"]["memory"] == "1Gi"
+    assert lr("l0_limitrange_no_incident")["max"]["memory"] == "4Gi"                    # control
+    assert worker_limit("l0_limitrange_no_incident")[0] == "1Gi"
+
+
 def test_the_quotas_are_full_where_the_chain_says_and_only_there():
     assert _used("q1_quota_filled_by_request_drift")["requests.memory"] == "31Gi"   # + a 2Gi pod > 32Gi
     assert _used("q2_quota_filled_by_stuck_jobs")["pods"] == "40"                  # the limit
@@ -73,13 +91,14 @@ def test_no_fixture_names_the_answer(case):
         if path.is_file() and path.name != "expect.json":
             text = path.read_text().lower()
             assert not any(w in text for w in ("decoy", "cause", "why_not", "s2", "q1_", "q2_", "q0_",
-                                               "n1_", "n2_", "n0_", "d1_", "d2_", "d0_")), path
+                                               "n1_", "n2_", "n0_", "d1_", "d2_", "d0_",
+                                               "l1_", "l2_", "l0_")), path
 
 
 @pytest.mark.parametrize("case", NAMES)
 def test_every_case_states_its_answer(case):
     expect = json.loads((CASES / case / "expect.json").read_text())
-    assert expect["set"] == "S2" and expect["family"] in ("quota", "netpol", "dependency") and expect["sources"]
+    assert expect["set"] == "S2" and expect["family"] in ("quota", "netpol", "dependency", "limitrange") and expect["sources"]
     if expect["expected_outcome"] == "cause":
         kind = expect["cause_object"].split("/")[0]
         slashes = 1 if kind in ("Namespace", "Node", "ClusterRole", "PersistentVolume") else 2   # cluster-scoped

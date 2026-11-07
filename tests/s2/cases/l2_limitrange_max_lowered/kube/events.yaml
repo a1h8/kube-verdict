@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: worker-node-02.nodenotschedulable.-1d4c0
+    namespace: default
+    uid: evt-default-worker-node-02-nodenotschedulable--1d4c0
+  type: Normal
+  reason: NodeNotSchedulable
+  message: 'Node worker-node-02 status is now: NodeNotSchedulable'
+  involvedObject:
+    kind: Node
+    name: worker-node-02
+    namespace: default
+  count: 1
+  firstTimestamp: '2026-10-18T22:40:00Z'
+  lastTimestamp: '2026-10-18T22:40:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: worker-node-02.nodeschedulable.-1d178
+    namespace: default
+    uid: evt-default-worker-node-02-nodeschedulable--1d178
+  type: Normal
+  reason: NodeSchedulable
+  message: 'Node worker-node-02 status is now: NodeSchedulable'
+  involvedObject:
+    kind: Node
+    name: worker-node-02
+    namespace: default
+  count: 1
+  firstTimestamp: '2026-10-18T22:54:00Z'
+  lastTimestamp: '2026-10-18T22:54:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: search-api.scalingreplicaset.384
+    namespace: shop
+    uid: evt-shop-search-api-scalingreplicaset-384
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set search-api-7c8d9b6f5 to 1
+  involvedObject:
+    kind: Deployment
+    name: search-api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:15:00Z'
+  lastTimestamp: '2026-10-20T08:15:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: search-api-7c8d9b6f5.failedcreate.384
+    namespace: shop
+    uid: evt-shop-search-api-7c8d9b6f5-failedcreate-384
+  type: Warning
+  reason: FailedCreate
+  message: 'Error creating: pods "search-api-7c8d9b6f5-v2kq8" is forbidden: maximum memory usage per Container is 1Gi, but
+    limit is 2Gi'
+  involvedObject:
+    kind: ReplicaSet
+    name: search-api-7c8d9b6f5
+    namespace: shop
+  count: 8
+  firstTimestamp: '2026-10-20T08:15:00Z'
+  lastTimestamp: '2026-10-20T08:29:00Z'
+  reportingComponent: replicaset-controller
