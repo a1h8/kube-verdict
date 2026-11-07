@@ -94,9 +94,16 @@ for a LOW label and no forbidden word). For S2:
    it counts ConfigMaps as covered without building any, so an applied ConfigMap is reported absent; and it does not
    carry a Deployment's image where the applied-vs-live comparison reads it; and it reads no MutatingWebhookConfiguration, which the live policy collector adds
    to the graph (found 2026-11-07). Measured as it is, S2 would understate the
-   product. The fix uses the collector's own code where it can, as H14 asked. S1 is frozen with the loader, so the fix
-   is its own dated change: S1 replayed with the structured solver before and after, the difference published, and
-   block B's results left as they are, stated as made with the old loader.
+   product. *Decided 2026-11-07 (option B):* S2's graph is built by the product's own collectors, `K8sCollector` and
+   the policy collector, served the case's fixtures by `tests/integration/fake_kube_api.py`, then completed with the
+   loader's other steps (alerts, logs, traces, the Helm release, drift). Parity is then by construction, not by copying
+   each behaviour into the loader. S1 keeps its loader, unchanged, so its results and block B's stand as they are; S1
+   and S2 are built differently, which is stated wherever both appear. Moving S1 to the same path later is its own
+   dated change, measured before and after.
+   *Done 2026-11-07:* `tests/s2/live_graph.py`, checked by `tests/unit/test_s2_live_graph.py` against the loader graph
+   of the same cases: Services and their `EXPOSES` edges, ConfigMaps (none reported absent), the applied-vs-live image
+   drift, and the webhook as a node are all there. Two things the API always returns and the fixtures lacked were added
+   before any run: a Namespace's phase (filled when served) and a ReplicaSet's selector (in the builders).
 1. The two amendments below, approved and dated.
 2. The fix to the negative-case grading, with its test and its control.
 3. The volume, computed from block B's discordant pairs, as protocol 002 requires, written before any run.

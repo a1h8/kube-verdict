@@ -75,12 +75,12 @@ def build(variant: str) -> None:
         rss.append({"apiVersion": "apps/v1", "kind": "ReplicaSet",
                     "metadata": {"name": f"{app}-{RS[app]}", "namespace": "shop",
                                  "ownerReferences": [{"kind": "Deployment", "name": app, "controller": True}]},
-                    "spec": {"replicas": n}, "status": {"replicas": n, "readyReplicas": n}})
+                    "spec": {"selector": {"matchLabels": {"app.kubernetes.io/name": app}}, "replicas": n}, "status": {"replicas": n, "readyReplicas": n}})
         if stuck:
             rss.append({"apiVersion": "apps/v1", "kind": "ReplicaSet",
                         "metadata": {"name": f"search-api-{SEARCH_NEW_RS}", "namespace": "shop",
                                      "ownerReferences": [{"kind": "Deployment", "name": app, "controller": True}]},
-                        "spec": {"replicas": 1}, "status": {"replicas": 0, "readyReplicas": 0,
+                        "spec": {"selector": {"matchLabels": {"app.kubernetes.io/name": app}}, "replicas": 1}, "status": {"replicas": 0, "readyReplicas": 0,
                                                             "conditions": [{"type": "ReplicaFailure", "status": "True",
                                                                             "reason": "FailedCreate"}]}})
         for i in range(n):

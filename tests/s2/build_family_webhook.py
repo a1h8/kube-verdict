@@ -116,13 +116,13 @@ def build(variant: str) -> None:
         rss.append({"apiVersion": "apps/v1", "kind": "ReplicaSet",
                     "metadata": {"name": f"{app}-{RS[app]}", "namespace": "shop",
                                  "ownerReferences": [{"kind": "Deployment", "name": app, "controller": True}]},
-                    "spec": {"replicas": 0 if (rolling and variant == "w0") else n},
+                    "spec": {"selector": {"matchLabels": {"app.kubernetes.io/name": app}}, "replicas": 0 if (rolling and variant == "w0") else n},
                     "status": {"replicas": 0 if (rolling and variant == "w0") else n}})
         if rolling:
             rss.append({"apiVersion": "apps/v1", "kind": "ReplicaSet",
                         "metadata": {"name": f"{app}-{NEW_RS[app]}", "namespace": "shop",
                                      "ownerReferences": [{"kind": "Deployment", "name": app, "controller": True}]},
-                        "spec": {"replicas": 1 if variant != "w0" else n},
+                        "spec": {"selector": {"matchLabels": {"app.kubernetes.io/name": app}}, "replicas": 1 if variant != "w0" else n},
                         "status": {"replicas": 0 if variant == "w2" else (1 if variant == "w1" else n)}})
             if variant == "w1":
                 pods.append(shop_pod(app, NEW_RS[app], 0, dtag, 20, variant))

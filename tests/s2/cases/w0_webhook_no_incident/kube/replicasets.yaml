@@ -12,6 +12,9 @@ items:
       name: cart-api
       controller: true
   spec:
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: cart-api
     replicas: 0
   status:
     replicas: 0
@@ -25,6 +28,9 @@ items:
       name: cart-api
       controller: true
   spec:
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: cart-api
     replicas: 2
   status:
     replicas: 2
@@ -38,6 +44,9 @@ items:
       name: web
       controller: true
   spec:
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: web
     replicas: 2
   status:
     replicas: 2
@@ -51,6 +60,9 @@ items:
       name: orders-api
       controller: true
   spec:
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: orders-api
     replicas: 2
   status:
     replicas: 2
@@ -64,6 +76,9 @@ items:
       name: checkout
       controller: true
   spec:
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: checkout
     replicas: 2
   status:
     replicas: 2
