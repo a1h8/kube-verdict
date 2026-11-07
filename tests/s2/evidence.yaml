@@ -293,3 +293,43 @@ w2_webhook_fails_closed_expired_cert:
     contains: "issuer mesh-ca not found"
     join: null
 
+c1_configmap_env_changed:
+  - hop: new pods of cart-api and checkout crash on an unknown database host
+    file: loki/streams.json
+    contains: "lookup orders-db-v2.data.svc.cluster.local: no such host"
+    join: where their DB_HOST comes from
+  - hop: they take their environment from ConfigMap shop-env
+    file: kube/deployments.yaml
+    contains: "configMapRef:"
+    join: the ConfigMap's name, shop-env
+  - hop: shop-env's DB_HOST is orders-db-v2
+    file: kube/configmaps.yaml
+    contains: "DB_HOST: orders-db-v2.data.svc.cluster.local"
+    join: who changed it, and when
+  - hop: the platform-config release changed it at T0
+    file: helm/history.json
+    contains: "platform-config-1.5.0"
+    join: the pods' start times against T0
+  - hop: the crashing pods started after T0, recreated by a drain
+    file: kube/events.yaml
+    contains: "Node worker-node-02 status is now: NodeNotSchedulable"
+    join: null
+
+c2_configmap_invalid_file:
+  - hop: search-api and web cannot load their flags file
+    file: loki/streams.json
+    contains: "failed to load /etc/flags/features.yaml: yaml: line 7"
+    join: the volume mounted at /etc/flags
+  - hop: both mount ConfigMap feature-flags at /etc/flags
+    file: kube/deployments.yaml
+    contains: "name: feature-flags"
+    join: the ConfigMap's release
+  - hop: feature-flags was updated at T0, revision 10
+    file: helm/history.json
+    contains: "feature-flags-2.2.0"
+    join: the file's content
+  - hop: its features.yaml has a tab on line 7
+    file: kube/configmaps.yaml
+    contains: "\\tsearch-v2"
+    join: null
+

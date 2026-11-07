@@ -28,7 +28,7 @@ def _edges(graph, rel) -> int:
 
 
 def test_every_s2_case_is_built_by_the_collectors(graphs):
-    assert len(graphs) == 18
+    assert len(graphs) == 21
     for name, g in graphs.items():
         assert _count(g, "Pod") and _count(g, "Namespace") >= 3, name
 

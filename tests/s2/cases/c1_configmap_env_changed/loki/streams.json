@@ -1,0 +1,44 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "cart-api-5d6f8c7b9-ce7b7",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "cart-api"
+    },
+    "values": [
+      [
+        "1792484520000000000",
+        "level=fatal msg=\"cannot connect to database\" err=\"dial tcp: lookup orders-db-v2.data.svc.cluster.local: no such host\""
+      ],
+      [
+        "1792484880000000000",
+        "level=fatal msg=\"cannot connect to database\" err=\"dial tcp: lookup orders-db-v2.data.svc.cluster.local: no such host\""
+      ],
+      [
+        "1792485420000000000",
+        "level=fatal msg=\"cannot connect to database\" err=\"dial tcp: lookup orders-db-v2.data.svc.cluster.local: no such host\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "checkout-6d9f7c8b5-cc8c8",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "checkout"
+    },
+    "values": [
+      [
+        "1792484520000000000",
+        "level=fatal msg=\"cannot connect to database\" err=\"dial tcp: lookup orders-db-v2.data.svc.cluster.local: no such host\""
+      ],
+      [
+        "1792484880000000000",
+        "level=fatal msg=\"cannot connect to database\" err=\"dial tcp: lookup orders-db-v2.data.svc.cluster.local: no such host\""
+      ],
+      [
+        "1792485420000000000",
+        "level=fatal msg=\"cannot connect to database\" err=\"dial tcp: lookup orders-db-v2.data.svc.cluster.local: no such host\""
+      ]
+    ]
+  }
+]

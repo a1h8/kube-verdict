@@ -1,0 +1,32 @@
+{
+  "set": "S2",
+  "family": "configmap",
+  "namespace": "shop",
+  "sources": [
+    "https://kubernetes.io/docs/concepts/configuration/configmap/",
+    "prometheus-operator/runbooks@a685d14 KubePodCrashLooping"
+  ],
+  "spec": "docs/s2/family-configmap.md",
+  "release": "platform-config",
+  "scenario": "No incident: the shared ConfigMaps are valid, every pod runs",
+  "query": "is something wrong in shop",
+  "expected_outcome": "no_incident",
+  "cause_object": null,
+  "decoys": [
+    {
+      "object": "Node/worker-node-02 (old drain)",
+      "why_not": "long ago"
+    },
+    {
+      "object": "ConfigMap/shop/search-config",
+      "why_not": "an old, valid change"
+    },
+    {
+      "object": "Deployment/shop/web (redeployed)",
+      "why_not": "rolled out, Ready"
+    }
+  ],
+  "affected_resources": [],
+  "root_cause_contains": [],
+  "notes": "Passes only on an explicit no-incident answer (protocol 002, A2)."
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "revision": 9,
+    "updated": "2026-09-22T13:20:00Z",
+    "status": "superseded",
+    "chart": "feature-flags-2.1.0",
+    "description": "Upgrade complete"
+  },
+  {
+    "revision": 10,
+    "updated": "2026-10-20T08:00:00Z",
+    "status": "deployed",
+    "chart": "feature-flags-2.2.0",
+    "description": "Upgrade complete"
+  }
+]
