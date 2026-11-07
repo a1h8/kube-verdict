@@ -1,0 +1,344 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.-25cb0
+    namespace: shop
+    uid: evt-shop-api-successfulrescale--25cb0
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 8; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-18T13:00:00Z'
+  lastTimestamp: '2026-10-18T13:00:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.-25c92
+    namespace: shop
+    uid: evt-shop-api-successfulrescale--25c92
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 12; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-18T13:00:30Z'
+  lastTimestamp: '2026-10-18T13:00:30Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.-24090
+    namespace: shop
+    uid: evt-shop-api-successfulrescale--24090
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 4; reason: All metrics below target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-18T15:00:00Z'
+  lastTimestamp: '2026-10-18T15:00:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.-10b30
+    namespace: shop
+    uid: evt-shop-api-successfulrescale--10b30
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 8; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-19T13:00:00Z'
+  lastTimestamp: '2026-10-19T13:00:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.-10b12
+    namespace: shop
+    uid: evt-shop-api-successfulrescale--10b12
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 12; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-19T13:00:30Z'
+  lastTimestamp: '2026-10-19T13:00:30Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.-ef10
+    namespace: shop
+    uid: evt-shop-api-successfulrescale--ef10
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 4; reason: All metrics below target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-19T15:00:00Z'
+  lastTimestamp: '2026-10-19T15:00:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.scalingreplicaset.0
+    namespace: shop
+    uid: evt-shop-api-scalingreplicaset-0
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set api-6d8f9c7b5 to 4
+  involvedObject:
+    kind: Deployment
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:00:00Z'
+  lastTimestamp: '2026-10-20T08:00:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.48a8
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-48a8
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 5; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T13:10:00Z'
+  lastTimestamp: '2026-10-20T13:10:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.4b00
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-4b00
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 6; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T13:20:00Z'
+  lastTimestamp: '2026-10-20T13:20:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.4d58
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-4d58
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 7; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T13:30:00Z'
+  lastTimestamp: '2026-10-20T13:30:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.4fb0
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-4fb0
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 8; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T13:40:00Z'
+  lastTimestamp: '2026-10-20T13:40:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.6978
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-6978
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 4; reason: All metrics below target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T15:30:00Z'
+  lastTimestamp: '2026-10-20T15:30:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.19a28
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-19a28
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 5; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-21T13:10:00Z'
+  lastTimestamp: '2026-10-21T13:10:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.19c80
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-19c80
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 6; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-21T13:20:00Z'
+  lastTimestamp: '2026-10-21T13:20:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.19ed8
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-19ed8
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 7; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-21T13:30:00Z'
+  lastTimestamp: '2026-10-21T13:30:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.1a130
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-1a130
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 8; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-21T13:40:00Z'
+  lastTimestamp: '2026-10-21T13:40:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.1baf8
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-1baf8
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 4; reason: All metrics below target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-21T15:30:00Z'
+  lastTimestamp: '2026-10-21T15:30:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.2eba8
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-2eba8
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 5; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-22T13:10:00Z'
+  lastTimestamp: '2026-10-22T13:10:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.2ee00
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-2ee00
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 6; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-22T13:20:00Z'
+  lastTimestamp: '2026-10-22T13:20:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.2f058
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-2f058
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 7; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-22T13:30:00Z'
+  lastTimestamp: '2026-10-22T13:30:00Z'
+  reportingComponent: horizontal-pod-autoscaler

@@ -1,0 +1,31 @@
+[
+  {
+    "labels": {
+      "alertname": "HighLatencyP99",
+      "severity": "warning",
+      "namespace": "shop",
+      "deployment": "api"
+    },
+    "annotations": {
+      "summary": "api p99 latency above 500ms",
+      "description": "p99 latency is 1.9s while traffic rises."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T08:55:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubeAggregatedAPIErrors",
+      "severity": "warning",
+      "name": "v1beta1.custom.metrics.k8s.io"
+    },
+    "annotations": {
+      "summary": "Kubernetes aggregated API has reported errors.",
+      "description": "Kubernetes aggregated API v1beta1.custom.metrics.k8s.io has reported errors."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T08:05:00Z",
+    "value": "1"
+  }
+]

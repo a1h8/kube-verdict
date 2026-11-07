@@ -1,0 +1,57 @@
+{
+  "set": "S2",
+  "family": "quota",
+  "namespace": "shop",
+  "release": "shop",
+  "sources": [
+    "prometheus-operator/runbooks@a685d14 KubeQuotaFullyUsed",
+    "prometheus-operator/runbooks@a685d14 KubeHpaMaxedOut",
+    "prometheus-operator/runbooks@a685d14 KubePodNotReady",
+    "https://kubernetes.io/docs/concepts/policy/resource-quotas/",
+    "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+    "https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/"
+  ],
+  "spec": "docs/s2/family-quota.md",
+  "scenario": "A namespace pod quota refuses search-api's scale-up; Jobs that never finish filled it",
+  "query": "why does search-api not scale up in shop",
+  "expected_outcome": "cause",
+  "cause_object": "CronJob/shop/report-export",
+  "origin_object": "Service/data/reports-db",
+  "mechanism": "report-export starts a Job every 10 minutes with concurrencyPolicy Allow; each waits on reports-db, which has had no ready endpoint since T0, so none finishes and 25 Jobs fill the namespace's pods quota",
+  "partial_if_only": [
+    "Service/data/reports-db"
+  ],
+  "chain": [
+    "search-api's new pods are refused: exceeded quota on pods",
+    "ResourceQuota/shop/shop-quota is at its pods limit",
+    "25 of those pods are Jobs of CronJob/shop/report-export, all Running",
+    "the CronJob runs every 10 minutes with concurrencyPolicy Allow",
+    "each Job waits on Service/data/reports-db, which has no ready endpoint"
+  ],
+  "decoys": [
+    {
+      "object": "Deployment/shop/search-api (CPU above target)",
+      "why_not": "the load the HPA reacts to"
+    },
+    {
+      "object": "Deployment/data/reports-db-proxy",
+      "why_not": "rolled out two hours after the hang began"
+    },
+    {
+      "object": "Deployment/shop/notify-worker",
+      "why_not": "rolled out at T0+2 h 30 min, healthy, unrelated to the quota"
+    },
+    {
+      "object": "Pod/monitoring/prometheus-server (CPUThrottlingHigh)",
+      "why_not": "another namespace"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/search-api"
+  ],
+  "root_cause_concepts": [
+    "report-export|cronjob|cron job",
+    "concurrency|allow|accumulat|pile|never finish|keep running|still running|not finish"
+  ],
+  "notes": "Naming reports-db alone is PARTIAL (decided 2026-11-06)."
+}

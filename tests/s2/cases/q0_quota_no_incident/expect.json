@@ -1,0 +1,40 @@
+{
+  "set": "S2",
+  "family": "quota",
+  "namespace": "shop",
+  "release": "shop",
+  "sources": [
+    "prometheus-operator/runbooks@a685d14 KubeQuotaFullyUsed",
+    "prometheus-operator/runbooks@a685d14 KubeHpaMaxedOut",
+    "prometheus-operator/runbooks@a685d14 KubePodNotReady",
+    "https://kubernetes.io/docs/concepts/policy/resource-quotas/",
+    "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/",
+    "https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/"
+  ],
+  "spec": "docs/s2/family-quota.md",
+  "scenario": "No incident: the same objects as q1 and q2, healthy, with the same harmless drifts",
+  "query": "is something wrong in shop",
+  "expected_outcome": "no_incident",
+  "cause_object": null,
+  "decoys": [
+    {
+      "object": "Deployment/shop/cart-api",
+      "why_not": "newer image patch than applied; every pod is Ready"
+    },
+    {
+      "object": "Pod/shop/billing-worker (old OOMKilled restart)",
+      "why_not": "resolved"
+    },
+    {
+      "object": "Pod/monitoring/prometheus-server (CPUThrottlingHigh)",
+      "why_not": "another namespace, informational"
+    },
+    {
+      "object": "LimitRange/shop/shop-limits",
+      "why_not": "every container declares its own requests"
+    }
+  ],
+  "affected_resources": [],
+  "root_cause_contains": [],
+  "notes": "Passes only on an explicit no-incident answer (protocol 002, A2)."
+}

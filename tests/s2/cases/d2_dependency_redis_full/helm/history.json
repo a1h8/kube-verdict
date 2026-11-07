@@ -1,0 +1,16 @@
+[
+  {
+    "revision": 4,
+    "updated": "2026-09-20T08:00:00Z",
+    "status": "superseded",
+    "chart": "pricing-1.7.0",
+    "description": "Upgrade complete"
+  },
+  {
+    "revision": 5,
+    "updated": "2026-10-20T08:00:00Z",
+    "status": "deployed",
+    "chart": "pricing-1.8.0",
+    "description": "Upgrade complete"
+  }
+]

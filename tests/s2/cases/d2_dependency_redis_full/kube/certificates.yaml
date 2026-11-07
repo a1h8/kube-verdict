@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: shop-tls
+  namespace: shop
+  uid: cert-shop-tls
+spec:
+  secretName: shop-tls
+  dnsNames:
+  - shop.acme.example
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+status:
+  notAfter: '2026-11-01T11:20:00Z'
+  renewalTime: '2026-10-22T11:20:00Z'
+  conditions:
+  - type: Ready
+    status: 'True'

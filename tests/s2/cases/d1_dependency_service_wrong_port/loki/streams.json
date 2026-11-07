@@ -1,0 +1,44 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "checkout-api-6d9f7c8b5-32d2c",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "checkout-api"
+    },
+    "values": [
+      [
+        "1792483260000000000",
+        "level=error msg=\"reserve stock failed\" upstream=inventory.platform.svc.cluster.local:80 err=\"dial tcp 10.43.40.12:80: connect: connection refused\""
+      ],
+      [
+        "1792483620000000000",
+        "level=error msg=\"reserve stock failed\" upstream=inventory.platform.svc.cluster.local:80 err=\"dial tcp 10.43.40.12:80: connect: connection refused\""
+      ],
+      [
+        "1792484100000000000",
+        "level=error msg=\"reserve stock failed\" upstream=inventory.platform.svc.cluster.local:80 err=\"dial tcp 10.43.40.12:80: connect: connection refused\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "checkout-api-6d9f7c8b5-34c1b",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "checkout-api"
+    },
+    "values": [
+      [
+        "1792483260000000000",
+        "level=error msg=\"reserve stock failed\" upstream=inventory.platform.svc.cluster.local:80 err=\"dial tcp 10.43.40.12:80: connect: connection refused\""
+      ],
+      [
+        "1792483620000000000",
+        "level=error msg=\"reserve stock failed\" upstream=inventory.platform.svc.cluster.local:80 err=\"dial tcp 10.43.40.12:80: connect: connection refused\""
+      ],
+      [
+        "1792484100000000000",
+        "level=error msg=\"reserve stock failed\" upstream=inventory.platform.svc.cluster.local:80 err=\"dial tcp 10.43.40.12:80: connect: connection refused\""
+      ]
+    ]
+  }
+]

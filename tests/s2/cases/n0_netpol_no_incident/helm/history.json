@@ -1,0 +1,10 @@
+[
+  {
+    "revision": 7,
+    "updated": "2026-09-20T08:00:00Z",
+    "status": "deployed",
+    "chart": "orders-api-2.4.1",
+    "app_version": "2.4.1",
+    "description": "Upgrade complete"
+  }
+]

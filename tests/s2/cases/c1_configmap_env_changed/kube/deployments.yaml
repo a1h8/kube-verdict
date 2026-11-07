@@ -1,0 +1,295 @@
+apiVersion: v1
+kind: DeploymentList
+metadata: {}
+items:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: cart-api
+    namespace: shop
+    uid: dep-shop-cart-api
+    labels:
+      app.kubernetes.io/name: cart-api
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: cart-api
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: cart-api
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: cart-api
+      spec:
+        containers:
+        - name: cart-api
+          image: ghcr.io/acme/cart-api:2.3.1
+          ports:
+          - containerPort: 8080
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          envFrom:
+          - configMapRef:
+              name: shop-env
+        volumes: []
+  status:
+    replicas: 2
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: checkout
+    namespace: shop
+    uid: dep-shop-checkout
+    labels:
+      app.kubernetes.io/name: checkout
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: checkout
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: checkout
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: checkout
+      spec:
+        containers:
+        - name: checkout
+          image: ghcr.io/acme/checkout:1.9.2
+          ports:
+          - containerPort: 8080
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          envFrom:
+          - configMapRef:
+              name: shop-env
+        volumes: []
+  status:
+    replicas: 2
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: orders-api
+    namespace: shop
+    uid: dep-shop-orders-api
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: orders-api
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: orders-api
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: orders-api
+      spec:
+        containers:
+        - name: orders-api
+          image: ghcr.io/acme/orders-api:3.0.0
+          ports:
+          - containerPort: 8080
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          envFrom:
+          - configMapRef:
+              name: shop-env
+        volumes: []
+  status:
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: search-api
+    namespace: shop
+    uid: dep-shop-search-api
+    labels:
+      app.kubernetes.io/name: search-api
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: search-api
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: search-api
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: search-api
+      spec:
+        containers:
+        - name: search-api
+          image: ghcr.io/acme/search-api:4.0.2
+          ports:
+          - containerPort: 8080
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+          - name: flags
+            mountPath: /etc/flags
+            readOnly: true
+          - name: search-config
+            mountPath: /etc/search
+            readOnly: true
+        volumes:
+        - name: flags
+          configMap:
+            name: feature-flags
+        - name: search-config
+          configMap:
+            name: search-config
+  status:
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: web
+    namespace: shop
+    uid: dep-shop-web
+    labels:
+      app.kubernetes.io/name: web
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: web
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: web
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: web
+      spec:
+        containers:
+        - name: web
+          image: ghcr.io/acme/web:4.3.0
+          ports:
+          - containerPort: 8080
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+          - name: flags
+            mountPath: /etc/flags
+            readOnly: true
+        volumes:
+        - name: flags
+          configMap:
+            name: feature-flags
+  status:
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: orders-db
+    namespace: data
+    uid: dep-data-orders-db
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: orders-db
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: orders-db
+      spec:
+        containers:
+        - name: orders-db
+          image: docker.io/library/postgres:15.4
+  status:
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: coredns
+    namespace: kube-system
+    uid: dep-kube-system-coredns
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: coredns
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: coredns
+      spec:
+        containers:
+        - name: coredns
+          image: registry.k8s.io/coredns/coredns:v1.11.3
+  status:
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'

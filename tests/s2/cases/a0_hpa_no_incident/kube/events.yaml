@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.6270
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-6270
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 9; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T15:00:00Z'
+  lastTimestamp: '2026-10-20T15:00:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.successfulrescale.1b3f0
+    namespace: shop
+    uid: evt-shop-api-successfulrescale-1b3f0
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 9; reason: pods metric http_requests_per_second above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-21T15:00:00Z'
+  lastTimestamp: '2026-10-21T15:00:00Z'
+  reportingComponent: horizontal-pod-autoscaler

@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-api
+  namespace: shop
+  uid: dep-shop-search-api
+  generation: 7
+  labels:
+    app.kubernetes.io/name: search-api
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: search-api
+    meta.helm.sh/release-namespace: shop
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: search-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: search-api
+    spec:
+      containers:
+      - name: search-api
+        image: ghcr.io/acme/search-api:4.1.0
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            memory: 2Gi
+        ports:
+        - containerPort: 8080

@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: ServiceList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: checkout-api
+    namespace: shop
+    uid: svc-shop-checkout-api
+    annotations:
+      meta.helm.sh/release-name: checkout-api
+      meta.helm.sh/release-namespace: shop
+  spec:
+    clusterIP: 10.43.3.11
+    selector:
+      app.kubernetes.io/name: checkout-api
+    ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: cart-api
+    namespace: shop
+    uid: svc-shop-cart-api
+    annotations:
+      meta.helm.sh/release-name: cart-api
+      meta.helm.sh/release-namespace: shop
+  spec:
+    clusterIP: 10.43.3.17
+    selector:
+      app.kubernetes.io/name: cart-api
+    ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: web
+    namespace: shop
+    uid: svc-shop-web
+    annotations:
+      meta.helm.sh/release-name: web
+      meta.helm.sh/release-namespace: shop
+  spec:
+    clusterIP: 10.43.3.20
+    selector:
+      app.kubernetes.io/name: web
+    ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: inventory
+    namespace: platform
+    uid: svc-platform-inventory
+    annotations:
+      meta.helm.sh/release-name: platform-services
+      meta.helm.sh/release-namespace: platform
+  spec:
+    clusterIP: 10.43.40.12
+    selector:
+      app.kubernetes.io/name: inventory
+    ports:
+    - port: 80
+      targetPort: 9090
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: pricing
+    namespace: platform
+    uid: svc-platform-pricing
+    annotations:
+      meta.helm.sh/release-name: pricing
+      meta.helm.sh/release-namespace: platform
+  spec:
+    clusterIP: 10.43.40.15
+    selector:
+      app.kubernetes.io/name: pricing
+    ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: catalog
+    namespace: platform
+    uid: svc-platform-catalog
+    annotations:
+      meta.helm.sh/release-name: catalog
+      meta.helm.sh/release-namespace: platform
+  spec:
+    clusterIP: 10.43.40.18
+    selector:
+      app.kubernetes.io/name: catalog
+    ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: redis
+    namespace: cache
+    uid: svc-cache-redis
+    annotations:
+      meta.helm.sh/release-name: redis
+      meta.helm.sh/release-namespace: cache
+  spec:
+    clusterIP: 10.43.50.7
+    selector:
+      app.kubernetes.io/name: redis
+    ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: prometheus-server
+    namespace: monitoring
+    uid: svc-monitoring-prometheus-server
+    annotations:
+      meta.helm.sh/release-name: prometheus
+      meta.helm.sh/release-namespace: monitoring
+  spec:
+    clusterIP: 10.43.60.2
+    selector:
+      app.kubernetes.io/name: prometheus-server
+    ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP

@@ -1,0 +1,50 @@
+[
+  {
+    "labels": {
+      "alertname": "CPUThrottlingHigh",
+      "severity": "info",
+      "namespace": "shop",
+      "pod": "cart-api-5d6f8c7b9-cc8c8",
+      "container": "cart-api"
+    },
+    "annotations": {
+      "summary": "Processes experience elevated CPU throttling.",
+      "description": "26.0% throttling of CPU in namespace shop."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-19T23:40:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubePodCrashLooping",
+      "severity": "warning",
+      "namespace": "shop",
+      "pod": "cart-api-5d6f8c7b9-ce7b7",
+      "container": "cart-api"
+    },
+    "annotations": {
+      "summary": "Pod is crash looping.",
+      "description": "Pod shop/cart-api-5d6f8c7b9-ce7b7 is in waiting state (reason: \"CrashLoopBackOff\")."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T08:40:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubePodCrashLooping",
+      "severity": "warning",
+      "namespace": "shop",
+      "pod": "checkout-6d9f7c8b5-cc8c8",
+      "container": "checkout"
+    },
+    "annotations": {
+      "summary": "Pod is crash looping.",
+      "description": "Pod shop/checkout-6d9f7c8b5-cc8c8 is in waiting state (reason: \"CrashLoopBackOff\")."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T08:40:00Z",
+    "value": "1"
+  }
+]

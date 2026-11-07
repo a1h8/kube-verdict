@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: CertificateList
+metadata: {}
+items:
+- apiVersion: cert-manager.io/v1
+  kind: Certificate
+  metadata:
+    name: mesh-injector-tls
+    namespace: mesh-system
+    uid: cert-mesh-injector-tls
+  spec:
+    secretName: mesh-injector-tls
+    dnsNames:
+    - mesh-injector.mesh-system.svc
+    issuerRef:
+      name: mesh-ca
+      kind: Issuer
+  status:
+    notAfter: '2026-10-20T08:00:00Z'
+    renewalTime: '2026-10-19T08:00:00Z'
+    conditions:
+    - type: Ready
+      status: 'False'
+      reason: Expired
+      message: Certificate expired on 2026-10-20T08:00:00Z
+- apiVersion: cert-manager.io/v1
+  kind: Certificate
+  metadata:
+    name: shop-tls
+    namespace: shop
+    uid: cert-shop-tls
+  spec:
+    secretName: shop-tls
+    dnsNames:
+    - shop.acme.example
+    issuerRef:
+      name: letsencrypt
+      kind: ClusterIssuer
+  status:
+    notAfter: '2027-01-18T08:05:00Z'
+    conditions:
+    - type: Ready
+      status: 'True'
+      reason: Ready

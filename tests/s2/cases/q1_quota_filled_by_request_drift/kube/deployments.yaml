@@ -1,0 +1,598 @@
+apiVersion: v1
+kind: DeploymentList
+metadata: {}
+items:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: catalog-api
+    namespace: shop
+    uid: dep-shop-catalog-api
+    labels:
+      app.kubernetes.io/name: catalog-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: shop
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 20
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: catalog-api
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: catalog-api
+          app.kubernetes.io/instance: shop
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: catalog-api
+          image: ghcr.io/acme/catalog-api:3.2.0
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 20
+    readyReplicas: 20
+    availableReplicas: 20
+    updatedReplicas: 20
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: cart-api
+    namespace: shop
+    uid: dep-shop-cart-api
+    labels:
+      app.kubernetes.io/name: cart-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: shop
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: cart-api
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: cart-api
+          app.kubernetes.io/instance: shop
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: cart-api
+          image: ghcr.io/acme/cart-api:2.3.2
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: billing-worker
+    namespace: shop
+    uid: dep-shop-billing-worker
+    labels:
+      app.kubernetes.io/name: billing-worker
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: shop
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: billing-worker
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: billing-worker
+          app.kubernetes.io/instance: shop
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: billing-worker
+          image: ghcr.io/acme/billing-worker:1.8.0
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: ReplicaSetUpdated
+    - type: ReplicaFailure
+      status: 'True'
+      reason: FailedCreate
+      message: 'pods "billing-worker-6b8c4d7f9-" is forbidden: exceeded quota: shop-quota, requested: requests.memory=2Gi, used: requests.memory=31Gi, limited: requests.memory=32Gi'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: search-api
+    namespace: shop
+    uid: dep-shop-search-api
+    labels:
+      app.kubernetes.io/name: search-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: shop
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 3
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: search-api
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: search-api
+          app.kubernetes.io/instance: shop
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: search-api
+          image: ghcr.io/acme/search-api:4.0.2
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 3
+    readyReplicas: 3
+    availableReplicas: 3
+    updatedReplicas: 3
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: checkout-web
+    namespace: shop
+    uid: dep-shop-checkout-web
+    labels:
+      app.kubernetes.io/name: checkout-web
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: shop
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: checkout-web
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: checkout-web
+          app.kubernetes.io/instance: shop
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: checkout-web
+          image: ghcr.io/acme/checkout-web:5.1.0
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 400m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: inventory-api
+    namespace: shop
+    uid: dep-shop-inventory-api
+    labels:
+      app.kubernetes.io/name: inventory-api
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: shop
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: inventory-api
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: inventory-api
+          app.kubernetes.io/instance: shop
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: inventory-api
+          image: ghcr.io/acme/inventory-api:2.0.4
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 400m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: notify-worker
+    namespace: shop
+    uid: dep-shop-notify-worker
+    labels:
+      app.kubernetes.io/name: notify-worker
+      app.kubernetes.io/instance: shop
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: shop
+      meta.helm.sh/release-namespace: shop
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: notify-worker
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: notify-worker
+          app.kubernetes.io/instance: shop
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: notify-worker
+          image: ghcr.io/acme/notify-worker:1.1.0
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: reports-db
+    namespace: data
+    uid: dep-data-reports-db
+    labels:
+      app.kubernetes.io/name: reports-db
+      app.kubernetes.io/instance: reports
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: reports
+      meta.helm.sh/release-namespace: data
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: reports-db
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: reports-db
+          app.kubernetes.io/instance: reports
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: reports-db
+          image: ghcr.io/acme/reports-db:15.4
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: '1'
+              memory: 4Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: reports-db-proxy
+    namespace: data
+    uid: dep-data-reports-db-proxy
+    labels:
+      app.kubernetes.io/name: reports-db-proxy
+      app.kubernetes.io/instance: reports
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: reports
+      meta.helm.sh/release-namespace: data
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: reports-db-proxy
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: reports-db-proxy
+          app.kubernetes.io/instance: reports
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: reports-db-proxy
+          image: ghcr.io/acme/reports-db-proxy:1.21.0
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: prometheus-server
+    namespace: monitoring
+    uid: dep-monitoring-prometheus-server
+    labels:
+      app.kubernetes.io/name: prometheus-server
+      app.kubernetes.io/instance: prometheus
+      app.kubernetes.io/managed-by: Helm
+    annotations:
+      meta.helm.sh/release-name: prometheus
+      meta.helm.sh/release-namespace: monitoring
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: prometheus-server
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: prometheus-server
+          app.kubernetes.io/instance: prometheus
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        containers:
+        - name: prometheus-server
+          image: ghcr.io/acme/prometheus-server:2.53.0
+          ports:
+          - containerPort: 8080
+            name: http
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable

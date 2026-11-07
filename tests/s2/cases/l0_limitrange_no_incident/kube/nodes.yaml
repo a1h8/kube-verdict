@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: NodeList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Node
+  metadata:
+    name: worker-node-01
+    uid: node-worker-node-01
+    labels:
+      kubernetes.io/hostname: worker-node-01
+  spec: {}
+  status:
+    conditions:
+    - type: Ready
+      status: 'True'
+    allocatable:
+      cpu: '8'
+      memory: 32Gi
+- apiVersion: v1
+  kind: Node
+  metadata:
+    name: worker-node-02
+    uid: node-worker-node-02
+    labels:
+      kubernetes.io/hostname: worker-node-02
+  spec: {}
+  status:
+    conditions:
+    - type: Ready
+      status: 'True'
+    allocatable:
+      cpu: '8'
+      memory: 32Gi
+- apiVersion: v1
+  kind: Node
+  metadata:
+    name: worker-node-03
+    uid: node-worker-node-03
+    labels:
+      kubernetes.io/hostname: worker-node-03
+  spec: {}
+  status:
+    conditions:
+    - type: Ready
+      status: 'True'
+    allocatable:
+      cpu: '8'
+      memory: 32Gi

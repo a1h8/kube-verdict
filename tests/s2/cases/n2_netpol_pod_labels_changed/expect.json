@@ -1,0 +1,53 @@
+{
+  "set": "S2",
+  "family": "netpol",
+  "namespace": "shop",
+  "sources": [
+    "https://kubernetes.io/docs/concepts/services-networking/network-policies/",
+    "prometheus-operator/runbooks@a685d14 KubePodNotReady",
+    "prometheus-operator/runbooks@a685d14 KubePodCrashLooping"
+  ],
+  "spec": "docs/s2/family-netpol.md",
+  "release": "orders-api",
+  "scenario": "orders-api cannot reach its database; a chart upgrade changed the pod labels a policy selects",
+  "query": "why does orders-api keep restarting in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Deployment/shop/orders-api",
+  "mechanism": "the orders-api chart upgrade to 3.0.0 dropped the app=orders-api pod label, so NetworkPolicy data/allow-orders-to-db no longer selects its pods and data/default-deny-ingress drops their connections to orders-db",
+  "pass_if": "names the pod label change against the policy's podSelector",
+  "partial_if_only": [
+    "the upgrade without the label",
+    "the policy without the label"
+  ],
+  "chain": [
+    "orders-api crash-loops: dial tcp to orders-db:5432 times out",
+    "Service/data/orders-db has ready endpoints: the database is up",
+    "NetworkPolicy/data/default-deny-ingress isolates data; allow-orders-to-db allows pods app=orders-api",
+    "the chart upgrade at T0 left orders-api's pods without app=orders-api"
+  ],
+  "decoys": [
+    {
+      "object": "Pod/data/orders-db (too many clients)",
+      "why_not": "logged 3 h before the upgrade, then stopped"
+    },
+    {
+      "object": "Deployment/shop/orders-api (new image tag)",
+      "why_not": "expected with the chart upgrade"
+    },
+    {
+      "object": "Pod/kube-system/coredns (old restart)",
+      "why_not": "resolved 26 h before; DNS resolves in the logs"
+    },
+    {
+      "object": "NetworkPolicy/shop/allow-egress-all",
+      "why_not": "allows every egress, so it blocks nothing"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/orders-api"
+  ],
+  "root_cause_concepts": [
+    "label",
+    "networkpolic|network policy|allow-orders-to-db|podselector"
+  ]
+}

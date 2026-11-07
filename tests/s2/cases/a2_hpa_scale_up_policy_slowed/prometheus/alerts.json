@@ -1,0 +1,18 @@
+[
+  {
+    "labels": {
+      "alertname": "LatencySLOBreach",
+      "severity": "critical",
+      "namespace": "shop",
+      "deployment": "api",
+      "slo": "api-latency"
+    },
+    "annotations": {
+      "summary": "api breaches its latency SLO",
+      "description": "p99 1.4s against 400ms; the SLO burned at each of the last three daily peaks."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-22T13:10:00Z",
+    "value": "1"
+  }
+]

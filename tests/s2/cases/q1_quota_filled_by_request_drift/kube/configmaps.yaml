@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMapList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: search-config
+    namespace: shop
+    uid: cm-shop-search-config
+    annotations:
+      meta.helm.sh/release-name: shop
+      meta.helm.sh/release-namespace: shop
+  data:
+    search.yaml: 'max_results: 50
+
+      request_timeout_ms: 800
+
+      '
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: shop-env
+    namespace: shop
+    uid: cm-shop-env
+    annotations:
+      meta.helm.sh/release-name: shop
+      meta.helm.sh/release-namespace: shop
+  data:
+    REGION: eu-west
+    LOG_LEVEL: info

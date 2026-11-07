@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: worker-node-02.nodenotschedulable.-83d60
+    namespace: default
+    uid: evt-default-worker-node-02-nodenotschedulable--83d60
+  type: Normal
+  reason: NodeNotSchedulable
+  message: 'Node worker-node-02 status is now: NodeNotSchedulable'
+  involvedObject:
+    kind: Node
+    name: worker-node-02
+    namespace: default
+  count: 1
+  firstTimestamp: '2026-10-14T02:00:00Z'
+  lastTimestamp: '2026-10-14T02:00:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: web.scalingreplicaset.-e10
+    namespace: shop
+    uid: evt-shop-web-scalingreplicaset--e10
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set web-9c8d7b6f5 to 2
+  involvedObject:
+    kind: Deployment
+    name: web
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T07:00:00Z'
+  lastTimestamp: '2026-10-20T07:00:00Z'
+  reportingComponent: deployment-controller

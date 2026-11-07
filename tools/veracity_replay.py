@@ -221,6 +221,11 @@ def _base_record(case_name: str, expect: dict, solver: str, model: str, run: int
             "started_at": datetime.now(timezone.utc).isoformat()}
 
 
+# What a solver without a model answers when it has nothing to propose: an explicit abstention,
+# which a case with no incident accepts and a case with a cause fails (protocol 002, amendment A2).
+NO_HYPOTHESIS = "No incident: no hypothesis reaches the threshold."
+
+
 def solve_rules(case_name: str) -> dict:
     """Top RemediationEngine hypothesis on the case graph, no LLM, label LOW."""
     from rca.remediation_engine import RemediationEngine
@@ -231,7 +236,8 @@ def solve_rules(case_name: str) -> dict:
     expect = case["expect"]
     hypotheses = RemediationEngine().score(build_graph(case))
     top = hypotheses[0] if hypotheses else None
-    root_cause = f"{top.symptom}. {top.explanation} ({top.affected})" if top else ""
+    # no hypothesis is an abstention, said in words (protocol 002, amendment A2)
+    root_cause = f"{top.symptom}. {top.explanation} ({top.affected})" if top else NO_HYPOTHESIS
     record = _base_record(case_name, expect, "rules", "", 1)
     # no policy gate runs for the rules solver, so expected_verdict is not checked
     rules_expect = {k: v for k, v in grading_expect(expect).items() if k != "expected_verdict"}
@@ -294,7 +300,7 @@ def solve_retrieval(case_name: str, records_dir: Path | None = None) -> dict:
             if h["uid"].startswith(EXAMPLE_UID_PREFIX)] if records else []
     best = hits[0] if hits and hits[0]["score"] >= nodes.EXAMPLE_MATCH_THRESHOLD else None
     matched = records[best["uid"][len(EXAMPLE_UID_PREFIX):]] if best else None
-    root_cause = " ".join(str(matched["root_cause"]).split()) if matched else ""
+    root_cause = " ".join(str(matched["root_cause"]).split()) if matched else NO_HYPOTHESIS
     confidence = (str(matched.get("confidence") or "") or "HIGH").upper() if matched else "LOW"
     record = _base_record(case_name, expect, "retrieval", "", 1)
     cause_expect = {k: v for k, v in grading_expect(expect).items() if k != "expected_verdict"}

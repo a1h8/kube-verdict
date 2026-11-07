@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: coredns-7db6d8ff4-b2faf.started.-16da0
+    namespace: kube-system
+    uid: evt-kube-system-coredns-7db6d8ff4-b2faf-started--16da0
+  type: Normal
+  reason: Started
+  message: Started container coredns
+  involvedObject:
+    kind: Pod
+    name: coredns-7db6d8ff4-b2faf
+    namespace: kube-system
+  count: 1
+  firstTimestamp: '2026-10-19T06:00:00Z'
+  lastTimestamp: '2026-10-19T06:00:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: checkout-api-6d9f7c8b5-32d2c.unhealthy.3c
+    namespace: shop
+    uid: evt-shop-checkout-api-6d9f7c8b5-32d2c-unhealthy-3c
+  type: Warning
+  reason: Unhealthy
+  message: 'Readiness probe failed: HTTP probe failed with statuscode: 503'
+  involvedObject:
+    kind: Pod
+    name: checkout-api-6d9f7c8b5-32d2c
+    namespace: shop
+  count: 180
+  firstTimestamp: '2026-10-20T08:01:00Z'
+  lastTimestamp: '2026-10-20T08:30:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: checkout-api-6d9f7c8b5-34c1b.unhealthy.3c
+    namespace: shop
+    uid: evt-shop-checkout-api-6d9f7c8b5-34c1b-unhealthy-3c
+  type: Warning
+  reason: Unhealthy
+  message: 'Readiness probe failed: HTTP probe failed with statuscode: 503'
+  involvedObject:
+    kind: Pod
+    name: checkout-api-6d9f7c8b5-34c1b
+    namespace: shop
+  count: 180
+  firstTimestamp: '2026-10-20T08:01:00Z'
+  lastTimestamp: '2026-10-20T08:30:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: checkout-api-6d9f7c8b5-36b0a.unhealthy.3c
+    namespace: shop
+    uid: evt-shop-checkout-api-6d9f7c8b5-36b0a-unhealthy-3c
+  type: Warning
+  reason: Unhealthy
+  message: 'Readiness probe failed: HTTP probe failed with statuscode: 503'
+  involvedObject:
+    kind: Pod
+    name: checkout-api-6d9f7c8b5-36b0a
+    namespace: shop
+  count: 180
+  firstTimestamp: '2026-10-20T08:01:00Z'
+  lastTimestamp: '2026-10-20T08:30:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: payments.scalingreplicaset.12c
+    namespace: pay
+    uid: evt-pay-payments-scalingreplicaset-12c
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set payments-9d8c7f6b5 to 3
+  involvedObject:
+    kind: Deployment
+    name: payments
+    namespace: pay
+  count: 1
+  firstTimestamp: '2026-10-20T08:05:00Z'
+  lastTimestamp: '2026-10-20T08:05:00Z'
+  reportingComponent: deployment-controller

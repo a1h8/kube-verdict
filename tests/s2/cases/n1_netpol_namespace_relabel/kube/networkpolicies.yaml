@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: NetworkPolicyList
+metadata: {}
+items:
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    name: default-deny-ingress
+    namespace: pay
+    uid: np-pay-default-deny-ingress
+  spec:
+    podSelector: {}
+    policyTypes:
+    - Ingress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    name: allow-from-storefront
+    namespace: pay
+    uid: np-pay-allow-from-storefront
+  spec:
+    podSelector:
+      matchLabels:
+        app.kubernetes.io/name: payments
+    policyTypes:
+    - Ingress
+    ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            team: storefront
+      ports:
+      - protocol: TCP
+        port: 8443
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    name: default-deny-ingress
+    namespace: data
+    uid: np-data-default-deny-ingress
+  spec:
+    podSelector: {}
+    policyTypes:
+    - Ingress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    name: allow-orders-to-db
+    namespace: data
+    uid: np-data-allow-orders-to-db
+  spec:
+    podSelector:
+      matchLabels:
+        app.kubernetes.io/name: orders-db
+    policyTypes:
+    - Ingress
+    ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: shop
+        podSelector:
+          matchLabels:
+            app: orders-api
+      ports:
+      - protocol: TCP
+        port: 5432
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    name: allow-egress-all
+    namespace: shop
+    uid: np-shop-allow-egress-all
+  spec:
+    podSelector: {}
+    policyTypes:
+    - Egress
+    egress:
+    - {}

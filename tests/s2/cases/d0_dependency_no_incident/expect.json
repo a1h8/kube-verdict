@@ -1,0 +1,34 @@
+{
+  "set": "S2",
+  "family": "dependency",
+  "namespace": "shop",
+  "sources": [
+    "prometheus-operator/runbooks@a685d14 KubePodNotReady",
+    "prometheus-operator/runbooks@a685d14 KubeDeploymentReplicasMismatch",
+    "https://kubernetes.io/docs/concepts/services-networking/service/",
+    "https://redis.io/docs/latest/develop/reference/eviction/"
+  ],
+  "spec": "docs/s2/family-dependency.md",
+  "release": "inventory",
+  "scenario": "No incident: the same objects as d1 and d2, ports that match, Redis with room",
+  "query": "is something wrong with checkout-api in shop",
+  "expected_outcome": "no_incident",
+  "cause_object": null,
+  "decoys": [
+    {
+      "object": "Pod/shop/checkout-api (CPUThrottlingHigh)",
+      "why_not": "older than T0, unrelated to the errors"
+    },
+    {
+      "object": "Certificate/shop/shop-tls",
+      "why_not": "expires in 12 days, Ready"
+    },
+    {
+      "object": "Pod/platform/inventory (old readiness failure)",
+      "why_not": "during an old rollout"
+    }
+  ],
+  "affected_resources": [],
+  "root_cause_contains": [],
+  "notes": "Passes only on an explicit no-incident answer (protocol 002, A2)."
+}

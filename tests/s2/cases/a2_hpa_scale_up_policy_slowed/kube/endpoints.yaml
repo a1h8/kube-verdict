@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: EndpointsList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: api
+    namespace: shop
+  subsets:
+  - addresses:
+    - ip: 10.42.1.43
+      targetRef:
+        kind: Pod
+        name: api-6d8f9c7b5-4cb4b
+    - ip: 10.42.2.44
+      targetRef:
+        kind: Pod
+        name: api-6d8f9c7b5-4ea3a
+    - ip: 10.42.3.45
+      targetRef:
+        kind: Pod
+        name: api-6d8f9c7b5-50929
+    - ip: 10.42.1.46
+      targetRef:
+        kind: Pod
+        name: api-6d8f9c7b5-52818
+    - ip: 10.42.2.47
+      targetRef:
+        kind: Pod
+        name: api-6d8f9c7b5-54707
+    - ip: 10.42.3.48
+      targetRef:
+        kind: Pod
+        name: api-6d8f9c7b5-565f6
+    - ip: 10.42.1.49
+      targetRef:
+        kind: Pod
+        name: api-6d8f9c7b5-584e5
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: web
+    namespace: shop
+  subsets:
+  - addresses:
+    - ip: 10.42.1.43
+      targetRef:
+        kind: Pod
+        name: web-8c7b6d5f9-4cb4b
+    - ip: 10.42.2.44
+      targetRef:
+        kind: Pod
+        name: web-8c7b6d5f9-4ea3a
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: worker
+    namespace: shop
+  subsets:
+  - addresses:
+    - ip: 10.42.1.46
+      targetRef:
+        kind: Pod
+        name: worker-5f6c7d8b9-99696
+    - ip: 10.42.2.47
+      targetRef:
+        kind: Pod
+        name: worker-5f6c7d8b9-9b585
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: prometheus-server
+    namespace: monitoring
+  subsets:
+  - addresses:
+    - ip: 10.42.1.57
+      targetRef:
+        kind: Pod
+        name: prometheus-server-5b6c7d8e9-b2aa9
+    ports:
+    - port: 6443
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: prometheus-adapter
+    namespace: observability
+  subsets:
+  - addresses:
+    - ip: 10.42.1.58
+      targetRef:
+        kind: Pod
+        name: prometheus-adapter-7c8d9b6f4-cc3c2
+    ports:
+    - port: 6443
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: metrics-server
+    namespace: kube-system
+  subsets:
+  - addresses:
+    - ip: 10.42.1.54
+      targetRef:
+        kind: Pod
+        name: metrics-server-6b7c8d9f5-65f5e
+    ports:
+    - port: 6443
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: coredns
+    namespace: kube-system
+  subsets:
+  - addresses:
+    - ip: 10.42.1.47
+      targetRef:
+        kind: Pod
+        name: coredns-7db6d8ff4-b2faf
+    - ip: 10.42.2.48
+      targetRef:
+        kind: Pod
+        name: coredns-7db6d8ff4-b4e9e
+    ports:
+    - port: 6443

@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-api
+  namespace: shop
+  uid: dep-shop-orders-api
+  labels:
+    app.kubernetes.io/name: orders-api
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: orders-api
+    meta.helm.sh/release-namespace: shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders-api
+        app.kubernetes.io/instance: orders-api
+        app: orders-api
+    spec:
+      containers:
+      - name: orders-api
+        image: ghcr.io/acme/orders-api:2.4.1
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: '1'
+            memory: 512Mi

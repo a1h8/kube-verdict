@@ -1,0 +1,48 @@
+{
+  "set": "S2",
+  "family": "configmap",
+  "namespace": "shop",
+  "sources": [
+    "https://kubernetes.io/docs/concepts/configuration/configmap/",
+    "prometheus-operator/runbooks@a685d14 KubePodCrashLooping"
+  ],
+  "spec": "docs/s2/family-configmap.md",
+  "release": "feature-flags",
+  "scenario": "two services crash-loop on an invalid YAML file; the shared ConfigMap they mount was replaced",
+  "query": "why are search-api and web crash-looping in shop",
+  "expected_outcome": "cause",
+  "cause_object": "ConfigMap/shop/feature-flags",
+  "mechanism": "its features.yaml was replaced at T0 by invalid YAML (a tab on line 7); search-api and web, which mount it, reload it, exit, and fail again on every start",
+  "pass_if": "names the feature-flags ConfigMap's invalid content",
+  "partial_if_only": [
+    "a configuration file fails to parse, without the ConfigMap"
+  ],
+  "chain": [
+    "search-api and web crash-loop: failed to load /etc/flags/features.yaml, yaml: line 7",
+    "both mount ConfigMap feature-flags at /etc/flags; cart-api does not",
+    "feature-flags was updated at T0 by its release, revision 10",
+    "its features.yaml has a tab on line 7"
+  ],
+  "decoys": [
+    {
+      "object": "Deployment/shop/web (redeployed)",
+      "why_not": "an hour before T0; its pods ran until T0"
+    },
+    {
+      "object": "Pod/shop/cart-api (CPUThrottlingHigh)",
+      "why_not": "unrelated"
+    },
+    {
+      "object": "feature-flags new-checkout rollout 10 to 25",
+      "why_not": "a valid change in the same release"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/search-api",
+    "Deployment/shop/web"
+  ],
+  "root_cause_concepts": [
+    "feature-flags|configmap|config map",
+    "yaml|invalid|line 7|tab|parse"
+  ]
+}

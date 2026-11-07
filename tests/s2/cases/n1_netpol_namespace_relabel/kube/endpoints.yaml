@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: EndpointsList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: checkout-api
+    namespace: shop
+  subsets:
+  - notReadyAddresses:
+    - ip: 10.42.1.32
+      targetRef:
+        kind: Pod
+        name: checkout-api-6d9f7c8b5-32d2c
+    ports:
+    - port: 8080
+  - notReadyAddresses:
+    - ip: 10.42.2.32
+      targetRef:
+        kind: Pod
+        name: checkout-api-6d9f7c8b5-34c1b
+    ports:
+    - port: 8080
+  - notReadyAddresses:
+    - ip: 10.42.3.32
+      targetRef:
+        kind: Pod
+        name: checkout-api-6d9f7c8b5-36b0a
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: orders-api
+    namespace: shop
+  subsets:
+  - addresses:
+    - ip: 10.42.1.30
+      targetRef:
+        kind: Pod
+        name: orders-api-5b7d8c9f6-ffafa
+    ports:
+    - port: 8080
+  - addresses:
+    - ip: 10.42.2.30
+      targetRef:
+        kind: Pod
+        name: orders-api-5b7d8c9f6-019e9
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: cart-api
+    namespace: shop
+  subsets:
+  - addresses:
+    - ip: 10.42.1.28
+      targetRef:
+        kind: Pod
+        name: cart-api-5d6f8c7b9-cc8c8
+    ports:
+    - port: 8080
+  - addresses:
+    - ip: 10.42.2.28
+      targetRef:
+        kind: Pod
+        name: cart-api-5d6f8c7b9-ce7b7
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: web
+    namespace: shop
+  subsets:
+  - addresses:
+    - ip: 10.42.1.23
+      targetRef:
+        kind: Pod
+        name: web-8c7b6d5f9-4cb4b
+    ports:
+    - port: 8080
+  - addresses:
+    - ip: 10.42.2.23
+      targetRef:
+        kind: Pod
+        name: web-8c7b6d5f9-4ea3a
+    ports:
+    - port: 8080
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: payments
+    namespace: pay
+  subsets:
+  - addresses:
+    - ip: 10.42.1.28
+      targetRef:
+        kind: Pod
+        name: payments-9d8c7f6b5-cc8c8
+    ports:
+    - port: 8443
+  - addresses:
+    - ip: 10.42.2.28
+      targetRef:
+        kind: Pod
+        name: payments-9d8c7f6b5-ce7b7
+    ports:
+    - port: 8443
+  - addresses:
+    - ip: 10.42.3.28
+      targetRef:
+        kind: Pod
+        name: payments-9d8c7f6b5-d06a6
+    ports:
+    - port: 8443
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: orders-db
+    namespace: data
+  subsets:
+  - addresses:
+    - ip: 10.42.1.29
+      targetRef:
+        kind: Pod
+        name: orders-db-6c7d8b9f4-e61e1
+    ports:
+    - port: 5432
+- apiVersion: v1
+  kind: Endpoints
+  metadata:
+    name: coredns
+    namespace: kube-system
+  subsets:
+  - addresses:
+    - ip: 10.42.1.27
+      targetRef:
+        kind: Pod
+        name: coredns-7db6d8ff4-b2faf
+    ports:
+    - port: 53
+  - addresses:
+    - ip: 10.42.2.27
+      targetRef:
+        kind: Pod
+        name: coredns-7db6d8ff4-b4e9e
+    ports:
+    - port: 53

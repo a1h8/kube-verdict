@@ -1,0 +1,23 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "mesh-injector-84b7c6d5f-q7k2m",
+      "k8s_namespace_name": "mesh-system",
+      "k8s_container_name": "injector"
+    },
+    "values": [
+      [
+        "1792484160000000000",
+        "http: TLS handshake error from 10.42.0.1:51234: remote error: tls: bad certificate"
+      ],
+      [
+        "1792484700000000000",
+        "http: TLS handshake error from 10.42.0.1:51234: remote error: tls: bad certificate"
+      ],
+      [
+        "1792485360000000000",
+        "http: TLS handshake error from 10.42.0.1:51234: remote error: tls: bad certificate"
+      ]
+    ]
+  }
+]

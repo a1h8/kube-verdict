@@ -171,6 +171,34 @@ def test_normalize_label(raw, label):
     assert normalize_label(raw) == label
 
 
+class TestNoIncidentMustBeSaid:
+    """Protocol 002, amendment A2: LOW and no forbidden word are no longer enough."""
+    EXPECT = {"expected_outcome": "no_incident"}
+
+    def test_an_invented_fault_with_a_low_label_fails(self):
+        # block B, h022: this answer passed under the old rule
+        r = grade("The deployment of the ledger is paused, which is contrary to the Helm chart's "
+                  "declaration of `replicaCount=3`.", self.EXPECT, confidence="LOW")
+        assert r["veracity"] == "FAIL"
+        assert "does not say there is no incident" in r["reason"]
+
+    @pytest.mark.parametrize("answer", ["No incident: no fault signal in the evidence.",
+                                        "There is no incident.", "no clear incident in the evidence",
+                                        "**No incident**", "Nothing is wrong with ledger."])
+    def test_saying_there_is_no_incident_passes(self, answer):      # control
+        assert grade(answer, self.EXPECT, confidence="LOW")["veracity"] == "PASS"
+
+    @pytest.mark.parametrize("answer", ["No incident, but the deployment is paused.",
+                                        "The pods are fine. No incident.",
+                                        "Incident: no pod is ready."])
+    def test_a_fault_around_the_statement_fails(self, answer):
+        assert grade(answer, self.EXPECT, confidence="LOW")["veracity"] == "FAIL"
+
+    def test_insufficient_evidence_is_unchanged(self):
+        assert grade("Collection failed for loki", {"expected_outcome": "insufficient_evidence"},
+                     confidence="LOW")["veracity"] == "PASS"
+
+
 def test_decorated_low_label_passes_a_negative_case():
     expect = {"expected_outcome": "no_incident"}
     assert grade("No incident", expect, confidence="LOW.")["veracity"] == "PASS"

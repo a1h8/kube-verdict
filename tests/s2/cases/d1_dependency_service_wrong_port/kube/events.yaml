@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: inventory-7b9c8d6f4-e61e1.unhealthy.0
+    namespace: platform
+    uid: evt-platform-inventory-7b9c8d6f4-e61e1-unhealthy-0
+  type: Warning
+  reason: Unhealthy
+  message: 'Readiness probe failed: Get "http://10.42.1.39:9090/ready": dial tcp 10.42.1.39:9090: connect: connection refused'
+  involvedObject:
+    kind: Pod
+    name: inventory-7b9c8d6f4-e61e1
+    namespace: platform
+  count: 1
+  firstTimestamp: '2026-10-20T08:00:00Z'
+  lastTimestamp: '2026-10-20T08:00:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: inventory.scalingreplicaset.0
+    namespace: platform
+    uid: evt-platform-inventory-scalingreplicaset-0
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set inventory-7b9c8d6f4 to 2
+  involvedObject:
+    kind: Deployment
+    name: inventory
+    namespace: platform
+  count: 1
+  firstTimestamp: '2026-10-20T08:00:00Z'
+  lastTimestamp: '2026-10-20T08:00:00Z'
+  reportingComponent: deployment-controller

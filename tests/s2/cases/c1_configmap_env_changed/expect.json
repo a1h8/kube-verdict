@@ -1,0 +1,48 @@
+{
+  "set": "S2",
+  "family": "configmap",
+  "namespace": "shop",
+  "sources": [
+    "https://kubernetes.io/docs/concepts/configuration/configmap/",
+    "prometheus-operator/runbooks@a685d14 KubePodCrashLooping"
+  ],
+  "spec": "docs/s2/family-configmap.md",
+  "release": "platform-config",
+  "scenario": "pods of two releases crash on an unknown database host; a shared ConfigMap changed, read at start",
+  "query": "why do cart-api and checkout crash in shop",
+  "expected_outcome": "cause",
+  "cause_object": "ConfigMap/shop/shop-env",
+  "mechanism": "its DB_HOST was changed at T0 to orders-db-v2, which does not exist; pods read it when they start, so only those recreated since T0 by a node drain fail, while older pods keep the old value",
+  "pass_if": "names shop-env's DB_HOST change",
+  "partial_if_only": [
+    "the database host cannot be resolved, without the ConfigMap"
+  ],
+  "chain": [
+    "new pods of cart-api and checkout crash: lookup orders-db-v2... no such host",
+    "their containers take their environment from ConfigMap shop-env (envFrom)",
+    "shop-env's DB_HOST is orders-db-v2, set by the platform-config release at T0",
+    "only orders-db exists in data; the crashing pods started after T0, the others before"
+  ],
+  "decoys": [
+    {
+      "object": "Node/worker-node-02 (drain)",
+      "why_not": "recreated the pods, does not explain the crash"
+    },
+    {
+      "object": "Deployment/shop/orders-api",
+      "why_not": "reads the same ConfigMap; its pods predate T0"
+    },
+    {
+      "object": "ConfigMap/shop/search-config",
+      "why_not": "changed two hours before, its consumer runs"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/cart-api",
+    "Deployment/shop/checkout"
+  ],
+  "root_cause_concepts": [
+    "shop-env|configmap|config map",
+    "db_host|orders-db-v2|host"
+  ]
+}

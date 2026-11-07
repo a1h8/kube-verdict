@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: mesh-injector.scalingreplicaset.0
+    namespace: mesh-system
+    uid: evt-mesh-system-mesh-injector-scalingreplicaset-0
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set mesh-injector-84b7c6d5f to 1
+  involvedObject:
+    kind: Deployment
+    name: mesh-injector
+    namespace: mesh-system
+  count: 1
+  firstTimestamp: '2026-10-20T08:00:00Z'
+  lastTimestamp: '2026-10-20T08:00:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: shop-tls.issuing.12c
+    namespace: shop
+    uid: evt-shop-shop-tls-issuing-12c
+  type: Normal
+  reason: Issuing
+  message: The certificate has been successfully issued
+  involvedObject:
+    kind: Certificate
+    name: shop-tls
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:05:00Z'
+  lastTimestamp: '2026-10-20T08:05:00Z'
+  reportingComponent: cert-manager-certificates-issuing
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: cart-api.scalingreplicaset.4b0
+    namespace: shop
+    uid: evt-shop-cart-api-scalingreplicaset-4b0
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set cart-api-9c7d8b6f5 to 1
+  involvedObject:
+    kind: Deployment
+    name: cart-api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:20:00Z'
+  lastTimestamp: '2026-10-20T08:20:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: cart-api-9c7d8b6f5-cc8d1.failed.4ec
+    namespace: shop
+    uid: evt-shop-cart-api-9c7d8b6f5-cc8d1-failed-4ec
+  type: Warning
+  reason: Failed
+  message: 'Failed to pull image "ghcr.io/acme/mesh-proxy:1.21.0-rc": rpc error: code = NotFound desc = failed to pull and unpack image "ghcr.io/acme/mesh-proxy:1.21.0-rc": not found'
+  involvedObject:
+    kind: Pod
+    name: cart-api-9c7d8b6f5-cc8d1
+    namespace: shop
+  count: 9
+  firstTimestamp: '2026-10-20T08:21:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: web-8c7b6d5f9-4ea43.failed.4ec
+    namespace: shop
+    uid: evt-shop-web-8c7b6d5f9-4ea43-failed-4ec
+  type: Warning
+  reason: Failed
+  message: 'Failed to pull image "ghcr.io/acme/mesh-proxy:1.21.0-rc": rpc error: code = NotFound desc = failed to pull and unpack image "ghcr.io/acme/mesh-proxy:1.21.0-rc": not found'
+  involvedObject:
+    kind: Pod
+    name: web-8c7b6d5f9-4ea43
+    namespace: shop
+  count: 9
+  firstTimestamp: '2026-10-20T08:21:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: cart-api-9c7d8b6f5-cc8d1.backoff.528
+    namespace: shop
+    uid: evt-shop-cart-api-9c7d8b6f5-cc8d1-backoff-528
+  type: Warning
+  reason: BackOff
+  message: Back-off pulling image "ghcr.io/acme/mesh-proxy:1.21.0-rc"
+  involvedObject:
+    kind: Pod
+    name: cart-api-9c7d8b6f5-cc8d1
+    namespace: shop
+  count: 30
+  firstTimestamp: '2026-10-20T08:22:00Z'
+  lastTimestamp: '2026-10-20T08:59:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: web-8c7b6d5f9-4ea43.backoff.528
+    namespace: shop
+    uid: evt-shop-web-8c7b6d5f9-4ea43-backoff-528
+  type: Warning
+  reason: BackOff
+  message: Back-off pulling image "ghcr.io/acme/mesh-proxy:1.21.0-rc"
+  involvedObject:
+    kind: Pod
+    name: web-8c7b6d5f9-4ea43
+    namespace: shop
+  count: 30
+  firstTimestamp: '2026-10-20T08:22:00Z'
+  lastTimestamp: '2026-10-20T08:59:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: web-8c7b6d5f9-evicted.evicted.5dc
+    namespace: shop
+    uid: evt-shop-web-8c7b6d5f9-evicted-evicted-5dc
+  type: Warning
+  reason: Evicted
+  message: 'The node was low on resource: ephemeral-storage.'
+  involvedObject:
+    kind: Pod
+    name: web-8c7b6d5f9-evicted
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:25:00Z'
+  lastTimestamp: '2026-10-20T08:25:00Z'
+  reportingComponent: kubelet

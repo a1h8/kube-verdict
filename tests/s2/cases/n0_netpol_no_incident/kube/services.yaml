@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ServiceList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: checkout-api
+    namespace: shop
+    uid: svc-shop-checkout-api
+  spec:
+    clusterIP: 10.43.3.11
+    selector:
+      app.kubernetes.io/name: checkout-api
+    ports:
+    - port: 8080
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: orders-api
+    namespace: shop
+    uid: svc-shop-orders-api
+  spec:
+    clusterIP: 10.43.3.14
+    selector:
+      app.kubernetes.io/name: orders-api
+    ports:
+    - port: 8080
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: cart-api
+    namespace: shop
+    uid: svc-shop-cart-api
+  spec:
+    clusterIP: 10.43.3.17
+    selector:
+      app.kubernetes.io/name: cart-api
+    ports:
+    - port: 8080
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: web
+    namespace: shop
+    uid: svc-shop-web
+  spec:
+    clusterIP: 10.43.3.20
+    selector:
+      app.kubernetes.io/name: web
+    ports:
+    - port: 8080
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: payments
+    namespace: pay
+    uid: svc-pay-payments
+  spec:
+    clusterIP: 10.43.12.9
+    selector:
+      app.kubernetes.io/name: payments
+    ports:
+    - port: 8443
+      targetPort: 8443
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: orders-db
+    namespace: data
+    uid: svc-data-orders-db
+  spec:
+    clusterIP: 10.43.20.5
+    selector:
+      app.kubernetes.io/name: orders-db
+    ports:
+    - port: 5432
+      targetPort: 5432
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: coredns
+    namespace: kube-system
+    uid: svc-kube-system-coredns
+  spec:
+    clusterIP: 10.43.0.10
+    selector:
+      app.kubernetes.io/name: coredns
+    ports:
+    - port: 53
+      targetPort: 53
