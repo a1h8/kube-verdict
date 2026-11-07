@@ -227,7 +227,7 @@ def build(variant: str) -> None:
     if traces:
         files["otel/traces.json"] = traces
     write(CASE[variant], files, {**COMMON, "release": release, **EXPECT[variant]})
-    (OUT / CASE[variant] / "helm" / "manifest.yaml").write_text(yaml.safe_dump(applied, sort_keys=False, width=120))
+    (OUT / CASE[variant] / "helm" / "manifest.yaml").write_text(yaml.safe_dump(applied, sort_keys=False, width=100000))
 
 
 CASE = {"d1": "d1_dependency_service_wrong_port", "d2": "d2_dependency_redis_full",

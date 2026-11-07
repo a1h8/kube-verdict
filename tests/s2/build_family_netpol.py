@@ -229,7 +229,7 @@ def build(variant: str) -> None:
              "helm/values.yaml": values, "helm/release.json": values, "helm/history.json": history,
              "loki/streams.json": streams, "prometheus/alerts.json": alerts}
     write(CASE[variant], files, {**COMMON, "release": release, **EXPECT[variant]})
-    (OUT / CASE[variant] / "helm" / "manifest.yaml").write_text(yaml.safe_dump(applied, sort_keys=False, width=120))
+    (OUT / CASE[variant] / "helm" / "manifest.yaml").write_text(yaml.safe_dump(applied, sort_keys=False, width=100000))
 
 
 CASE = {"n1": "n1_netpol_namespace_relabel", "n2": "n2_netpol_pod_labels_changed", "n0": "n0_netpol_no_incident"}

@@ -1,0 +1,197 @@
+# The evidence for each hop of each S2 case (docs/s2-correlation-cases.md, "Every hop has its evidence").
+# For each hop: the file of the case that shows it, a text that file contains (and, where the hop is an absence,
+# a text it must not contain), and what joins it to the next hop.
+# tests/unit/test_s2_cases.py checks that every `contains` is in its file. Written 2026-11-07, before any S2 run.
+
+q1_quota_filled_by_request_drift:
+  - hop: billing-worker's new pod is refused by the memory quota
+    file: kube/events.yaml
+    contains: "exceeded quota: shop-quota, requested: requests.memory=2Gi, used: requests.memory=31Gi, limited: requests.memory=32Gi"
+    join: the quota's name, shop-quota
+  - hop: the quota is at its memory limit
+    file: kube/quota.yaml
+    contains: "requests.memory: 31Gi"
+    join: the pods counted in shop, of which 20 are catalog-api's
+  - hop: catalog-api runs 20 replicas, each requesting 1Gi
+    file: kube/deployments.yaml
+    contains: "replicas: 20"
+    join: the HPA's scaleTargetRef, Deployment catalog-api
+  - hop: its HPA scaled it from 4 to its maximum
+    file: kube/events.yaml
+    contains: "New size: 20; reason: cpu resource utilization (percentage of request) above target"
+    join: utilization is a percentage of the CPU request
+  - hop: catalog-api's live CPU request is 100m
+    file: kube/deployments.yaml
+    contains: "cpu: 100m"
+    join: the same container in the applied manifest
+  - hop: the release applied 500m
+    file: helm/manifest.yaml
+    contains: "cpu: 500m"
+    join: the time of the change, the new ReplicaSet at T0
+  - hop: the change happened at T0, before the scale-ups
+    file: kube/events.yaml
+    contains: "Scaled up replica set catalog-api-5f6b7d9c8 to 4"
+    join: null
+
+q2_quota_filled_by_stuck_jobs:
+  - hop: search-api's new pods are refused by the pod quota
+    file: kube/events.yaml
+    contains: "exceeded quota: shop-quota, requested: pods=1, used: pods=40, limited: pods=40"
+    join: the pods counted in shop
+  - hop: 25 of them are Jobs of report-export, all still running
+    file: kube/jobs.yaml
+    contains: "name: report-export"
+    join: the Jobs' ownerReferences, CronJob report-export
+  - hop: the CronJob starts a Job every 10 minutes without waiting
+    file: kube/cronjob.yaml
+    contains: "concurrencyPolicy: Allow"
+    join: the Jobs' argument, the database they wait on
+  - hop: each Job waits on reports-db
+    file: loki/streams.json
+    contains: "waiting for database"
+    join: the address, reports-db.data.svc.cluster.local:5432
+  - hop: reports-db has had no ready endpoint since T0
+    file: kube/endpoints.yaml
+    contains: "notReadyAddresses"
+    join: the pod behind it and its readiness failures
+  - hop: its pod fails readiness from T0, in recovery
+    file: kube/events.yaml
+    contains: "the database system is in recovery mode"
+    join: null
+
+n1_netpol_namespace_relabel:
+  - hop: checkout-api's calls to payments time out
+    file: loki/streams.json
+    contains: "upstream=payments.pay.svc.cluster.local:8443"
+    join: the Service payments in pay
+  - hop: payments is healthy, its endpoints ready
+    file: kube/endpoints.yaml
+    contains: "name: payments"
+    join: the policies of pay that select payments' pods
+  - hop: pay denies ingress by default
+    file: kube/networkpolicies.yaml
+    contains: "name: default-deny-ingress"
+    join: the allow rule that would let shop in
+  - hop: the allow rule admits namespaces labelled team=storefront
+    file: kube/networkpolicies.yaml
+    contains: "team: storefront"
+    join: the label of Namespace shop
+  - hop: Namespace shop is labelled team=shop, changed at T0
+    file: kube/namespaces.yaml
+    contains: "team: shop"
+    join: the annotation's time, before the first timeouts
+  - hop: the change is dated T0
+    file: kube/namespaces.yaml
+    contains: "platform.acme.io/owner-updated"
+    join: null
+
+n2_netpol_pod_labels_changed:
+  - hop: orders-api crash-loops on a database timeout
+    file: loki/streams.json
+    contains: "host=orders-db.data.svc.cluster.local"
+    join: the Service orders-db in data
+  - hop: the database is up, its endpoints ready
+    file: kube/endpoints.yaml
+    contains: "name: orders-db"
+    join: the policies of data that select orders-db's pods
+  - hop: data allows ingress only from pods labelled app=orders-api
+    file: kube/networkpolicies.yaml
+    contains: "app: orders-api"
+    join: the labels of orders-api's pods
+  - hop: orders-api's pods carry the standard labels only
+    file: kube/pods.yaml
+    contains: "app.kubernetes.io/name: orders-api"
+    join: the release that changed them
+  - hop: the chart was upgraded to 3.0.0 at T0
+    file: helm/history.json
+    contains: "orders-api-3.0.0"
+    join: null
+
+d1_dependency_service_wrong_port:
+  - hop: checkout-api's calls to inventory are refused
+    file: loki/streams.json
+    contains: "connect: connection refused"
+    join: the address, the Service inventory in platform
+  - hop: inventory's pods are Ready and in its endpoints
+    file: kube/endpoints.yaml
+    contains: "name: inventory"
+    join: the port the endpoints and the Service send traffic to
+  - hop: the Service targets port 8080
+    file: kube/services.yaml
+    contains: "targetPort: 8080"
+    join: the port the inventory container listens on
+  - hop: the container listens on 9090, its probe too
+    file: kube/deployments.yaml
+    contains: "containerPort: 9090"
+    join: the release that moved the port, and the Service's other release
+  - hop: the inventory upgrade at T0; the Service belongs to platform-services
+    file: kube/services.yaml
+    contains: "meta.helm.sh/release-name: platform-services"
+    join: null
+
+d2_dependency_redis_full:
+  - hop: checkout-api gets 503 from pricing
+    file: loki/streams.json
+    contains: "upstream=pricing.platform.svc.cluster.local status=503"
+    join: the same call in checkout-api's error traces
+  - hop: the failing span is the call to pricing
+    file: otel/traces.json
+    contains: "GET pricing.platform/v1/price"
+    join: pricing's own traces and logs
+  - hop: pricing's writes to Redis are refused, memory full
+    file: loki/streams.json
+    contains: "OOM command not allowed when used memory > 'maxmemory'."
+    join: the address, redis.cache.svc.cluster.local:6379
+  - hop: Redis refuses writes once full
+    file: kube/deployments.yaml
+    contains: "noeviction"
+    join: why it filled, pricing's release
+  - hop: pricing caches every price without a TTL since its T0 release
+    file: helm/release.json
+    contains: "\"ttlSeconds\": 0"
+    join: the release time
+  - hop: that release is dated T0
+    file: helm/history.json
+    contains: "pricing-1.8.0"
+    join: null
+
+l1_limitrange_default_injected:
+  - hop: report-worker is OOMKilled
+    file: kube/pods.yaml
+    contains: "reason: OOMKilled"
+    join: the limit its container runs with
+  - hop: its container runs with a 256Mi memory limit set by admission
+    file: kube/pods.yaml
+    contains: "LimitRanger plugin set: memory limit for container report-worker"
+    join: the namespace's LimitRange
+  - hop: the release's Deployment declares requests, and no limit
+    file: helm/manifest.yaml
+    contains: "memory: 512Mi"
+    absent: "limits:"
+    join: the namespace default that filled the gap
+  - hop: the LimitRange defaults memory limits to 256Mi
+    file: kube/limitrange.yaml
+    contains: "memory: 256Mi"
+    join: when it was created, before the pods were recreated
+  - hop: it was created at T0, the pods recreated by a drain after
+    file: kube/events.yaml
+    contains: "NodeNotSchedulable"
+    join: null
+
+l2_limitrange_max_lowered:
+  - hop: the new pods of search-api's rollout are refused
+    file: kube/events.yaml
+    contains: "maximum memory usage per Container is 1Gi, but limit is 2Gi"
+    join: the LimitRange of shop
+  - hop: the LimitRange's maximum is 1Gi
+    file: kube/limitrange.yaml
+    contains: "memory: 1Gi"
+    join: when it changed
+  - hop: it changed at T0, before the rollout
+    file: kube/limitrange.yaml
+    contains: "kubectl-client-side-apply"
+    join: the pods admitted before it
+  - hop: the old pods run with 2Gi, admitted when the maximum allowed it
+    file: kube/pods.yaml
+    contains: "memory: 2Gi"
+    join: null

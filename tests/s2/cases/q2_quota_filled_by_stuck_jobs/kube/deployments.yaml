@@ -241,8 +241,7 @@ items:
     - type: ReplicaFailure
       status: 'True'
       reason: FailedCreate
-      message: 'pods "search-api-6f9c8d7b4-" is forbidden: exceeded quota: shop-quota, requested: pods=1, used: pods=40, limited:
-        pods=40'
+      message: 'pods "search-api-6f9c8d7b4-" is forbidden: exceeded quota: shop-quota, requested: pods=1, used: pods=40, limited: pods=40'
 - apiVersion: apps/v1
   kind: Deployment
   metadata:

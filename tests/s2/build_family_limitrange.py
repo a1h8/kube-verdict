@@ -208,7 +208,7 @@ def build(variant: str) -> None:
              "helm/values.yaml": git_values, "helm/release.json": deployed,
              "prometheus/alerts.json": alerts}
     write(CASE[variant], files, {**COMMON, "release": release, **EXPECT[variant]})
-    (OUT / CASE[variant] / "helm" / "manifest.yaml").write_text(yaml.safe_dump(applied, sort_keys=False, width=120))
+    (OUT / CASE[variant] / "helm" / "manifest.yaml").write_text(yaml.safe_dump(applied, sort_keys=False, width=100000))
 
 
 CASE = {"l1": "l1_limitrange_default_injected", "l2": "l2_limitrange_max_lowered", "l0": "l0_limitrange_no_incident"}

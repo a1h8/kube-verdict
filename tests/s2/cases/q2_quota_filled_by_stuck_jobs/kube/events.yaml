@@ -44,8 +44,7 @@ items:
     uid: evt-data-reports-db-6c7d8b9f4-x2k9p-unhealthy-0
   type: Warning
   reason: Unhealthy
-  message: 'Readiness probe failed: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed:
-    FATAL:  the database system is in recovery mode'
+  message: 'Readiness probe failed: psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  the database system is in recovery mode'
   involvedObject:
     kind: Pod
     name: reports-db-6c7d8b9f4-x2k9p
@@ -521,8 +520,7 @@ items:
     uid: evt-shop-search-api-6f9c8d7b4-failedcreate-3bc4
   type: Warning
   reason: FailedCreate
-  message: 'Error creating: pods "search-api-6f9c8d7b4-" is forbidden: exceeded quota: shop-quota, requested: pods=1, used:
-    pods=40, limited: pods=40'
+  message: 'Error creating: pods "search-api-6f9c8d7b4-" is forbidden: exceeded quota: shop-quota, requested: pods=1, used: pods=40, limited: pods=40'
   involvedObject:
     kind: ReplicaSet
     name: search-api-6f9c8d7b4

@@ -78,6 +78,26 @@ def test_the_limitrange_cases_set_what_the_chain_says():
     assert worker_limit("l0_limitrange_no_incident")[0] == "1Gi"
 
 
+EVIDENCE = yaml.safe_load((ROOT / "tests/s2/evidence.yaml").read_text())
+
+
+def test_every_case_with_a_cause_has_its_evidence_table():
+    with_cause = [c for c in NAMES if json.loads((CASES / c / "expect.json").read_text())["expected_outcome"] == "cause"]
+    assert sorted(with_cause) == sorted(EVIDENCE)
+    for case, hops in EVIDENCE.items():
+        assert len(hops) >= 4, case                                        # a chain of several steps
+        assert all(h["join"] for h in hops[:-1]) and hops[-1]["join"] is None, case
+
+
+@pytest.mark.parametrize("case,hop", [(c, h) for c, hs in EVIDENCE.items() for h in hs],
+                         ids=lambda x: x if isinstance(x, str) else x["hop"][:40])
+def test_each_hop_is_shown_by_its_file(case, hop):
+    text = (CASES / case / hop["file"]).read_text()
+    assert hop["contains"] in text, f"{case}: {hop['hop']}"
+    if hop.get("absent"):
+        assert hop["absent"] not in text, f"{case}: {hop['hop']}"
+
+
 def test_the_quotas_are_full_where_the_chain_says_and_only_there():
     assert _used("q1_quota_filled_by_request_drift")["requests.memory"] == "31Gi"   # + a 2Gi pod > 32Gi
     assert _used("q2_quota_filled_by_stuck_jobs")["pods"] == "40"                  # the limit

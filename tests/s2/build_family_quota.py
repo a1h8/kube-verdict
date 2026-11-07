@@ -141,7 +141,7 @@ def write(case: str, files: dict[str, object], expect: dict) -> None:
         if rel.endswith(".json"):
             p.write_text(json.dumps(content, indent=2) + "\n")
         else:
-            p.write_text(yaml.safe_dump(content, sort_keys=False, width=120))
+            p.write_text(yaml.safe_dump(content, sort_keys=False, width=100000))
     (d / "expect.json").write_text(json.dumps(expect, indent=2) + "\n")
 
 
@@ -431,7 +431,7 @@ def build(variant: str) -> None:
                          f"err=\"connection refused\" attempt={n}"]
                         for n, t in enumerate(range(1, 31, 10), 1)]}
             for k, p in enumerate(job_pods[:3])]
-    manifest = "---\n".join(yaml.safe_dump(d, sort_keys=False, width=120) for d in applied)
+    manifest = "---\n".join(yaml.safe_dump(d, sort_keys=False, width=100000) for d in applied)
 
     expect = EXPECT[variant]
     write(CASE[variant], files, expect)

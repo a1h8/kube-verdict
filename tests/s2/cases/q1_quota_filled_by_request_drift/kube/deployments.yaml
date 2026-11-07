@@ -182,8 +182,7 @@ items:
     - type: ReplicaFailure
       status: 'True'
       reason: FailedCreate
-      message: 'pods "billing-worker-6b8c4d7f9-" is forbidden: exceeded quota: shop-quota, requested: requests.memory=2Gi,
-        used: requests.memory=31Gi, limited: requests.memory=32Gi'
+      message: 'pods "billing-worker-6b8c4d7f9-" is forbidden: exceeded quota: shop-quota, requested: requests.memory=2Gi, used: requests.memory=31Gi, limited: requests.memory=32Gi'
 - apiVersion: apps/v1
   kind: Deployment
   metadata:

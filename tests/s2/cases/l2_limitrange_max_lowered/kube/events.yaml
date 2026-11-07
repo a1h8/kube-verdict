@@ -61,8 +61,7 @@ items:
     uid: evt-shop-search-api-7c8d9b6f5-failedcreate-384
   type: Warning
   reason: FailedCreate
-  message: 'Error creating: pods "search-api-7c8d9b6f5-v2kq8" is forbidden: maximum memory usage per Container is 1Gi, but
-    limit is 2Gi'
+  message: 'Error creating: pods "search-api-7c8d9b6f5-v2kq8" is forbidden: maximum memory usage per Container is 1Gi, but limit is 2Gi'
   involvedObject:
     kind: ReplicaSet
     name: search-api-7c8d9b6f5

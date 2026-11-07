@@ -24,6 +24,12 @@ A case is in S2 only if it has all of the following, declared in its `expect.jso
 1. **A chain of at least two hops** from the symptom to the cause, each hop a stated relation between
    two objects, at least one of them with no edge in the graph today (for example, a pod's DNS timeout
    → the NetworkPolicy selecting it → the namespace label that policy matches).
+   **Every hop has its evidence in the fixtures,** listed in `tests/s2/evidence.yaml`: the file that shows the hop, a
+   text it contains (or, for an absence, a text it must not contain), and what joins it to the next hop (a name, a
+   label, a port, a timestamp). `tests/unit/test_s2_cases.py` checks every one against the fixtures. A text found in a
+   file proves the evidence is there, not that it is unambiguous: the joins are still for a reader to check. An analyst
+   reading only the fixtures can then walk the chain from the symptom to the cause without guessing (added 2026-11-07,
+   before any S2 run).
 2. **At least two decoys:** drifts or warnings that are real and visible but do not explain the symptom.
    Each has a written reason why it is not the cause.
 3. **Tens of objects across at least two namespaces,** most of them healthy, so the cause is not the
@@ -82,6 +88,14 @@ for a LOW label and no forbidden word). For S2:
 
 ## Before any S2 run
 
+0. **The test loader at parity with the live collector** (decided 2026-11-07). Writing the first families showed that
+   `tests/integration/cases/case_loader.py` builds a graph the product would not: it reads no Service, so no
+   `EXPOSES` edge exists in the replay while `K8sCollector._collect_services` creates one from each Service's selector;
+   it counts ConfigMaps as covered without building any, so an applied ConfigMap is reported absent; and it does not
+   carry a Deployment's image where the applied-vs-live comparison reads it. Measured as it is, S2 would understate the
+   product. The fix uses the collector's own code where it can, as H14 asked. S1 is frozen with the loader, so the fix
+   is its own dated change: S1 replayed with the structured solver before and after, the difference published, and
+   block B's results left as they are, stated as made with the old loader.
 1. The two amendments below, approved and dated.
 2. The fix to the negative-case grading, with its test and its control.
 3. The volume, computed from block B's discordant pairs, as protocol 002 requires, written before any run.
