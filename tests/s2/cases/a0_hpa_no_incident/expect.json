@@ -1,0 +1,30 @@
+{
+  "set": "S2",
+  "family": "hpa",
+  "namespace": "shop",
+  "release": "api",
+  "sources": [
+    "prometheus-operator/runbooks@a685d14 KubeAggregatedAPIDown",
+    "prometheus-operator/runbooks@a685d14 KubeAggregatedAPIErrors",
+    "prometheus-operator/runbooks@a685d14 KubeHpaReplicasMismatch",
+    "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+  ],
+  "spec": "docs/s2/family-hpa.md",
+  "scenario": "No incident: the APIService points to the adapter, the HPA follows the load",
+  "query": "is something wrong with api in shop",
+  "expected_outcome": "no_incident",
+  "cause_object": null,
+  "decoys": [
+    {
+      "object": "Deployment/kube-system/metrics-server",
+      "why_not": "healthy"
+    },
+    {
+      "object": "the daily peaks",
+      "why_not": "absorbed"
+    }
+  ],
+  "affected_resources": [],
+  "root_cause_contains": [],
+  "notes": "Passes only on an explicit no-incident answer (protocol 002, A2)."
+}

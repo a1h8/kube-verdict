@@ -195,3 +195,57 @@ l2_limitrange_max_lowered:
     file: kube/pods.yaml
     contains: "memory: 2Gi"
     join: null
+
+a1_hpa_custom_metrics_api_points_away:
+  - hop: api saturates under load
+    file: prometheus/alerts.json
+    contains: "p99 latency is 1.9s while traffic rises."
+    join: the HPA's scaleTargetRef, Deployment api
+  - hop: its HPA stays at 4, unable to read its metric
+    file: kube/hpa.yaml
+    contains: "reason: FailedGetPodsMetric"
+    join: the metric, served by custom.metrics.k8s.io
+  - hop: the HPA keeps failing since T0+2 min
+    file: kube/events.yaml
+    contains: "unable to fetch metrics from custom metrics API"
+    join: the APIService of that group
+  - hop: the custom metrics API is unavailable and points to monitoring
+    file: kube/apiservices.yaml
+    contains: "reason: MissingEndpoints"
+    join: its spec.service, monitoring/prometheus-adapter
+  - hop: that Service has no endpoints
+    file: kube/endpoints.yaml
+    contains: "subsets: []"
+    join: the adapter's release
+  - hop: the adapter was moved to observability at T0
+    file: helm/releases.json
+    contains: "\"status\": \"uninstalled\""
+    join: null
+
+a2_hpa_scale_up_policy_slowed:
+  - hop: api breaches its latency SLO at each peak
+    file: prometheus/alerts.json
+    contains: "the SLO burned at each of the last three daily peaks"
+    join: the peak times
+  - hop: the HPA adds one pod every 10 minutes
+    file: kube/hpa.yaml
+    contains: "reason: ScaleUpLimit"
+    join: its behavior
+  - hop: its scale-up policy is one pod per 600 s
+    file: kube/hpa.yaml
+    contains: "periodSeconds: 600"
+    join: the HPA's release, api
+  - hop: before T0 it went to 12 within a minute
+    file: kube/events.yaml
+    contains: "New size: 12; reason: pods metric http_requests_per_second above target"
+    join: the change between the two series, at T0
+  - hop: the previous release had no behavior
+    file: helm/manifest-previous.yaml
+    contains: "maxReplicas: 20"
+    absent: "behavior"
+    join: the release history
+  - hop: the T0 release, chart api-3.2.0, added it
+    file: helm/history.json
+    contains: "api-3.2.0"
+    join: null
+

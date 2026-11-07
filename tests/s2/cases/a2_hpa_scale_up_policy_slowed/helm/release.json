@@ -1,0 +1,23 @@
+{
+  "image": {
+    "tag": "3.2.0"
+  },
+  "autoscaling": {
+    "minReplicas": 4,
+    "maxReplicas": 20,
+    "metric": "http_requests_per_second",
+    "targetAverageValue": 50,
+    "behavior": {
+      "scaleUp": {
+        "stabilizationWindowSeconds": 600,
+        "policies": [
+          {
+            "type": "Pods",
+            "value": 1,
+            "periodSeconds": 600
+          }
+        ]
+      }
+    }
+  }
+}

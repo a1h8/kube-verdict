@@ -1,0 +1,50 @@
+{
+  "set": "S2",
+  "family": "hpa",
+  "namespace": "shop",
+  "release": "api",
+  "sources": [
+    "prometheus-operator/runbooks@a685d14 KubeAggregatedAPIDown",
+    "prometheus-operator/runbooks@a685d14 KubeAggregatedAPIErrors",
+    "prometheus-operator/runbooks@a685d14 KubeHpaReplicasMismatch",
+    "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+  ],
+  "spec": "docs/s2/family-hpa.md",
+  "scenario": "api does not scale under load; the custom metrics API points to the namespace its adapter left",
+  "query": "why doesn't api scale up under load in shop",
+  "expected_outcome": "cause",
+  "cause_object": "APIService/v1beta1.custom.metrics.k8s.io",
+  "mechanism": "the APIService still points to monitoring/prometheus-adapter, which has had no endpoints since the adapter moved to observability at T0, so the custom metrics API is unavailable and the HPA cannot read http_requests_per_second",
+  "pass_if": "names the APIService, or the custom metrics API, pointing to the adapter's old location",
+  "partial_if_only": [
+    "the HPA cannot read its metric, or the metrics API is unavailable, without where it points"
+  ],
+  "chain": [
+    "api saturates; its HPA stays at 4",
+    "the HPA: FailedGetPodsMetric on http_requests_per_second",
+    "APIService v1beta1.custom.metrics.k8s.io Available=False, MissingEndpoints, points to monitoring",
+    "Service monitoring/prometheus-adapter has no endpoints",
+    "the adapter runs in observability since T0"
+  ],
+  "decoys": [
+    {
+      "object": "Deployment/observability/prometheus-adapter",
+      "why_not": "healthy, at its new address"
+    },
+    {
+      "object": "Deployment/kube-system/metrics-server",
+      "why_not": "healthy; resource metrics work"
+    },
+    {
+      "object": "Deployment/shop/api (busy pods)",
+      "why_not": "the load, not a fault"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/api"
+  ],
+  "root_cause_concepts": [
+    "apiservice|custom.metrics|custom metrics api",
+    "monitoring|observability|adapter"
+  ]
+}

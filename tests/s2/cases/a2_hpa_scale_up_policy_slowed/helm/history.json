@@ -1,0 +1,18 @@
+[
+  {
+    "revision": 11,
+    "updated": "2026-09-20T08:00:00Z",
+    "status": "superseded",
+    "chart": "api-3.1.4",
+    "app_version": "3.1.4",
+    "description": "Upgrade complete"
+  },
+  {
+    "revision": 12,
+    "updated": "2026-10-20T08:00:00Z",
+    "status": "deployed",
+    "chart": "api-3.2.0",
+    "app_version": "3.2.0",
+    "description": "Upgrade complete"
+  }
+]

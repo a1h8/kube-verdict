@@ -136,3 +136,9 @@ as `docs/s2-correlation-cases.md` requires; three files were added for it: `kube
 
 1. a1: "the metrics API is unavailable" without where it points is PARTIAL.
 2. a2: the release named without the scale-up policy is PARTIAL.
+
+## Fixtures, 2026-11-07
+
+`tests/s2/build_family_hpa.py` writes a1, a2 and a0 to `tests/s2/cases/` (46 to 69 objects, 4 namespaces); their hops
+are checked against the fixtures from `tests/s2/evidence.yaml`. Seen when loading them, without running any arm: the
+`KubeAggregatedAPIErrors` alert of a1 is kept with no entity to attach it to, since the graph has no APIService.

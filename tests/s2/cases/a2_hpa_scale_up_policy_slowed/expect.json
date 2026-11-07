@@ -1,0 +1,51 @@
+{
+  "set": "S2",
+  "family": "hpa",
+  "namespace": "shop",
+  "release": "api",
+  "sources": [
+    "prometheus-operator/runbooks@a685d14 KubeAggregatedAPIDown",
+    "prometheus-operator/runbooks@a685d14 KubeAggregatedAPIErrors",
+    "prometheus-operator/runbooks@a685d14 KubeHpaReplicasMismatch",
+    "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+  ],
+  "spec": "docs/s2/family-hpa.md",
+  "scenario": "api absorbs peaks too slowly; a release gave its HPA a one-pod-per-10-minutes scale-up policy",
+  "query": "why does api take so long to absorb traffic peaks in shop",
+  "expected_outcome": "cause",
+  "cause_object": "HorizontalPodAutoscaler/shop/api",
+  "mechanism": "the T0 release (chart 3.2.0) set behavior.scaleUp to one pod per 600 s with a 600 s stabilization window, so the HPA adds replicas too slowly and api saturates at each peak",
+  "pass_if": "names the HPA's scale-up policy or rate limit",
+  "partial_if_only": [
+    "the HPA scales too slowly, without the policy",
+    "the release, without the policy"
+  ],
+  "chain": [
+    "api breaches its latency SLO at each peak",
+    "the HPA adds one pod every 10 minutes, ScaleUpLimit",
+    "its behavior.scaleUp: 1 pod per 600 s, 600 s window",
+    "before T0 it went to 12 within a minute",
+    "the T0 release, chart api-3.2.0, added that behavior"
+  ],
+  "decoys": [
+    {
+      "object": "the daily traffic peaks",
+      "why_not": "the same before T0, absorbed then"
+    },
+    {
+      "object": "HorizontalPodAutoscaler/shop/api maxReplicas 20",
+      "why_not": "never reached"
+    },
+    {
+      "object": "the nodes",
+      "why_not": "no pod Pending: capacity is not the limit"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/api"
+  ],
+  "root_cause_concepts": [
+    "behavior|scaleup|scale-up|policy|stabilization|rate",
+    "hpa|autoscal"
+  ]
+}

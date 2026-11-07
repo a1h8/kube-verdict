@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: APIServiceList
+metadata: {}
+items:
+- apiVersion: apiregistration.k8s.io/v1
+  kind: APIService
+  metadata:
+    name: v1beta1.metrics.k8s.io
+  spec:
+    group: metrics.k8s.io
+    version: v1beta1
+    service:
+      namespace: kube-system
+      name: metrics-server
+      port: 443
+  status:
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: Passed
+      message: all checks passed
+- apiVersion: apiregistration.k8s.io/v1
+  kind: APIService
+  metadata:
+    name: v1beta1.custom.metrics.k8s.io
+  spec:
+    group: custom.metrics.k8s.io
+    version: v1beta1
+    service:
+      namespace: observability
+      name: prometheus-adapter
+      port: 443
+  status:
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: Passed
+      message: all checks passed
+      lastTransitionTime: '2026-10-14T02:00:00Z'
