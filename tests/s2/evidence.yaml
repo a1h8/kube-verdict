@@ -249,3 +249,47 @@ a2_hpa_scale_up_policy_slowed:
     contains: "api-3.2.0"
     join: null
 
+w1_webhook_injects_missing_image:
+  - hop: new pods of cart-api and web cannot pull mesh-proxy
+    file: kube/events.yaml
+    contains: "Failed to pull image \"ghcr.io/acme/mesh-proxy:1.21.0-rc\""
+    join: the container mesh-proxy, in the pods
+  - hop: mesh-proxy is not in the charts of cart-api or web; the pods are marked injected
+    file: kube/pods.yaml
+    contains: "mesh.acme.io/injected: 'true'"
+    join: the webhook that selects shop
+  - hop: the webhook selects namespaces labelled mesh-injection=enabled, which shop is
+    file: kube/mutatingwebhookconfigurations.yaml
+    contains: "mesh-injection: enabled"
+    join: its clientConfig, the Service mesh-system/mesh-injector
+  - hop: the injector sets that proxy image
+    file: kube/deployments.yaml
+    contains: "--proxy-image=ghcr.io/acme/mesh-proxy:1.21.0-rc"
+    join: the injector's release
+  - hop: the injector was upgraded to chart 1.21.0 at T0
+    file: helm/history.json
+    contains: "mesh-injector-1.21.0"
+    join: null
+
+w2_webhook_fails_closed_expired_cert:
+  - hop: checkout's new pods are refused by the webhook, certificate expired
+    file: kube/events.yaml
+    contains: "x509: certificate has expired or is not yet valid"
+    join: the webhook named in the error, inject.mesh.acme.io
+  - hop: the webhook fails closed
+    file: kube/mutatingwebhookconfigurations.yaml
+    contains: "failurePolicy: Fail"
+    join: the Service it calls, mesh-system/mesh-injector
+  - hop: the injector is up and reachable; its TLS handshakes fail
+    file: loki/streams.json
+    contains: "tls: bad certificate"
+    join: the Secret it mounts, mesh-injector-tls
+  - hop: the certificate expired at T0
+    file: kube/certificates.yaml
+    contains: "reason: Expired"
+    join: why it was not renewed
+  - hop: its issuer mesh-ca is gone
+    file: kube/events.yaml
+    contains: "issuer mesh-ca not found"
+    join: null
+

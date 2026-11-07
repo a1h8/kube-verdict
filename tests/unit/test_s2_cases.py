@@ -18,9 +18,10 @@ NAMES = ["q0_quota_no_incident", "q1_quota_filled_by_request_drift", "q2_quota_f
          "n0_netpol_no_incident", "n1_netpol_namespace_relabel", "n2_netpol_pod_labels_changed",
          "d0_dependency_no_incident", "d1_dependency_service_wrong_port", "d2_dependency_redis_full",
          "l0_limitrange_no_incident", "l1_limitrange_default_injected", "l2_limitrange_max_lowered",
-         "a0_hpa_no_incident", "a1_hpa_custom_metrics_api_points_away", "a2_hpa_scale_up_policy_slowed"]
+         "a0_hpa_no_incident", "a1_hpa_custom_metrics_api_points_away", "a2_hpa_scale_up_policy_slowed",
+         "w0_webhook_no_incident", "w1_webhook_injects_missing_image", "w2_webhook_fails_closed_expired_cert"]
 BUILDERS = ["build_family_quota.py", "build_family_netpol.py", "build_family_dependency.py",
-            "build_family_limitrange.py", "build_family_hpa.py"]
+            "build_family_limitrange.py", "build_family_hpa.py", "build_family_webhook.py"]
 
 
 def _used(case: str) -> dict:
@@ -113,13 +114,14 @@ def test_no_fixture_names_the_answer(case):
             text = path.read_text().lower()
             assert not any(w in text for w in ("decoy", "cause", "why_not", "s2", "q1_", "q2_", "q0_",
                                                "n1_", "n2_", "n0_", "d1_", "d2_", "d0_",
-                                               "l1_", "l2_", "l0_", "a1_", "a2_", "a0_")), path
+                                               "l1_", "l2_", "l0_", "a1_", "a2_", "a0_",
+                                               "w1_", "w2_", "w0_")), path
 
 
 @pytest.mark.parametrize("case", NAMES)
 def test_every_case_states_its_answer(case):
     expect = json.loads((CASES / case / "expect.json").read_text())
-    assert expect["set"] == "S2" and expect["family"] in ("quota", "netpol", "dependency", "limitrange", "hpa") and expect["sources"]
+    assert expect["set"] == "S2" and expect["family"] in ("quota", "netpol", "dependency", "limitrange", "hpa", "webhook") and expect["sources"]
     if expect["expected_outcome"] == "cause":
         kind = expect["cause_object"].split("/")[0]
         slashes = 1 if kind in ("Namespace", "Node", "ClusterRole", "PersistentVolume", "APIService") else 2

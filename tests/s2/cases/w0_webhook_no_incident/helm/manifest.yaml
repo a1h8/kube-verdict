@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mesh-injector
+  namespace: mesh-system
+  uid: dep-mesh-system-mesh-injector
+  labels:
+    app.kubernetes.io/name: mesh-injector
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: mesh-injector
+    meta.helm.sh/release-namespace: mesh-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mesh-injector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mesh-injector
+    spec:
+      containers:
+      - name: injector
+        image: ghcr.io/acme/mesh-injector:1.21.1
+        args:
+        - --tls-cert=/etc/tls/tls.crt
+        - --tls-key=/etc/tls/tls.key
+        - --proxy-image=ghcr.io/acme/mesh-proxy:1.21.1
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mesh-injector
+  uid: mwc-mesh-injector
+  annotations:
+    meta.helm.sh/release-name: mesh-injector
+    meta.helm.sh/release-namespace: mesh-system
+webhooks:
+- name: inject.mesh.acme.io
+  admissionReviewVersions:
+  - v1
+  sideEffects: None
+  failurePolicy: Fail
+  timeoutSeconds: 10
+  clientConfig:
+    service:
+      namespace: mesh-system
+      name: mesh-injector
+      path: /inject
+      port: 443
+  namespaceSelector:
+    matchLabels:
+      mesh-injection: enabled
+  rules:
+  - operations:
+    - CREATE
+    apiGroups:
+    - ''
+    apiVersions:
+    - v1
+    resources:
+    - pods

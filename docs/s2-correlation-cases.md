@@ -92,7 +92,8 @@ for a LOW label and no forbidden word). For S2:
    `tests/integration/cases/case_loader.py` builds a graph the product would not: it reads no Service, so no
    `EXPOSES` edge exists in the replay while `K8sCollector._collect_services` creates one from each Service's selector;
    it counts ConfigMaps as covered without building any, so an applied ConfigMap is reported absent; and it does not
-   carry a Deployment's image where the applied-vs-live comparison reads it. Measured as it is, S2 would understate the
+   carry a Deployment's image where the applied-vs-live comparison reads it; and it reads no MutatingWebhookConfiguration, which the live policy collector adds
+   to the graph (found 2026-11-07). Measured as it is, S2 would understate the
    product. The fix uses the collector's own code where it can, as H14 asked. S1 is frozen with the loader, so the fix
    is its own dated change: S1 replayed with the structured solver before and after, the difference published, and
    block B's results left as they are, stated as made with the old loader.

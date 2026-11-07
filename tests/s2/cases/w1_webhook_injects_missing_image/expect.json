@@ -1,0 +1,49 @@
+{
+  "set": "S2",
+  "family": "webhook",
+  "namespace": "shop",
+  "release": "mesh-injector",
+  "sources": [
+    "https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/",
+    "prometheus-operator/runbooks@a685d14 KubeContainerWaiting",
+    "prometheus-operator/runbooks@a685d14 KubeDeploymentReplicasMismatch"
+  ],
+  "spec": "docs/s2/family-webhook.md",
+  "scenario": "new pods of two releases cannot pull an injected sidecar image; the injector's upgrade set it",
+  "query": "why are new pods of cart-api and web stuck in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Deployment/mesh-system/mesh-injector",
+  "mechanism": "since its T0 upgrade (chart 1.21.0) the injector injects ghcr.io/acme/mesh-proxy:1.21.0-rc, a tag that does not exist, into every new pod of the namespaces its webhook selects",
+  "pass_if": "names the injector or its webhook as the source of the mesh-proxy container with the bad image",
+  "partial_if_only": [
+    "an image cannot be pulled, without where the container comes from"
+  ],
+  "chain": [
+    "new pods of cart-api and web are ImagePullBackOff on mesh-proxy:1.21.0-rc",
+    "mesh-proxy is in no chart; the pods are annotated mesh.acme.io/injected",
+    "MutatingWebhookConfiguration mesh-injector selects mesh-injection=enabled, which shop is",
+    "the injector, upgraded at T0, sets --proxy-image=...:1.21.0-rc"
+  ],
+  "decoys": [
+    {
+      "object": "Deployment/shop/cart-api (redeployed)",
+      "why_not": "created the new pod; its own tag exists"
+    },
+    {
+      "object": "Certificate/shop/shop-tls",
+      "why_not": "renewed and Ready"
+    },
+    {
+      "object": "Deployment/shop/orders-api",
+      "why_not": "its pods predate T0 and run"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/cart-api",
+    "Deployment/shop/web"
+  ],
+  "root_cause_concepts": [
+    "inject|webhook|mesh-injector|sidecar",
+    "1.21.0-rc|proxy image|mesh-proxy"
+  ]
+}

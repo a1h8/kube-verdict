@@ -1,0 +1,48 @@
+{
+  "set": "S2",
+  "family": "webhook",
+  "namespace": "shop",
+  "release": "mesh-injector",
+  "sources": [
+    "https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/",
+    "prometheus-operator/runbooks@a685d14 KubeContainerWaiting",
+    "prometheus-operator/runbooks@a685d14 KubeDeploymentReplicasMismatch"
+  ],
+  "spec": "docs/s2/family-webhook.md",
+  "scenario": "pod creations are refused; the webhook fails closed because its certificate expired",
+  "query": "why does the checkout rollout not start in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Secret/mesh-system/mesh-injector-tls",
+  "mechanism": "the injector's serving certificate expired at T0 and was not renewed (its issuer mesh-ca is gone), so the API server's calls to the webhook fail TLS verification, and the webhook, set to failurePolicy Fail, rejects every pod creation in shop",
+  "pass_if": "names the expired certificate, or the webhook failing closed because of it",
+  "partial_if_only": [
+    "a webhook rejects the pods, without why"
+  ],
+  "chain": [
+    "checkout's new ReplicaSet and a Job fail to create pods: failed calling webhook, certificate expired",
+    "MutatingWebhookConfiguration mesh-injector has failurePolicy Fail",
+    "the injector runs and is reachable; its TLS handshakes fail",
+    "Certificate mesh-injector-tls expired at T0; its issuer mesh-ca was not found"
+  ],
+  "decoys": [
+    {
+      "object": "Deployment/shop/checkout 2.0.0",
+      "why_not": "the version the rollout ships"
+    },
+    {
+      "object": "ResourceQuota/shop/shop-quota",
+      "why_not": "at 50 %"
+    },
+    {
+      "object": "Deployment/mesh-system/mesh-injector",
+      "why_not": "last upgraded 40 days ago, running"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/checkout"
+  ],
+  "root_cause_concepts": [
+    "certificate|cert|tls|x509",
+    "expired|expir"
+  ]
+}
