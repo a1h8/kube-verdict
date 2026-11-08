@@ -1,0 +1,26 @@
+{
+  "frozen_on": "2026-11-08",
+  "cases": {
+    "a0_hpa_no_incident": "df1f24dbe12f7245b99d4744b6f2f0c7098f2756d5f280752406d6f75d44ab24",
+    "a1_hpa_custom_metrics_api_points_away": "fd38e29f2963917afb4fb3d6296788219e4885de528dda56a7135787bc86c0bc",
+    "a2_hpa_scale_up_policy_slowed": "6c99dae2ee0737179cc476c303a4f36721820d7b6fa48d58ad3bfcccabc98026",
+    "c0_configmap_no_incident": "313417b10ccbda789932a201e4ea5ca0c94d7a223bb412a786a2cfc391cdb6b1",
+    "c1_configmap_env_changed": "86430c112a04451df7dd05a1fbecc3d1639a82241b27200590c440667b82f97c",
+    "c2_configmap_invalid_file": "75df350f609cd4e37ae84e893aaa5677dd4d354d4eeaab89c0c53747762a5f28",
+    "d0_dependency_no_incident": "06938f00f2490384035c360f7a6af22a2ed1674862905e6a7f97300ae66427c0",
+    "d1_dependency_service_wrong_port": "fcf52a3fd603f86a7ec19c1b1915eae6411846b880d866247ec333eaa01e1203",
+    "d2_dependency_redis_full": "08868176be6d813346bd7488e46a095cca0b21343590fd12d2cefd780ce022f1",
+    "l0_limitrange_no_incident": "968e8b4be0764adad502ce56fe434f06a19713e1524021819d416494bbdcaf98",
+    "l1_limitrange_default_injected": "1ddcbb6c8213fa250c58e9548b13c2fa1f5b7e2fbdb57aaeab7181b63210d06e",
+    "l2_limitrange_max_lowered": "8b49a1fa08829e9b27c635a25ad2d0850f55c452535dac72adcafe7a6a1c00b1",
+    "n0_netpol_no_incident": "498e63627841649b15c9facc8abc0a3a195f3a1defc9ebecbacf68d6870be8d8",
+    "n1_netpol_namespace_relabel": "c8982da379276ea9bcea160be3ef2a01f228b10bfd8ff3b51ad2d4378c50f9dd",
+    "n2_netpol_pod_labels_changed": "e8c77fbd199a69791e356d81cdc514eff1c898a8fd90230d9e7bd1e9a7fc3e78",
+    "q0_quota_no_incident": "cb1d9103498526f882cabf16bf58704ea7db463251411d904858a98485cbae1c",
+    "q1_quota_filled_by_request_drift": "c6f0edfbe01858e31de2106f33cded41cbc51e981a97100f1a5ac060c81726e1",
+    "q2_quota_filled_by_stuck_jobs": "89d976223535b5ca9589c714e8a82bb2f9ca1b71fb69504131b79a49f70f65e5",
+    "w0_webhook_no_incident": "c9ce73cac15a6dbac232cbb697d195b84f889350f7825cd1db69f39b6b533dee",
+    "w1_webhook_injects_missing_image": "330d0bbf24718cd2a7689630af9d7c33eb6e4001ab1e0749dc49080ad1743c4d",
+    "w2_webhook_fails_closed_expired_cert": "9c33c1397c6c602165b6ce9badb1bcb08a214908587beac75fec25523776337b"
+  }
+}

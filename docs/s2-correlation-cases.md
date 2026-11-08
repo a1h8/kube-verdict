@@ -107,7 +107,8 @@ for a LOW label and no forbidden word). For S2:
 1. The two amendments below, approved and dated.
 2. The fix to the negative-case grading, with its test and its control.
 3. The volume, computed from block B's discordant pairs, as protocol 002 requires, written before any run. *Done 2026-11-08:* protocol 002, amendment A3. S2 is exploratory.
-4. Every family's spec, cases and `expect.json`, then the hashes frozen.
+4. Every family's spec, cases and `expect.json`, then the hashes frozen. *Done 2026-11-08:* 21 cases, hashed in `tests/s2/frozen.json` (`tests/s2/frozen.py`), checked by
+   `tests/unit/test_s2_frozen.py`. From here a changed case is a new case.
 
 ## Amendments proposed to protocol 002
 
