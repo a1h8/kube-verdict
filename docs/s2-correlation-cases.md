@@ -121,6 +121,10 @@ by design, and scoping the investigation to the symptom's namespace would hide t
 plumbing is tested on a copy of an S1 case put in S2's form (`tests/unit/test_s2_replay.py`), so that no S2 case is
 run before its measurement.
 
+## Results
+
+The first run, graded blind: `docs/s2-results.md`.
+
 ## Amendments proposed to protocol 002
 
 - **A1 — grading of S2:** primary on the cause object and its mechanism, by two blind graders; the keyword

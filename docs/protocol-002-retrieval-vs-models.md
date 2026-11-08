@@ -144,7 +144,9 @@ store, N, corpus hash and case hash; no real store read or written; temperature 
 
 ## Results
 
-Not run.
+- **S2, 2026-11-08 (exploratory, A3):** D, L₀ and S₀ only; `docs/s2-results.md`. Prediction 3 and the
+  decisions rest on arms not run yet (L₃, S₃, the controls) and on S3, so none is settled by this run.
+- S1 and S3: not run under this protocol.
 
 ## Amendments
 
