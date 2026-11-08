@@ -92,6 +92,9 @@ def main() -> int:
     cases = cases or sorted(p.name for p in (ROOT / "tests/s2/cases").iterdir() if p.is_dir())
     commit = vr.commit_id()
     configs = {"B0": (True, "stub"), "B1": (False, "stub"), "B2": (False, "faiss")}
+    label = sys.argv[1] if len(sys.argv) > 1 else ""        # a milestone: its records apart, B0 not re-run
+    if label:
+        configs.pop("B0")
     table: dict[str, dict[str, tuple[bool, bool]]] = {}
     for name, (empty, store) in configs.items():
         with vr.isolated_stores(), empty_discovery(empty):
@@ -102,15 +105,15 @@ def main() -> int:
                 graph, expect, prompt = prompt_for(case, store)
                 g, p = in_graph(graph, expect["cause_object"]), present(prompt, expect["cause_object"])
                 table.setdefault(case, {})[name] = (g, p)
-                out = OUT / name
+                out = OUT / label / name if label else OUT / name
                 out.mkdir(parents=True, exist_ok=True)
                 (out / f"{case}.json").write_text(json.dumps({
-                    "config": name, "case": case, "commit": commit, "cause_object": expect["cause_object"],
+                    "config": name, "label": label, "case": case, "commit": commit, "cause_object": expect["cause_object"],
                     "in_graph": g, "in_prompt": p, "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
                     "prompt_chars": len(prompt), "prompt": prompt}, indent=1) + "\n")
     print(f"commit {commit}")
-    print("| case | discovery-only | B0 graph/prompt | B1 graph/prompt | B2 graph/prompt |")
-    print("|---|---|---|---|---|")
+    print("| case | discovery-only | " + " | ".join(f"{c} graph/prompt" for c in configs) + " |")
+    print("|---|---|" + "---|" * len(configs))
     yn = lambda b: "yes" if b else "no"  # noqa: E731
     for case, row in table.items():
         cells = " | ".join(f"{yn(row[c][0])}/{yn(row[c][1])}" for c in configs)

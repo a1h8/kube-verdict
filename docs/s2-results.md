@@ -3,6 +3,11 @@
 > Run 2026-11-08, commit `a1da285`, on the 21 cases frozen in `tests/s2/frozen.json`. Graded blind as
 > `docs/s2/grading.md` fixed before the run. S2 is exploratory (protocol 002, amendment A3): 21 cases, no
 > test, intervals only. Spec of the cases: `docs/s2-correlation-cases.md`.
+>
+> **Measured with a defect, 2026-11-08.** This run's harness served an empty API discovery, so ResourceQuota,
+> LimitRange, HPA, Job and CronJob were in no graph; 4 of the 14 cause objects were missing from what D read, and the
+> context arms ran with the vector search off. See `docs/s2-context-reach.md`. These numbers stand as measured and are
+> not to be cited without that note; S2 is re-run after the fix.
 
 ## What was run
 

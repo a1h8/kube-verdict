@@ -35,6 +35,9 @@ _INCIDENT_RELS = {
 # namespace's quota (H37). IN_NAMESPACE and MANAGED_BY_HELM are not here: backwards they
 # return every object of the namespace or of the release.
 _INCIDENT_RELS_BACKWARD = {
+    # from a warning event (always a seed) to the object it is about: without it an event was a dead end, and a
+    # pod seen only through its events never led to what constrains it (2026-11-08, S2 l1/l2)
+    RelationshipType.HAS_EVENT,
     RelationshipType.OWNS,
     RelationshipType.EXPOSES,
     RelationshipType.SCALES,

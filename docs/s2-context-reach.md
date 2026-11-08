@@ -119,3 +119,19 @@ mutant killed). The rule above was written at 17:47Z and not changed. Records: `
 - d1, d2 and w1 have their cause in the graph and never in the prompt by this test. The prompt may name it on a line
   without its kind.
 - 14 cases, one run, no model: this says where the evidence was, not what any arm would conclude.
+
+## Development milestones (S2 as the development set, not a test)
+
+Each change to the engine is measured with the same tool, `python tools/s2_context_reach.py <label>` (B1 and B2
+only), its records under `tests/s2/context-reach/<label>/`. S2 is now a development set (`docs/correlation-engine.md`
+§ 5): these numbers measure the implementation, not generalization.
+
+| Label | Change | B1 cause in prompt | B2 cause in prompt |
+|---|---|---|---|
+| (baseline, above) | discovery served | 6/14 | 9/14 |
+| `M1-limits` | LIMITS built (`ontology/relations.py`): LimitRange → Pod for an injected default (owner template declares none, with LimitRanger's record), → the refused object for a LimitRanger refusal | 6/14 | 9/14 |
+| `M1-limits-eventwalk` | the context walk follows HAS_EVENT backwards: from a warning event (always a seed) to its object | **9/14** (+ l1, l2, d1) | 9/14 (d1 in B1, not in B2: its Service loses its slot to retrieval hits) |
+
+Read: LIMITS alone changed nothing in the prompt, because the seeds of l1 and l2 are only warning events, and the walk
+could not leave an event. With both, the LimitRange reaches the prompt in l1 and l2. In B2, the 10 related slots are
+now the limit.
