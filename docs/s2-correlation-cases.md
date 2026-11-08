@@ -110,6 +110,17 @@ for a LOW label and no forbidden word). For S2:
 4. Every family's spec, cases and `expect.json`, then the hashes frozen. *Done 2026-11-08:* 21 cases, hashed in `tests/s2/frozen.json` (`tests/s2/frozen.py`), checked by
    `tests/unit/test_s2_frozen.py`. From here a changed case is a new case.
 
+## How S2 is run
+
+`python tools/veracity_replay.py --set s2 --solver structured` (D) and `--solver context:<model> --runs 3` (L₀, S₀).
+The replay reads the case list from `tests/s2/frozen.json` and refuses to start if a case no longer matches its hash;
+it refuses the arms protocol 002 does not run on S2 (cuts, `rules`, `raw:`, `llm:`), and records go to their own
+directories (`s2-…`), each record naming its set and how its graph was built. Each investigation covers **every
+namespace the case holds**, as a product configured for the whole cluster would: S2's causes are in other namespaces
+by design, and scoping the investigation to the symptom's namespace would hide them from every arm alike. The
+plumbing is tested on a copy of an S1 case put in S2's form (`tests/unit/test_s2_replay.py`), so that no S2 case is
+run before its measurement.
+
 ## Amendments proposed to protocol 002
 
 - **A1 — grading of S2:** primary on the cause object and its mechanism, by two blind graders; the keyword

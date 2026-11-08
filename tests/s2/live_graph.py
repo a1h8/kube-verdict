@@ -94,7 +94,9 @@ def _add_webhooks(graph: OntologyGraph, docs: dict[str, list[dict]]) -> int:
     return pc._collect_webhooks(graph)
 
 
-def build_graph_live(case_dir: Path) -> OntologyGraph:
+def build_graph_live(case_dir: Path, wire_signals: bool = True) -> OntologyGraph:
+    """``wire_signals=False`` leaves the alert, log and trace fixtures to the workflow's own collector
+    nodes, as ``case_loader.build_graph`` does for the replay."""
     case = load_case(case_dir)
     docs = kube_docs(case_dir)
     namespaces = namespaces_of(docs)
@@ -110,9 +112,10 @@ def build_graph_live(case_dir: Path) -> OntologyGraph:
         if entity.kind.value in ("Deployment", "StatefulSet", "DaemonSet", "Pod") and belongs_to_release(entity, release.name):
             graph.add_edge(Edge(entity.uid, release.uid, RelationshipType.MANAGED_BY_HELM))
 
-    _wire_otel_traces(graph, case.get("otel_traces", []))
-    _wire_prometheus_alerts(graph, case.get("prometheus_alerts", []))
-    _wire_loki_logs(graph, case.get("loki_streams", []), case["expect"].get("query", ""))
+    if wire_signals:
+        _wire_otel_traces(graph, case.get("otel_traces", []))
+        _wire_prometheus_alerts(graph, case.get("prometheus_alerts", []))
+        _wire_loki_logs(graph, case.get("loki_streams", []), case["expect"].get("query", ""))
 
     applied_path = case_dir / "helm" / "manifest.yaml"
     if applied_path.exists():
