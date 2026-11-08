@@ -185,6 +185,63 @@ def build_configures(graph: OntologyGraph) -> int:
     return n
 
 
+def build_owns(graph: OntologyGraph) -> int:
+    """OWNS: owner → owned, from each object's ``metadata.ownerReferences`` (CronJob → Job → Pod, ReplicaSet →
+    Pod, any kind), same namespace, as the garbage collector reads it. An edge the collector already built is
+    not built twice."""
+    n = 0
+    index = {(_kind(e), e.namespace, e.name): e for e in graph.entities()}
+    have = {(e.source_uid, e.target_uid) for e in graph._edges if e.rel_type == RelationshipType.OWNS}
+    for e in list(graph.entities()):
+        refs = list(_owner_refs(e))
+        if not refs and getattr(e, "owner_ref_kind", ""):
+            refs = [{"kind": e.owner_ref_kind, "name": e.owner_ref_name}]
+        for ref in refs:
+            owner = index.get((ref.get("kind", ""), e.namespace, ref.get("name", "")))
+            if owner is None or (owner.uid, e.uid) in have:
+                continue
+            _edge(graph, owner, e, RelationshipType.OWNS, "ownerReferences",
+                  f"{_kind(e)}/{e.name} owned by {_kind(owner)}/{owner.name}", 1.0)
+            have.add((owner.uid, e.uid))
+            n += 1
+    return n
+
+
+# the API server's ResourceQuota refusal: "exceeded quota: shop-quota, requested: pods=1, used: pods=40,
+# limited: pods=40"
+_QUOTA_REFUSAL = re.compile(r"exceeded quota: (?P<name>[^,\s]+), requested: (?P<requested>.+?), used: (?P<used>.+?), "
+                            r"limited: (?P<limited>[^\s;]+(?:,[^\s;]+)*)")
+
+
+def build_quota_blocks(graph: OntologyGraph) -> int:
+    """QUOTA_BLOCKS: ResourceQuota → a refused pod creation, from a ``FailedCreate`` quoting the API server's quota
+    refusal and naming that quota (same namespace): to the event, which records the attempt, and to the refused
+    object (a ReplicaSet, a Job…) when the graph holds it."""
+    n = 0
+    quotas = {(q.namespace, q.name): q for q in _of_kind(graph, "ResourceQuota")}
+    if not quotas:
+        return 0
+    for ev in graph.entities(ResourceKind.EVENT):
+        if getattr(ev, "reason", "") != "FailedCreate":
+            continue
+        m = _QUOTA_REFUSAL.search(getattr(ev, "message", "") or "")
+        quota = quotas.get((ev.namespace, m["name"])) if m else None
+        if quota is None:
+            continue
+        evidence = f"requested {m['requested']}, used {m['used']}, limited {m['limited']}"
+        # the refusal event is the record of the refused pod creation: always linked; the refused object too
+        # when the graph holds it
+        _edge(graph, quota, ev, RelationshipType.QUOTA_BLOCKS, "admission refusal (quota)", evidence, 1.0)
+        n += 1
+        target = next((e for e in graph.entities() if _kind(e) == getattr(ev, "involved_kind", "")
+                       and e.name == getattr(ev, "involved_name", "") and e.namespace == ev.namespace), None)
+        if target is not None:
+            _edge(graph, quota, target, RelationshipType.QUOTA_BLOCKS, "admission refusal (quota)", evidence, 1.0)
+            n += 1
+    return n
+
+
 def build_relations(graph: OntologyGraph) -> dict[str, int]:
     """Every relation of this module; returns the number of edges built, per relation."""
-    return {"LIMITS": build_limits(graph), "CONFIGURES": build_configures(graph)}
+    return {"OWNS": build_owns(graph), "LIMITS": build_limits(graph), "CONFIGURES": build_configures(graph),
+            "QUOTA_BLOCKS": build_quota_blocks(graph)}

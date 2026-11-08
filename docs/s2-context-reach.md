@@ -132,6 +132,7 @@ only), its records under `tests/s2/context-reach/<label>/`. S2 is now a developm
 | `M1-limits` | LIMITS built (`ontology/relations.py`): LimitRange → Pod for an injected default (owner template declares none, with LimitRanger's record), → the refused object for a LimitRanger refusal | 6/14 | 9/14 |
 | `M1-limits-eventwalk` | the context walk follows HAS_EVENT backwards: from a warning event (always a seed) to its object | **9/14** (+ l1, l2, d1) | 9/14 (d1 in B1, not in B2: its Service loses its slot to retrieval hits) |
 | `M1-configures` | CONFIGURES built: ConfigMap → Pod through `envFrom` / `env.valueFrom` (mounted ConfigMaps keep `MOUNTS_CONFIGMAP`); followed backwards by the walk | **10/14** (+ c1) | 9/14 |
+| `M1-owns-quota` | OWNS from every object's `ownerReferences` (CronJob → Job → Pod, any kind); QUOTA_BLOCKS: ResourceQuota → the refusal event and the refused object, from the API server's quota refusal | 10/14 | 9/14 (q2: the quota is reached, the CronJob is not: what fills a quota is an aggregate over the namespace's pods, the engine's predicate (M4), not an edge) |
 
 Read: LIMITS alone changed nothing in the prompt, because the seeds of l1 and l2 are only warning events, and the walk
 could not leave an event. With both, the LimitRange reaches the prompt in l1 and l2. In B2, the 10 related slots are
