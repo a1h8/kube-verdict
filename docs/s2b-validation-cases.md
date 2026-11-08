@@ -78,3 +78,14 @@ are kept apart, each recorded:
 - S3 (ITBench).
 - The engine itself.
 - Any change to S2 or its results.
+
+## Amendment, 2026-11-08 — the order between S2b and the engine's code
+
+The order above put S2b's cases, frozen, before the engine's code. That order was broken: the engine's minimal version
+(`rca/correlation.py`) was written and measured on S2, the development set, before any S2b case existed. This is
+declared here and in every S2b result. What still holds S2b apart from the engine:
+- the scenarios' author (Grok, `docs/s2b-generation.md`) is given the brief only, never the engine, its code or any
+  result;
+- **S2b is frozen before the engine is run on any S2b case**, and the engine is not changed between the freeze and
+  that run;
+- the control, today's D on S2b, keeps its place: it runs on the frozen cases before the engine's run.
