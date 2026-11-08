@@ -126,17 +126,16 @@ EXPOSES (targetPort 8080, containerPort 9090) ← Service …`.
 
 - **S2 is now a development set.** Its 21 cases and D's answers on them are known. A result on S2 measures the
   implementation, not generalization, and is reported as such.
-- **Validation: a new set, S2b**, written and frozen before the engine's code, by the rules of
-  `docs/s2-correlation-cases.md`:
-  - at least 21 cases, a third of them with no incident;
-  - the 7 families again, with new chains, plus at least 2 families S2 does not have (for example a
-    PodDisruptionBudget blocking a drain, an Ingress to a Service, a PVC and its StorageClass, an
-    imagePullSecret);
-  - written, where possible, with a model or a person other than the engine's author.
+- **Validation: a new set, S2b**, written and frozen before the engine's code (`docs/s2b-validation-cases.md`):
+  - 33 cases in 11 families: S2's 7 with new chains, and 4 that S2 does not have;
+  - a third of the cases with no incident;
+  - the scenarios written by an author other than the engine's.
 - **The control.** D as it is today is run on S2b before the engine exists, with the same grading
   (`docs/s2/grading.md`, unchanged).
 - **The engine is kept** only if, on S2b, all of the following hold:
-  - it finds more causes than the control;
+  - it finds **at least 4 more causes than the control**, and at least a third of S2b's causes. With a
+    control that may find none, "more than the control" would be met by a single case. This is a decision rule
+    fixed now, not a significance test: S2b is too small for one;
   - it recognises at least as many cases with no incident as the control;
   - D's S1 results stay 19 of 19, with the S1 negative cases still answered as no incident.
 
