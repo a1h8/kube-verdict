@@ -21,7 +21,8 @@ from ontology.graph import Edge, OntologyGraph
 from ontology.relationships import RelationshipType
 from tests.integration.cases.case_loader import (_build_helm_release, _wire_loki_logs, _wire_otel_traces,
                                                  _wire_prometheus_alerts, load_case)
-from tests.integration.fake_kube_api import _API, _lister, _models
+from ontology.discovery import APIServerDiscovery
+from tests.integration.fake_kube_api import _API, _complete, _lister, _models
 
 # what the fake API serves, and as which client model
 _SERVED = {"namespace": "V1Namespace", "node": "V1Node", "pod": "V1Pod", "configmap": "V1ConfigMap",
@@ -29,6 +30,72 @@ _SERVED = {"namespace": "V1Namespace", "node": "V1Node", "pod": "V1Pod", "config
            "event": "CoreV1Event", "service": "V1Service", "deployment": "V1Deployment",
            "statefulset": "V1StatefulSet", "daemonset": "V1DaemonSet", "replicaset": "V1ReplicaSet",
            "networkpolicy": "V1NetworkPolicy", "mutatingwebhookconfiguration": "V1MutatingWebhookConfiguration"}
+
+
+# kinds a real API server serves cluster-scoped (kubectl api-resources --namespaced=false)
+_CLUSTER_SCOPED = {"Namespace", "Node", "PersistentVolume", "StorageClass", "APIService",
+                   "MutatingWebhookConfiguration", "ValidatingWebhookConfiguration", "ClusterIssuer", "ClusterRole",
+                   "ClusterRoleBinding", "PriorityClass", "CustomResourceDefinition"}
+
+
+def _plural(kind: str) -> str:
+    low = kind.lower()
+    if low.endswith("s"):
+        return low + "es" if not low.endswith("points") else low
+    if low.endswith("y"):
+        return low[:-1] + "ies"
+    return low + "s"
+
+
+def discovery_for_case(docs: dict[str, list[dict]]) -> APIServerDiscovery:
+    """The product's own ``APIServerDiscovery``, whose HTTP calls are answered from the case's objects.
+
+    Only the API server is faked: its discovery documents (/api/v1, /apis, /apis/<group>/<version>) list each kind
+    the case holds, with its group, version, plural and scope, and its list endpoints return the case's objects.
+    Discovery, its skip set and namespace filter, and ``GenericEntity.from_api_object`` run unchanged, as in
+    production (``K8sCollector.collect`` step 2). Added 2026-11-08: S2's runs had an empty discovery, so every kind
+    the product collects only this way (ResourceQuota, LimitRange, HPA, Job, CronJob, APIService, CRDs) was missing.
+    """
+    kinds: dict[tuple[str, str], dict] = {}          # (group, kind) -> resource
+    items: dict[str, list[dict]] = {}                 # path prefix -> objects
+    for objs in docs.values():
+        for obj in objs:
+            kind, api_version = str(obj.get("kind", "")), str(obj.get("apiVersion", "v1"))
+            if not kind:
+                continue
+            group, _, version = api_version.rpartition("/")
+            res = kinds.setdefault((group, kind), {"group": group, "version": version, "kind": kind,
+                                                   "plural": _plural(kind), "namespaced": kind not in _CLUSTER_SCOPED})
+            base = f"/apis/{group}/{version}" if group else f"/api/{version}"
+            ns = (obj.get("metadata") or {}).get("namespace")
+            item = _complete(obj)
+            items.setdefault(f"{base}/{res['plural']}", []).append(item)
+            if res["namespaced"] and ns:
+                items.setdefault(f"{base}/namespaces/{ns}/{res['plural']}", []).append(item)
+
+    def _resource(r: dict) -> dict:
+        return {"name": r["plural"], "kind": r["kind"], "namespaced": r["namespaced"], "verbs": ["get", "list", "watch"]}
+
+    core = MagicMock(name="CoreV1Api")
+    core.get_api_resources.return_value = SimpleNamespace(resources=[
+        SimpleNamespace(name=r["plural"], kind=r["kind"], namespaced=r["namespaced"], verbs=["get", "list", "watch"],
+                        short_names=[], categories=[]) for r in kinds.values() if not r["group"]])
+    groups = sorted({(r["group"], r["version"]) for r in kinds.values() if r["group"]})
+    apis = MagicMock(name="ApisApi")
+    apis.get_api_versions.return_value = SimpleNamespace(groups=[
+        SimpleNamespace(name=g, preferred_version=SimpleNamespace(version=v)) for g, v in groups])
+
+    def call_api(path, method, **_kwargs):
+        for g, v in groups:
+            if path == f"/apis/{g}/{v}":
+                return {"resources": [_resource(r) for r in kinds.values() if r["group"] == g]}
+        return {"items": items.get(path, [])}
+
+    client = MagicMock(name="ApiClient")
+    client.call_api.side_effect = call_api
+    d = APIServerDiscovery.__new__(APIServerDiscovery)
+    d._client, d._core_api, d._apis_api, d.failures = client, core, apis, []
+    return d
 
 
 def kube_docs(case_dir: Path) -> dict[str, list[dict]]:
@@ -78,9 +145,7 @@ def collector_for_case(docs: dict[str, list[dict]], namespaces: list[str]) -> K8
 
     c._core, c._apps, c._net, c._netpol_api = core, apps, netpol, netpol
     c._ingress_lister = lambda graph, ns: None
-    c._discovery = MagicMock(name="APIServerDiscovery")
-    c._discovery.list_all_resources.return_value = []
-    c._discovery.vocabulary_summary.return_value = ""
+    c._discovery = discovery_for_case(docs)
     return c
 
 

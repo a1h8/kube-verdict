@@ -32,6 +32,19 @@ class APIResourceInfo:
         return f"{self.api_version}/{self.kind}"
 
 
+class DynamicKind(str):
+    """A discovered kind: a plain string that also answers ``.value``, as ``ResourceKind`` does.
+
+    Code across the product reads ``entity.kind.value``; with a bare ``str`` every such line raised
+    AttributeError as soon as discovery had added an entity (found 2026-11-08, when S2's harness first served
+    discovery). Comparisons, hashing and serialization are those of the string.
+    """
+
+    @property
+    def value(self) -> str:
+        return str(self)
+
+
 @dataclass
 class GenericEntity(K8sEntity):
     """
@@ -46,7 +59,7 @@ class GenericEntity(K8sEntity):
     def __post_init__(self):
         # Use UNKNOWN as a sentinel; the real kind string is in resource_kind_str
         self.kind = ResourceKind.NAMESPACE  # placeholder — not used for routing
-        self.kind = self.resource_kind_str  # type: ignore[assignment]
+        self.kind = DynamicKind(self.resource_kind_str)  # type: ignore[assignment]
 
     @classmethod
     def from_api_object(cls, obj: dict[str, Any], resource_info: APIResourceInfo) -> "GenericEntity":
@@ -75,7 +88,7 @@ class GenericEntity(K8sEntity):
             status_fields=_flatten(obj.get("status") or {}),
             raw=obj,
         )
-        entity.kind = resource_info.kind  # type: ignore[assignment]
+        entity.kind = DynamicKind(resource_info.kind)  # type: ignore[assignment]
         return entity
 
     def to_text(self) -> str:

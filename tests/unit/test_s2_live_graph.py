@@ -58,3 +58,29 @@ def test_the_webhook_is_a_node(graphs):
     for name in ("w0_webhook_no_incident", "w1_webhook_injects_missing_image", "w2_webhook_fails_closed_expired_cert"):
         assert _count(graphs[name], "MutatingWebhook") == 1, name
     assert _count(graphs["q1_quota_filled_by_request_drift"], "MutatingWebhook") == 0   # control: none declared
+
+
+def test_kinds_only_discovery_collects_are_in_the_graph(graphs):
+    """Added 2026-11-08: discovery is served from the case's objects, as production runs it (step 2 of
+    K8sCollector.collect). S2's first run had an empty discovery, so none of these was in any graph."""
+    assert _count(graphs["l1_limitrange_default_injected"], "LimitRange") == 1
+    assert _count(graphs["q1_quota_filled_by_request_drift"], "ResourceQuota") == 1
+    assert _count(graphs["a2_hpa_scale_up_policy_slowed"], "HorizontalPodAutoscaler") == 1
+    assert _count(graphs["q2_quota_filled_by_stuck_jobs"], "CronJob") == 1
+    assert _count(graphs["q2_quota_filled_by_stuck_jobs"], "Job") == 25
+
+
+def test_the_product_s_limits_stay_visible(graphs):
+    # under a namespace filter discovery skips cluster-scoped kinds (APIServerDiscovery.fetch_resources),
+    # and Secrets are never collected: a1's and w2's cause objects are absent, as they would be live
+    assert _count(graphs["a1_hpa_custom_metrics_api_points_away"], "APIService") == 0
+    assert _count(graphs["w2_webhook_fails_closed_expired_cert"], "Secret") == 0
+
+
+def test_an_empty_discovery_loses_them(monkeypatch):
+    """The control: with discovery answering nothing, as in S2's first run, the LimitRange is gone."""
+    import tests.s2.live_graph as lg
+    real = lg.discovery_for_case
+    monkeypatch.setattr(lg, "discovery_for_case", lambda docs: real({}))
+    g = lg.build_graph_live(CASES / "l1_limitrange_default_injected")
+    assert _count(g, "LimitRange") == 0
