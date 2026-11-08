@@ -151,6 +151,40 @@ def build_limits(graph: OntologyGraph) -> int:
     return n
 
 
+def _refs(container: dict) -> list[tuple[str, str]]:
+    """(ConfigMap name, how) for each environment reference of a container (client ``to_dict`` or API JSON)."""
+    out: list[tuple[str, str]] = []
+    for src in container.get("env_from") or container.get("envFrom") or []:
+        ref = src.get("config_map_ref") or src.get("configMapRef") or {}
+        if ref.get("name"):
+            out.append((ref["name"], "envFrom"))
+    for var in container.get("env") or []:
+        vf = var.get("value_from") or var.get("valueFrom") or {}
+        ref = vf.get("config_map_key_ref") or vf.get("configMapKeyRef") or {}
+        if ref.get("name"):
+            out.append((ref["name"], f"env {var.get('name', '')} from key {ref.get('key', '')}"))
+    return out
+
+
+def build_configures(graph: OntologyGraph) -> int:
+    """CONFIGURES: ConfigMap → Pod, for a ConfigMap a container reads through ``envFrom[].configMapRef`` or
+    ``env[].valueFrom.configMapKeyRef`` (same namespace, as the API resolves it). Mounted ConfigMaps keep their
+    ``MOUNTS_CONFIGMAP`` edge. Such a value is read when the container starts, never updated in a running pod
+    (Kubernetes documentation, ConfigMaps): what the engine's time rules use."""
+    n = 0
+    cms = {(e.namespace, e.name): e for e in graph.entities(ResourceKind.CONFIGMAP)}
+    for pod in graph.entities(ResourceKind.POD):
+        spec = (pod.raw or {}).get("spec") or {}
+        for c in (spec.get("containers") or []) + (spec.get("init_containers") or spec.get("initContainers") or []):
+            for name, how in _refs(c):
+                cm = cms.get((pod.namespace, name))
+                if cm is not None:
+                    _edge(graph, cm, pod, RelationshipType.CONFIGURES, how,
+                          f"container {c.get('name', '')} reads ConfigMap {name} ({how})", 1.0)
+                    n += 1
+    return n
+
+
 def build_relations(graph: OntologyGraph) -> dict[str, int]:
     """Every relation of this module; returns the number of edges built, per relation."""
-    return {"LIMITS": build_limits(graph)}
+    return {"LIMITS": build_limits(graph), "CONFIGURES": build_configures(graph)}

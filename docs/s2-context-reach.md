@@ -131,7 +131,34 @@ only), its records under `tests/s2/context-reach/<label>/`. S2 is now a developm
 | (baseline, above) | discovery served | 6/14 | 9/14 |
 | `M1-limits` | LIMITS built (`ontology/relations.py`): LimitRange → Pod for an injected default (owner template declares none, with LimitRanger's record), → the refused object for a LimitRanger refusal | 6/14 | 9/14 |
 | `M1-limits-eventwalk` | the context walk follows HAS_EVENT backwards: from a warning event (always a seed) to its object | **9/14** (+ l1, l2, d1) | 9/14 (d1 in B1, not in B2: its Service loses its slot to retrieval hits) |
+| `M1-configures` | CONFIGURES built: ConfigMap → Pod through `envFrom` / `env.valueFrom` (mounted ConfigMaps keep `MOUNTS_CONFIGMAP`); followed backwards by the walk | **10/14** (+ c1) | 9/14 |
 
 Read: LIMITS alone changed nothing in the prompt, because the seeds of l1 and l2 are only warning events, and the walk
 could not leave an event. With both, the LimitRange reaches the prompt in l1 and l2. In B2, the 10 related slots are
 now the limit.
+
+## Rule for the related-context fusion, written 2026-11-08 before its code
+
+**Change.** The related section of the prompt (`rca/context_builder.py`, section 7) keeps 10 texts, ranked today by
+TF-IDF against the question over the union of the graph walk's objects and the retrieval hits. The candidate is a
+Reciprocal Rank Fusion (`vectorstore/rrf.py`, k = `RRF_K`) of three ranked lists over the same deduplicated candidates:
+- the graph walk's order: the seeds first, then each seed's breadth-first neighbours;
+- the investigation's hybrid search order (BM25 + dense, already RRF-fused), empty with the stub store;
+- TF-IDF against the question.
+
+It is behind `CONTEXT_RELATED_RANKING` (`tfidf` | `rrf`), and the default stays `tfidf` unless the rule below keeps
+the fusion.
+
+**Metric.** Cause object in the prompt, as above, on S2 (the development set), B1 and B2, against the last milestone
+(`M1-configures`: B1 10/14, B2 9/14).
+
+**Prediction.** d1 comes back in B2; B2 ≥ B1.
+
+**Rule.** The fusion becomes the default if B2 gains at least 1 case and neither B1 nor B2 loses one, and `make ci`
+stays green. Otherwise it stays off, and the result is recorded here.
+
+**Result (2026-11-08, 18:3xZ, label `M1-configures-rrf`).** B1 10/14, B2 9/14: no change. **The prediction was wrong
+and the fusion is not kept**; its code is removed rather than left behind an unused setting. Why: d1's Service is among
+the 21 B2 candidates and survives deduplication, but ranks past the 10 related slots in all three orders. The limit
+is the number of slots, not the ranking. What follows from it is the engine's (M4): the objects a verified relation
+reaches from the symptom get their own prompt section, instead of competing for related slots.

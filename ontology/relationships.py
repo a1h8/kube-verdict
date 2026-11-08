@@ -16,6 +16,7 @@ class RelationshipType(str, Enum):
     # Configuration
     MOUNTS_CONFIGMAP = "MOUNTS_CONFIGMAP"   # Pod → ConfigMap
     MOUNTS_SECRET = "MOUNTS_SECRET"         # Pod → Secret
+    CONFIGURES = "CONFIGURES"               # ConfigMap → Pod, read through envFrom / env.valueFrom (ontology/relations.py)
     USES_PVC = "USES_PVC"                   # Pod → PersistentVolumeClaim
     BINDS_PV = "BINDS_PV"                   # PersistentVolumeClaim → PersistentVolume
     USES_SERVICE_ACCOUNT = "USES_SERVICE_ACCOUNT"  # Pod → ServiceAccount

@@ -43,6 +43,7 @@ _INCIDENT_RELS_BACKWARD = {
     RelationshipType.SCALES,
     RelationshipType.QUOTA_BLOCKS,
     RelationshipType.LIMITS,
+    RelationshipType.CONFIGURES,
 }
 
 
