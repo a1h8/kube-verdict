@@ -163,3 +163,15 @@ Not run.
   two answers that invented a paused Deployment passed h022 and h026 under the old rule. Block B's results
   are not regraded; protocol 002's runs, S1 included, use the new rule, so their false alarms are not
   comparable with block B's.
+- **2026-11-08 — A3, the volume of S2 and S3.** Written before any S2 or S3 run, as § Statistics requires. From
+  block B, at the case level (2 runs of 3), with the official grades: D against L₀ is discordant on 9 of 19 cases
+  for each model (ψ = 0.47); L₀ against C2 on 3 of 19 for mistral (ψ = 0.16) and 4 of 19 for qwen (ψ = 0.21).
+  The number of cases for a power of 0.8 against a 15-point difference, by the exact McNemar test at
+  α = 0.05/8 (the first Holm threshold of the eight primary comparisons, the most conservative reading, since this
+  section did not fix the α of the sizing): **280 cases** for D against L₀ or S₀, **120 cases** for the comparisons of
+  the search (L₃ or S₃ against L₀ or S₀). At α = 0.05 they would be about 180 and 80. Computed by `tools/protocol002_volume.py`, from the records. A set below these numbers is run
+  and reported as exploratory: intervals, no test. **S2, with 21 cases (14 with a cause), is exploratory by
+  construction:** its power against a 15-point difference is about 0.05. It says where each arm correlates or fails,
+  not whether one beats another. The shares come from S1, in sample: on cases the rules were not written on, the
+  difference between D and the models is likely smaller, which would change these numbers; they are recomputed from
+  S2's own results before S3 is sized, by a dated amendment.

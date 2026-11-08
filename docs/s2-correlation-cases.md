@@ -106,7 +106,7 @@ for a LOW label and no forbidden word). For S2:
    before any run: a Namespace's phase (filled when served) and a ReplicaSet's selector (in the builders).
 1. The two amendments below, approved and dated.
 2. The fix to the negative-case grading, with its test and its control.
-3. The volume, computed from block B's discordant pairs, as protocol 002 requires, written before any run.
+3. The volume, computed from block B's discordant pairs, as protocol 002 requires, written before any run. *Done 2026-11-08:* protocol 002, amendment A3. S2 is exploratory.
 4. Every family's spec, cases and `expect.json`, then the hashes frozen.
 
 ## Amendments proposed to protocol 002
