@@ -163,3 +163,37 @@ and the fusion is not kept**; its code is removed rather than left behind an unu
 the 21 B2 candidates and survives deduplication, but ranks past the 10 related slots in all three orders. The limit
 is the number of slots, not the ranking. What follows from it is the engine's (M4): the objects a verified relation
 reaches from the symptom get their own prompt section, instead of competing for related slots.
+
+## Rule for the engine, minimal version (M4-min), written 2026-11-08 before its code
+
+**Change.** `rca/correlation.py` walks back from each symptom, meaning a seed of `find_unhealthy` (a warning event is
+taken with the object it is about), over the typed relations OWNS, LIMITS, QUOTA_BLOCKS and CONFIGURES, at most
+4 hops. It applies a fixed predicate at each object reached:
+- a LimitRange whose default was injected into an OOMKilled container, or whose max or min refused the pods;
+- a ResourceQuota at its hard limit for a resource, attributed to the root owner whose pods hold most of it;
+- a ConfigMap read through the environment and last written before the failing pod started.
+
+Each chain found goes into its own prompt section, outside the 10 related slots.
+
+**Metric.** Cause object in the prompt (B1, B2), plus a control: **the number of chains on S2's 7 cases with no
+incident, which must be 0.**
+
+**Prediction.** q2 enters the prompt (its CronJob, as the quota's main consumer); no other case changes; 0 chains
+on the 7 cases with no incident.
+
+**Rule.** M4-min is kept if B1 and B2 lose no case, it puts at least one more cause in the prompt, and it builds no
+chain on a case with no incident. A chain on a case with no incident is a failure, whatever the gain.
+
+**Result (2026-11-08, label `M4-min`).** B1 10/14 → **11/14**, B2 9/14 → **10/14** (q2 in both); no case lost.
+**Control: 0 chains on the 7 cases with no incident.** By the rule, M4-min is kept. The prediction held.
+
+The engine's own chains on S2's 14 cases with a cause name the expected cause object in 4: c1 (`shop-env`, written
+before the failing pods were created), l1 (an injected default on an OOMKilled container), l2 (the lowered max
+refusing the rollout) and q2 (the CronJob holding 62 % of the pods quota). Not found:
+- q1, because S2's quota fixtures hold no ReplicaSet, so catalog-api's pods have no owner in the graph and each
+  counts as its own; the owner is not guessed from names;
+- a1, a2, d1, d2, n1, n2, w1 and w2, which need relations and predicates not built yet (SERVES_API, SCALES, EXPOSES
+  with ports, CALLS, RESTRICTS, ADMITS) or objects the product does not collect (a cluster-scoped APIService under a
+  namespace filter, a Secret).
+
+These counts are on the development set and are not a result of the engine; D's grading on S2 and S2b is.
