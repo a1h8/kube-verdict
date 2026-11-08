@@ -1,0 +1,593 @@
+id: quota-1
+family: quota
+question: "why can't payment-api roll out in billing namespace"
+expected_outcome: cause
+cause_object: Job/billing/nightly-load-tester
+origin_object: Job/billing/nightly-load-tester
+mechanism: "A heavy batch job consumed all CPU quota in the billing namespace, leaving insufficient quota for the payment-api rolling update deployment to create new pods."
+passes_if: "names the nightly-load-tester job or the ResourceQuota exhaustion caused by it"
+partial_if_only: ["ResourceQuota/billing/compute-quota"]
+chain:
+
+    from: Deployment/billing/payment-api
+    relation: "namespace quota limit"
+    to: ResourceQuota/billing/compute-quota
+    fields: "spec.template.spec.containers[].resources.requests vs status.hard/used"
+    abnormal: "Event: FailedCreate (pods quota exceeded) at T0-10m"
+
+    from: ResourceQuota/billing/compute-quota
+    relation: "namespace resource consumption by workload"
+    to: Job/billing/nightly-load-tester
+    fields: "metadata.namespace match and status.active pods"
+    abnormal: "Pod status Running consuming 8 cores in billing namespace since T0-30m"
+    decoys:
+
+    object: HorizontalPodAutoscaler/billing/payment-api
+    looks_like: "HPA is demanding 10 replicas which exceeds normal sizing"
+    why_not: "HPA is constrained by the same quota, but the root consumption is from the runaway batch job."
+
+    object: Deployment/billing/payment-api
+    looks_like: "payment-api replica set is old and failing rollout"
+    why_not: "It is simply the victim of the quota exhaustion caused by the batch job."
+    timeline:
+
+    "T0-30m: Job/nightly-load-tester started, scaling to 10 parallel pods consuming 8 CPUs."
+
+    "T0-15m: CI/CD pipeline triggers rolling update for Deployment/payment-api."
+
+    "T0-10m: Deployment/payment-api fails to create new ReplicaSet pods due to ResourceQuota exceeded."
+
+    "T0: Operator asks why payment-api cannot roll out."
+    objects:
+
+    "Namespace/billing"
+
+    "Deployment/billing/payment-api"
+
+    "ResourceQuota/billing/compute-quota"
+
+    "Job/billing/nightly-load-tester"
+
+    "HorizontalPodAutoscaler/billing/payment-api"
+
+    "Pod/billing/payment-api-7b89f-abcde (Pending)"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/policy/resource-quotas/"
+
+id: quota-2
+family: quota
+question: "why are new auth-service pods pending in security namespace"
+expected_outcome: cause
+cause_object: ResourceQuota/security/object-count-quota
+origin_object: CronJob/security/log-cleanup-cron
+mechanism: "A misconfigured CronJob created thousands of completed pods that count against the namespace's count-based ResourceQuota for pods, preventing auth-service from scheduling new pods."
+passes_if: "names log-cleanup-cron or the object count quota limit reached due to completed pods"
+partial_if_only: ["ResourceQuota/security/object-count-quota"]
+chain:
+
+    from: Deployment/security/auth-service
+    relation: "namespace pod count limit"
+    to: ResourceQuota/security/object-count-quota
+    fields: "spec.replicas vs status.hard/used for pods"
+    abnormal: "Event: FailedCreate (pods count quota exceeded) at T0-5m"
+
+    from: ResourceQuota/security/object-count-quota
+    relation: "pod count consumption by completed jobs"
+    to: CronJob/security/log-cleanup-cron
+    fields: "metadata.namespace and owned pods count"
+    abnormal: "Over 480 completed Pods from log-cleanup-cron lingering in security namespace"
+    decoys:
+
+    object: LimitRange/security/default-limits
+    looks_like: "LimitRange might be restricting container resource allocations"
+    why_not: "LimitRange settings are valid and not violated; the failure is strictly due to pod object count quota."
+
+    object: ServiceAccount/security/auth-sa
+    looks_like: "ServiceAccount token or image pull secret failure"
+    why_not: "ServiceAccount is healthy; authentication and pulling are not the bottleneck."
+    timeline:
+
+    "T0-2h: CronJob/log-cleanup-cron executed every 5 minutes with failed cleanup TTL, accumulating completed pods."
+
+    "T0-10m: Deployment/auth-service attempts scaling up for traffic surge."
+
+    "T0-5m: Pod creation rejected by API server due to ResourceQuota pod count limit."
+
+    "T0: Operator asks why auth-service pods are pending."
+    objects:
+
+    "Namespace/security"
+
+    "Deployment/security/auth-service"
+
+    "CronJob/security/log-cleanup-cron"
+
+    "ResourceQuota/security/object-count-quota"
+
+    "LimitRange/security/default-limits"
+
+    "ServiceAccount/security/auth-sa"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota"
+
+id: quota-0
+family: quota
+question: "why is reporting-worker slow to process jobs in analytics namespace"
+expected_outcome: no_incident
+mechanism: "The ResourceQuota in analytics namespace is well within limits and reporting-worker pods are running normally; performance is limited by external database query latency."
+passes_if: "states no incident in quota family or points to external database latency"
+partial_if_only: ["ResourceQuota/analytics/quota"]
+chain: []
+decoys:
+
+    object: ResourceQuota/analytics/quota
+    looks_like: "ResourceQuota shows 80% memory allocation used"
+    why_not: "80% utilization is normal and well below the hard limit; pods are not being throttled or evicted."
+
+    object: Job/analytics/past-batch-load
+    looks_like: "A large batch job ran yesterday and hit quota warnings"
+    why_not: "That job finished 12 hours ago and quota is fully available now."
+    timeline:
+
+    "T0-12h: Job/past-batch-load completed successfully."
+
+    "T0-1h: ResourceQuota utilization checked at 80%."
+
+    "T0: Operator asks why reporting-worker is slow."
+    objects:
+
+    "Namespace/analytics"
+
+    "Deployment/analytics/reporting-worker"
+
+    "ResourceQuota/analytics/quota"
+
+    "Job/analytics/past-batch-load"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/policy/resource-quotas/"
+
+id: netpol-1
+family: netpol
+question: "why can't checkout service connect to inventory-db in store namespace"
+expected_outcome: cause
+cause_object: NetworkPolicy/store/db-isolation
+origin_object: NetworkPolicy/store/db-isolation
+mechanism: "A strict NetworkPolicy on inventory-db allows ingress only from pods labeled app=order-processor, blocking connections originating from the checkout deployment pods which have a different label."
+passes_if: "names NetworkPolicy/store/db-isolation or the missing label selector in the network policy"
+partial_if_only: ["NetworkPolicy/store/db-isolation"]
+chain:
+
+    from: Deployment/store/checkout
+    relation: "service network connection"
+    to: Service/store/inventory-db
+    fields: "spec.template.metadata.labels vs Service selector"
+    abnormal: "Loki log: Connection timed out connecting to inventory-db:5432 at T0-15m"
+
+    from: Service/store/inventory-db
+    relation: "network policy ingress restriction"
+    to: NetworkPolicy/store/db-isolation
+    fields: "spec.podSelector on NetworkPolicy matching target pods and spec.ingress[].from"
+    abnormal: "NetworkPolicy ingress rule drops packets from Pods with app=checkout label"
+    decoys:
+
+    object: Service/store/inventory-db
+    looks_like: "Service endpoints might be empty or pointing to wrong ports"
+    why_not: "Service endpoints correctly point to the database pods; the issue is packet dropping by NetworkPolicy."
+
+    object: NetworkPolicy/store/default-deny-egress
+    looks_like: "Egress policy blocks outgoing traffic from checkout"
+    why_not: "Default-deny egress was removed yesterday; ingress policy on the database side is what blocks the traffic."
+    timeline:
+
+    "T0-1d: NetworkPolicy/db-isolation applied with strict pod selector app=order-processor."
+
+    "T0-20m: Deployment/checkout updated to connect directly to inventory-db."
+
+    "T0-15m: Checkout pods log connection timeouts."
+
+    "T0: Operator asks why checkout cannot connect to inventory-db."
+    objects:
+
+    "Namespace/store"
+
+    "Deployment/store/checkout"
+
+    "Service/store/inventory-db"
+
+    "StatefulSet/store/inventory-db-pod"
+
+    "NetworkPolicy/store/db-isolation"
+
+    "NetworkPolicy/store/default-deny-egress"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/services-networking/network-policies/"
+
+id: netpol-2
+family: netpol
+question: "why are payment pods failing DNS lookups in payments namespace"
+expected_outcome: cause
+cause_object: NetworkPolicy/payments/deny-all-egress-except-db
+origin_object: NetworkPolicy/payments/deny-all-egress-except-db
+mechanism: "An egress NetworkPolicy restricts outgoing traffic to the database port only, omitting UDP port 53 egress rules required for CoreDNS resolution."
+passes_if: "names NetworkPolicy/payments/deny-all-egress-except-db or missing DNS egress rule"
+partial_if_only: ["NetworkPolicy/payments/deny-all-egress-except-db"]
+chain:
+
+    from: Deployment/payments/payment-processor
+    relation: "pod DNS resolution request"
+    to: Service/kube-system/kube-dns
+    fields: "spec.template.spec.dnsPolicy and coreDNS service IP"
+    abnormal: "Container log: ';; connection timed out; no servers could be reached' at T0-5m"
+
+    from: Service/kube-system/kube-dns
+    relation: "namespace egress network policy restriction"
+    to: NetworkPolicy/payments/deny-all-egress-except-db
+    fields: "spec.egress ports and ipBlock/namespaceSelector"
+    abnormal: "Egress traffic to UDP port 53 blocked by NetworkPolicy"
+    decoys:
+
+    object: Deployment/kube-system/coredns
+    looks_like: "CoreDNS deployment might be crashing or unhealthy"
+    why_not: "CoreDNS pods are running normally and serving other namespaces without issue."
+
+    object: Service/payments/payment-db
+    looks_like: "Database service endpoint is not responding"
+    why_not: "Database service is healthy; the failure occurs earlier at DNS resolution."
+    timeline:
+
+    "T0-1h: NetworkPolicy/deny-all-egress-except-db applied to payments namespace."
+
+    "T0-10m: Pods restarted for configuration reload."
+
+    "T0-5m: Payment-processor logs DNS lookup timeouts."
+
+    "T0: Operator asks why payment pods are failing DNS lookups."
+    objects:
+
+    "Namespace/payments"
+
+    "Deployment/payments/payment-processor"
+
+    "NetworkPolicy/payments/deny-all-egress-except-db"
+
+    "Deployment/kube-system/coredns"
+
+    "Service/kube-system/kube-dns"
+
+    "Service/payments/payment-db"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/services-networking/network-policies/#dns-access"
+
+id: netpol-0
+family: netpol
+question: "why is frontend service accessible from monitoring namespace in prod namespace"
+expected_outcome: no_incident
+mechanism: "The NetworkPolicy in prod namespace explicitly allows ingress from the monitoring namespace for metrics scraping, which is expected behavior."
+passes_if: "states no incident in netpol family or confirms monitoring access is allowed by design"
+partial_if_only: ["NetworkPolicy/prod/allow-monitoring"]
+chain: []
+decoys:
+
+    object: NetworkPolicy/prod/allow-monitoring
+    looks_like: "NetworkPolicy allows cross-namespace traffic from monitoring"
+    why_not: "This policy is intentional for Prometheus metrics scraping and does not block valid traffic."
+
+    object: NetworkPolicy/prod/default-deny-ingress
+    looks_like: "Default deny ingress blocks external traffic"
+    why_not: "Ingress controller rules bypass or correctly route through allowed paths."
+    timeline:
+
+    "T0-7d: NetworkPolicy/allow-monitoring created."
+
+    "T0-1h: Prometheus scrapes metrics successfully."
+
+    "T0: Operator asks about frontend accessibility from monitoring."
+    objects:
+
+    "Namespace/prod"
+
+    "Deployment/prod/frontend"
+
+    "NetworkPolicy/prod/allow-monitoring"
+
+    "NetworkPolicy/prod/default-deny-ingress"
+
+    "Namespace/monitoring"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/services-networking/network-policies/"
+
+id: dependency-1
+family: dependency
+question: "why is api-gateway failing health checks in microservices namespace"
+expected_outcome: cause
+cause_object: StatefulSet/microservices/redis-cache
+origin_object: StatefulSet/microservices/redis-cache
+mechanism: "The Redis cache dependency has a misconfigured readiness probe causing all Redis pods to be marked unready, leading api-gateway to fail when attempting connection establishment."
+passes_if: "names redis-cache or its readiness probe failure"
+partial_if_only: ["Service/microservices/redis-cache"]
+chain:
+
+    from: Deployment/microservices/api-gateway
+    relation: "upstream service dependency via environment variable and TCP connection"
+    to: Service/microservices/redis-cache
+    fields: "spec.template.spec.containers[].env (REDIS_HOST) vs Service endpoints"
+    abnormal: "Container log: 'ERR connecting to redis://redis-cache:6379: connection refused' at T0-10m"
+
+    from: Service/microservices/redis-cache
+    relation: "Endpoints backing the Service"
+    to: StatefulSet/microservices/redis-cache
+    fields: "spec.selector vs Pod labels and readiness status"
+    abnormal: "Endpoints list for redis-cache is empty because pods fail readiness probe at T0-12m"
+    decoys:
+
+    object: Deployment/microservices/api-gateway
+    looks_like: "api-gateway configuration error in connection string"
+    why_not: "Connection string is correct; the failure is due to lack of healthy Redis endpoints."
+
+    object: HorizontalPodAutoscaler/microservices/api-gateway
+    looks_like: "HPA scaling up api-gateway due to high CPU load"
+    why_not: "High CPU load is a symptom of retry loops waiting on Redis, not the root cause."
+    timeline:
+
+    "T0-30m: Redis helm chart updated with incorrect readiness probe command."
+
+    "T0-12m: Redis pods marked unready, removing them from service endpoints."
+
+    "T0-10m: api-gateway logs connection refused errors."
+
+    "T0: Operator asks why api-gateway is failing health checks."
+    objects:
+
+    "Namespace/microservices"
+
+    "Deployment/microservices/api-gateway"
+
+    "Service/microservices/redis-cache"
+
+    "StatefulSet/microservices/redis-cache"
+
+    "HorizontalPodAutoscaler/microservices/api-gateway"
+    sources:
+
+    "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/"
+
+id: dependency-2
+family: dependency
+question: "why are cart-service pods crashing in shop namespace"
+expected_outcome: cause
+cause_object: Job/shop/db-migration-v2
+origin_object: Job/shop/db-migration-v2
+mechanism: "A database migration job dropped a table column expected by the current running version of cart-service, causing unhandled SQL exceptions and container panics."
+passes_if: "names db-migration-v2 or schema incompatibility caused by the migration job"
+partial_if_only: ["StatefulSet/shop/postgres-db"]
+chain:
+
+    from: Deployment/shop/cart-service
+    relation: "database connection and SQL query execution"
+    to: StatefulSet/shop/postgres-db
+    fields: "env DB_HOST and application connection pool config"
+    abnormal: "Container log: 'pq: column cart_items.discount_code does not exist' at T0-8m"
+
+    from: StatefulSet/shop/postgres-db
+    relation: "database schema modification by migration job"
+    to: Job/shop/db-migration-v2
+    fields: "database schema state vs migration script execution history"
+    abnormal: "Job db-migration-v2 executed ALTER TABLE dropping column at T0-10m"
+    decoys:
+
+    object: Deployment/shop/frontend
+    looks_like: "Frontend service throwing 502 Bad Gateway errors"
+    why_not: "Frontend is failing because cart-service backend is crashing; frontend is not the root cause."
+
+    object: ServiceAccount/shop/cart-sa
+    looks_like: "Expired service account token for database access"
+    why_not: "Database authentication succeeds; the error is a SQL schema mismatch."
+    timeline:
+
+    "T0-10m: Job/db-migration-v2 runs and applies schema changes prematurely."
+
+    "T0-8m: Cart-service pods crash loop due to SQL exceptions."
+
+    "T0: Operator asks why cart-service pods are crashing."
+    objects:
+
+    "Namespace/shop"
+
+    "Deployment/shop/cart-service"
+
+    "StatefulSet/shop/postgres-db"
+
+    "Job/shop/db-migration-v2"
+
+    "Deployment/shop/frontend"
+
+    "ServiceAccount/shop/cart-sa"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/workloads/controllers/job/"
+
+id: dependency-0
+family: dependency
+question: "why did search-service experience high error rates in catalog namespace"
+expected_outcome: no_incident
+mechanism: "The search-service dependency (Elasticsearch) experienced a transient network partition 3 hours ago that healed automatically; current service health is 100%."
+passes_if: "states no incident in dependency family or notes transient past issue resolved"
+partial_if_only: ["StatefulSet/catalog/elasticsearch"]
+chain: []
+decoys:
+
+    object: StatefulSet/catalog/elasticsearch
+    looks_like: "Elasticsearch had pod restarts recorded 3 hours ago"
+    why_not: "Pods restarted and recovered successfully; error rates dropped to zero hours ago."
+
+    object: Deployment/catalog/search-service
+    looks_like: "Search service has restart count > 0"
+    why_not: "Restarts correspond to the past incident; service is currently healthy."
+    timeline:
+
+    "T0-3h: Transient network partition caused Elasticsearch node disconnects and search errors."
+
+    "T0-2h50m: Network healed, Elasticsearch cluster status green."
+
+    "T0: Operator asks why search-service experienced high error rates."
+    objects:
+
+    "Namespace/catalog"
+
+    "Deployment/catalog/search-service"
+
+    "StatefulSet/catalog/elasticsearch"
+
+    "Service/catalog/elasticsearch"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/"
+
+id: limitrange-1
+family: limitrange
+question: "why is worker-deployment failing to deploy in processing namespace"
+expected_outcome: cause
+cause_object: LimitRange/processing/cpu-memory-limits
+origin_object: LimitRange/processing/cpu-memory-limits
+mechanism: "A LimitRange enforces a minimum memory request of 512Mi, but the worker container configuration specifies a memory request of 256Mi, causing admission webhook rejection."
+passes_if: "names LimitRange/processing/cpu-memory-limits or container memory request below minimum"
+partial_if_only: ["LimitRange/processing/cpu-memory-limits"]
+chain:
+
+    from: Deployment/processing/worker-deployment
+    relation: "pod container resource request validation"
+    to: LimitRange/processing/cpu-memory-limits
+    fields: "spec.template.spec.containers[].resources.requests.memory vs LimitRange min spec"
+    abnormal: "Event: FailedCreate (minimum memory request 512Mi, specified 256Mi) at T0-20m"
+
+    from: LimitRange/processing/cpu-memory-limits
+    relation: "namespace default and constraint enforcement"
+    to: Namespace/processing
+    fields: "metadata.namespace and spec.limits[].min"
+    abnormal: "LimitRange constraint actively rejecting pod templates violating minimum bounds"
+    decoys:
+
+    object: Deployment/processing/worker-deployment
+    looks_like: "Container image pull failure due to bad registry tag"
+    why_not: "Image tag is valid; pods fail admission before scheduling due to LimitRange constraints."
+
+    object: ResourceQuota/processing/quota
+    looks_like: "ResourceQuota reached maximum allowed memory"
+    why_not: "ResourceQuota has ample capacity; the failure is caused by LimitRange minimum constraints."
+    timeline:
+
+    "T0-1h: LimitRange/cpu-memory-limits updated with stricter minimum bounds (512Mi memory)."
+
+    "T0-20m: Deployment/worker-deployment updated with 256Mi memory request."
+
+    "T0: Operator asks why worker-deployment is failing to deploy."
+    objects:
+
+    "Namespace/processing"
+
+    "Deployment/processing/worker-deployment"
+
+    "LimitRange/processing/cpu-memory-limits"
+
+    "ResourceQuota/processing/quota"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/policy/limit-range/"
+
+id: limitrange-2
+family: limitrange
+question: "why are analytics-pod containers getting OOMKilled in data namespace"
+expected_outcome: cause
+cause_object: LimitRange/data/default-constraints
+origin_object: LimitRange/data/default-constraints
+mechanism: "A LimitRange sets low default memory limits (256Mi) when containers omit resource limits, causing data-processing containers to be abruptly OOMKilled under normal workloads."
+passes_if: "names LimitRange/data/default-constraints or default memory limit injection causing OOMKilled"
+partial_if_only: ["LimitRange/data/default-constraints"]
+chain:
+
+    from: Deployment/data/analytics-pod
+    relation: "implicit container resource limit injection"
+    to: LimitRange/data/default-constraints
+    fields: "containers without explicit resources.limits receiving LimitRange default limits"
+    abnormal: "Container status: OOMKilled, exit code 137 at T0-10m"
+
+    from: LimitRange/data/default-constraints
+    relation: "namespace default limit definition"
+    to: Namespace/data
+    fields: "spec.limits[].default.memory"
+    abnormal: "LimitRange applies default max limit of 256Mi which is insufficient for data parsing"
+    decoys:
+
+    object: HorizontalPodAutoscaler/data/analytics-hpa
+    looks_like: "HPA is not scaling fast enough during load spikes"
+    why_not: "Containers are terminated by OOM before CPU or memory metrics trigger HPA scaling."
+
+    object: ConfigMap/data/app-config
+    looks_like: "ConfigMap cache size setting is too large"
+    why_not: "ConfigMap is unchanged; the memory restriction comes from the injected LimitRange default."
+    timeline:
+
+    "T0-2d: LimitRange/default-constraints applied to data namespace."
+
+    "T0-30m: Deployment/analytics-pod updated without explicit resource limits."
+
+    "T0-10m: Containers hit 256Mi limit and get OOMKilled."
+
+    "T0: Operator asks why analytics-pod containers are getting OOMKilled."
+    objects:
+
+    "Namespace/data"
+
+    "Deployment/data/analytics-pod"
+
+    "LimitRange/data/default-constraints"
+
+    "HorizontalPodAutoscaler/data/analytics-hpa"
+
+    "ConfigMap/data/app-config"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/policy/limit-range/#default-requests-and-limits"
+
+id: limitrange-0
+family: limitrange
+question: "why is web-app memory usage high in frontend namespace"
+expected_outcome: no_incident
+mechanism: "The LimitRange in frontend namespace provides sensible default limits and requests that are respected by web-app pods, which are running stably without OOM events."
+passes_if: "states no incident in limitrange family or confirms web-app conforms to limits stably"
+partial_if_only: ["LimitRange/frontend/limits"]
+chain: []
+decoys:
+
+    object: LimitRange/frontend/limits
+    looks_like: "LimitRange specifies default memory limits of 1Gi"
+    why_not: "1Gi limit is fully adequate for web-app; pods are operating well below the threshold."
+
+    object: Deployment/frontend/web-app
+    looks_like: "Pod restart count increased last week"
+    why_not: "Past restarts were due to a node maintenance event, not LimitRange violations."
+    timeline:
+
+    "T0-5d: LimitRange/limits configured."
+
+    "T0-1h: Node maintenance rebooted old pods."
+
+    "T0: Operator asks about web-app memory usage."
+    objects:
+
+    "Namespace/frontend"
+
+    "Deployment/frontend/web-app"
+
+    "LimitRange/frontend/limits"
+    sources:
+
+    "https://kubernetes.io/docs/concepts/policy/limit-range/"
+
+Stopped after completing the 12 scenarios for the families quota, netpol, dependency, and limitrange.

@@ -1,0 +1,1878 @@
+id: quota-1
+family: quota
+question: "why can't payment-api roll out in billing namespace"
+expected_outcome: cause
+cause_object: Job/billing/etl-backfill
+origin_object: Job/billing/etl-backfill
+mechanism: "An ETL batch job was updated to request high CPU, exhausting the namespace ResourceQuota cpu requests hard limit and causing ReplicaSet pod creation to fail."
+passes_if: "names Job/billing/etl-backfill or the CPU request exhaustion in ResourceQuota/billing/compute-quota"
+partial_if_only: ["ResourceQuota/billing/compute-quota"]
+chain:
+  - from: Deployment/billing/payment-api
+    relation: "controlled by ReplicaSet"
+    to: ReplicaSet/billing/payment-api-58f7956488
+    fields: "Deployment.spec.selector matches ReplicaSet.spec.selector and metadata.ownerReferences"
+    abnormal: "Event: FailedCreate on ReplicaSet/payment-api-58f7956488: pods \"payment-api-58f7956488-\" is forbidden: exceeded quota: compute-quota, requested: cpu=2, used: cpu=8, limited: cpu=8 at T0-10m"
+  - from: ReplicaSet/billing/payment-api-58f7956488
+    relation: "namespace quota constraint"
+    to: ResourceQuota/billing/compute-quota
+    fields: "ReplicaSet.spec.template.spec.containers[].resources.requests.cpu vs ResourceQuota.status.hard/used"
+    abnormal: "ResourceQuota status.used.requests.cpu reaches hard limit of 8cpu at T0-45m"
+  - from: ResourceQuota/billing/compute-quota
+    relation: "namespace resource consumption"
+    to: Job/billing/etl-backfill
+    fields: "Job.metadata.namespace matches ResourceQuota.metadata.namespace and pod resource requests"
+    abnormal: "Job/etl-backfill pods running with 6cpu total requests since T0-45m"
+decoys:
+  - object: HorizontalPodAutoscaler/billing/payment-api
+    looks_like: "HPA metrics show target CPU utilization at 120%"
+    why_not: "HPA is attempting to scale up, but the creation failure is driven by namespace CPU quota exhaustion, not HPA logic."
+  - object: Deployment/billing/payment-api
+    looks_like: "Deployment has rollout status progressing=False"
+    why_not: "This is the symptom of the ReplicaSet creation failure, not the root cause."
+timeline:
+  - "T0-45m: Job/etl-backfill updated via helm to request 6 CPUs, consuming available namespace CPU quota."
+  - "T0-15m: CI/CD pipeline triggers rolling update for Deployment/payment-api."
+  - "T0-10m: ReplicaSet/payment-api-58f7956488 emits FailedCreate event due to compute-quota exceeded."
+  - "T0: Operator asks why payment-api cannot roll out."
+objects:
+  - "Namespace/billing: Active"
+  - "Namespace/default: Active"
+  - "Deployment/billing/payment-api: Available"
+  - "ReplicaSet/billing/payment-api-58f7956488: ReplicaFailure"
+  - "ResourceQuota/billing/compute-quota: Used 8/8 cpu"
+  - "Job/billing/etl-backfill: Running"
+  - "HorizontalPodAutoscaler/billing/payment-api: Normal"
+  - "Pod/billing/etl-backfill-xyz1: Running"
+  - "Pod/billing/etl-backfill-xyz2: Running"
+  - "Service/billing/payment-api-svc: Active"
+  - "ConfigMap/billing/app-config: Active"
+  - "Secret/billing/db-secret: Active"
+  - "ServiceAccount/billing/default: Active"
+  - "PodDisruptionBudget/billing/api-pdb: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "PersistentVolumeClaim/billing/data-pvc: Bound"
+  - "PersistentVolume/pv-data01: Bound"
+  - "StorageClass/standard: Active"
+  - "NetworkPolicy/billing/default-deny: Active"
+  - "LimitRange/billing/limits: Active"
+  - "Role/billing/reader: Active"
+  - "RoleBinding/billing/read-binding: Active"
+  - "EndpointSlice/billing/payment-api-svc-abc: Active"
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/resource-quotas/"
+---
+id: quota-2
+family: quota
+question: "why are new auth-service pods pending in security namespace"
+expected_outcome: cause
+cause_object: ConfigMap/security/auth-limits-config
+origin_object: ConfigMap/security/auth-limits-config
+mechanism: "A ConfigMap change adjusted the cpu request on a background daemon template referenced by a DaemonSet, which consumed the remaining cpu quota and blocked auth-service pod creation."
+passes_if: "names ConfigMap/security/auth-limits-config or DaemonSet/security/audit-logger CPU request increase"
+partial_if_only: ["ResourceQuota/security/compute-quota"]
+chain:
+  - from: Deployment/security/auth-service
+    relation: "controlled by ReplicaSet"
+    to: ReplicaSet/security/auth-service-74b86cfbc8
+    fields: "Deployment.spec.selector matches ReplicaSet.spec.selector and ownerReferences"
+    abnormal: "Event: FailedCreate on ReplicaSet/auth-service-74b86cfbc8: exceeded quota: compute-quota, requested: cpu=500m at T0-5m"
+  - from: ReplicaSet/security/auth-service-74b86cfbc8
+    relation: "namespace quota limit"
+    to: ResourceQuota/security/compute-quota
+    fields: "Pod template resource requests vs ResourceQuota status.hard/used"
+    abnormal: "ResourceQuota/compute-quota status.used.requests.cpu equals hard limit 4000m at T0-10m"
+  - from: ResourceQuota/security/compute-quota
+    relation: "namespace resource consumption by DaemonSet pods"
+    to: DaemonSet/security/audit-logger
+    fields: "DaemonSet.spec.template.spec.containers[].resources.requests.cpu and node selector matching cluster nodes"
+    abnormal: "DaemonSet/audit-logger pods updated template requesting 1000m per node across 4 nodes at T0-15m"
+decoys:
+  - object: ServiceAccount/security/auth-sa
+    looks_like: "ServiceAccount token mount warnings in system logs"
+    why_not: "ServiceAccount is fully valid and mounted successfully on all existing pods."
+  - object: HorizontalPodAutoscaler/security/auth-service
+    looks_like: "HPA target CPU metric is unready"
+    why_not: "HPA metrics status is normal; the scheduling block is caused strictly by namespace CPU quota limits."
+timeline:
+  - "T0-15m: ConfigMap/auth-limits-config edited, increasing audit-logger container CPU request from 250m to 1000m."
+  - "T0-10m: DaemonSet/audit-logger rolls out, consuming all remaining namespace CPU quota."
+  - "T0-5m: Deployment/auth-service triggers scaling, failing ReplicaSet pod creation due to quota."
+  - "T0: Operator asks why new auth-service pods are pending."
+objects:
+  - "Namespace/security: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/security/auth-service: Active"
+  - "ReplicaSet/security/auth-service-74b86cfbc8: ReplicaFailure"
+  - "DaemonSet/security/audit-logger: Active"
+  - "ResourceQuota/security/compute-quota: Used 4/4 cpu"
+  - "ConfigMap/security/auth-limits-config: Active"
+  - "HorizontalPodAutoscaler/security/auth-service: Active"
+  - "ServiceAccount/security/auth-sa: Active"
+  - "Secret/security/jwt-secret: Active"
+  - "Service/security/auth-svc: Active"
+  - "Pod/security/audit-logger-node1: Running"
+  - "Pod/security/audit-logger-node2: Running"
+  - "Pod/security/audit-logger-node3: Running"
+  - "Pod/security/audit-logger-node4: Running"
+  - "Pod/security/auth-service-existing: Running"
+  - "NetworkPolicy/security/netpol: Active"
+  - "LimitRange/security/limits: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Service/default/kubernetes: Active"
+  - "Deployment/kube-system/coredns: Active"
+  - "Service/kube-system/kube-dns: Active"
+  - "PersistentVolumeClaim/security/sec-pvc: Bound"
+  - "PersistentVolume/pv-sec01: Bound"
+  - "StorageClass/standard: Active"
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/resource-quotas/"
+---
+id: quota-0
+family: quota
+question: "is something wrong with reporting-worker in analytics namespace"
+expected_outcome: no_incident
+mechanism: "ResourceQuota utilization in analytics namespace is at 45%, well within limits, and reporting-worker pods are running normally with no quota-related events."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["ResourceQuota/analytics/compute-quota"]
+chain: []
+decoys:
+  - object: ResourceQuota/analytics/compute-quota
+    looks_like: "ResourceQuota status shows 4.5 cores requested out of 10 cores limit"
+    why_not: "45% utilization is well below the hard limit and generates no errors or blocking events."
+  - object: Job/analytics/nightly-report
+    looks_like: "Job ran overnight and consumed higher compute quota temporarily"
+    why_not: "Job completed successfully 6 hours ago and its pods have terminated, freeing all quota."
+timeline:
+  - "T0-6h: Job/nightly-report completed and pods terminated."
+  - "T0-1h: ResourceQuota verified at 45% utilization."
+  - "T0: Operator asks if something is wrong with reporting-worker in analytics namespace."
+objects:
+  - "Namespace/analytics: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/analytics/reporting-worker: Available"
+  - "ReplicaSet/analytics/reporting-worker-5bc69bdf74: Active"
+  - "ResourceQuota/analytics/compute-quota: Used 4.5/10 cpu"
+  - "Job/analytics/nightly-report: Completed"
+  - "Pod/analytics/reporting-worker-5bc69bdf74-abcde: Running"
+  - "Service/analytics/worker-svc: Active"
+  - "ConfigMap/analytics/worker-config: Active"
+  - "Secret/analytics/db-creds: Active"
+  - "ServiceAccount/analytics/worker-sa: Active"
+  - "HorizontalPodAutoscaler/analytics/reporting-worker: Normal"
+  - "PersistentVolumeClaim/analytics/data-pvc: Bound"
+  - "PersistentVolume/pv-analytics01: Bound"
+  - "StorageClass/standard: Active"
+  - "NetworkPolicy/analytics/allow-internal: Active"
+  - "LimitRange/analytics/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/analytics/manager: Active"
+  - "RoleBinding/analytics/bind: Active"
+  - "EndpointSlice/analytics/worker-svc-xyz: Active"
+  - "PodDisruptionBudget/analytics/worker-pdb: Active"
+  - "Event/analytics/reporting-worker-normal: Normal"
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/resource-quotas/"
+---
+id: netpol-1
+family: netpol
+question: "why can't checkout service connect to backend-api in store namespace"
+expected_outcome: cause
+cause_object: NetworkPolicy/store/backend-ingress-isolation
+origin_object: NetworkPolicy/store/backend-ingress-isolation
+mechanism: "A NetworkPolicy on backend-api permits ingress exclusively from pods labeled tier=frontend, while checkout pods are labeled tier=checkout, causing connection timeouts."
+passes_if: "names NetworkPolicy/store/backend-ingress-isolation or the unmatched podSelector rules"
+partial_if_only: ["NetworkPolicy/store/backend-ingress-isolation"]
+chain:
+  - from: Deployment/store/checkout
+    relation: "pod-to-service network communication"
+    to: Service/store/backend-api
+    fields: "Deployment.spec.template.spec.containers[].env (BACKEND_URL) vs Service.spec.clusterIP and spec.ports"
+    abnormal: "Container log on checkout: 'Get \"http://backend-api:8080/pay\": dial tcp 10.96.45.12:8080: i/o timeout' at T0-10m"
+  - from: Service/store/backend-api
+    relation: "Service routes traffic to backend pods selected by label"
+    to: StatefulSet/store/backend-api
+    fields: "Service.spec.selector vs StatefulSet.spec.template.metadata.labels"
+    abnormal: "Endpoints list points to backend pods, but TCP packets sent to pod IPs are dropped"
+  - from: StatefulSet/store/backend-api
+    relation: "NetworkPolicy ingress pod selection"
+    to: NetworkPolicy/store/backend-ingress-isolation
+    fields: "StatefulSet.spec.template.metadata.labels vs NetworkPolicy.spec.podSelector and spec.ingress[].from[].podSelector"
+    abnormal: "NetworkPolicy/backend-ingress-isolation drops ingress packets from pods lacking label tier=frontend at T0-10m"
+decoys:
+  - object: Service/store/backend-api
+    looks_like: "Service endpoints might be misconfigured or missing"
+    why_not: "Service endpoints correctly list all 3 healthy backend-api pod IPs."
+  - object: Deployment/store/checkout
+    looks_like: "Checkout container environment variable points to wrong port"
+    why_not: "Environment variables correctly point to port 8080, matching the service spec."
+timeline:
+  - "T0-1h: NetworkPolicy/backend-ingress-isolation applied, restricting ingress to tier=frontend pods."
+  - "T0-12m: Deployment/checkout updated with tier=checkout label."
+  - "T0-10m: Checkout pods log connection timeouts contacting backend-api."
+  - "T0: Operator asks why checkout service cannot connect to backend-api."
+objects:
+  - "Namespace/store: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/store/checkout: Active"
+  - "StatefulSet/store/backend-api: Active"
+  - "Service/store/backend-api: Active"
+  - "NetworkPolicy/store/backend-ingress-isolation: Active"
+  - "Pod/store/checkout-abc: Running"
+  - "Pod/store/backend-api-0: Running"
+  - "Pod/store/backend-api-1: Running"
+  - "HorizontalPodAutoscaler/store/checkout: Normal"
+  - "ConfigMap/store/config: Active"
+  - "Secret/store/db-secret: Active"
+  - "ServiceAccount/store/sa: Active"
+  - "PersistentVolumeClaim/store/pvc: Bound"
+  - "PersistentVolume/pv-store01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/store/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/store/admin: Active"
+  - "RoleBinding/store/bind: Active"
+  - "EndpointSlice/store/backend-api-xyz: Active"
+  - "PodDisruptionBudget/store/pdb: Active"
+  - "Event/store/checkout-normal: Normal"
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/network-policies/"
+---
+id: netpol-2
+family: netpol
+question: "why are payment pods failing DNS lookups in payments namespace"
+expected_outcome: cause
+cause_object: NetworkPolicy/payments/deny-all-egress
+origin_object: NetworkPolicy/payments/deny-all-egress
+mechanism: "An egress NetworkPolicy blocks all outbound traffic from payment pods, omitting the required egress rule for UDP port 53 to reach CoreDNS."
+passes_if: "names NetworkPolicy/payments/deny-all-egress or missing DNS egress rule"
+partial_if_only: ["NetworkPolicy/payments/deny-all-egress"]
+chain:
+  - from: Deployment/payments/payment-app
+    relation: "pod container DNS resolution query"
+    to: Service/kube-system/kube-dns
+    fields: "Deployment.spec.template.spec.dnsPolicy and CoreDNS ClusterIP 10.96.0.10"
+    abnormal: "Container log: ';; connection timed out; no servers could be reached' at T0-5m"
+  - from: Service/kube-system/kube-dns
+    relation: "Endpoints backing CoreDNS service"
+    to: Deployment/kube-system/coredns
+    fields: "Service.spec.selector vs Deployment.spec.selector"
+    abnormal: "CoreDNS endpoints are healthy, but outgoing packets from payment-app to 10.96.0.10:53 are intercepted"
+  - from: Deployment/payments/payment-app
+    relation: "namespace egress network policy restriction"
+    to: NetworkPolicy/payments/deny-all-egress
+    fields: "Deployment.metadata.namespace matches NetworkPolicy.metadata.namespace and NetworkPolicy.spec.egress"
+    abnormal: "NetworkPolicy/deny-all-egress drops outbound UDP traffic on port 53 at T0-5m"
+decoys:
+  - object: Deployment/kube-system/coredns
+    looks_like: "CoreDNS pods are restarting frequently in kube-system"
+    why_not: "CoreDNS pods have zero restarts and successfully resolve queries for other namespaces."
+  - object: Service/payments/db-proxy
+    looks_like: "Database proxy service IP is unreachable"
+    why_not: "Unreachability is a consequence of general egress blocking, not a database service failure."
+timeline:
+  - "T0-1h: NetworkPolicy/deny-all-egress applied to payments namespace without egress rules for port 53."
+  - "T0-10m: Payment pods restarted for configuration refresh."
+  - "T0-5m: Payment app containers log DNS connection timeouts."
+  - "T0: Operator asks why payment pods are failing DNS lookups."
+objects:
+  - "Namespace/payments: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/payments/payment-app: Active"
+  - "Deployment/kube-system/coredns: Active"
+  - "Service/kube-system/kube-dns: Active"
+  - "NetworkPolicy/payments/deny-all-egress: Active"
+  - "Pod/payments/payment-app-xyz: Running"
+  - "Pod/kube-system/coredns-abc: Running"
+  - "Service/payments/db-proxy: Active"
+  - "ConfigMap/payments/config: Active"
+  - "Secret/payments/secret: Active"
+  - "ServiceAccount/payments/sa: Active"
+  - "HorizontalPodAutoscaler/payments/payment-app: Normal"
+  - "PersistentVolumeClaim/payments/pvc: Bound"
+  - "PersistentVolume/pv-pay01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/payments/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/payments/role: Active"
+  - "RoleBinding/payments/rb: Active"
+  - "EndpointSlice/kube-system/dns-xyz: Active"
+  - "PodDisruptionBudget/payments/pdb: Active"
+  - "Event/payments/normal: Normal"
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/network-policies/#dns-access"
+---
+id: netpol-0
+family: netpol
+question: "is frontend service accessible from monitoring namespace in prod namespace"
+expected_outcome: no_incident
+mechanism: "A NetworkPolicy in prod namespace explicitly allows ingress from the monitoring namespace on Prometheus scrape ports, which is functioning as designed."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["NetworkPolicy/prod/allow-monitoring"]
+chain: []
+decoys:
+  - object: NetworkPolicy/prod/allow-monitoring
+    looks_like: "NetworkPolicy permits cross-namespace ingress traffic from monitoring selector"
+    why_not: "This rule is intentional for metrics collection and successfully passes authorized traffic."
+  - object: NetworkPolicy/prod/default-deny-ingress
+    looks_like: "Default deny ingress policy blocks unselected traffic"
+    why_not: "The allow-monitoring policy takes precedence for monitoring traffic; no blocked connections are occurring."
+timeline:
+  - "T0-5d: NetworkPolicy/allow-monitoring created."
+  - "T0-30m: Prometheus successfully scrapes metrics from frontend pods."
+  - "T0: Operator asks if frontend service is accessible from monitoring namespace."
+objects:
+  - "Namespace/prod: Active"
+  - "Namespace/monitoring: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/prod/frontend: Active"
+  - "Service/prod/frontend: Active"
+  - "NetworkPolicy/prod/allow-monitoring: Active"
+  - "NetworkPolicy/prod/default-deny-ingress: Active"
+  - "Pod/prod/frontend-abc: Running"
+  - "Pod/monitoring/prometheus-0: Running"
+  - "ConfigMap/prod/config: Active"
+  - "Secret/prod/tls: Active"
+  - "ServiceAccount/prod/sa: Active"
+  - "HorizontalPodAutoscaler/prod/frontend: Normal"
+  - "PersistentVolumeClaim/prod/pvc: Bound"
+  - "PersistentVolume/pv-prod01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/prod/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/prod/role: Active"
+  - "RoleBinding/prod/rb: Active"
+  - "EndpointSlice/prod/frontend-xyz: Active"
+  - "PodDisruptionBudget/prod/pdb: Active"
+  - "Event/prod/normal: Normal"
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/network-policies/"
+---
+id: dependency-1
+family: dependency
+question: "why is api-gateway failing health checks in microservices namespace"
+expected_outcome: cause
+cause_object: HelmRelease/microservices/redis-cache
+origin_object: HelmRelease/microservices/redis-cache
+mechanism: "A Helm chart update misconfigured the Redis readiness probe command, causing all Redis pods to fail readiness and be removed from service endpoints, leading to connection refusals by api-gateway."
+passes_if: "names HelmRelease/microservices/redis-cache or StatefulSet/microservices/redis-cache readiness probe failure"
+partial_if_only: ["Service/microservices/redis-cache"]
+chain:
+  - from: Deployment/microservices/api-gateway
+    relation: "TCP connection to upstream service"
+    to: Service/microservices/redis-cache
+    fields: "Deployment.spec.template.spec.containers[].env (REDIS_HOST) vs Service.spec.clusterIP"
+    abnormal: "Container log on api-gateway: 'ERR connecting to redis://redis-cache:6379: connection refused' at T0-10m"
+  - from: Service/microservices/redis-cache
+    relation: "Service endpoints matching pod selectors and readiness"
+    to: StatefulSet/microservices/redis-cache
+    fields: "Service.spec.selector vs StatefulSet.spec.selector and pod readiness status"
+    abnormal: "Endpoints list for redis-cache is empty because all pods fail readiness probe at T0-12m"
+  - from: StatefulSet/microservices/redis-cache
+    relation: "Helm release managed object specification"
+    to: HelmRelease/microservices/redis-cache
+    fields: "HelmRelease.status.lastAppliedRevision vs StatefulSet.spec.template.spec.containers[].readinessProbe"
+    abnormal: "Helm release applied chart version 3.2.1 containing invalid readinessProbe exec command at T0-30m"
+decoys:
+  - object: Deployment/microservices/api-gateway
+    looks_like: "api-gateway replica count is scaled up by HPA"
+    why_not: "HPA scaling is a response to error retries; the upstream dependency is what is failing."
+  - object: Secret/microservices/redis-auth
+    looks_like: "Redis authentication password secret modified recently"
+    why_not: "Secret is unchanged; connection fails at TCP layer due to lack of healthy endpoints."
+timeline:
+  - "T0-30m: HelmRelease/redis-cache updated to version 3.2.1 with broken readiness probe."
+  - "T0-12m: Redis pods marked unready by kubelet, removed from service endpoints."
+  - "T0-10m: api-gateway logs connection refused errors."
+  - "T0: Operator asks why api-gateway is failing health checks."
+objects:
+  - "Namespace/microservices: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/microservices/api-gateway: Active"
+  - "StatefulSet/microservices/redis-cache: Active"
+  - "Service/microservices/redis-cache: Active"
+  - "HelmRelease/microservices/redis-cache: Deployed"
+  - "HorizontalPodAutoscaler/microservices/api-gateway: Active"
+  - "Secret/microservices/redis-auth: Active"
+  - "ConfigMap/microservices/config: Active"
+  - "ServiceAccount/microservices/sa: Active"
+  - "Pod/microservices/api-gateway-xyz: Running"
+  - "Pod/microservices/redis-cache-0: Unready"
+  - "PersistentVolumeClaim/microservices/redis-pvc: Bound"
+  - "PersistentVolume/pv-redis01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/microservices/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/microservices/role: Active"
+  - "RoleBinding/microservices/rb: Active"
+  - "EndpointSlice/microservices/redis-xyz: Active"
+  - "PodDisruptionBudget/microservices/pdb: Active"
+  - "Event/microservices/redis-unready: Warning"
+sources:
+  - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/"
+---
+id: dependency-2
+family: dependency
+question: "why are cart-service pods crashing in shop namespace"
+expected_outcome: cause
+cause_object: Job/shop/db-migration-v2
+origin_object: Job/shop/db-migration-v2
+mechanism: "A database migration Job dropped a column required by the running version of cart-service, causing unhandled SQL exceptions and container termination."
+passes_if: "names Job/shop/db-migration-v2 or SQL schema incompatibility caused by migration"
+partial_if_only: ["StatefulSet/shop/postgres-db"]
+chain:
+  - from: Deployment/shop/cart-service
+    relation: "database connection string and SQL query execution"
+    to: StatefulSet/shop/postgres-db
+    fields: "Deployment.spec.template.spec.containers[].env (DB_HOST) vs StatefulSet pod network identity"
+    abnormal: "Container log on cart-service: 'pq: column cart_items.item_sku does not exist at character 42' at T0-8m"
+  - from: StatefulSet/shop/postgres-db
+    relation: "database table schema modification"
+    to: Job/shop/db-migration-v2
+    fields: "Postgres table state vs Job container execution logs"
+    abnormal: "Job/db-migration-v2 container log: 'ALTER TABLE cart_items DROP COLUMN item_sku;' executed at T0-10m"
+decoys:
+  - object: Deployment/shop/frontend
+    looks_like: "Frontend service returning 502 Bad Gateway responses"
+    why_not: "Frontend is failing because cart-service backend is crashing; frontend is not the root cause."
+  - object: ServiceAccount/shop/cart-sa
+    looks_like: "Service account token expiration warnings"
+    why_not: "Database authentication succeeds; the failure is strictly a SQL schema mismatch."
+timeline:
+  - "T0-10m: Job/db-migration-v2 runs and drops table column item_sku."
+  - "T0-8m: Cart-service pods throw SQL exceptions and crash loop."
+  - "T0: Operator asks why cart-service pods are crashing."
+objects:
+  - "Namespace/shop: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/shop/cart-service: CrashLoopBackOff"
+  - "StatefulSet/shop/postgres-db: Active"
+  - "Job/shop/db-migration-v2: Completed"
+  - "Deployment/shop/frontend: Active"
+  - "ServiceAccount/shop/cart-sa: Active"
+  - "Secret/shop/db-secret: Active"
+  - "ConfigMap/shop/config: Active"
+  - "Service/shop/postgres-db: Active"
+  - "Pod/shop/cart-service-abc: CrashLoopBackOff"
+  - "Pod/shop/postgres-db-0: Running"
+  - "Pod/shop/db-migration-v2-xyz: Completed"
+  - "HorizontalPodAutoscaler/shop/cart-service: Normal"
+  - "PersistentVolumeClaim/shop/pg-pvc: Bound"
+  - "PersistentVolume/pv-shop01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/shop/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/shop/role: Active"
+  - "RoleBinding/shop/rb: Active"
+  - "EndpointSlice/shop/pg-xyz: Active"
+  - "PodDisruptionBudget/shop/pdb: Active"
+  - "Event/shop/cart-crash: Warning"
+sources:
+  - "https://kubernetes.io/docs/concepts/workloads/controllers/job/"
+---
+id: dependency-0
+family: dependency
+question: "did search-service experience high error rates in catalog namespace"
+expected_outcome: no_incident
+mechanism: "The search-service dependency (Elasticsearch) experienced a transient network partition 3 hours ago that healed automatically; current service health and error rates are normal."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["StatefulSet/catalog/elasticsearch"]
+chain: []
+decoys:
+  - object: StatefulSet/catalog/elasticsearch
+    looks_like: "Elasticsearch pods recorded container restarts 3 hours ago"
+    why_not: "Pods recovered automatically after the network partition healed; current status is healthy with zero active errors."
+  - object: Deployment/catalog/search-service
+    looks_like: "Search service log shows past timeout errors"
+    why_not: "Those log entries correspond to the healed incident 3 hours ago; current operational metrics are clean."
+timeline:
+  - "T0-3h: Transient network partition caused Elasticsearch disconnects and search errors."
+  - "T0-2h50m: Network partition resolved, Elasticsearch cluster status green."
+  - "T0: Operator asks if search-service experienced high error rates."
+objects:
+  - "Namespace/catalog: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/catalog/search-service: Active"
+  - "StatefulSet/catalog/elasticsearch: Active"
+  - "Service/catalog/elasticsearch: Active"
+  - "Pod/catalog/search-service-abc: Running"
+  - "Pod/catalog/elasticsearch-0: Running"
+  - "HorizontalPodAutoscaler/catalog/search-service: Normal"
+  - "ConfigMap/catalog/config: Active"
+  - "Secret/catalog/secret: Active"
+  - "ServiceAccount/catalog/sa: Active"
+  - "PersistentVolumeClaim/catalog/es-pvc: Bound"
+  - "PersistentVolume/pv-catalog01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/catalog/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/catalog/role: Active"
+  - "RoleBinding/catalog/rb: Active"
+  - "EndpointSlice/catalog/es-xyz: Active"
+  - "PodDisruptionBudget/catalog/pdb: Active"
+  - "Event/catalog/normal: Normal"
+sources:
+  - "https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/"
+---
+id: limitrange-1
+family: limitrange
+question: "why is worker-deployment failing to deploy in processing namespace"
+expected_outcome: cause
+cause_object: LimitRange/processing/cpu-memory-limits
+origin_object: LimitRange/processing/cpu-memory-limits
+mechanism: "A LimitRange enforces a minimum memory request of 512Mi, but the worker container configuration specifies 256Mi, causing admission rejection by the LimitRanger plugin."
+passes_if: "names LimitRange/processing/cpu-memory-limits or container memory request below minimum"
+partial_if_only: ["LimitRange/processing/cpu-memory-limits"]
+chain:
+  - from: Deployment/processing/worker-deployment
+    relation: "controlled by ReplicaSet"
+    to: ReplicaSet/processing/worker-deployment-6889b58879
+    fields: "Deployment.spec.selector matches ReplicaSet.spec.selector"
+    abnormal: "Event on ReplicaSet/worker-deployment-6889b58879: FailedCreate: pods \"worker-deployment-6889b58879-\" is forbidden: minimum memory request is 512Mi, but request is 256Mi at T0-15m"
+  - from: ReplicaSet/processing/worker-deployment-6889b58879
+    relation: "admission review against namespace LimitRange"
+    to: LimitRange/processing/cpu-memory-limits
+    fields: "ReplicaSet.spec.template.spec.containers[].resources.requests.memory vs LimitRange.spec.limits[].min.memory"
+    abnormal: "LimitRanger admission controller rejects pod creation due to minimum bound violation at T0-15m"
+decoys:
+  - object: Deployment/processing/worker-deployment
+    looks_like: "Deployment image pull secret missing or invalid"
+    why_not: "Image pull secret is present and valid; pods fail admission before scheduling."
+  - object: ResourceQuota/processing/quota
+    looks_like: "ResourceQuota memory allocation limit reached"
+    why_not: "ResourceQuota has plenty of available memory capacity; the failure is caused by LimitRange minimum bounds."
+timeline:
+  - "T0-1h: LimitRange/cpu-memory-limits updated with stricter minimum memory bound of 512Mi."
+  - "T0-15m: Deployment/worker-deployment updated with 256Mi memory request."
+  - "T0: Operator asks why worker-deployment is failing to deploy."
+objects:
+  - "Namespace/processing: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/processing/worker-deployment: ReplicaFailure"
+  - "ReplicaSet/processing/worker-deployment-6889b58879: ReplicaFailure"
+  - "LimitRange/processing/cpu-memory-limits: Active"
+  - "ResourceQuota/processing/quota: Active"
+  - "ConfigMap/processing/config: Active"
+  - "Secret/processing/secret: Active"
+  - "ServiceAccount/processing/sa: Active"
+  - "HorizontalPodAutoscaler/processing/worker: Normal"
+  - "PersistentVolumeClaim/processing/pvc: Bound"
+  - "PersistentVolume/pv-proc01: Bound"
+  - "StorageClass/standard: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/processing/role: Active"
+  - "RoleBinding/processing/rb: Active"
+  - "Service/processing/worker-svc: Active"
+  - "EndpointSlice/processing/worker-xyz: Active"
+  - "PodDisruptionBudget/processing/pdb: Active"
+  - "Event/processing/failed-create: Warning"
+  - "Pod/processing/existing-pod: Running"
+  - "NetworkPolicy/processing/netpol: Active"
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/limit-range/"
+---
+id: limitrange-2
+family: limitrange
+question: "why are analytics-pod containers getting OOMKilled in data namespace"
+expected_outcome: cause
+cause_object: LimitRange/data/default-constraints
+origin_object: LimitRange/data/default-constraints
+mechanism: "A LimitRange injects a default maximum memory limit of 256Mi when containers omit resource limits, causing analytics-pod containers to be abruptly OOMKilled under normal data parsing workloads."
+passes_if: "names LimitRange/data/default-constraints or default memory limit injection causing OOMKilled"
+partial_if_only: ["LimitRange/data/default-constraints"]
+chain:
+  - from: Deployment/data/analytics-pod
+    relation: "controlled by ReplicaSet"
+    to: ReplicaSet/data/analytics-pod-5897bc68d4
+    fields: "Deployment.spec.selector matches ReplicaSet.spec.selector"
+    abnormal: "Container status on analytics-pod: OOMKilled, exit code 137, message: 'Killed' at T0-10m"
+  - from: ReplicaSet/data/analytics-pod-5897bc68d4
+    relation: "implicit container resource limit default injection"
+    to: LimitRange/data/default-constraints
+    fields: "ReplicaSet.spec.template.spec.containers[] lacking resources.limits receiving LimitRange.spec.limits[].default.memory"
+    abnormal: "LimitRanger admission plugin injects default memory limit of 256Mi at pod creation time"
+decoys:
+  - object: HorizontalPodAutoscaler/data/analytics-hpa
+    looks_like: "HPA metric target utilization is spiking"
+    why_not: "Containers are terminated by OOM kernel events before HPA can evaluate metrics or scale."
+  - object: ConfigMap/data/app-config
+    looks_like: "ConfigMap cache batch size set too high"
+    why_not: "ConfigMap is unchanged; memory termination is caused by the injected LimitRange default limit."
+timeline:
+  - "T0-2d: LimitRange/default-constraints applied to data namespace with 256Mi default limit."
+  - "T0-30m: Deployment/analytics-pod updated without explicit resource limits."
+  - "T0-10m: Containers hit 256Mi limit and get OOMKilled."
+  - "T0: Operator asks why analytics-pod containers are getting OOMKilled."
+objects:
+  - "Namespace/data: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/data/analytics-pod: Active"
+  - "ReplicaSet/data/analytics-pod-5897bc68d4: Active"
+  - "LimitRange/data/default-constraints: Active"
+  - "HorizontalPodAutoscaler/data/analytics-hpa: Active"
+  - "ConfigMap/data/app-config: Active"
+  - "Secret/data/secret: Active"
+  - "ServiceAccount/data/sa: Active"
+  - "Pod/data/analytics-pod-5897bc68d4-xyz: OOMKilled"
+  - "PersistentVolumeClaim/data/pvc: Bound"
+  - "PersistentVolume/pv-data02: Bound"
+  - "StorageClass/standard: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/data/role: Active"
+  - "RoleBinding/data/rb: Active"
+  - "Service/data/svc: Active"
+  - "EndpointSlice/data/xyz: Active"
+  - "PodDisruptionBudget/data/pdb: Active"
+  - "Event/data/oom: Warning"
+  - "NetworkPolicy/data/netpol: Active"
+  - "ResourceQuota/data/quota: Active"
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/limit-range/#default-requests-and-limits"
+---
+id: limitrange-0
+family: limitrange
+question: "is something wrong with web-app memory usage in frontend namespace"
+expected_outcome: no_incident
+mechanism: "The LimitRange in frontend namespace provides standard default limits and requests that are respected by web-app pods, which are running stably without OOM events."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["LimitRange/frontend/limits"]
+chain: []
+decoys:
+  - object: LimitRange/frontend/limits
+    looks_like: "LimitRange specifies default memory limits of 1Gi"
+    why_not: "1Gi limit is fully adequate for web-app; pods are operating well below the threshold with zero OOM events."
+  - object: Deployment/frontend/web-app
+    looks_like: "Pod restart count increased last week during maintenance"
+    why_not: "Past restarts were due to scheduled node maintenance reboot, not LimitRange violations."
+timeline:
+  - "T0-5d: LimitRange/limits configured."
+  - "T0-1h: Scheduled node maintenance rebooted old pods cleanly."
+  - "T0: Operator asks if something is wrong with web-app memory usage in frontend namespace."
+objects:
+  - "Namespace/frontend: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/frontend/web-app: Active"
+  - "ReplicaSet/frontend/web-app-7d68b6999b: Active"
+  - "LimitRange/frontend/limits: Active"
+  - "Pod/frontend/web-app-7d68b6999b-abcde: Running"
+  - "HorizontalPodAutoscaler/frontend/web-app: Normal"
+  - "ConfigMap/frontend/config: Active"
+  - "Secret/frontend/tls: Active"
+  - "ServiceAccount/frontend/sa: Active"
+  - "PersistentVolumeClaim/frontend/pvc: Bound"
+  - "PersistentVolume/pv-frontend01: Bound"
+  - "StorageClass/standard: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/frontend/role: Active"
+  - "RoleBinding/frontend/rb: Active"
+  - "Service/frontend/web-app: Active"
+  - "EndpointSlice/frontend/xyz: Active"
+  - "PodDisruptionBudget/frontend/pdb: Active"
+  - "Event/frontend/normal: Normal"
+  - "NetworkPolicy/frontend/netpol: Active"
+  - "ResourceQuota/frontend/quota: Active"
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/limit-range/"
+---
+id: hpa-1
+family: hpa
+question: "why is web-frontend experiencing slow response times in marketing namespace"
+expected_outcome: cause
+cause_object: HorizontalPodAutoscaler/marketing/web-frontend
+origin_object: HorizontalPodAutoscaler/marketing/web-frontend
+mechanism: "An HPA target metric reference points to a Custom Metrics API metric name that was mistyped during a configuration update, freezing replica scaling at minimum count despite high traffic."
+passes_if: "names HorizontalPodAutoscaler/marketing/web-frontend or the invalid metric target reference"
+partial_if_only: ["HorizontalPodAutoscaler/marketing/web-frontend"]
+chain:
+  - from: Deployment/marketing/web-frontend
+    relation: "horizontal pod autoscaler target reference"
+    to: HorizontalPodAutoscaler/marketing/web-frontend
+    fields: "Deployment.metadata.name vs HorizontalPodAutoscaler.spec.scaleTargetRef.name"
+    abnormal: "HPA status condition ScalingLimited/FailedGetExternalMetric: pods: unable to fetch metrics from custom metrics API at T0-20m"
+  - from: HorizontalPodAutoscaler/marketing/web-frontend
+    relation: "custom metrics api server metric query"
+    to: APIService/v1beta1.custom.metrics.k8s.io
+    fields: "HorizontalPodAutoscaler.spec.metrics[].external.metric.name vs APIService name"
+    abnormal: "Metrics API returns 404 Not Found for metric 'http_requests_per_sec_invalid' at T0-20m"
+decoys:
+  - object: Deployment/marketing/web-frontend
+    looks_like: "Deployment replica count is stuck at 2"
+    why_not: "Replicas are stuck because HPA cannot evaluate the mistyped metric, not due to deployment rollout issues."
+  - object: Service/marketing/web-frontend
+    looks_like: "Service endpoint selection might be dropping traffic"
+    why_not: "Service endpoints are healthy; the slow response is caused by high traffic unmitigated by scaling."
+timeline:
+  - "T0-30m: HPA updated with typo in metric name 'http_requests_per_sec_invalid'."
+  - "T0-20m: Traffic surge begins; HPA fails metric retrieval and halts scaling."
+  - "T0: Operator asks why web-frontend is experiencing slow response times."
+objects:
+  - "Namespace/marketing: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/marketing/web-frontend: Active"
+  - "ReplicaSet/marketing/web-frontend-5f99bf7dbd: Active"
+  - "HorizontalPodAutoscaler/marketing/web-frontend: Warning"
+  - "APIService/v1beta1.custom.metrics.k8s.io: Active"
+  - "Service/marketing/web-frontend: Active"
+  - "Pod/marketing/web-frontend-5f99bf7dbd-abc: Running"
+  - "Pod/marketing/web-frontend-5f99bf7dbd-def: Running"
+  - "ConfigMap/marketing/config: Active"
+  - "Secret/marketing/secret: Active"
+  - "ServiceAccount/marketing/sa: Active"
+  - "PersistentVolumeClaim/marketing/pvc: Bound"
+  - "PersistentVolume/pv-mkt01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/marketing/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/marketing/role: Active"
+  - "RoleBinding/marketing/rb: Active"
+  - "EndpointSlice/marketing/xyz: Active"
+  - "PodDisruptionBudget/marketing/pdb: Active"
+  - "Event/marketing/hpa-warn: Warning"
+  - "ResourceQuota/marketing/quota: Active"
+  - "NetworkPolicy/marketing/netpol: Active"
+sources:
+  - "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+---
+id: hpa-2
+family: hpa
+question: "why are payment-worker pods scaling up excessively in finance namespace"
+expected_outcome: cause
+cause_object: HorizontalPodAutoscaler/finance/payment-worker
+origin_object: HorizontalPodAutoscaler/finance/payment-worker
+mechanism: "An HPA configuration was updated with a targetAverageUtilization value set to 5% instead of 50%, causing aggressive scale-up oscillations well beyond workload needs."
+passes_if: "names HorizontalPodAutoscaler/finance/payment-worker or excessively low targetAverageUtilization"
+partial_if_only: ["HorizontalPodAutoscaler/finance/payment-worker"]
+chain:
+  - from: Deployment/finance/payment-worker
+    relation: "horizontal pod autoscaler scale target"
+    to: HorizontalPodAutoscaler/finance/payment-worker
+    fields: "Deployment.metadata.name vs HorizontalPodAutoscaler.spec.scaleTargetRef.name"
+    abnormal: "HPA scaling event scales replicas from 3 to 50 within 5 minutes at T0-15m"
+  - from: HorizontalPodAutoscaler/finance/payment-worker
+    relation: "metrics resource target utilization threshold"
+    to: MetricsServer/metrics.k8s.io
+    fields: "HorizontalPodAutoscaler.spec.metrics[].resource.target.averageUtilization vs Metrics Server CPU data"
+    abnormal: "Target utilization threshold set to 5%, triggering scale-up when actual CPU utilization is 8% at T0-15m"
+decoys:
+  - object: Deployment/finance/payment-worker
+    looks_like: "Deployment has high replica count and resource churn"
+    why_not: "High replica count is the direct result of the misconfigured HPA threshold, not an application crash loop."
+  - object: ResourceQuota/finance/quota
+    looks_like: "ResourceQuota is nearing max allowed pods"
+    why_not: "ResourceQuota is being saturated because HPA scaled pods to 50 due to the low threshold."
+timeline:
+  - "T0-20m: HPA/payment-worker edited with targetAverageUtilization: 5."
+  - "T0-15m: HPA detects 8% CPU usage, exceeds 5% target, and scales deployment to 50 replicas."
+  - "T0: Operator asks why payment-worker pods are scaling up excessively."
+objects:
+  - "Namespace/finance: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/finance/payment-worker: Active"
+  - "ReplicaSet/finance/payment-worker-6789bf88bc: Active"
+  - "HorizontalPodAutoscaler/finance/payment-worker: Active"
+  - "Service/finance/worker-svc: Active"
+  - "Pod/finance/payment-worker-6789bf88bc-01: Running"
+  - "ConfigMap/finance/config: Active"
+  - "Secret/finance/secret: Active"
+  - "ServiceAccount/finance/sa: Active"
+  - "PersistentVolumeClaim/finance/pvc: Bound"
+  - "PersistentVolume/pv-fin01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/finance/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/finance/role: Active"
+  - "RoleBinding/finance/rb: Active"
+  - "EndpointSlice/finance/xyz: Active"
+  - "PodDisruptionBudget/finance/pdb: Active"
+  - "Event/finance/scaling: Normal"
+  - "ResourceQuota/finance/quota: Active"
+  - "NetworkPolicy/finance/netpol: Active"
+  - "APIService/v1.metrics.k8s.io: Active"
+  - "Pod/finance/payment-worker-6789bf88bc-50: Running"
+sources:
+  - "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+---
+id: hpa-0
+family: hpa
+question: "is something wrong with api-service replica count in portal namespace"
+expected_outcome: no_incident
+mechanism: "The HPA in portal namespace is scaling replicas between 5 and 10 based on stable CPU utilization metrics, which is operating correctly according to configuration."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["HorizontalPodAutoscaler/portal/api-service"]
+chain: []
+decoys:
+  - object: HorizontalPodAutoscaler/portal/api-service
+    looks_like: "HPA status shows replica count increased from 5 to 8 during peak hours"
+    why_not: "Scaling from 5 to 8 is normal and expected behavior under daytime traffic load."
+  - object: Deployment/portal/api-service
+    looks_like: "Deployment has multiple active ReplicaSets due to recent rollout"
+    why_not: "Previous ReplicaSet scaled to 0 after successful rollout; current ReplicaSet is stable."
+timeline:
+  - "T0-2h: HPA scaled replicas to 8 during traffic peak."
+  - "T0-30m: HPA scaled replicas back to 5 as traffic subsided."
+  - "T0: Operator asks if something is wrong with api-service replica count in portal namespace."
+objects:
+  - "Namespace/portal: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/portal/api-service: Active"
+  - "ReplicaSet/portal/api-service-84f9bc7b6c: Active"
+  - "HorizontalPodAutoscaler/portal/api-service: Active"
+  - "Service/portal/api-service: Active"
+  - "Pod/portal/api-service-84f9bc7b6c-abc: Running"
+  - "ConfigMap/portal/config: Active"
+  - "Secret/portal/secret: Active"
+  - "ServiceAccount/portal/sa: Active"
+  - "PersistentVolumeClaim/portal/pvc: Bound"
+  - "PersistentVolume/pv-portal01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/portal/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/portal/role: Active"
+  - "RoleBinding/portal/rb: Active"
+  - "EndpointSlice/portal/xyz: Active"
+  - "PodDisruptionBudget/portal/pdb: Active"
+  - "Event/portal/normal: Normal"
+  - "ResourceQuota/portal/quota: Active"
+  - "NetworkPolicy/portal/netpol: Active"
+  - "Pod/portal/api-service-84f9bc7b6c-def: Running"
+  - "Pod/portal/api-service-84f9bc7b6c-ghi: Running"
+sources:
+  - "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+---
+id: webhook-1
+family: webhook
+question: "why are pod creations failing for batch-job in batch namespace"
+expected_outcome: cause
+cause_object: ValidatingWebhookConfiguration/batch-validator
+origin_object: ValidatingWebhookConfiguration/batch-validator
+mechanism: "A ValidatingWebhookConfiguration has an unreachably configured service endpoint or invalid TLS certificate, causing the API server to reject all pod creation requests due to webhook failure policy."
+passes_if: "names ValidatingWebhookConfiguration/batch-validator or webhook failure policy rejection"
+partial_if_only: ["ValidatingWebhookConfiguration/batch-validator"]
+chain:
+  - from: Job/batch/nightly-processor
+    relation: "pod creation controlled by Job controller"
+    to: Pod/batch/nightly-processor-xyz
+    fields: "Job.spec.template vs Pod object creation request sent to API server"
+    abnormal: "Event on Job/nightly-processor: FailedCreate: error validating webhook \"validator.batch.io\": failed calling webhook: Post \"https://batch-validator-svc.batch.svc:443/validate\": context deadline exceeded at T0-10m"
+  - from: Pod/batch/nightly-processor-xyz
+    relation: "admission review validating webhook rule"
+    to: ValidatingWebhookConfiguration/batch-validator
+    fields: "Pod API request attributes vs ValidatingWebhookConfiguration.spec.webhooks[].rules"
+    abnormal: "ValidatingWebhookConfiguration webhook endpoint times out or fails TLS handshake at T0-10m"
+decoys:
+  - object: Service/batch/batch-validator-svc
+    looks_like: "Validator service endpoints list is empty"
+    why_not: "Validator service endpoints are empty because the webhook backend pod crashed, but the webhook configuration failure policy set to Fail blocks all creations."
+  - object: Job/batch/nightly-processor
+    looks_like: "Job template has invalid container image tag"
+    why_not: "Image tag is correct; the creation request is rejected by API server admission webhook failure."
+timeline:
+  - "T0-15m: Webhook backend deployment crashes due to missing config file."
+  - "T0-10m: Job/nightly-processor attempts to create pods, rejected by API server due to webhook timeout."
+  - "T0: Operator asks why pod creations are failing for batch-job in batch namespace."
+objects:
+  - "Namespace/batch: Active"
+  - "Namespace/kube-system: Active"
+  - "Job/batch/nightly-processor: Active"
+  - "ValidatingWebhookConfiguration/batch-validator: Active"
+  - "Service/batch/batch-validator-svc: Active"
+  - "Deployment/batch/validator-backend: CrashLoopBackOff"
+  - "ConfigMap/batch/config: Active"
+  - "Secret/batch/tls: Active"
+  - "ServiceAccount/batch/sa: Active"
+  - "PersistentVolumeClaim/batch/pvc: Bound"
+  - "PersistentVolume/pv-batch01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/batch/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/batch/role: Active"
+  - "RoleBinding/batch/rb: Active"
+  - "EndpointSlice/batch/xyz: Active"
+  - "PodDisruptionBudget/batch/pdb: Active"
+  - "Event/batch/webhook-fail: Warning"
+  - "ResourceQuota/batch/quota: Active"
+  - "NetworkPolicy/batch/netpol: Active"
+  - "Pod/batch/validator-backend-abc: CrashLoopBackOff"
+sources:
+  - "https://kubernetes.io/docs/reference/access-authn-authorization/extensible-admission-controllers/"
+---
+id: webhook-2
+family: webhook
+question: "why are injected environment variables missing in web-service pods in apps namespace"
+expected_outcome: cause
+cause_object: MutatingWebhookConfiguration/env-injector-mutator
+origin_object: MutatingWebhookConfiguration/env-injector-mutator
+mechanism: "A MutatingWebhookConfiguration selector rules were modified to exclude the apps namespace, causing the mutating webhook to skip injecting mandatory environment variables into new pods."
+passes_if: "names MutatingWebhookConfiguration/env-injector-mutator or namespaceSelector exclusion rule"
+partial_if_only: ["MutatingWebhookConfiguration/env-injector-mutator"]
+chain:
+  - from: Deployment/apps/web-service
+    relation: "controlled by ReplicaSet"
+    to: ReplicaSet/apps/web-service-75bc98df67
+    fields: "Deployment.spec.selector matches ReplicaSet.spec.selector"
+    abnormal: "Container log on web-service: 'FATAL: environment variable DB_CONNECTION_STRING is not set' at T0-5m"
+  - from: ReplicaSet/apps/web-service-75bc98df67
+    relation: "pod creation mutating admission webhook review"
+    to: MutatingWebhookConfiguration/env-injector-mutator
+    fields: "Pod metadata.namespace vs MutatingWebhookConfiguration.spec.webhooks[].namespaceSelector"
+    abnormal: "MutatingWebhookConfiguration namespaceSelector matches expression excluding namespace apps, skipping mutation patch at T0-8m"
+decoys:
+  - object: ConfigMap/apps/app-config
+    looks_like: "ConfigMap data keys were renamed or removed"
+    why_not: "ConfigMap is intact; the environment variables were never injected because the mutating webhook skipped the namespace."
+  - object: ServiceAccount/apps/app-sa
+    looks_like: "Service account lacks permissions to read secrets"
+    why_not: "Authentication and permissions are valid; the environment injection relies on the mutating webhook."
+timeline:
+  - "T0-15m: MutatingWebhookConfiguration/env-injector-mutator updated with namespaceSelector excluding namespace apps."
+  - "T0-8m: Deployment/web-service updated, creating new ReplicaSet pods without injected env vars."
+  - "T0-5m: Pods crash on startup due to missing environment variables."
+  - "T0: Operator asks why injected environment variables are missing in web-service pods."
+objects:
+  - "Namespace/apps: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/apps/web-service: Active"
+  - "ReplicaSet/apps/web-service-75bc98df67: Active"
+  - "MutatingWebhookConfiguration/env-injector-mutator: Active"
+  - "Service/apps/web-service: Active"
+  - "Pod/apps/web-service-75bc98df67-abc: CrashLoopBackOff"
+  - "ConfigMap/apps/app-config: Active"
+  - "Secret/apps/secret: Active"
+  - "ServiceAccount/apps/sa: Active"
+  - "PersistentVolumeClaim/apps/pvc: Bound"
+  - "PersistentVolume/pv-apps01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/apps/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/apps/role: Active"
+  - "RoleBinding/apps/rb: Active"
+  - "EndpointSlice/apps/xyz: Active"
+  - "PodDisruptionBudget/apps/pdb: Active"
+  - "Event/apps/normal: Normal"
+  - "ResourceQuota/apps/quota: Active"
+  - "NetworkPolicy/apps/netpol: Active"
+  - "Service/apps/mutator-svc: Active"
+sources:
+  - "https://kubernetes.io/docs/reference/access-authn-authorization/extensible-admission-controllers/"
+---
+id: webhook-0
+family: webhook
+question: "is something wrong with admission webhook configurations in cluster"
+expected_outcome: no_incident
+mechanism: "All validating and mutating webhook configurations are active, responding successfully with valid TLS certificates, and processing admission reviews normally."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["ValidatingWebhookConfiguration/cluster-validator"]
+chain: []
+decoys:
+  - object: ValidatingWebhookConfiguration/cluster-validator
+    looks_like: "Webhook configuration has timeoutSeconds set to 5"
+    why_not: "Timeout configuration is standard and all webhook backend endpoints are responding within 20ms."
+  - object: MutatingWebhookConfiguration/default-mutator
+    looks_like: "Webhook rule includes wildcard operations"
+    why_not: "Wildcard operations are intentional and successfully mutating resource requests without errors."
+timeline:
+  - "T0-2d: Webhook configurations applied."
+  - "T0-15m: API server metrics show 0 webhook call failures."
+  - "T0: Operator asks if something is wrong with admission webhook configurations in cluster."
+objects:
+  - "Namespace/kube-system: Active"
+  - "Namespace/default: Active"
+  - "ValidatingWebhookConfiguration/cluster-validator: Active"
+  - "MutatingWebhookConfiguration/default-mutator: Active"
+  - "Deployment/kube-system/webhook-server: Active"
+  - "Service/kube-system/webhook-svc: Active"
+  - "Pod/kube-system/webhook-server-xyz: Running"
+  - "ConfigMap/kube-system/config: Active"
+  - "Secret/kube-system/tls: Active"
+  - "ServiceAccount/kube-system/sa: Active"
+  - "PersistentVolumeClaim/kube-system/pvc: Bound"
+  - "PersistentVolume/pv-sys01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/kube-system/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/kube-system/role: Active"
+  - "RoleBinding/kube-system/rb: Active"
+  - "EndpointSlice/kube-system/xyz: Active"
+  - "PodDisruptionBudget/kube-system/pdb: Active"
+  - "Event/kube-system/normal: Normal"
+  - "ResourceQuota/kube-system/quota: Active"
+  - "NetworkPolicy/kube-system/netpol: Active"
+  - "APIService/v1.admission.k8s.io: Active"
+sources:
+  - "https://kubernetes.io/docs/reference/access-authn-authorization/extensible-admission-controllers/"
+---
+id: configmap-1
+family: configmap
+question: "why are worker pods failing to connect to database in processing namespace"
+expected_outcome: cause
+cause_object: ConfigMap/processing/app-settings
+origin_object: ConfigMap/processing/app-settings
+mechanism: "A ConfigMap entry containing the database host URL was updated with a typo in the hostname, causing all worker pods referencing it via envFrom to fail DNS resolution."
+passes_if: "names ConfigMap/processing/app-settings or incorrect database host string"
+partial_if_only: ["ConfigMap/processing/app-settings"]
+chain:
+  - from: Deployment/processing/worker-app
+    relation: "environment variables populated from ConfigMap via envFrom"
+    to: ConfigMap/processing/app-settings
+    fields: "Deployment.spec.template.spec.containers[].envFrom[].configMapRef.name vs ConfigMap.metadata.name"
+    abnormal: "Container log on worker-app: 'dial tcp: lookup postgres-prod-err on 10.96.0.10:53: no such host' at T0-10m"
+  - from: ConfigMap/processing/app-settings
+    relation: "ConfigMap data content referenced by container environment"
+    to: Deployment/processing/worker-app
+    fields: "ConfigMap.data[\"DB_HOST\"] vs container environment variable value"
+    abnormal: "ConfigMap data contains misspelled hostname 'postgres-prod-err' instead of 'postgres-prod' updated at T0-20m"
+decoys:
+  - object: Service/processing/postgres-prod
+    looks_like: "Postgres service endpoints list is empty"
+    why_not: "Postgres service is healthy; the DNS lookup fails because the ConfigMap provides a misspelled hostname."
+  - object: Secret/processing/db-password
+    looks_like: "Database password secret was rotated recently"
+    why_not: "Password secret is valid; the failure occurs earlier during TCP connection host resolution."
+timeline:
+  - "T0-20m: ConfigMap/app-settings edited with typo in DB_HOST key ('postgres-prod-err')."
+  - "T0-10m: Worker pods restarted, loading the incorrect hostname and logging DNS lookup failures."
+  - "T0: Operator asks why worker pods are failing to connect to database in processing namespace."
+objects:
+  - "Namespace/processing: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/processing/worker-app: Active"
+  - "ReplicaSet/processing/worker-app-6997b5bc68: Active"
+  - "ConfigMap/processing/app-settings: Active"
+  - "Service/processing/postgres-prod: Active"
+  - "Secret/processing/db-password: Active"
+  - "Pod/processing/worker-app-6997b5bc68-abc: CrashLoopBackOff"
+  - "ServiceAccount/processing/sa: Active"
+  - "HorizontalPodAutoscaler/processing/worker-app: Normal"
+  - "PersistentVolumeClaim/processing/pvc: Bound"
+  - "PersistentVolume/pv-proc02: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/processing/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/processing/role: Active"
+  - "RoleBinding/processing/rb: Active"
+  - "EndpointSlice/processing/xyz: Active"
+  - "PodDisruptionBudget/processing/pdb: Active"
+  - "Event/processing/normal: Normal"
+  - "ResourceQuota/processing/quota: Active"
+  - "NetworkPolicy/processing/netpol: Active"
+  - "Pod/processing/postgres-prod-0: Running"
+sources:
+  - "https://kubernetes.io/docs/concepts/configuration/configmap/"
+---
+id: configmap-2
+family: configmap
+question: "why is web-frontend returning 500 errors in web namespace"
+expected_outcome: cause
+cause_object: ConfigMap/web/nginx-proxy-conf
+origin_object: ConfigMap/web/nginx-proxy-conf
+mechanism: "A ConfigMap mounted as a volume into an Nginx sidecar container contains a syntax error in the nginx.conf file, causing Nginx to fail validation on startup and exit."
+passes_if: "names ConfigMap/web/nginx-proxy-conf or Nginx configuration syntax error"
+partial_if_only: ["ConfigMap/web/nginx-proxy-conf"]
+chain:
+  - from: Deployment/web/web-frontend
+    relation: "volume mount referencing ConfigMap"
+    to: ConfigMap/web/nginx-proxy-conf
+    fields: "Deployment.spec.template.spec.volumes[].configMap.name vs ConfigMap.metadata.name"
+    abnormal: "Container log on nginx-proxy: 'nginx: [emerg] unknown directive \"proxy_pass_invalid\" in /etc/nginx/conf.d/default.conf:42' at T0-5m"
+  - from: ConfigMap/web/nginx-proxy-conf
+    relation: "ConfigMap data mounted as configuration file"
+    to: Deployment/web/web-frontend
+    fields: "ConfigMap.data[\"default.conf\"] vs container volume mount path /etc/nginx/conf.d/"
+    abnormal: "ConfigMap data contains invalid Nginx directive written during update at T0-15m"
+decoys:
+  - object: Service/web/web-frontend
+    looks_like: "Service port mapping is misconfigured"
+    why_not: "Service ports are correct; the Nginx proxy container fails to start due to configuration file syntax errors."
+  - object: HorizontalPodAutoscaler/web/web-frontend
+    looks_like: "HPA metric CPU utilization is zero"
+    why_not: "CPU utilization is zero because the pods are crashing immediately upon container startup."
+timeline:
+  - "T0-15m: ConfigMap/nginx-proxy-conf updated with invalid directive 'proxy_pass_invalid'."
+  - "T0-5m: Deployment/web-frontend pods restart, fail Nginx startup check, and log syntax errors."
+  - "T0: Operator asks why web-frontend is returning 500 errors in web namespace."
+objects:
+  - "Namespace/web: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/web/web-frontend: Active"
+  - "ReplicaSet/web/web-frontend-58d689b89b: Active"
+  - "ConfigMap/web/nginx-proxy-conf: Active"
+  - "Service/web/web-frontend: Active"
+  - "Pod/web/web-frontend-58d689b89b-abc: CrashLoopBackOff"
+  - "Secret/web/tls: Active"
+  - "ServiceAccount/web/sa: Active"
+  - "HorizontalPodAutoscaler/web/web-frontend: Normal"
+  - "PersistentVolumeClaim/web/pvc: Bound"
+  - "PersistentVolume/pv-web01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/web/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/web/role: Active"
+  - "RoleBinding/web/rb: Active"
+  - "EndpointSlice/web/xyz: Active"
+  - "PodDisruptionBudget/web/pdb: Active"
+  - "Event/web/crash: Warning"
+  - "ResourceQuota/web/quota: Active"
+  - "NetworkPolicy/web/netpol: Active"
+  - "Pod/web/other-pod: Running"
+sources:
+  - "https://kubernetes.io/docs/concepts/configuration/configmap/"
+---
+id: configmap-0
+family: configmap
+question: "is something wrong with application configuration in portal namespace"
+expected_outcome: no_incident
+mechanism: "All ConfigMaps in portal namespace are correctly populated, referenced, and mounted without syntax errors, and application pods are running stably."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["ConfigMap/portal/app-config"]
+chain: []
+decoys:
+  - object: ConfigMap/portal/app-config
+    looks_like: "ConfigMap was edited last week to add new feature flags"
+    why_not: "Feature flags are valid and successfully parsed by application pods running without errors."
+  - object: Deployment/portal/portal-app
+    looks_like: "Deployment template has volume mount subPath enabled"
+    why_not: "subPath mount is configured correctly and updating cleanly during pod restarts."
+timeline:
+  - "T0-3d: ConfigMap/app-config updated with feature flags."
+  - "T0-1h: Portal application pods started cleanly with no configuration warnings."
+  - "T0: Operator asks if something is wrong with application configuration in portal namespace."
+objects:
+  - "Namespace/portal: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/portal/portal-app: Active"
+  - "ReplicaSet/portal/portal-app-797bc68b4c: Active"
+  - "ConfigMap/portal/app-config: Active"
+  - "Service/portal/portal-app: Active"
+  - "Pod/portal/portal-app-797bc68b4c-abc: Running"
+  - "Secret/portal/secret: Active"
+  - "ServiceAccount/portal/sa: Active"
+  - "HorizontalPodAutoscaler/portal/portal-app: Normal"
+  - "PersistentVolumeClaim/portal/pvc: Bound"
+  - "PersistentVolume/pv-portal02: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/portal/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/portal/role: Active"
+  - "RoleBinding/portal/rb: Active"
+  - "EndpointSlice/portal/xyz: Active"
+  - "PodDisruptionBudget/portal/pdb: Active"
+  - "Event/portal/normal: Normal"
+  - "ResourceQuota/portal/quota: Active"
+  - "NetworkPolicy/portal/netpol: Active"
+  - "Pod/portal/portal-app-797bc68b4c-def: Running"
+sources:
+  - "https://kubernetes.io/docs/concepts/configuration/configmap/"
+---
+id: pdb-1
+family: pdb
+question: "why are node maintenance drains hanging in cluster for tenant namespace"
+expected_outcome: cause
+cause_object: PodDisruptionBudget/tenant/api-pdb
+origin_object: PodDisruptionBudget/tenant/api-pdb
+mechanism: "A PodDisruptionBudget was created with minAvailable set equal to the total replica count (2 out of 2), preventing node drains from evicting any pods because zero disruptions are permitted."
+passes_if: "names PodDisruptionBudget/tenant/api-pdb or overly restrictive minAvailable configuration"
+partial_if_only: ["PodDisruptionBudget/tenant/api-pdb"]
+chain:
+  - from: Node/ip-10-0-1-50.ec2.internal
+    relation: "node cordon and drain eviction request"
+    to: Pod/tenant/api-service-abc
+    fields: "Node name vs Pod assigned nodeName and eviction API call"
+    abnormal: "Eviction API call returns error: 'Cannot evict pod as it would violate the pod disruption budget's disruption budget.' at T0-15m"
+  - from: Pod/tenant/api-service-abc
+    relation: "pod disruption budget selector matching"
+    to: PodDisruptionBudget/tenant/api-pdb
+    fields: "Pod labels vs PodDisruptionBudget.spec.selector"
+    abnormal: "PodDisruptionBudget status shows disruptionsAllowed: 0 because minAvailable (2) equals current healthy pods (2) at T0-15m"
+decoys:
+  - object: Deployment/tenant/api-service
+    looks_like: "Deployment replica count is set to 2"
+    why_not: "Replica count of 2 is correct, but combined with minAvailable: 2 in PDB, zero pods can be evicted during maintenance."
+  - object: DaemonSet/kube-system/kube-proxy
+    looks_like: "DaemonSet pods on node blocking drain"
+    why_not: "DaemonSet pods are automatically ignored by node drain; the blocking object is the tenant PDB."
+timeline:
+  - "T0-1h: PodDisruptionBudget/api-pdb applied with minAvailable: 2 for a 2-replica deployment."
+  - "T0-15m: Operator initiates node drain; eviction requests blocked by PDB disruptionsAllowed: 0."
+  - "T0: Operator asks why node maintenance drains are hanging in cluster for tenant namespace."
+objects:
+  - "Namespace/tenant: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/tenant/api-service: Active"
+  - "ReplicaSet/tenant/api-service-67b89bc768: Active"
+  - "PodDisruptionBudget/tenant/api-pdb: Active"
+  - "Node/ip-10-0-1-50.ec2.internal: Ready"
+  - "Pod/tenant/api-service-67b89bc768-abc: Running"
+  - "Pod/tenant/api-service-67b89bc768-def: Running"
+  - "Service/tenant/api-service: Active"
+  - "ConfigMap/tenant/config: Active"
+  - "Secret/tenant/secret: Active"
+  - "ServiceAccount/tenant/sa: Active"
+  - "PersistentVolumeClaim/tenant/pvc: Bound"
+  - "PersistentVolume/pv-tenant01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/tenant/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/tenant/role: Active"
+  - "RoleBinding/tenant/rb: Active"
+  - "EndpointSlice/tenant/xyz: Active"
+  - "Event/tenant/drain-block: Warning"
+  - "ResourceQuota/tenant/quota: Active"
+  - "NetworkPolicy/tenant/netpol: Active"
+sources:
+  - "https://kubernetes.io/docs/tasks/run-application/configure-pdb/"
+---
+id: pdb-2
+family: pdb
+question: "why did cluster upgrade fail to evict worker pods in apps namespace"
+expected_outcome: cause
+cause_object: PodDisruptionBudget/apps/worker-pdb
+origin_object: PodDisruptionBudget/apps/worker-pdb
+mechanism: "A PodDisruptionBudget configured with maxUnavailable: 0 prevents any voluntary pod eviction during node upgrades and maintenance operations."
+passes_if: "names PodDisruptionBudget/apps/worker-pdb or maxUnavailable set to 0"
+partial_if_only: ["PodDisruptionBudget/apps/worker-pdb"]
+chain:
+  - from: Node/ip-10-0-2-80.ec2.internal
+    relation: "node drain eviction request"
+    to: Pod/apps/worker-pod-xyz
+    fields: "Node name vs Pod assigned nodeName and eviction API call"
+    abnormal: "Eviction API call returns error: 'Cannot evict pod as it would violate the pod disruption budget's disruption budget.' at T0-20m"
+  - from: Pod/apps/worker-pod-xyz
+    relation: "pod disruption budget selector matching"
+    to: PodDisruptionBudget/apps/worker-pdb
+    fields: "Pod labels vs PodDisruptionBudget.spec.selector"
+    abnormal: "PodDisruptionBudget status shows disruptionsAllowed: 0 because maxUnavailable is 0 at T0-20m"
+decoys:
+  - object: Deployment/apps/worker-deployment
+    looks_like: "Deployment strategy maxSurge is set to 25%"
+    why_not: "Deployment rollout strategy does not affect voluntary node drain evictions governed by PDBs."
+  - object: HorizontalPodAutoscaler/apps/worker-hpa
+    looks_like: "HPA scaling down worker pods during upgrade"
+    why_not: "HPA is stable; eviction is blocked exclusively by the PDB maxUnavailable: 0 restriction."
+timeline:
+  - "T0-2h: PodDisruptionBudget/worker-pdb applied with maxUnavailable: 0."
+  - "T0-20m: Cluster upgrade drain attempt fails due to PDB disruptionsAllowed: 0."
+  - "T0: Operator asks why cluster upgrade failed to evict worker pods in apps namespace."
+objects:
+  - "Namespace/apps: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/apps/worker-deployment: Active"
+  - "ReplicaSet/apps/worker-deployment-5879bc68d4: Active"
+  - "PodDisruptionBudget/apps/worker-pdb: Active"
+  - "Node/ip-10-0-2-80.ec2.internal: Ready"
+  - "Pod/apps/worker-deployment-5879bc68d4-xyz: Running"
+  - "Service/apps/worker-svc: Active"
+  - "ConfigMap/apps/config: Active"
+  - "Secret/apps/secret: Active"
+  - "ServiceAccount/apps/sa: Active"
+  - "PersistentVolumeClaim/apps/pvc: Bound"
+  - "PersistentVolume/pv-apps02: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/apps/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/apps/role: Active"
+  - "RoleBinding/apps/rb: Active"
+  - "EndpointSlice/apps/xyz: Active"
+  - "Event/apps/drain-fail: Warning"
+  - "ResourceQuota/apps/quota: Active"
+  - "NetworkPolicy/apps/netpol: Active"
+  - "HorizontalPodAutoscaler/apps/worker-hpa: Normal"
+  - "Pod/apps/worker-deployment-5879bc68d4-abc: Running"
+sources:
+  - "https://kubernetes.io/docs/tasks/run-application/configure-pdb/"
+---
+id: pdb-0
+family: pdb
+question: "is something wrong with pod disruption budgets in prod namespace"
+expected_outcome: no_incident
+mechanism: "All PodDisruptionBudgets in prod namespace are correctly configured with appropriate minAvailable/maxUnavailable values, showing positive disruptionsAllowed counts with no blocking issues."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["PodDisruptionBudget/prod/service-pdb"]
+chain: []
+decoys:
+  - object: PodDisruptionBudget/prod/service-pdb
+    looks_like: "PDB status shows disruptionsAllowed: 1"
+    why_not: "disruptionsAllowed: 1 indicates normal operational flexibility where one pod can be safely evicted."
+  - object: Deployment/prod/backend-service
+    looks_like: "Deployment underwent a rolling update yesterday"
+    why_not: "Rolling update completed successfully with zero PDB violations."
+timeline:
+  - "T0-1d: PodDisruptionBudget/service-pdb created with minAvailable: 1."
+  - "T0-1h: PDB status verified showing disruptionsAllowed: 1."
+  - "T0: Operator asks if something is wrong with pod disruption budgets in prod namespace."
+objects:
+  - "Namespace/prod: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/prod/backend-service: Active"
+  - "ReplicaSet/prod/backend-service-6789bc768b: Active"
+  - "PodDisruptionBudget/prod/service-pdb: Active"
+  - "Service/prod/backend-service: Active"
+  - "Pod/prod/backend-service-6789bc768b-abc: Running"
+  - "Pod/prod/backend-service-6789bc768b-def: Running"
+  - "ConfigMap/prod/config: Active"
+  - "Secret/prod/tls: Active"
+  - "ServiceAccount/prod/sa: Active"
+  - "PersistentVolumeClaim/prod/pvc: Bound"
+  - "PersistentVolume/pv-prod02: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/prod/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/prod/role: Active"
+  - "RoleBinding/prod/rb: Active"
+  - "EndpointSlice/prod/xyz: Active"
+  - "Event/prod/normal: Normal"
+  - "ResourceQuota/prod/quota: Active"
+  - "NetworkPolicy/prod/netpol: Active"
+  - "HorizontalPodAutoscaler/prod/backend-hpa: Normal"
+sources:
+  - "https://kubernetes.io/docs/tasks/run-application/configure-pdb/"
+---
+id: ingress-1
+family: ingress
+question: "why are users getting 504 gateway timeout errors accessing web shop in store namespace"
+expected_outcome: cause
+cause_object: Ingress/store/main-store-ingress
+origin_object: Ingress/store/main-store-ingress
+mechanism: "An Ingress backend service port reference was mistyped, causing the Ingress controller to forward external traffic to a non-existent port on the service and timing out."
+passes_if: "names Ingress/store/main-store-ingress or incorrect backend service port number"
+partial_if_only: ["Ingress/store/main-store-ingress"]
+chain:
+  - from: Ingress/store/main-store-ingress
+    relation: "Ingress backend service routing"
+    to: Service/store/frontend-svc
+    fields: "Ingress.spec.rules[].http.paths[].backend.service.name vs Service.metadata.name"
+    abnormal: "Ingress controller log: 'no endpoints available for service \"store/frontend-svc:9090\"' or connection timeout at T0-10m"
+  - from: Service/store/frontend-svc
+    relation: "Service port mapping vs target service ports"
+    to: Deployment/store/frontend
+    fields: "Service.spec.ports[].port vs Deployment pod container ports"
+    abnormal: "Service routes traffic to port 9090, but frontend container listens on port 8080, resulting in timeouts at T0-10m"
+decoys:
+  - object: Deployment/store/frontend
+    looks_like: "Deployment replica pods have high CPU utilization"
+    why_not: "Pods have normal CPU usage; traffic is failing before reaching pods because Ingress routes to an incorrect service port."
+  - object: Service/store/frontend-svc
+    looks_like: "Service selector labels do not match pod labels"
+    why_not: "Service selector matches pod labels correctly; the routing failure is caused by the Ingress backend port mismatch."
+timeline:
+  - "T0-15m: Ingress/main-store-ingress edited with backend service port set to 9090 instead of 8080."
+  - "T0-10m: Users report 504 gateway timeout errors; Ingress controller logs routing failures."
+  - "T0: Operator asks why users are getting 504 gateway timeout errors accessing web shop in store namespace."
+objects:
+  - "Namespace/store: Active"
+  - "Namespace/kube-system: Active"
+  - "Ingress/store/main-store-ingress: Active"
+  - "Service/store/frontend-svc: Active"
+  - "Deployment/store/frontend: Active"
+  - "ReplicaSet/store/frontend-6997bc68d4: Active"
+  - "Pod/store/frontend-6997bc68d4-abc: Running"
+  - "ConfigMap/store/config: Active"
+  - "Secret/store/tls: Active"
+  - "ServiceAccount/store/sa: Active"
+  - "PersistentVolumeClaim/store/pvc: Bound"
+  - "PersistentVolume/pv-store02: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/store/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/store/role: Active"
+  - "RoleBinding/store/bind: Active"
+  - "EndpointSlice/store/xyz: Active"
+  - "PodDisruptionBudget/store/pdb: Active"
+  - "Event/store/ingress-warn: Warning"
+  - "ResourceQuota/store/quota: Active"
+  - "NetworkPolicy/store/netpol: Active"
+  - "HorizontalPodAutoscaler/store/frontend: Normal"
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/ingress/"
+---
+id: ingress-2
+family: ingress
+question: "why is api routing returning 404 not found in api namespace"
+expected_outcome: cause
+cause_object: Ingress/api/external-api-ingress
+origin_object: Ingress/api/external-api-ingress
+mechanism: "An Ingress path prefix rule was modified from Prefix to Exact matching without updating client request paths, causing the Ingress controller to return 404 for all sub-routes."
+passes_if: "names Ingress/api/external-api-ingress or pathType set incorrectly to Exact"
+partial_if_only: ["Ingress/api/external-api-ingress"]
+chain:
+  - from: Ingress/api/external-api-ingress
+    relation: "Ingress path rule matching against backend service"
+    to: Service/api/api-backend-svc
+    fields: "Ingress.spec.rules[].http.paths[].pathType vs request URI path"
+    abnormal: "Ingress controller log: 'ingress-nginx controller: 404 Not Found' for request /api/v1/users at T0-10m"
+  - from: Service/api/api-backend-svc
+    relation: "Service endpoints backing API pods"
+    to: Deployment/api/api-backend
+    fields: "Service.spec.selector vs Deployment.spec.template.metadata.labels"
+    abnormal: "Backend pods receive zero requests because Ingress pathType: Exact prevents prefix matching at T0-10m"
+decoys:
+  - object: Deployment/api/api-backend
+    looks_like: "API backend deployment has restart count > 0"
+    why_not: "Restart count is zero; pods are healthy and running, but Ingress path matching rejects requests before forwarding."
+  - object: Service/api/api-backend-svc
+    looks_like: "Service clusterIP is not responding"
+    why_not: "Service IP is responsive; requests fail at the Ingress controller due to the pathType configuration change."
+timeline:
+  - "T0-20m: Ingress/external-api-ingress updated with pathType: Exact for path /api."
+  - "T0-10m: Ingress controller returns 404 Not Found for all API requests."
+  - "T0: Operator asks why api routing returning 404 not found in api namespace."
+objects:
+  - "Namespace/api: Active"
+  - "Namespace/kube-system: Active"
+  - "Ingress/api/external-api-ingress: Active"
+  - "Service/api/api-backend-svc: Active"
+  - "Deployment/api/api-backend: Active"
+  - "ReplicaSet/api/api-backend-58d689b89b: Active"
+  - "Pod/api/api-backend-58d689b89b-abc: Running"
+  - "ConfigMap/api/config: Active"
+  - "Secret/api/tls: Active"
+  - "ServiceAccount/api/sa: Active"
+  - "PersistentVolumeClaim/api/pvc: Bound"
+  - "PersistentVolume/pv-api01: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/api/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/api/role: Active"
+  - "RoleBinding/api/rb: Active"
+  - "EndpointSlice/api/xyz: Active"
+  - "PodDisruptionBudget/api/pdb: Active"
+  - "Event/api/normal: Normal"
+  - "ResourceQuota/api/quota: Active"
+  - "NetworkPolicy/api/netpol: Active"
+  - "HorizontalPodAutoscaler/api/api-hpa: Normal"
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types"
+---
+id: ingress-0
+family: ingress
+question: "is something wrong with ingress routing in prod namespace"
+expected_outcome: no_incident
+mechanism: "All Ingress rules, TLS certificates, and backend service routings in prod namespace are operating correctly with zero HTTP 5xx or 404 errors."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["Ingress/prod/prod-ingress"]
+chain: []
+decoys:
+  - object: Ingress/prod/prod-ingress
+    looks_like: "Ingress annotation specifies custom timeout values"
+    why_not: "Timeout annotations are standard and requests route successfully to backend services."
+  - object: Secret/prod/wildcard-tls
+    looks_like: "TLS certificate expiration date is approaching in 45 days"
+    why_not: "Certificate is valid for another 45 days and TLS handshakes succeed without warnings."
+timeline:
+  - "T0-7d: Ingress/prod-ingress configured."
+  - "T0-15m: Ingress controller metrics show 100% success rate for prod routes."
+  - "T0: Operator asks if something is wrong with ingress routing in prod namespace."
+objects:
+  - "Namespace/prod: Active"
+  - "Namespace/kube-system: Active"
+  - "Ingress/prod/prod-ingress: Active"
+  - "Service/prod/prod-backend-svc: Active"
+  - "Deployment/prod/prod-backend: Active"
+  - "ReplicaSet/prod/prod-backend-797bc68b4c: Active"
+  - "Pod/prod/prod-backend-797bc68b4c-abc: Running"
+  - "Secret/prod/wildcard-tls: Active"
+  - "ConfigMap/prod/config: Active"
+  - "ServiceAccount/prod/sa: Active"
+  - "PersistentVolumeClaim/prod/pvc: Bound"
+  - "PersistentVolume/pv-prod03: Bound"
+  - "StorageClass/standard: Active"
+  - "LimitRange/prod/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/prod/role: Active"
+  - "RoleBinding/prod/rb: Active"
+  - "EndpointSlice/prod/xyz: Active"
+  - "PodDisruptionBudget/prod/pdb: Active"
+  - "Event/prod/normal: Normal"
+  - "ResourceQuota/prod/quota: Active"
+  - "NetworkPolicy/prod/netpol: Active"
+  - "HorizontalPodAutoscaler/prod/prod-hpa: Normal"
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/ingress/"
+---
+id: storage-1
+family: storage
+question: "why are database pods stuck in containercreating in db namespace"
+expected_outcome: cause
+cause_object: StorageClass/db-storage/gp2-slow
+origin_object: StorageClass/db-storage/gp2-slow
+mechanism: "A PersistentVolumeClaim requests a StorageClass that references a non-existent provisioner plugin or invalid parameters, causing the volume attachment and pod mounting to hang in ContainerCreating."
+passes_if: "names StorageClass/db-storage/gp2-slow or invalid provisioner parameter in StorageClass"
+partial_if_only: ["PersistentVolumeClaim/db/postgres-pvc"]
+chain:
+  - from: StatefulSet/db/postgres-db
+    relation: "pod volume claim template reference"
+    to: PersistentVolumeClaim/db/postgres-pvc
+    fields: "StatefulSet.spec.volumeClaimTemplates[].metadata.name vs PersistentVolumeClaim.metadata.name"
+    abnormal: "Event on Pod/postgres-db-0: ContainerCreating: persistentvolumeclaim \"postgres-pvc\" not found or pending volume attachment at T0-15m"
+  - from: PersistentVolumeClaim/db/postgres-pvc
+    relation: "PVC storageClassName provisioning binding"
+    to: StorageClass/db-storage/gp2-slow
+    fields: "PersistentVolumeClaim.spec.storageClassName vs StorageClass.metadata.name"
+    abnormal: "PersistentVolumeClaim event: ProvisioningFailed: failed to provision volume with StorageClass \"gp2-slow\": invalid provisioner name at T0-15m"
+decoys:
+  - object: StatefulSet/db/postgres-db
+    looks_like: "StatefulSet has replica count set to 1"
+    why_not: "Replica count of 1 is correct, but pods cannot mount the storage volume due to provisioning failures."
+  - object: Secret/db/db-credentials
+    looks_like: "Database secret mounted as environment variables is missing keys"
+    why_not: "Secret is complete and valid; pods are stuck in ContainerCreating waiting for storage provisioning."
+timeline:
+  - "T0-20m: StorageClass/gp2-slow updated with invalid provisioner identifier."
+  - "T0-15m: StatefulSet/postgres-db scaled up, PVC provisioning fails, pods hang in ContainerCreating."
+  - "T0: Operator asks why database pods are stuck in containercreating in db namespace."
+objects:
+  - "Namespace/db: Active"
+  - "Namespace/kube-system: Active"
+  - "StatefulSet/db/postgres-db: Pending"
+  - "PersistentVolumeClaim/db/postgres-pvc: Pending"
+  - "StorageClass/db-storage/gp2-slow: Active"
+  - "Pod/db/postgres-db-0: ContainerCreating"
+  - "Secret/db/db-credentials: Active"
+  - "ConfigMap/db/config: Active"
+  - "ServiceAccount/db/sa: Active"
+  - "Service/db/postgres-svc: Active"
+  - "PersistentVolume/pv-db01: Available"
+  - "LimitRange/db/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/db/role: Active"
+  - "RoleBinding/db/rb: Active"
+  - "EndpointSlice/db/xyz: Active"
+  - "PodDisruptionBudget/db/pdb: Active"
+  - "Event/db/provision-fail: Warning"
+  - "ResourceQuota/db/quota: Active"
+  - "NetworkPolicy/db/netpol: Active"
+  - "HorizontalPodAutoscaler/db/db-hpa: Normal"
+  - "Pod/db/helper-pod: Running"
+  - "Secret/db/tls: Active"
+sources:
+  - "https://kubernetes.io/docs/concepts/storage/storage-classes/"
+---
+id: storage-2
+family: storage
+question: "why is application pod failing to mount persistent storage in app namespace"
+expected_outcome: cause
+cause_object: PersistentVolume/pv-app-data-readonly
+origin_object: PersistentVolume/pv-app-data-readonly
+mechanism: "A PersistentVolume was manually created with persistentVolumeReclaimPolicy and accessModes configured incompatibly with the PVC's ReadWriteOnce requirement, causing volume mount failure."
+passes_if: "names PersistentVolume/pv-app-data-readonly or conflicting accessModes in PV spec"
+partial_if_only: ["PersistentVolumeClaim/app/data-pvc"]
+chain:
+  - from: Deployment/app/file-processor
+    relation: "pod volume claim reference"
+    to: PersistentVolumeClaim/app/data-pvc
+    fields: "Deployment.spec.template.spec.volumes[].persistentVolumeClaim.claimName vs PersistentVolumeClaim.metadata.name"
+    abnormal: "Event on Pod/file-processor-abc: FailedMount: MountVolume.SetUp failed for volume \"data-pvc\": mount failed: exit status 32 at T0-10m"
+  - from: PersistentVolumeClaim/app/data-pvc
+    relation: "PVC bound to PersistentVolume"
+    to: PersistentVolume/pv-app-data-readonly
+    fields: "PersistentVolumeClaim.spec.volumeName vs PersistentVolume.metadata.name"
+    abnormal: "PersistentVolume claimRef matches PVC, but PV spec.accessModes [ReadOnlyMany] conflicts with PVC spec.accessModes [ReadWriteOnce] at T0-10m"
+decoys:
+  - object: StorageClass/standard
+    looks_like: "StorageClass provisioner dynamic provisioning is disabled"
+    why_not: "PVC uses static binding to an existing PV, so dynamic provisioning StorageClass parameters are not involved."
+  - object: Deployment/app/file-processor
+    looks_like: "Deployment container securityContext runAsNonRoot is enabled"
+    why_not: "Security context is valid; volume mount fails due to PV/PVC access mode incompatibility."
+timeline:
+  - "T0-30m: PersistentVolume/pv-app-data-readonly created with ReadOnlyMany accessMode."
+  - "T0-15m: PersistentVolumeClaim/data-pvc created requesting ReadWriteOnce, binding to the PV."
+  - "T0-10m: Deployment pods fail volume mount during startup."
+  - "T0: Operator asks why application pod is failing to mount persistent storage in app namespace."
+objects:
+  - "Namespace/app: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/app/file-processor: Active"
+  - "ReplicaSet/app/file-processor-6889b58879: Active"
+  - "PersistentVolumeClaim/app/data-pvc: Bound"
+  - "PersistentVolume/pv-app-data-readonly: Bound"
+  - "StorageClass/standard: Active"
+  - "Pod/app/file-processor-6889b58879-abc: ContainerCreating"
+  - "ConfigMap/app/config: Active"
+  - "Secret/app/secret: Active"
+  - "ServiceAccount/app/sa: Active"
+  - "Service/app/svc: Active"
+  - "LimitRange/app/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/app/role: Active"
+  - "RoleBinding/app/rb: Active"
+  - "EndpointSlice/app/xyz: Active"
+  - "PodDisruptionBudget/app/pdb: Active"
+  - "Event/app/mount-fail: Warning"
+  - "ResourceQuota/app/quota: Active"
+  - "NetworkPolicy/app/netpol: Active"
+  - "HorizontalPodAutoscaler/app/hpa: Normal"
+  - "Pod/app/other-pod: Running"
+sources:
+  - "https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes"
+---
+id: storage-0
+family: storage
+question: "is something wrong with persistent storage volumes in analytics namespace"
+expected_outcome: no_incident
+mechanism: "All PersistentVolumeClaims in analytics namespace are successfully bound to active PersistentVolumes with healthy storage classes and zero mounting errors."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["PersistentVolumeClaim/analytics/analytics-pvc"]
+chain: []
+decoys:
+  - object: PersistentVolumeClaim/analytics/analytics-pvc
+    looks_like: "PVC status shows storage size requested as 100Gi"
+    why_not: "100Gi allocation is bound and provisioned correctly with healthy backing storage."
+  - object: PersistentVolume/pv-analytics-vol
+    looks_like: "PV reclaim policy is set to Retain"
+    why_not: "Retain policy is standard and safe; volume is bound and operating normally."
+timeline:
+  - "T0-5d: PersistentVolumeClaim/analytics-pvc bound successfully."
+  - "T0-30m: Analytics worker pods write to volume with zero errors."
+  - "T0: Operator asks if something is wrong with persistent storage volumes in analytics namespace."
+objects:
+  - "Namespace/analytics: Active"
+  - "Namespace/kube-system: Active"
+  - "PersistentVolumeClaim/analytics/analytics-pvc: Bound"
+  - "PersistentVolume/pv-analytics-vol: Bound"
+  - "StorageClass/standard: Active"
+  - "Deployment/analytics/worker: Active"
+  - "ReplicaSet/analytics/worker-75bc98df67: Active"
+  - "Pod/analytics/worker-75bc98df67-abc: Running"
+  - "ConfigMap/analytics/config: Active"
+  - "Secret/analytics/secret: Active"
+  - "ServiceAccount/analytics/sa: Active"
+  - "Service/analytics/svc: Active"
+  - "LimitRange/analytics/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/analytics/role: Active"
+  - "RoleBinding/analytics/rb: Active"
+  - "EndpointSlice/analytics/xyz: Active"
+  - "PodDisruptionBudget/analytics/pdb: Active"
+  - "Event/analytics/normal: Normal"
+  - "ResourceQuota/analytics/quota: Active"
+  - "NetworkPolicy/analytics/netpol: Active"
+  - "HorizontalPodAutoscaler/analytics/hpa: Normal"
+  - "Pod/analytics/worker-75bc98df67-def: Running"
+sources:
+  - "https://kubernetes.io/docs/concepts/storage/persistent-volumes/"
+---
+id: pullsecret-1
+family: pullsecret
+question: "why are image pull errors occurring for secure-app pods in secure namespace"
+expected_outcome: cause
+cause_object: Secret/secure/docker-registry-secret
+origin_object: Secret/secure/docker-registry-secret
+mechanism: "A Kubernetes Secret of type kubernetes.io/dockerconfigjson was rotated with invalid registry credentials, causing kubelet image pull requests to fail with unauthorized errors."
+passes_if: "names Secret/secure/docker-registry-secret or invalid docker registry credentials"
+partial_if_only: ["ServiceAccount/secure/secure-sa"]
+chain:
+  - from: Deployment/secure/secure-app
+    relation: "pod serviceAccountName reference"
+    to: ServiceAccount/secure/secure-sa
+    fields: "Deployment.spec.template.spec.serviceAccountName vs ServiceAccount.metadata.name"
+    abnormal: "Event on Pod/secure-app-abc: Failed: ErrImagePull / ImagePullBackOff: rpc error: code = Unknown desc = failed to pull and unpack image \"registry.io/app:v1\": unauthorized: authentication required at T0-10m"
+  - from: ServiceAccount/secure/secure-sa
+    relation: "ServiceAccount imagePullSecrets reference"
+    to: Secret/secure/docker-registry-secret
+    fields: "ServiceAccount.imagePullSecrets[].name vs Secret.metadata.name"
+    abnormal: "Kubelet attempts image pull using secret credentials, receiving HTTP 401 Unauthorized from registry at T0-10m"
+decoys:
+  - object: Deployment/secure/secure-app
+    looks_like: "Deployment container image tag references a non-existent version"
+    why_not: "Image tag exists in the registry; authentication fails because the referenced pull secret contains expired credentials."
+  - object: NetworkPolicy/secure/netpol
+    looks_like: "NetworkPolicy blocks outbound traffic to external container registry"
+    why_not: "NetworkPolicy allows egress traffic; pulls fail explicitly due to registry authentication rejection."
+timeline:
+  - "T0-30m: Secret/docker-registry-secret updated with expired/invalid credentials."
+  - "T0-10m: Deployment/secure-app updated, pods fail to pull container image with ErrImagePull."
+  - "T0: Operator asks why image pull errors are occurring for secure-app pods in secure namespace."
+objects:
+  - "Namespace/secure: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/secure/secure-app: ReplicaFailure"
+  - "ReplicaSet/secure/secure-app-58d689b89b: ReplicaFailure"
+  - "ServiceAccount/secure/secure-sa: Active"
+  - "Secret/secure/docker-registry-secret: Active"
+  - "Pod/secure/secure-app-58d689b89b-abc: ImagePullBackOff"
+  - "ConfigMap/secure/config: Active"
+  - "Service/secure/svc: Active"
+  - "LimitRange/secure/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/secure/role: Active"
+  - "RoleBinding/secure/rb: Active"
+  - "EndpointSlice/secure/xyz: Active"
+  - "PodDisruptionBudget/secure/pdb: Active"
+  - "Event/secure/image-pull: Warning"
+  - "ResourceQuota/secure/quota: Active"
+  - "NetworkPolicy/secure/netpol: Active"
+  - "HorizontalPodAutoscaler/secure/hpa: Normal"
+  - "PersistentVolumeClaim/secure/pvc: Bound"
+  - "PersistentVolume/pv-secure01: Bound"
+  - "StorageClass/standard: Active"
+  - "Secret/secure/tls-secret: Active"
+sources:
+  - "https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/"
+---
+id: pullsecret-2
+family: pullsecret
+question: "why is backend-worker failing to start in workers namespace"
+expected_outcome: cause
+cause_object: Deployment/workers/backend-worker
+origin_object: Deployment/workers/backend-worker
+mechanism: "A Deployment pod template omitted the imagePullSecrets field while referencing a private container registry, causing kubelet to attempt unauthenticated pulls that fail."
+passes_if: "names Deployment/workers/backend-worker or missing imagePullSecrets in pod template"
+partial_if_only: ["Deployment/workers/backend-worker"]
+chain:
+  - from: Deployment/workers/backend-worker
+    relation: "controlled by ReplicaSet"
+    to: ReplicaSet/workers/backend-worker-6789bc768b
+    fields: "Deployment.spec.selector matches ReplicaSet.spec.selector"
+    abnormal: "Event on ReplicaSet/backend-worker-6789bc768b: FailedCreate: ErrImagePull: rpc error: code = Unknown desc = failed to pull image from private registry without credentials at T0-15m"
+  - from: ReplicaSet/workers/backend-worker-6789bc768b
+    relation: "pod template imagePullSecrets definition"
+    to: Secret/workers/private-registry-key
+    fields: "ReplicaSet.spec.template.spec.imagePullSecrets vs Secret.metadata.name"
+    abnormal: "Pod template spec.imagePullSecrets is empty or missing reference to private registry secret, causing unauthenticated pull failure at T0-15m"
+decoys:
+  - object: ServiceAccount/workers/default
+    looks_like: "Default service account lacks image pull secrets"
+    why_not: "ServiceAccount is not configured with imagePullSecrets in this cluster setup; pull secrets must be declared explicitly in pod templates."
+  - object: Secret/workers/private-registry-key
+    looks_like: "Registry secret has malformed JSON structure"
+    why_not: "Secret structure is valid, but the deployment pod template fails to reference it in imagePullSecrets."
+timeline:
+  - "T0-20m: Deployment/backend-worker updated with private registry image URL, omitting imagePullSecrets."
+  - "T0-15m: ReplicaSet attempts pod creation, failing with ErrImagePull."
+  - "T0: Operator asks why backend-worker is failing to start in workers namespace."
+objects:
+  - "Namespace/workers: Active"
+  - "Namespace/kube-system: Active"
+  - "Deployment/workers/backend-worker: ReplicaFailure"
+  - "ReplicaSet/workers/backend-worker-6789bc768b: ReplicaFailure"
+  - "Secret/workers/private-registry-key: Active"
+  - "ServiceAccount/workers/default: Active"
+  - "Pod/workers/backend-worker-6789bc768b-abc: ErrImagePull"
+  - "ConfigMap/workers/config: Active"
+  - "Service/workers/svc: Active"
+  - "LimitRange/workers/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/workers/role: Active"
+  - "RoleBinding/workers/rb: Active"
+  - "EndpointSlice/workers/xyz: Active"
+  - "PodDisruptionBudget/workers/pdb: Active"
+  - "Event/workers/pull-err: Warning"
+  - "ResourceQuota/workers/quota: Active"
+  - "NetworkPolicy/workers/netpol: Active"
+  - "HorizontalPodAutoscaler/workers/hpa: Normal"
+  - "PersistentVolumeClaim/workers/pvc: Bound"
+  - "PersistentVolume/pv-workers01: Bound"
+  - "StorageClass/standard: Active"
+  - "Secret/workers/db-secret: Active"
+sources:
+  - "https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/"
+---
+id: pullsecret-0
+family: pullsecret
+question: "is something wrong with image pull secrets in ops namespace"
+expected_outcome: no_incident
+mechanism: "All image pull secrets and service account credentials in ops namespace are valid, correctly referenced, and pulling public and private container images without errors."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: ["Secret/ops/registry-credentials"]
+chain: []
+decoys:
+  - object: Secret/ops/registry-credentials
+    looks_like: "Secret was updated last month during credential rotation"
+    why_not: "Credential rotation completed successfully and pods pull images without authorization issues."
+  - object: Deployment/ops/ops-tool
+    looks_like: "Deployment references image pull secret in pod template spec"
+    why_not: "Reference is valid and successfully authenticated against the registry."
+timeline:
+  - "T0-30d: Secret/registry-credentials created."
+  - "T0-1h: Deployment pods pulled images successfully."
+  - "T0: Operator asks if something is wrong with image pull secrets in ops namespace."
+objects:
+  - "Namespace/ops: Active"
+  - "Namespace/kube-system: Active"
+  - "Secret/ops/registry-credentials: Active"
+  - "Deployment/ops/ops-tool: Active"
+  - "ReplicaSet/ops/ops-tool-75bc98df67: Active"
+  - "Pod/ops/ops-tool-75bc98df67-abc: Running"
+  - "ServiceAccount/ops/ops-sa: Active"
+  - "ConfigMap/ops/config: Active"
+  - "Service/ops/svc: Active"
+  - "LimitRange/ops/limits: Active"
+  - "Deployment/default/nginx: Active"
+  - "Service/default/kubernetes: Active"
+  - "ConfigMap/default/kube-root-ca.crt: Active"
+  - "Role/ops/role: Active"
+  - "RoleBinding/ops/rb: Active"
+  - "EndpointSlice/ops/xyz: Active"
+  - "PodDisruptionBudget/ops/pdb: Active"
+  - "Event/ops/normal: Normal"
+  - "ResourceQuota/ops/quota: Active"
+  - "NetworkPolicy/ops/netpol: Active"
+  - "HorizontalPodAutoscaler/ops/hpa: Normal"
+  - "PersistentVolumeClaim/ops/pvc: Bound"
+  - "PersistentVolume/pv-ops01: Bound"
+  - "StorageClass/standard: Active"
+  - "Pod/ops/ops-tool-75bc98df67-def: Running"
+sources:
+  - "https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/"
