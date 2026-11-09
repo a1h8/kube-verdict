@@ -5,8 +5,14 @@ from ontology.discovery import APIResourceInfo
 from ontology.dynamic_entity import GenericEntity
 from ontology.entities import Deployment, K8sEvent, Namespace, Pod, ReplicaSet
 from ontology.graph import OntologyGraph
-from ontology.relations import build_limits
+from ontology.declared_relations import build_named
+from ontology.relations import build_limits_injected
 from ontology.relationships import RelationshipType
+
+
+def build_limits(g):
+    return build_limits_injected(g) + sum(build_named(g, "LIMITS").values())
+
 
 _LR = APIResourceInfo(group="", version="v1", kind="LimitRange", plural="limitranges", namespaced=True,
                       verbs=["list"])

@@ -1,13 +1,13 @@
 """Relations computed from the fields the Kubernetes API documents (docs/correlation-engine.md § 1, M1).
 
-Run once the graph holds every collected object (end of ``K8sCollector.collect``), live and in the replay alike.
+Since M2 step 2 (docs/anchors-and-relations.md) the relations are declared in ontology/spec/relations.yaml and built
+by ontology/declared_relations.py; this module keeps only what is not data yet. Run once the graph holds every collected object (end of ``K8sCollector.collect``), live and in the replay alike.
 Each relation is an ``Edge`` whose metadata says how it was computed (``method``), what shows it (``evidence``),
 its ``confidence`` and ``relations_version``. Nothing here reads names or free text to guess a link, except the
 messages the API server's admission plugins write, quoted from their documented form.
 """
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from ontology.entities import K8sEntity, ResourceKind
@@ -15,13 +15,6 @@ from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
 
 RELATIONS_VERSION = 1
-
-# LimitRanger's refusals (plugin/pkg/admission/limitranger): "maximum memory usage per Container is 1Gi, but limit
-# is 2Gi", "minimum cpu usage per Pod is 100m, but request is 50m"
-_LIMIT_REFUSAL = re.compile(
-    r"(?P<bound>maximum|minimum) (?P<res>[\w.\-/]+) usage per (?P<scope>Container|Pod) is (?P<value>[^,\s]+), "
-    r"but (?P<field>limit|request) is (?P<actual>[^\s,;]+)")
-
 
 def _kind(entity: K8sEntity) -> str:
     return str(getattr(entity.kind, "value", entity.kind))
@@ -86,17 +79,13 @@ def _declared_limits(graph: OntologyGraph, pod: K8sEntity) -> dict[str, dict[str
     return None
 
 
-def build_limits(graph: OntologyGraph) -> int:
-    """LIMITS: LimitRange → Pod (a default it injected) and → the object whose pods it refuses.
-
-    - Injected default: a container's limit equals the LimitRange's ``spec.limits[type=Container].default`` for that
-      resource and the pod's owner template declares no limit for it (a default applies only then). With
-      LimitRanger's own record on the pod (``kubernetes.io/limit-ranger: "LimitRanger plugin set:
-      <res> limit for container <name>"``) the confidence is 1.0; with only one of the two, 0.7, since an
-      annotation can be written by anyone (H23) and a declared value can equal the default by chance.
-    - Refusal: a ``FailedCreate`` whose message is LimitRanger's ("maximum|minimum <res> usage per Container|Pod is
-      <v>, but limit|request is <a>"), where <v> is that LimitRange's ``max`` or ``min``; the edge goes to the event's
-      involved object (a ReplicaSet, a Job…).
+def build_limits_injected(graph: OntologyGraph) -> int:
+    """LIMITS for an injected default: LimitRange → Pod, when a container's limit equals the LimitRange's
+    ``spec.limits[type=Container].default`` for that resource and the pod's owner template declares no limit for it
+    (a default applies only then). With LimitRanger's own record on the pod (``kubernetes.io/limit-ranger:
+    "LimitRanger plugin set: <res> limit for container <name>"``) the confidence is 1.0; with only one of the two,
+    0.7, since an annotation can be written by anyone (H23) and a declared value can equal the default by chance.
+    LimitRanger's refusals are declared data (ontology/spec/relations.yaml).
     """
     n = 0
     by_ns: dict[str | None, list[K8sEntity]] = {}
@@ -132,116 +121,14 @@ def build_limits(graph: OntologyGraph) -> int:
                               + (f"; {note}" if recorded else ""), conf)
                         n += 1
 
-    for ev in graph.entities(ResourceKind.EVENT):
-        if getattr(ev, "reason", "") != "FailedCreate":
-            continue
-        m = _LIMIT_REFUSAL.search(getattr(ev, "message", "") or "")
-        if not m:
-            continue
-        target = next((e for e in graph.entities() if _kind(e) == getattr(ev, "involved_kind", "")
-                       and e.name == getattr(ev, "involved_name", "") and e.namespace == ev.namespace), None)
-        if target is None:
-            continue
-        key = "max" if m["bound"] == "maximum" else "min"
-        for lr in by_ns.get(ev.namespace, []):
-            for item in _get(lr.raw, "spec", "limits") or []:
-                if item.get("type") == m["scope"] and str((item.get(key) or {}).get(m["res"])) == m["value"]:
-                    _edge(graph, lr, target, RelationshipType.LIMITS, f"admission refusal ({key})", ev.message, 1.0)
-                    n += 1
-    return n
-
-
-def _refs(container: dict) -> list[tuple[str, str]]:
-    """(ConfigMap name, how) for each environment reference of a container (client ``to_dict`` or API JSON)."""
-    out: list[tuple[str, str]] = []
-    for src in container.get("env_from") or container.get("envFrom") or []:
-        ref = src.get("config_map_ref") or src.get("configMapRef") or {}
-        if ref.get("name"):
-            out.append((ref["name"], "envFrom"))
-    for var in container.get("env") or []:
-        vf = var.get("value_from") or var.get("valueFrom") or {}
-        ref = vf.get("config_map_key_ref") or vf.get("configMapKeyRef") or {}
-        if ref.get("name"):
-            out.append((ref["name"], f"env {var.get('name', '')} from key {ref.get('key', '')}"))
-    return out
-
-
-def build_configures(graph: OntologyGraph) -> int:
-    """CONFIGURES: ConfigMap → Pod, for a ConfigMap a container reads through ``envFrom[].configMapRef`` or
-    ``env[].valueFrom.configMapKeyRef`` (same namespace, as the API resolves it). Mounted ConfigMaps keep their
-    ``MOUNTS_CONFIGMAP`` edge. Such a value is read when the container starts, never updated in a running pod
-    (Kubernetes documentation, ConfigMaps): what the engine's time rules use."""
-    n = 0
-    cms = {(e.namespace, e.name): e for e in graph.entities(ResourceKind.CONFIGMAP)}
-    for pod in graph.entities(ResourceKind.POD):
-        spec = (pod.raw or {}).get("spec") or {}
-        for c in (spec.get("containers") or []) + (spec.get("init_containers") or spec.get("initContainers") or []):
-            for name, how in _refs(c):
-                cm = cms.get((pod.namespace, name))
-                if cm is not None:
-                    _edge(graph, cm, pod, RelationshipType.CONFIGURES, how,
-                          f"container {c.get('name', '')} reads ConfigMap {name} ({how})", 1.0)
-                    n += 1
-    return n
-
-
-def build_owns(graph: OntologyGraph) -> int:
-    """OWNS: owner → owned, from each object's ``metadata.ownerReferences`` (CronJob → Job → Pod, ReplicaSet →
-    Pod, any kind), same namespace, as the garbage collector reads it. An edge the collector already built is
-    not built twice."""
-    n = 0
-    index = {(_kind(e), e.namespace, e.name): e for e in graph.entities()}
-    have = {(e.source_uid, e.target_uid) for e in graph._edges if e.rel_type == RelationshipType.OWNS}
-    for e in list(graph.entities()):
-        refs = list(_owner_refs(e))
-        if not refs and getattr(e, "owner_ref_kind", ""):
-            refs = [{"kind": e.owner_ref_kind, "name": e.owner_ref_name}]
-        for ref in refs:
-            owner = index.get((ref.get("kind", ""), e.namespace, ref.get("name", "")))
-            if owner is None or (owner.uid, e.uid) in have:
-                continue
-            _edge(graph, owner, e, RelationshipType.OWNS, "ownerReferences",
-                  f"{_kind(e)}/{e.name} owned by {_kind(owner)}/{owner.name}", 1.0)
-            have.add((owner.uid, e.uid))
-            n += 1
-    return n
-
-
-# the API server's ResourceQuota refusal: "exceeded quota: shop-quota, requested: pods=1, used: pods=40,
-# limited: pods=40"
-_QUOTA_REFUSAL = re.compile(r"exceeded quota: (?P<name>[^,\s]+), requested: (?P<requested>.+?), used: (?P<used>.+?), "
-                            r"limited: (?P<limited>[^\s;]+(?:,[^\s;]+)*)")
-
-
-def build_quota_blocks(graph: OntologyGraph) -> int:
-    """QUOTA_BLOCKS: ResourceQuota → a refused pod creation, from a ``FailedCreate`` quoting the API server's quota
-    refusal and naming that quota (same namespace): to the event, which records the attempt, and to the refused
-    object (a ReplicaSet, a Job…) when the graph holds it."""
-    n = 0
-    quotas = {(q.namespace, q.name): q for q in _of_kind(graph, "ResourceQuota")}
-    if not quotas:
-        return 0
-    for ev in graph.entities(ResourceKind.EVENT):
-        if getattr(ev, "reason", "") != "FailedCreate":
-            continue
-        m = _QUOTA_REFUSAL.search(getattr(ev, "message", "") or "")
-        quota = quotas.get((ev.namespace, m["name"])) if m else None
-        if quota is None:
-            continue
-        evidence = f"requested {m['requested']}, used {m['used']}, limited {m['limited']}"
-        # the refusal event is the record of the refused pod creation: always linked; the refused object too
-        # when the graph holds it
-        _edge(graph, quota, ev, RelationshipType.QUOTA_BLOCKS, "admission refusal (quota)", evidence, 1.0)
-        n += 1
-        target = next((e for e in graph.entities() if _kind(e) == getattr(ev, "involved_kind", "")
-                       and e.name == getattr(ev, "involved_name", "") and e.namespace == ev.namespace), None)
-        if target is not None:
-            _edge(graph, quota, target, RelationshipType.QUOTA_BLOCKS, "admission refusal (quota)", evidence, 1.0)
-            n += 1
     return n
 
 
 def build_relations(graph: OntologyGraph) -> dict[str, int]:
-    """Every relation of this module; returns the number of edges built, per relation."""
-    return {"OWNS": build_owns(graph), "LIMITS": build_limits(graph), "CONFIGURES": build_configures(graph),
-            "QUOTA_BLOCKS": build_quota_blocks(graph)}
+    """The declared relations (ontology/spec/relations.yaml, built by ontology/declared_relations.py), and the one
+    relation still in code: a default LimitRanger injected (LIMITS), which is the variability of the pod's limits
+    (docs/anchors-and-relations.md § 3) and moves to data with it (step 5)."""
+    from ontology.declared_relations import build_declared
+    counts = build_declared(graph)
+    counts["LIMITS (injected default)"] = build_limits_injected(graph)
+    return counts

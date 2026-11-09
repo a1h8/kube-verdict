@@ -23,7 +23,7 @@ SPEC_VERSION = 1
 MATCHERS: dict[str, set[str]] = {
     "owner_reference": set(),
     "label_selector": {"selector"},
-    "name_reference": {"path"},
+    "name_reference": {"path", "holder"},
     "port_match": set(),
     "event_quote": {"reasons", "pattern", "link"},
     "marker": {"key", "on"},

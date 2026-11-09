@@ -22,7 +22,7 @@ relations:
     source_kind: Pod
     target_kind: ConfigMap
     matcher: name_reference
-    params: {path: "spec.volumes[].configMap.name", direction: source_to_target}
+    params: {path: "spec.volumes[].configMap.name", holder: source}
     sources:
       - https://kubernetes.io/docs/concepts/configuration/configmap/#using-configmaps-as-files-from-a-pod
 
@@ -33,7 +33,7 @@ relations:
     params:
       path: ["spec.containers[].envFrom[].configMapRef.name", "spec.containers[].env[].valueFrom.configMapKeyRef.name",
              "spec.initContainers[].envFrom[].configMapRef.name"]
-      direction: target_to_source
+      holder: target
     sources:
       - https://kubernetes.io/docs/concepts/configuration/configmap/#configmaps-and-pods
 
@@ -44,6 +44,8 @@ relations:
     params:
       reasons: [FailedCreate]
       pattern: "exceeded quota: (?P<name>[^,\\s]+), requested: (?P<requested>.+?), used: (?P<used>.+?), limited: (?P<limited>[^\\s;]+(?:,[^\\s;]+)*)"
+      method: "admission refusal (quota)"
+      evidence: "requested {requested}, used {used}, limited {limited}"
       link: both
     sources:
       - https://kubernetes.io/docs/concepts/policy/resource-quotas/
@@ -55,7 +57,9 @@ relations:
     params:
       reasons: [FailedCreate]
       pattern: "(?P<bound>maximum|minimum) (?P<res>[\\w.\\-/]+) usage per (?P<scope>Container|Pod) is (?P<value>[^,\\s]+), but (?P<field>limit|request) is (?P<actual>[^\\s,;]+)"
-      target_field: "spec.limits[type={scope}].{bound:max|min}.{res}"
+      target_field: "spec.limits[type={scope}].{bound}.{res}"
+      group_map: {bound: {maximum: max, minimum: min}}
+      method: "admission refusal ({bound})"
       link: involved
     sources:
       - https://kubernetes.io/docs/concepts/policy/limit-range/

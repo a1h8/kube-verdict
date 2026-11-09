@@ -28,7 +28,11 @@ NOT_BUILT_YET = {
 
 
 def _built() -> set[str]:
-    names: set[str] = set()
+    """Built in code (an Edge call naming the relation), or declared in ontology/spec/relations.yaml with a matcher
+    ontology/declared_relations.py implements (M2 step 2)."""
+    from ontology.declared_relations import MATCHERS
+    from ontology.spec_loader import load
+    names: set[str] = {r.name for r in load()[0] if r.matcher in MATCHERS}
     for top in PRODUCTION:
         for path in (ROOT / top).rglob("*.py"):
             tree = ast.parse(path.read_text())

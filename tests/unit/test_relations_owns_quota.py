@@ -5,8 +5,16 @@ from ontology.discovery import APIResourceInfo
 from ontology.dynamic_entity import GenericEntity
 from ontology.entities import K8sEvent, Namespace, Pod, ReplicaSet
 from ontology.graph import OntologyGraph
-from ontology.relations import build_owns, build_quota_blocks
+from ontology.declared_relations import build_named
 from ontology.relationships import RelationshipType
+
+
+def build_owns(g):
+    return build_named(g, "OWNS")
+
+
+def build_quota_blocks(g):
+    return build_named(g, "QUOTA_BLOCKS")
 
 
 def _res(kind: str, plural: str, group: str = "", version: str = "v1") -> APIResourceInfo:

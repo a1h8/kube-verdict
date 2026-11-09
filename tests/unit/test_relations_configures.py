@@ -3,8 +3,12 @@ from __future__ import annotations
 
 from ontology.entities import ConfigMap, Namespace, Pod
 from ontology.graph import OntologyGraph
-from ontology.relations import build_configures
+from ontology.declared_relations import build_named
 from ontology.relationships import RelationshipType
+
+
+def build_configures(g):
+    return build_named(g, "CONFIGURES")
 
 
 def _graph(container: dict, pod_ns: str = "ns") -> OntologyGraph:
@@ -28,7 +32,8 @@ def test_env_from_links_the_configmap_to_the_pod():
 def test_a_key_reference_links_it_too_in_api_json_form():
     es = _edges(_graph({"name": "app", "env": [{"name": "DB_HOST",
                                                  "valueFrom": {"configMapKeyRef": {"name": "settings", "key": "db"}}}]}))
-    assert len(es) == 1 and es[0].metadata["method"] == "env DB_HOST from key db"
+    # the method is the generic path segment; the field read is in the evidence (declared relations, M2 step 2)
+    assert len(es) == 1 and es[0].metadata["method"] == "env" and "configMapKeyRef" in es[0].metadata["evidence"]
 
 
 def test_a_configmap_of_another_namespace_is_not_linked():

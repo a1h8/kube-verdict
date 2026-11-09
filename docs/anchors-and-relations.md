@@ -124,3 +124,17 @@ a kind.
 - Retrieval (M3) and R2: the engine verifies what retrieval proposes against these anchors, in `docs/r2-heterogeneous-retrieval.md`'s second part.
 - New collectors: ArgoCD and Flux objects are read by API discovery as generic entities, and their own spec says which
   fields matter.
+
+## Progress
+
+- **Step 1, 2026-11-09:** the format, its loader and validation (`ontology/spec_loader.py`, 13 tests).
+- **Step 2, 2026-11-09:** OWNS, CONFIGURES, QUOTA_BLOCKS and LimitRanger's refusals are built from
+  `ontology/spec/relations.yaml` by the generic matchers of `ontology/declared_relations.py`, and their hand-written
+  builders are removed. EXPOSES and MOUNTS_CONFIGMAP are declared too. The collector still builds them, and the declared
+  path adds no duplicate.
+  - **Edge comparison:** the edges of the six relations are identical on all 21 S2 cases, built before and after; the
+    declared path itself built 50 OWNS, 6 CONFIGURES, 1 QUOTA_BLOCKS and 1 LIMITS edges on four of them.
+  - One relation is still in code: the default LimitRanger injected. It is the variability of the pod's limits and
+    moves with step 5.
+  - CONFIGURES's `method` is now the generic path segment (`envFrom`, `env`). The field read is in the edge's evidence.
+  - `make ci` green; the S2 guards hold.
