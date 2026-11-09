@@ -100,3 +100,25 @@ approval.
 3. The `inventory` matcher and the declared `MANAGED_BY` (§ 1), with tests.
 4. The anchors (§ 2), once the M2 anchor engine exists (step 3 of `docs/anchors-and-relations.md`).
 5. The six cases' fixtures, their freeze, then the measure.
+
+## Implementation note, 2026-11-09, before the code
+
+- **Direction.** The relation is named `MANAGES`, from the manager to the managed object (Application → Deployment),
+  so that the correlation walk, which goes back to what acts on an object, reaches the manager. `MANAGED_BY` above
+  means the same edge read the other way.
+- **Matchers.** Two:
+  - `inventory`, with `list` and `id: fields | flux-id`;
+  - `marker`, for Argo CD's `argocd.argoproj.io/tracking-id`, whose value starts with the Application's name before
+    the first `:`, as in the documented example. With the annotation, the Application is looked up by name in any
+    namespace, since the value does not carry the Application's namespace.
+- **Rule.** These relations add edges only where an Argo CD or Flux object exists, and S2 has none. So S2's chains,
+  outcomes and guards must not change. Tested on fresh fixtures, mutants included. Measured on the GitOps development
+  cases.
+- **Done, 2026-11-09.** `MANAGES` is declared three times in `ontology/spec/relations.yaml`:
+  - Argo CD's `status.resources[]`, by `inventory`;
+  - the `tracking-id` annotation, by `marker`;
+  - Flux's `status.inventory.entries[]`, by `inventory`.
+
+  The correlation walk follows it. A YAML trap was found on the way: the key `on` reads as a boolean, so `marker`'s
+  parameter is `store`. 5 tests on fresh fixtures, mutants killed (a Flux id read in the wrong order; an entry of
+  another kind matching a same-named object). S2 unchanged, guards hold, `make ci` green.

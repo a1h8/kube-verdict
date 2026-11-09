@@ -58,6 +58,7 @@ class RelationshipType(str, Enum):
     # Network
     RESTRICTS = "RESTRICTS"        # NetworkPolicy → Pod its podSelector selects (ontology/spec/relations.yaml)
     ADMITS = "ADMITS"              # MutatingWebhook → Namespace its namespaceSelector matches
+    MANAGES = "MANAGES"            # GitOps manager (Argo CD Application, Flux Kustomization) → object in its inventory
 
 
 @dataclass(frozen=True)

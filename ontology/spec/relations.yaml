@@ -87,3 +87,27 @@ relations:
     params: {selector: "webhooks[].namespaceSelector", scope: cluster}
     sources:
       - https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/
+
+  - name: MANAGES
+    source_kind: Application
+    target_kind: "*"
+    matcher: inventory
+    params: {list: "status.resources[]", id: fields}
+    sources:
+      - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/crds/application-crd.yaml
+
+  - name: MANAGES
+    source_kind: Application
+    target_kind: "*"
+    matcher: marker
+    params: {key: argocd.argoproj.io/tracking-id, store: annotation, pattern: "^(?P<name>[^:]+):"}
+    sources:
+      - https://argo-cd.readthedocs.io/en/stable/user-guide/resource_tracking/
+
+  - name: MANAGES
+    source_kind: Kustomization
+    target_kind: "*"
+    matcher: inventory
+    params: {list: "status.inventory.entries[]", id: flux-id}
+    sources:
+      - https://fluxcd.io/flux/components/kustomize/kustomizations/

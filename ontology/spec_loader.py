@@ -26,7 +26,8 @@ MATCHERS: dict[str, set[str]] = {
     "name_reference": {"path", "holder"},
     "port_match": set(),
     "event_quote": {"reasons", "pattern", "link"},
-    "marker": {"key", "on"},
+    "marker": {"key", "store", "pattern"},
+    "inventory": {"list", "id"},
 }
 # anchor type -> required parameters (§ 2)
 ANCHOR_TYPES: dict[str, set[str]] = {
@@ -122,8 +123,10 @@ def parse_relations(doc: Any) -> list[RelationSpec]:
                     why.append(f"{where}: pattern needs a named group 'name', or 'value' with target_field")
             except re.error as exc:
                 why.append(f"{where}: invalid pattern ({exc})")
-        if matcher == "marker" and params.get("on") not in MARKER_ON:
-            why.append(f"{where}: on must be one of {sorted(MARKER_ON)}")
+        if matcher == "inventory" and params.get("id") not in ("fields", "flux-id"):
+            why.append(f"{where}: id must be fields or flux-id")
+        if matcher == "marker" and params.get("store") not in MARKER_ON:
+            why.append(f"{where}: store must be one of {sorted(MARKER_ON)}")
         src = _sources(e, where, why)
         out.append(RelationSpec(name, str(e.get("source_kind", "")), str(e.get("target_kind", "")), matcher,
                                 dict(params), src))

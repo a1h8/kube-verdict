@@ -169,7 +169,59 @@ def _field_equals(e: K8sEntity, path: str, value: str) -> bool:
     return False
 
 
-MATCHERS = {"owner_reference": _owner_reference, "name_reference": _name_reference,
+def _object_index(graph: OntologyGraph) -> dict[tuple, K8sEntity]:
+    """(group, kind, namespace, name) → entity; a core kind has the group ""."""
+    out = {}
+    for e in graph.entities():
+        av = str(getattr(e, "api_version", "") or (e.raw or {}).get("apiVersion") or (e.raw or {}).get("api_version") or "")
+        group = av.rpartition("/")[0]
+        kind = _kind(e).split(".", 1)[0]                     # a group-qualified kind, Kind.group, by its Kind
+        out[(group, kind, e.namespace or "", e.name)] = e
+        out.setdefault(("*", kind, e.namespace or "", e.name), e)
+    return out
+
+
+def _inventory(graph: OntologyGraph, spec: RelationSpec) -> Iterator[tuple]:
+    """The manager's own list of what it manages: Argo CD ``status.resources[]`` (``id: fields``) or Flux
+    ``status.inventory.entries[].id`` (``id: flux-id``, ``<namespace>_<name>_<group>_<kind>``). Edge manager → object."""
+    index = _object_index(graph)
+    for mgr in list(graph.entities()):
+        if not _matches_kind(mgr, spec.source_kind):
+            continue
+        for entry in resolve(mgr.raw or {}, spec.params["list"]):
+            if spec.params["id"] == "fields" and isinstance(entry, dict):
+                g, k, ns, n = (str(entry.get("group") or ""), str(entry.get("kind") or ""),
+                               str(entry.get("namespace") or ""), str(entry.get("name") or ""))
+            elif spec.params["id"] == "flux-id":
+                raw_id = entry.get("id") if isinstance(entry, dict) else entry
+                parts = str(raw_id or "").split("_")
+                if len(parts) < 4:
+                    continue
+                ns, n, g, k = parts[0], parts[1], parts[2], parts[3]
+            else:
+                continue
+            obj = index.get((g, k, ns, n)) or (index.get(("*", k, ns, n)) if not g else None)
+            if obj is not None and obj is not mgr:
+                yield mgr, obj, "inventory", f"{_kind(mgr)}/{mgr.name} lists {g}/{k} {ns}/{n}", 1.0
+
+
+def _marker(graph: OntologyGraph, spec: RelationSpec) -> Iterator[tuple]:
+    """A label or annotation a tool writes on what it manages, whose ``pattern`` names the manager (group ``name``).
+    The manager is looked up by kind and name in any namespace. Edge manager → object."""
+    rx = re.compile(spec.params["pattern"])
+    managers: dict[str, list[K8sEntity]] = {}
+    for e in graph.entities():
+        if _matches_kind(e, spec.source_kind):
+            managers.setdefault(e.name, []).append(e)
+    for obj in list(graph.entities()):
+        store = obj.labels if spec.params["store"] == "label" else obj.k8s_annotations
+        value = (store or {}).get(spec.params["key"])
+        m = rx.match(str(value)) if value else None
+        for mgr in managers.get(m["name"], []) if m else []:
+            yield mgr, obj, "marker", f"{spec.params['key']}={value}", 1.0
+
+
+MATCHERS = {"inventory": _inventory, "marker": _marker, "owner_reference": _owner_reference, "name_reference": _name_reference,
             "label_selector": _label_selector, "event_quote": _event_quote}
 
 
