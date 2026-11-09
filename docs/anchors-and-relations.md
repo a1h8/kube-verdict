@@ -237,3 +237,51 @@ cluster**. It is not declared. The origins of an anchor, in order:
   that controller; a drift by another manager is annotated with its author, role and entry time (an upper bound for the
   origin). 3 tests on fresh fixtures, mutant killed; `make ci` green; S2 unchanged (no fieldsV1 in its fixtures).
   Still to do: the managers' roles from a live cluster, and the measure on the GitOps development cases.
+
+## Step 3 design, written 2026-11-09 before its code: the anchor engine, CRDs included
+
+`ontology/anchors.py` evaluates an object's anchors when the correlation walk reaches it. The origins, by order:
+
+- **Schema.** A registry of field schemas per kind and group, from:
+  - the embedded schema (`ingestion/k8s_schema.py`) for built-in kinds;
+  - the CRD objects themselves: `spec.group`, `spec.names.kind`, and `spec.versions[].schema.openAPIV3Schema` (enum,
+    default, and whether `subresources.status` exists);
+  - live, the API server's `/openapi/v3`.
+
+  CRDs are cluster-scoped, so discovery skips them under a namespace filter, like APIServices. They are read
+  explicitly. **What the schema does not do:** detect a fault by itself. The API server refuses a value outside an
+  `enum` at write, so a stored object holds none. The schema tells a default from a set value, and which fields and
+  status an object has.
+- **Conventions**, for any kind, CRDs included:
+  - kstatus: `Stalled=True` is a fault, with its reason and message; `Reconciling=True` is work in progress, not a
+    fault;
+  - `metadata.generation` > `status.observedGeneration`: not reconciled yet; context, unless `Stalled`;
+  - other conditions, judged by their **polarity**. `ontology/spec/conditions.yaml` holds one line per (kind or CRD
+    kind, condition type, normal value), each citing the kind's documentation. A condition with no declared polarity is
+    not judged: it is reported, never a fault.
+- **Declared semantic anchors** (`ontology/spec/anchors.yaml`): `bound`, `fits` and `fresh`, evaluated by one generic
+  evaluator per type from the entry's parameters. The three hand-written predicates of `rca/correlation.py` are
+  replaced by them, and so is the quota attribution (the aggregate operator).
+
+`rca/correlation.py` asks the anchor engine whether a reached object is abnormal. It no longer holds a predicate.
+
+**Non-regression:** the S2 guards hold (11 causes in the prompt, 4 named by D, 7/7 no incident); S1 19/19.
+
+**Expected on S2, from the reading above:** the conventions add a1 (APIService `Available=False`) only if
+APIServices are read (cluster-scoped, today skipped), w2's Certificate `Ready=False` as an abnormal object, and a2's HPA
+condition. These are reported, not counted, until measured.
+- **Step 3 of the updated order, 2026-11-09:** `ontology/anchors.py` is the anchor engine. `rca/correlation.py`
+  holds no predicate any more: it asks `evaluate()`, which applies the declared anchors (`bound`, `fits`, `fresh`) and
+  the conventions.
+  - The conventions: kstatus `Stalled=True` for the groups documented as kstatus-compatible (Flux's Kustomization and
+    HelmRelease, quoted verbatim); the condition polarities documented per kind (`ontology/spec/conditions.yaml`, only
+    those whose documentation states the normal value); an admission refusal by the reached object.
+  - Non-regression: the engine's chains on S2 are the same as before (c1, l1, l2, q2; none on the 7 cases with no
+    incident), and the guards hold. As read in the design, the conventions add nothing on S2 yet: the walk does not
+    reach the HPA, the Certificate or the APIService, whose relations are not built.
+  - Still kind-specific inside the evaluators, stated so it is not mistaken for data: `fits` reads LIMITS edges built
+    as "default injected"; `bound`'s aggregate is the quota's (non-terminal pods by root owner).
+  - APIService `Available`'s polarity is not in the pages read, so a1 is not judged.
+  - 6 tests of the conventions (a stalled Flux Kustomization with no Flux rule; an unknown group's Stalled not judged;
+    a documented polarity; an undocumented condition not judged; a polarity bound to its kind); mutants killed.
+    `make ci` green.
