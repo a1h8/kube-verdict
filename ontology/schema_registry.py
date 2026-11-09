@@ -178,3 +178,62 @@ class SchemaRegistry:
 
     def has_observed_generation(self, group: str, kind: str) -> bool:
         return self.node(group, kind, "status.observedGeneration") is not None
+
+
+_TYPES = {"string": (str,), "integer": (int,), "number": (int, float), "boolean": (bool,), "object": (dict,),
+          "array": (list,)}
+
+
+def _type_ok(value: Any, s: dict) -> bool:
+    from datetime import date, datetime
+    t = s.get("type")
+    if value is None or not t:
+        return True
+    if s.get("x-kubernetes-int-or-string"):
+        return isinstance(value, (int, str)) and not isinstance(value, bool)
+    if t == "string" and isinstance(value, (datetime, date)):   # a YAML timestamp, a date-time string in the API
+        return True
+    if t in ("integer", "number") and isinstance(value, bool):
+        return False
+    return isinstance(value, _TYPES.get(t, (object,)))
+
+
+def _validate(reg: "SchemaRegistry", value: Any, s: dict, comps: dict, path: str, out: list[str]) -> None:
+    s = reg._deref(s, comps)
+    if not _type_ok(value, s):
+        out.append(f"{path}: {type(value).__name__} where the definition has {s.get('type')}")
+        return
+    if s.get("enum") and value is not None and str(value) not in {str(x) for x in s["enum"]}:
+        out.append(f"{path}: {value!r} is not one of {list(s['enum'])}")
+    if isinstance(value, dict):
+        if s.get("x-kubernetes-preserve-unknown-fields"):
+            return
+        props, extra = s.get("properties") or {}, s.get("additionalProperties")
+        if not props and extra is None:
+            return                                   # a free-form object
+        for k in s.get("required") or []:
+            if k not in value:
+                out.append(f"{path}.{k}: required, missing")
+        for k, v in value.items():
+            if k in props:
+                _validate(reg, v, props[k], comps, f"{path}.{k}", out)
+            elif isinstance(extra, dict):
+                _validate(reg, v, extra, comps, f"{path}.{k}", out)
+            elif extra is not True:
+                out.append(f"{path}.{k}: not in the definition")
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            _validate(reg, item, s.get("items") or {}, comps, f"{path}[{i}]", out)
+
+
+def validate(reg: "SchemaRegistry", obj: dict) -> list[str]:
+    """What in ``obj`` its definition does not allow: an unknown kind or field, a wrong type, a value outside an enum,
+    a missing required field. Nothing is said about fields under ``x-kubernetes-preserve-unknown-fields``."""
+    kind, api_version = str(obj.get("kind", "")), str(obj.get("apiVersion", ""))
+    group, _, version = api_version.rpartition("/")
+    found = reg._defs.get((group, version, kind))
+    if found is None:
+        return [f"{api_version} {kind}: no definition"]
+    out: list[str] = []
+    _validate(reg, obj, found[0], found[1], kind, out)
+    return out

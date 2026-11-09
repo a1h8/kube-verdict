@@ -180,3 +180,29 @@ MutatingWebhookConfiguration objects `MutatingWebhook`, a name no definition has
 | condition polarities | not in the definition | kept, sourced |
 | field manager names (`managers.yaml`) | not in the definition | kept; Argo CD's server-side apply manager `argocd-controller` is in its documentation, to confirm live before it is added |
 | Argo CD `ignoreDifferences` | given by the definition, with `jsonPointers` and `managedFieldsManagers` | the `gitops-ignored` variability can be read from it (later step) |
+
+## Step 5 done, 2026-11-09: the fixtures checked against the definitions
+
+`validate()` in `ontology/schema_registry.py` and `tools/validate_fixtures.py`. 8 tests, 6 mutants killed (unknown
+field, bool as integer, enum, required, list items, `preserve-unknown` with properties, the last on a schema written
+for the test since no definition of the bundle has that shape).
+
+**Result on the 40 cases with fixtures** (S2b has no fixtures yet, so the prediction "S2b fails more than S2" is not
+tested; it is when its fixtures exist):
+
+| Set | Cases failing | Objects | Problems | Kinds of problem |
+|---|---|---|---|---|
+| S1 | 14/19 | 82 | 63 | required, missing: 100 % |
+| S2 | 21/21 | 1,087 | 889 | required, missing: 100 % |
+
+- **No unknown field, no wrong type, no value outside an enum, no kind without a definition.** Every kind of S1 and S2,
+  CRDs included (cert-manager's Certificate, APIService), is in the bundle.
+- **Every problem is a field a real API server always returns and the hand-written fixtures omit:** a container
+  status's `image` and `imageID` (404), an ownerReference's `uid` and `apiVersion` (439), a Job's `spec.template` (29),
+  an APIService's two priorities (12), one `ready`.
+- **The product reads none of them** (searched in `ingestion/`, `ontology/`, `rca/`, `workflow/`), so the results
+  measured on S1 and S2 do not depend on them. The diagnostics' D1.5 is confirmed and now measured: the fixtures are
+  not complete API objects.
+- **Not fixed here**, as § 4 requires. A guard (`test_s1_s2_fixtures_only_known_omissions`) fails on any other problem
+  or any new omitted field; it was checked to fail when a known omission is removed. Completing the fixtures is a
+  dated amendment of each case, to decide.
