@@ -214,9 +214,26 @@ cluster**. It is not declared. The origins of an anchor, in order:
 **Order of the work from here** (this replaces § 6's remaining steps):
 1. the `HelmRelease` collision (`docs/gitops-managed-by.md` § 3);
 2. managedFields read into the graph, and the variability it gives. The control: no drift reported on a field a
-   controller owns (today an HPA-managed `spec.replicas`). Measured on S2: the false drifts removed, and the origins
-   dated (q1's `kubectl set resources`);
+   controller owns (today an HPA-managed `spec.replicas`). *Corrected 2026-11-09:* S2 cannot measure this step. Its
+   fixtures hold managedFields only on a few ConfigMaps and LimitRanges, never `fieldsV1`, and none on a Deployment.
+   The step is tested on fresh fixtures, and measured on the GitOps development cases (g1 holds a
+   `kubectl set resources` reverted by Argo CD).
+   Read in the Server-Side Apply documentation on 2026-11-09, partly through a summary:
+   - an entry's `time` is the entry's, not a field's: the last time that manager changed one of its fields. An origin
+     dated from it is an upper bound;
+   - manager names are not standardised ("kubectl" for kubectl's server-side apply, otherwise the client's
+     User-Agent). Which manager is a controller, a person or the release's tool is a short declared table, filled from
+     what a live cluster shows (the k3d check, on its own go), never from memory;
+   - `fieldsV1`'s list encodings (`k:`, `v:`, `i:`) are read from the FieldsV1 reference before the parser is
+     written;
 3. the anchor engine on origins 3 to 5, the three predicates moved to it, and the guards holding;
 4. the `inventory` matcher and the declared `MANAGED_BY` (`docs/gitops-managed-by.md`);
 5. the history (origin 2), spec first;
 6. the GitOps development cases and their measure.
+- **Step 2 of the updated order, 2026-11-09:** `ontology/managed_fields.py` reads who owns each field from
+  managedFields. The FieldsV1 encoding was read in structured-merge-diff's source. `ontology/spec/managers.yaml` lists
+  a manager's role only when a source shows it: so far `kube-controller-manager` (controller) and `kubectl` (person).
+  The applied-vs-live comparison uses it: a field a controller owns is no longer a drift, and is recorded as owned by
+  that controller; a drift by another manager is annotated with its author, role and entry time (an upper bound for the
+  origin). 3 tests on fresh fixtures, mutant killed; `make ci` green; S2 unchanged (no fieldsV1 in its fixtures).
+  Still to do: the managers' roles from a live cluster, and the measure on the GitOps development cases.
