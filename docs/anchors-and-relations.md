@@ -138,3 +138,85 @@ a kind.
     moves with step 5.
   - CONFIGURES's `method` is now the generic path segment (`envFrom`, `env`). The field read is in the edge's evidence.
   - `make ci` green; the S2 guards hold.
+
+## Amendment, 2026-11-09: anchors come from the definition first
+
+Decided by the user before any anchor code: an anchor is detected from the resource's definition. It is not written by
+hand. The sources, read on 2026-11-09:
+- the Kubernetes API conventions (`kubernetes/community`, *api-conventions.md*, "Typical status properties");
+- the kstatus README (`kubernetes-sigs/cli-utils`);
+- the Flux *Kustomizations* page, *Conditions*;
+- the Kubernetes pages *The Kubernetes API* and *Custom Resource Definitions* (publishing and defaulting).
+
+Anchors now have three origins, used in this order:
+
+1. **From the schema (derived).** The API server publishes an OpenAPI v3 document per group and version, and CRDs'
+   structural schemas are published in it without loss, defaults included. For every kind, CRDs included, it gives
+   `valid` (an `enum`), `default` and required fields. `ingestion/k8s_schema.py` (`K8sApiSchema`) already reads the API
+   server's OpenAPI. It is extended to v3 and to every kind discovery finds. No anchor of this origin is written by
+   hand.
+2. **From the conventions (derived).** These apply to any object, without knowing its kind:
+   - `metadata.generation` ≠ `status.observedGeneration`: "changes that the controller has not yet seen" (kstatus);
+     the object is not reconciled;
+   - kstatus conditions, "abnormal-true": `Stalled=True` is a failure, and `Reconciling=True` is in progress; `Ready`
+     only as kstatus's fallback. A resource that reports them is computed generically. Flux's Kustomization
+     documents it does ("compatible with the kstatus specification");
+   - any other condition needs its **polarity**. The conventions say it outright: "without further knowledge of the
+     conditions, it is not possible to compute a generic summary". So polarity is data: one line per condition type
+     of a kind, taken from that kind's documentation (Node `Ready` positive, `MemoryPressure` negative; Deployment
+     `Available` positive, `ReplicaFailure` negative…). It is declared, but it is not a rule: it says only which value
+     of a documented condition is normal.
+3. **Semantic (declared, minimal).** What no definition states, each entry justified by the documentation it relies on:
+   - a quota's `used ≤ hard`;
+   - a LimitRange limit that does not fit, against an OOMKilled;
+   - a ConfigMap read at start and written after;
+   - the values of a tool's own status when its schema does not give them (Argo CD's `sync.status`, whose CRD gives no
+     enum, and its health, computed by its own checks).
+
+   `ontology/spec/anchors.yaml` keeps only this third origin. Every entry says why the definition does not cover it.
+
+**What the definition can and cannot find on S2, read from the cases' specs before any code:**
+- *found from conditions with their polarity:* a1 (APIService `Available=False`), w2 (cert-manager Certificate
+  `Ready=False`), and a2's symptom (HPA `ScalingLimited`);
+- *found by relations, not anchors:* l2 and the quota refusals (`event_quote`), d1 (`port_match`), n1 and n2 (a selector
+  that no longer matches);
+- *semantic, declared:* l1 (`fits`), q1 and q2 (`bound`), c1 (`fresh`);
+- *outside the cluster's objects:* d2 (Redis's own limit, in its arguments and logs) and c2 (a file's content).
+
+So the definition finds the faults the API reports about itself, and the relations and the few semantic anchors find
+the rest. The count is measured once the derivation exists, in the step that builds it, against this reading.
+
+## Amendment, 2026-11-09: what may change is observed live
+
+Decided by the user, before any anchor code: what a field may do, and who changes it, is first **observed on the live
+cluster**. It is not declared. The origins of an anchor, in order:
+
+1. **`metadata.managedFields`, from a single snapshot.** For each manager, it gives the fields it owns (`fieldsV1`) and
+   when it last wrote them. A field owned by a controller (the HPA controller and `spec.replicas`) is
+   `controller:<manager>`, and a hop to it. A field last written by `kubectl` (`kubectl-set`, `kubectl-edit`…) after the
+   release is a drift, with its time as the origin. A field written by the release's manager (`helm`, Argo CD's or
+   Flux's controller) at a sync is the declared state.
+2. **The observed history.** Across the product's collections (the CronJob), the field values and their authors are
+   kept. A field stable for a long time has its stable value as its anchor, and a change on it weighs more. A field that
+   changes at every sync, or all the time, is normal when it does. This is the graph's history the diagnostics found
+   missing (D1.3). It has its own spec: storage, retention, and a live measurement on its own go.
+3. **The schema:** OpenAPI v3, CRDs included (amendment above).
+4. **The conventions:** observedGeneration, kstatus, and the polarity of conditions (amendment above).
+5. **The semantic complement**, declared and minimal (amendment above).
+
+**Limits, stated now.**
+- With no history at the first collection, origins 1, 3, 4 and 5 apply.
+- A frozen fixture is one instant: managedFields can be tested on it, history cannot, except on a fixture written as
+  a series of snapshots.
+- A field that never changes may be wrong from the start: history says what is stable, not what is right, which is why
+  origins 3 to 5 remain.
+
+**Order of the work from here** (this replaces § 6's remaining steps):
+1. the `HelmRelease` collision (`docs/gitops-managed-by.md` § 3);
+2. managedFields read into the graph, and the variability it gives. The control: no drift reported on a field a
+   controller owns (today an HPA-managed `spec.replicas`). Measured on S2: the false drifts removed, and the origins
+   dated (q1's `kubectl set resources`);
+3. the anchor engine on origins 3 to 5, the three predicates moved to it, and the guards holding;
+4. the `inventory` matcher and the declared `MANAGED_BY` (`docs/gitops-managed-by.md`);
+5. the history (origin 2), spec first;
+6. the GitOps development cases and their measure.
