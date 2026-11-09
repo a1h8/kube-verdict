@@ -27,9 +27,18 @@ def test_a_stalled_flux_kustomization_is_a_fault_with_no_flux_rule():
     assert found and "Stalled (kstatus): BuildFailed" in found[0]
 
 
-def test_stalled_on_a_group_not_known_to_follow_kstatus_is_not_judged():
-    other = _generic("Widget", "example.com", [{"type": "Stalled", "status": "True", "reason": "X", "message": ""}])
-    assert evaluate(OntologyGraph(), other, _edge(other), None) is None
+def test_stalled_on_any_group_is_a_fault_read_from_the_object_alone():
+    # kstatus README: status computed "solely based on the data in the resource"; no opt-in for CRDs (2026-11-09)
+    other = _generic("Widget", "example.com", [{"type": "Stalled", "status": "True", "reason": "X", "message": "m"}])
+    found = evaluate(OntologyGraph(), other, _edge(other), None)
+    assert found and "Stalled (kstatus): X: m" in found[0]
+
+
+def test_stalled_false_or_absent_is_not_a_fault():
+    for conds in ([{"type": "Stalled", "status": "False", "reason": "X", "message": ""}],
+                  [{"type": "Reconciling", "status": "True", "reason": "Progressing", "message": ""}], []):
+        w = _generic("Widget", "example.com", conds)
+        assert evaluate(OntologyGraph(), w, _edge(w), None) is None
 
 
 def test_a_documented_polarity_judges_a_condition():

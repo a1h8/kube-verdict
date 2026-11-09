@@ -16,9 +16,7 @@ conditions:
   - {kind: Certificate.cert-manager.io, type: Ready, normal: "True", sources: [https://cert-manager.io/docs/reference/api-docs/]}
   - {kind: Certificate, type: Ready, normal: "True", sources: [https://cert-manager.io/docs/reference/api-docs/]}
 kstatus:
-  # documented as kstatus-compatible ("reports Reconciling and Stalled conditions")
-  groups: [kustomize.toolkit.fluxcd.io, helm.toolkit.fluxcd.io]
+  # Applied to any object that reports a Stalled condition: the README computes status "solely based on the data in the
+  # resource passed in", with no opt-in step for CRDs (docs/schema-registry.md, step 6). No group list.
   sources:
     - https://github.com/kubernetes-sigs/cli-utils/blob/master/pkg/kstatus/README.md
-    - https://fluxcd.io/flux/components/kustomize/kustomizations/#conditions
-    - https://fluxcd.io/flux/components/helm/helmreleases/#conditions

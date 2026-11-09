@@ -5,9 +5,9 @@ from __future__ import annotations
 from ingestion.manifest_differ import ManifestDiffer
 from ontology.entities import Deployment, Namespace
 from ontology.graph import OntologyGraph
-from ontology.managed_fields import container_key, fields_path, owners
+from ontology.managed_fields import fields_path, fields_v1, owners
 
-_API = container_key("api")
+_API = 'k:{"name":"api"}'
 
 
 def _deploy() -> Deployment:
@@ -61,3 +61,16 @@ def test_a_hand_change_is_a_drift_with_its_author_and_time():
     assert "container.api.resources.requests.cpu" in paths
     assert ann["applied.container.api.resources.requests.cpu.author"] == (
         "manager=kubectl operation=Update role=person entry_time=2026-01-01T10:42:00Z")
+
+
+def test_list_keys_and_their_types_come_from_the_definition():
+    # Pod ports are keyed by containerPort (an integer) and protocol in v1.35's definition
+    assert fields_v1("", "Pod", "spec.containers[name=api].ports[containerPort=8080,protocol=TCP].hostPort") == (
+        "f:spec", "f:containers", 'k:{"name":"api"}', "f:ports", 'k:{"containerPort":8080,"protocol":"TCP"}',
+        "f:hostPort")
+    assert fields_v1("", "Pod", "spec.containers[image=x].name") is None          # not the list's keys
+    assert fields_v1("", "Pod", "spec.containers[name=api].ports[containerPort=80].name") is None
+    assert fields_path("Deployment", "spec.replicas") == ("f:spec", "f:replicas")
+    assert fields_path("Deployment", "container.api.image") == (
+        "f:spec", "f:template", "f:spec", "f:containers", _API, "f:image")
+    assert fields_path("Pod", "container.api.image") == ("f:spec", "f:containers", _API, "f:image")

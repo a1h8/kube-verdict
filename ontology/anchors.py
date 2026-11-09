@@ -1,7 +1,7 @@
 """The anchor engine (docs/anchors-and-relations.md, step 3): is an object the correlation walk reaches abnormal?
 
 The knowledge is data: ``ontology/spec/anchors.yaml`` (the declared semantic anchors: ``bound``, ``fits``, ``fresh``)
-and ``ontology/spec/conditions.yaml`` (the documented polarity of conditions, and which groups follow kstatus). This
+and ``ontology/spec/conditions.yaml`` (the documented polarity of conditions). kstatus applies to any object. This
 module holds one evaluator per anchor type and the conventions; it names no kind.
 """
 from __future__ import annotations
@@ -144,16 +144,11 @@ def quota_full(graph: OntologyGraph, quota: K8sEntity) -> tuple[str, K8sEntity] 
 
 
 @lru_cache(maxsize=1)
-def _declared() -> tuple[list[dict], list[dict], set[str]]:
+def _declared() -> tuple[list[dict], list[dict]]:
     from ontology.spec_loader import load
     anchors = [{"id": a.id, "kind": a.kind, "type": a.type, "params": a.params} for a in load()[1]]
     cond = yaml.safe_load((SPEC_DIR / "conditions.yaml").read_text()) or {}
-    return anchors, list(cond.get("conditions") or []), set((cond.get("kstatus") or {}).get("groups") or [])
-
-
-def _group(e: K8sEntity) -> str:
-    av = str(getattr(e, "api_version", "") or ((e.raw or {}).get("apiVersion") or ""))
-    return av.rpartition("/")[0]
+    return anchors, list(cond.get("conditions") or [])
 
 
 def _conditions(e: K8sEntity) -> list[dict]:
@@ -187,10 +182,11 @@ EVALUATORS = {"bound": _bound, "fits": _fits, "fresh": _fresh}
 
 
 def _by_conventions(node: K8sEntity, edge) -> tuple[str, K8sEntity] | None:
-    """kstatus (Stalled=True is a fault), documented polarities, and an admission refusal by the reached object."""
-    anchors, polarities, kstatus_groups = _declared()
+    """kstatus (Stalled=True is a fault, on any object that reports it: the kstatus README computes status "solely based
+    on the data in the resource"), documented polarities, and an admission refusal by the reached object."""
+    anchors, polarities = _declared()
     conds = {str(c.get("type")): c for c in _conditions(node)}
-    if _group(node) in kstatus_groups and str((conds.get("Stalled") or {}).get("status")) == "True":
+    if str((conds.get("Stalled") or {}).get("status")) == "True":
         c = conds["Stalled"]
         return f"Stalled (kstatus): {c.get('reason', '')}: {c.get('message', '')}", node
     for p in polarities:
@@ -209,7 +205,7 @@ def _by_conventions(node: K8sEntity, edge) -> tuple[str, K8sEntity] | None:
 def evaluate(graph: OntologyGraph, node: K8sEntity, edge, came_from: K8sEntity) -> tuple[str, K8sEntity] | None:
     """(mechanism, cause) when ``node`` violates an anchor, reached over ``edge`` from ``came_from``; else None.
     Declared semantic anchors first (they can attribute further, as a quota to its main consumer), then conventions."""
-    anchors, _, _ = _declared()
+    anchors, _ = _declared()
     for a in anchors:
         if a["kind"] == _kind(node) and a["type"] in EVALUATORS:
             found = EVALUATORS[a["type"]](graph, node, a, edge, came_from)

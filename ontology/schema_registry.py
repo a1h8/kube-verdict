@@ -44,10 +44,21 @@ def _version_rank(v: str) -> tuple:
 
 
 class SchemaRegistry:
+    _bundle: "SchemaRegistry | None" = None
+
+    @classmethod
+    def bundled(cls) -> "SchemaRegistry":
+        """The registry of the committed bundle, built once per process."""
+        if cls._bundle is None:
+            cls._bundle = cls.from_bundle()
+        return cls._bundle
+
     def __init__(self) -> None:
         # (group, version, kind) -> (root schema, components for $ref, source)
         self._defs: dict[tuple[str, str, str], tuple[dict, dict, str]] = {}
         self._sources: list[str] = []
+        # (group, kind) -> [{"input", "server", "defaults": {path: value}}], from tools/observe_defaults.py
+        self._observed: dict[tuple[str, str], list[dict]] = {}
 
     # ------------------------------------------------------------------ loading
 
@@ -88,9 +99,23 @@ class SchemaRegistry:
                 label = f"{s['name']}@{s['tag']}/{name}"
                 if s["format"] == "openapi-v3":
                     reg.add_openapi_v3(json.loads(path.read_text()), label)
-                else:
+                elif s["format"] == "crd":
                     reg.add_crds([d for d in yaml.safe_load_all(path.read_text()) if d], label)
+                elif s["format"] == "observed-defaults":
+                    reg.add_observed(json.loads(path.read_text()), label)
         return reg
+
+    def add_observed(self, record: dict, source: str = "observed-defaults") -> None:
+        """Defaults the API server applied to a minimal object of a kind (``tools/observe_defaults.py``)."""
+        group = str(record["apiVersion"]).rpartition("/")[0]
+        self._observed.setdefault((group, str(record["kind"])), []).append(
+            {"input": record.get("input", ""), "server": record.get("server", ""), "defaults": record["defaults"]})
+        self._sources.append(source)
+
+    def observed_defaults(self, group: str, kind: str) -> list[dict]:
+        """Each observation of a kind: its input and what the server added. A conditional default shows as a path
+        whose value differs between two inputs."""
+        return list(self._observed.get((group, kind), []))
 
     # ------------------------------------------------------------------ queries
 
@@ -99,6 +124,10 @@ class SchemaRegistry:
 
     def versions(self, group: str, kind: str) -> list[str]:
         return sorted((v for g, v, k in self._defs if g == group and k == kind), key=_version_rank, reverse=True)
+
+    def groups(self, kind: str) -> list[str]:
+        """The API groups that serve a kind name."""
+        return sorted(g for g, k in self.kinds() if k == kind)
 
     def sources(self) -> list[str]:
         return list(self._sources)

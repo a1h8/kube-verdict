@@ -62,19 +62,44 @@ def owners(entity: K8sEntity) -> dict[tuple, Owner]:
     return out
 
 
-def container_key(name: str) -> str:
-    return "k:" + json.dumps({"name": name}, separators=(",", ":"))
+def fields_v1(group: str, kind: str, path: str, registry=None) -> tuple | None:
+    """A dotted path, list items selected by their keys (``spec.containers[name=api].ports[containerPort=80,
+    protocol=TCP]``), as a FieldsV1 path. Which fields key a list, and their types, are read in the definition
+    (``x-kubernetes-list-map-keys``); a selector that does not name exactly those keys has no FieldsV1 path."""
+    from ontology.schema_registry import SchemaRegistry
+    reg = registry or SchemaRegistry.bundled()
+    out: list[str] = []
+    walked: list[str] = []
+    for seg in path.split("."):
+        name, _, sel = seg.partition("[")
+        walked.append(name)
+        out.append(f"f:{name}")
+        if not sel:
+            continue
+        lst = reg.field(group, kind, ".".join(walked))
+        given = dict(kv.split("=", 1) for kv in sel.rstrip("]").split(","))
+        if lst is None or not lst.list_map_keys or set(given) != set(lst.list_map_keys):
+            return None
+        key = {}
+        for k in sorted(lst.list_map_keys):
+            ftype = reg.field(group, kind, ".".join(walked) + f"[].{k}")
+            key[k] = int(given[k]) if ftype is not None and ftype.type == "integer" else given[k]
+        out.append("k:" + json.dumps(key, separators=(",", ":")))
+        walked[-1] += "[]"
+    return tuple(out)
 
 
 def fields_path(kind: str, drift_field: str) -> tuple | None:
     """The FieldsV1 path of a field the applied-vs-live comparison names (``spec.replicas``, ``container.<n>.<f…>``)."""
-    if drift_field == "spec.replicas":
-        return ("f:spec", "f:replicas")
+    from ontology.schema_registry import SchemaRegistry
+    groups = SchemaRegistry.bundled().groups(kind)
+    if len(groups) != 1:
+        return None
     if drift_field.startswith("container."):
         _, name, *rest = drift_field.split(".")
-        base = ("f:spec", "f:containers") if kind == "Pod" else ("f:spec", "f:template", "f:spec", "f:containers")
-        return base + (container_key(name),) + tuple(f"f:{r}" for r in rest)
-    return None
+        base = "spec" if kind == "Pod" else "spec.template.spec"
+        drift_field = ".".join([f"{base}.containers[name={name}]", *rest])
+    return fields_v1(groups[0], kind, drift_field)
 
 
 def roles(path: Path = MANAGERS_FILE) -> dict[str, str]:

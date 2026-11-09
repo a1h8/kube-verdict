@@ -206,3 +206,66 @@ tested; it is when its fixtures exist):
 - **Not fixed here**, as § 4 requires. A guard (`test_s1_s2_fixtures_only_known_omissions`) fails on any other problem
   or any new omitted field; it was checked to fail when a known omission is removed. Completing the fixtures is a
   dated amendment of each case, to decide.
+
+## Step 6 design, written 2026-11-09 before its code
+
+**Found while preparing it: Kubernetes' machine-readable definition holds almost no defaults and no valid values for
+its built-in kinds.** v1.35's OpenAPI v3 has no `enum`; its non-trivial defaults in `apps/v1` are status counters at 0;
+`spec.containers[].ports[].protocol: TCP` is one of the few in `v1`. The defaults are applied by the API server's code
+and written in the descriptions ("Defaults to ClusterIP"). The CRDs do publish theirs. Today the `k8s_defaults` anchors
+come from the hand-written `_SCHEMA` of `ingestion/k8s_schema.py` (7 kinds).
+
+**Decided by the user, 2026-11-09: the defaults of built-in kinds are observed from the API server by a dry-run.**
+- `tools/observe_defaults.py` submits a minimal object of each kind with `kubectl create --dry-run=server -o json`, in
+  a namespace with no LimitRange and no mutating webhook, and records what the server added: each defaulted path and
+  its value. The minimal objects are inputs (`ontology/spec/upstream/minimal/`), holding only required fields; the
+  facts are the server's answer.
+- The result is part of the bundle (`observed-defaults/`), with its provenance in the lock: the server version, the
+  context, the date, the input's sha256 and the output's. It is built by the script, as the rest of the bundle, and
+  carried to air-gapped installs.
+- **Limit, stated:** a conditional default (`imagePullPolicy` follows the image tag) shows only the branch the input
+  takes. The input is recorded, so the branch is known; a second input covers the other branch where the description
+  says the default is conditional.
+- **The live run is not done now.** It goes in the single live session already planned (k3d, with Argo CD and Flux
+  installed, to confirm the field managers), not as a session of its own. Until then `_SCHEMA` stays, and is removed
+  in that step once the observed defaults replace it.
+
+**kstatus, re-examined against its README** (read 2026-11-09, `kubernetes-sigs/cli-utils`, `pkg/kstatus`):
+- "if the CRDs adopt the standard conditions defined here, this library will handle them correctly", with no opt-in
+  step, and status computed "solely based on the data in the resource passed in". So kstatus applies to any object
+  that reports a `Stalled` condition in its `status.conditions`; the declared group list in
+  `ontology/spec/conditions.yaml` is removed. The definition is not required: in a live cluster a CRD absent from the
+  bundle is still read, as the README reads it, from the object alone.
+- `Stalled=True`: "the controller has encountered an error during the reconcile process or it has made insufficient
+  progress (timeout)": a fault, as today.
+- `Ready=False`, for a resource without the standard conditions, means "in the process of reconciling", not failed.
+  This matters for the GitOps cases: a Flux `Kustomization` with `Ready=False` and `BuildFailed` is a fault only by its
+  own documentation's polarity, declared as such, not by kstatus.
+
+**What step 6 does now, offline:**
+1. kstatus from the definition and the object, with no group list.
+2. `ontology/managed_fields.py` reads a list's keys (`k:` entries) from the definition's `x-kubernetes-list-map-keys`
+   instead of assuming `name`.
+3. `tools/observe_defaults.py` and the minimal inputs, tested with the cluster faked; run in the live session.
+
+**Rule, written before:** S1 stays 19/19, the S2 guards hold (`test_s2_reach_guard`), `make ci` green. On S2, the
+kstatus change cannot alter a chain: no S2 object reports `Stalled` (checked before the change, below).
+
+## Step 6, offline part done, 2026-11-09
+
+- **kstatus from the object alone.** The group list is removed from `ontology/spec/conditions.yaml`; `Stalled=True` is
+  a fault on any object that reports it. Tests: a CRD of any group, and `Stalled=False`, `Reconciling=True` or no
+  condition are not faults. No S1 or S2 object reports `Stalled` (searched before the change).
+- **FieldsV1 list keys from the definition.** `fields_v1()` in `ontology/managed_fields.py` builds a `k:` entry from
+  the list's `x-kubernetes-list-map-keys` and types each key from the definition (a Pod port's `containerPort` is an
+  integer, keyed with `protocol`). The hand-written `container_key` (always `name`) is removed. A selector that does
+  not name exactly the list's keys has no FieldsV1 path. 4 mutants killed (key order, key type, the key check, the Pod
+  path). `fields_path` now answers for any field the comparison names, not only `spec.replicas` and containers.
+- **`tools/observe_defaults.py`**, the minimal inputs (8: Pod twice, for the image tag's two branches, Deployment,
+  StatefulSet, DaemonSet, Service, PVC, HPA), and the registry reading the result (`observed_defaults()`). 5 tests
+  with kubectl faked, including that every call is a server dry-run with the named context, and that each input is
+  valid against its definition. 4 mutants killed. **Not run yet**: it goes in the single live session.
+- **Limit found while writing it:** besides the kind's defaults, the server's built-in admission plugins add values
+  that depend on the cluster (a default StorageClass on the PVC, the ServiceAccount token volume, default
+  tolerations). They are recorded as observed, with the server and context. Telling them apart from the kind's
+  defaults is done when the run's results are read, not before.

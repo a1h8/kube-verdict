@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: kv-defaults-deploy}
+spec:
+  selector: {matchLabels: {app: kv-defaults}}
+  template:
+    metadata: {labels: {app: kv-defaults}}
+    spec:
+      containers:
+        - {name: c, image: "registry.example/app:1.0"}
