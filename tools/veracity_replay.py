@@ -295,7 +295,7 @@ def solve_structured(case_name: str, cut: str | None = None) -> dict:
     t0 = time.perf_counter()
     run = _run(case_name, cut=cut, llm=_RecordOnly())
     signals = extract_signals(run.graph)
-    outcome = diagnose(signals)
+    outcome = diagnose(signals, run.graph)
     expect = run.expect
     record = _base_record(case_name, expect, "structured", "", 1)
     structured_expect = {k: v for k, v in grading_expect(expect).items() if k != "expected_verdict"}

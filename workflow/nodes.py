@@ -625,7 +625,7 @@ def diagnose_node(state: RCAState, config: RunnableConfig) -> dict:
     if graph is None:
         return {}
     try:
-        outcome = diagnose(extract_signals(graph))
+        outcome = diagnose(extract_signals(graph), graph)
     except Exception as exc:  # noqa: BLE001 — a diagnosis failure is an abstention, not a crash
         log.error("diagnose failed: %s", exc)
         return {"diagnosis": {"outcome": "insufficient_evidence", "confidence": "LOW", "score": 0.0,

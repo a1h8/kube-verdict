@@ -197,3 +197,26 @@ refusing the rollout) and q2 (the CronJob holding 62 % of the pods quota). Not f
   namespace filter, a Secret).
 
 These counts are on the development set and are not a result of the engine; D's grading on S2 and S2b is.
+
+## Rule for D with the engine's chains (M4 → M5), written 2026-11-08 before its code
+
+**Change.** `rca.diagnosis.diagnose` receives the graph. Each chain of `rca/correlation.py` becomes a diagnosis
+(family `correlation`, rule `chain.<cause kind>`, cause location the chain's cause), ranked before the rules'
+diagnoses. When chains exist, the report's root cause is theirs, and the rules' diagnoses stay listed after them as
+the first hop (`docs/correlation-engine.md` § 4, point 6). With no chain, D is unchanged.
+
+**Metric (development set, not a result).** On S2's 14 cases with a cause: D's root cause names the expected cause
+object (its name in the text), against D before the change. Control: S2's 7 cases with no incident keep D's outcome,
+and S1 stays 19/19 (`make ci`).
+
+**Prediction.** c1, l1, l2 and q2 move to the expected cause; no other case changes; no outcome changes on the 7
+cases with no incident.
+
+**Rule.** Kept if at least 3 more cases name the expected cause, no case with no incident changes its outcome, and S1
+stays 19/19.
+
+**Result (2026-11-08, D with chains, `rules/6`).** D names the expected cause object in **4 of 14** S2 cases with a
+cause, against **0 of 14** before (c1, l1, l2, q2), exactly as predicted. No case with no incident changes its outcome:
+6 stay `no_incident`, and q0 stays a false alarm (an OOMKill over before the symptom, which the engine's time rules,
+§ 3, are for). `make ci` green (3,509 passed), S1 unchanged. By the rule, kept. 10 tests in
+`tests/unit/test_correlation_min.py`, mutants of the ordering and of the reported cause killed.

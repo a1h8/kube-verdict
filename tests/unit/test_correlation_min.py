@@ -111,3 +111,30 @@ def test_completed_pods_do_not_count_towards_the_quota():
         g.add_entity(p)
         g.add_edge(Edge(web.uid, p.uid, R.OWNS))
     assert [c.cause for c in correlate(g)] == ["CronJob/ns/batch"]
+
+
+def test_d_reports_the_chain_first_and_keeps_the_rules_after_it():
+    from rca.diagnosis import diagnose
+    from rca.signals import extract_signals
+    g = _lr_case(True)
+    ss = extract_signals(g)
+    with_graph = diagnose(ss, g)
+    assert with_graph.outcome == "cause"
+    assert with_graph.diagnoses[0].family == "correlation"
+    assert with_graph.root_cause().startswith("LimitRange/ns/defaults")
+    without = diagnose(ss)                          # no graph: the rules alone, as before
+    assert all(d.family != "correlation" for d in without.diagnoses)
+
+
+def test_a_chain_outranks_a_rule_and_names_the_cause(monkeypatch):
+    """With a rule firing too (here a rule that always reports a high-score cause), the chain comes first and the
+    report's root cause is the chain's; the rule's diagnosis stays listed after it."""
+    import rca.diagnosis as dg
+    from rca.signals import extract_signals
+    rule = lambda ss: [dg.Diagnosis(family="oom", cause="The container is OOMKilled.",  # noqa: E731
+                                    cause_location="Pod/ns/w-1", rule="oom.limit", score=0.9)]
+    monkeypatch.setattr(dg, "RULES", [rule])
+    g = _lr_case(True)
+    out = dg.diagnose(extract_signals(g), g)
+    assert [d.family for d in out.diagnoses] == ["correlation", "oom"]
+    assert out.root_cause().startswith("LimitRange/ns/defaults") and "OOMKilled." not in out.root_cause()

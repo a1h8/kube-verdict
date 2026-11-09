@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 from rca.signals import Signal, SignalSet
 
-RULES_VERSION = "rules/5"   # bump when a rule, a weight or a threshold changes (2: quota, connections; 3: netpol; 4: slo.dependency — docs/failing-cases-002.md; 5: an explained failure strengthens no other drift, P7)
+RULES_VERSION = "rules/6"   # bump when a rule, a weight or a threshold changes (2: quota, connections; 3: netpol; 4: slo.dependency — docs/failing-cases-002.md; 5: an explained failure strengthens no other drift, P7; 6: the correlation engine's chains, docs/s2-context-reach.md)
 REPORT_MIN = 0.5            # a diagnosis below this is not reported
 GENERIC_CAP = 0.4           # a generic rule (drift alone, crash alone) never reaches REPORT_MIN
 BASE, STRENGTH, CONTRA = 0.5, 0.15, 0.3
@@ -59,7 +59,9 @@ class Outcome:
             return "No incident: no fault signal in the evidence."
         if self.outcome == "insufficient_evidence":
             return "Insufficient evidence: fault signals exist but no rule explains them."
-        return " ".join(d.cause for d in self.diagnoses)
+        chained = [d for d in self.diagnoses if d.family == "correlation"]
+        # a chain explains the rules' symptom further: its cause is the report's, the rules' stay listed after it
+        return " ".join(d.cause for d in (chained or self.diagnoses))
 
 
 def label_of(score: float) -> str:
@@ -455,8 +457,26 @@ def _is_fault(ss: SignalSet, s: Signal, starting: set[str]) -> bool:
     return True
 
 
-def diagnose(ss: SignalSet) -> Outcome:
-    """Ranked diagnoses whose score reaches REPORT_MIN, or an abstention."""
+# a chain's last hop is abnormal by its kind's predicate (BASE), over a verified relation, a second source (STRENGTH)
+CHAIN_SCORE = BASE + STRENGTH
+
+
+def _chains(graph) -> list[Diagnosis]:
+    """The correlation engine's chains (rca/correlation.py) as diagnoses, ranked before the rules' ones."""
+    from rca.correlation import correlate
+    out = []
+    for c in correlate(graph):
+        kind = c.cause.split("/", 1)[0]
+        out.append(Diagnosis(family="correlation", cause=f"{c.cause}: {c.mechanism}.", cause_location=c.cause,
+                             rule=f"chain.{kind}", score=CHAIN_SCORE,
+                             checks=[f"{h.dst} <-{h.rel}- {h.src}: {h.evidence}" for h in c.hops]))
+    return out
+
+
+def diagnose(ss: SignalSet, graph=None) -> Outcome:
+    """Ranked diagnoses whose score reaches REPORT_MIN, or an abstention. With the graph, the correlation engine's
+    chains come first (docs/correlation-engine.md § 4, point 6); without it, the rules alone, as before."""
+    chained = _chains(graph) if graph is not None else []
     found: list[Diagnosis] = []
     for rule in RULES:
         found += rule(ss)
@@ -470,6 +490,8 @@ def diagnose(ss: SignalSet) -> Outcome:
     for d in found:
         if d.score >= REPORT_MIN and (d.family, d.cause_location) not in {(r.family, r.cause_location) for r in reported}:
             reported.append(d)
+    if chained:
+        return Outcome(chained + reported, "cause")
     if reported:
         return Outcome(reported, "cause")
     starting = _starting_in_rollout(ss)
