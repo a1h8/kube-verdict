@@ -1,0 +1,61 @@
+# Declared relations (docs/anchors-and-relations.md § 1). One entry per relation; the matcher is one of the fixed set
+# in ontology/spec_loader.py. Every entry cites the documentation of the fields it reads.
+version: 1
+relations:
+  - name: OWNS
+    source_kind: "*"
+    target_kind: "*"
+    matcher: owner_reference
+    params: {}
+    sources:
+      - https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
+
+  - name: EXPOSES
+    source_kind: Service
+    target_kind: Pod
+    matcher: label_selector
+    params: {selector: spec.selector, scope: same_namespace}
+    sources:
+      - https://kubernetes.io/docs/concepts/services-networking/service/#defining-a-service
+
+  - name: MOUNTS_CONFIGMAP
+    source_kind: Pod
+    target_kind: ConfigMap
+    matcher: name_reference
+    params: {path: "spec.volumes[].configMap.name", direction: source_to_target}
+    sources:
+      - https://kubernetes.io/docs/concepts/configuration/configmap/#using-configmaps-as-files-from-a-pod
+
+  - name: CONFIGURES
+    source_kind: ConfigMap
+    target_kind: Pod
+    matcher: name_reference
+    params:
+      path: ["spec.containers[].envFrom[].configMapRef.name", "spec.containers[].env[].valueFrom.configMapKeyRef.name",
+             "spec.initContainers[].envFrom[].configMapRef.name"]
+      direction: target_to_source
+    sources:
+      - https://kubernetes.io/docs/concepts/configuration/configmap/#configmaps-and-pods
+
+  - name: QUOTA_BLOCKS
+    source_kind: ResourceQuota
+    target_kind: "*"
+    matcher: event_quote
+    params:
+      reasons: [FailedCreate]
+      pattern: "exceeded quota: (?P<name>[^,\\s]+), requested: (?P<requested>.+?), used: (?P<used>.+?), limited: (?P<limited>[^\\s;]+(?:,[^\\s;]+)*)"
+      link: both
+    sources:
+      - https://kubernetes.io/docs/concepts/policy/resource-quotas/
+
+  - name: LIMITS
+    source_kind: LimitRange
+    target_kind: "*"
+    matcher: event_quote
+    params:
+      reasons: [FailedCreate]
+      pattern: "(?P<bound>maximum|minimum) (?P<res>[\\w.\\-/]+) usage per (?P<scope>Container|Pod) is (?P<value>[^,\\s]+), but (?P<field>limit|request) is (?P<actual>[^\\s,;]+)"
+      target_field: "spec.limits[type={scope}].{bound:max|min}.{res}"
+      link: involved
+    sources:
+      - https://kubernetes.io/docs/concepts/policy/limit-range/

@@ -1,0 +1,44 @@
+# Declared anchors and variability (docs/anchors-and-relations.md § 2-3). The type is one of the fixed set in
+# ontology/spec_loader.py; variability is static, volatile, gitops-ignored or controller:<who>.
+version: 1
+anchors:
+  - id: quota.within-hard
+    kind: ResourceQuota
+    type: bound
+    params: {left: "status.used.{r}", right: "status.hard.{r}", aggregate: {over: pods-counted, by: root-owner}}
+    variability: volatile
+    sources:
+      - https://kubernetes.io/docs/concepts/policy/resource-quotas/
+
+  - id: limitrange.default-fits
+    kind: LimitRange
+    type: fits
+    params: {resource: "spec.limits[type=Container].default.{r}", evidence: "lastState.terminated.reason=OOMKilled"}
+    variability: static
+    sources:
+      - https://kubernetes.io/docs/concepts/policy/limit-range/#default-requests-and-limits
+
+  - id: pod.limits-injected-by-limitranger
+    kind: Pod
+    type: declared
+    params: {field: "spec.containers[].resources.limits", hop: LIMITS,
+             when: "the owner template declares no limit for the resource"}
+    variability: controller:limitranger
+    sources:
+      - https://kubernetes.io/docs/concepts/policy/limit-range/#default-requests-and-limits
+
+  - id: configmap.env-fresh
+    kind: ConfigMap
+    type: fresh
+    params: {through: CONFIGURES, written: "metadata.managedFields[].time", consumer_start: "status.startTime"}
+    variability: static
+    sources:
+      - https://kubernetes.io/docs/concepts/configuration/configmap/#configmaps-and-pods
+
+  - id: deployment.replicas-by-hpa
+    kind: Deployment
+    type: declared
+    params: {field: spec.replicas, hop: SCALES, when: "an HPA targets the Deployment"}
+    variability: controller:hpa
+    sources:
+      - https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
