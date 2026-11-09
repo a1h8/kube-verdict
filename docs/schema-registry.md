@@ -142,3 +142,41 @@ The result is a table in this file, dated.
   written, and HelmRelease's inventory can be declared for `MANAGES`. Both go through the review of § 5.
 - Conditions of both Flux kinds: `status` has the enum `True`, `False`, `Unknown`; types and reasons have none, so
   polarity stays declared.
+
+## Steps 3 and 4 done, 2026-11-09: the registry, the path check, the review
+
+**Registry.** `ontology/schema_registry.py`: OpenAPI v3 documents and CRDs, `$ref` and `allOf` followed, lists, maps
+and placeholders walked, GA version preferred, a later source replacing an earlier one. 10 tests, on small schemas and
+on the bundle; 7 mutants killed.
+
+**A prediction of § 3 refuted by the bundle.** Kubernetes v1.35's OpenAPI v3 publishes **no `enum` at all** for its
+built-in kinds (0 in 64 documents): the values are only in the descriptions ("One of Always, OnFailure, Never"). It
+publishes 145 `x-kubernetes-list-map-keys` and many defaults. The CRDs do publish enums (cert-manager 31, Flux
+helm-controller 22, Argo CD 1). So `valid` anchors derived from an enum exist for CRDs only. Reading values from
+description text is not done: it is prose, not a definition.
+
+**Path check.** `ontology/spec_paths.py`: every path of `relations.yaml` and `anchors.yaml` (25, through the
+matchers' own rules: the holder of a `name_reference`, the object an `event_quote` quotes, the target of a `fresh`
+anchor's hop, a `group_map` expanded) is looked up in its kind's definition, the kind resolved to its group by the
+registry. 7 tests, mutants killed (a wrong inventory path, Flux entries read as Argo CD's, a `group_map` value, an
+ambiguous kind). One finding, kept as a known and dated failure in the test: the product names
+MutatingWebhookConfiguration objects `MutatingWebhook`, a name no definition has.
+
+**Review of the facts copied by hand (§ 5):**
+
+| Entry | Classed | What follows |
+|---|---|---|
+| paths of EXPOSES, MOUNTS_CONFIGMAP, CONFIGURES, SCALES, RESTRICTS, LIMITS, the anchors | given by the definition | kept; the path check now holds them |
+| what a selector, a reference or a quota *means* (that a Service's selector picks Pods) | not in the definition | kept, sourced |
+| the event messages QUOTA_BLOCKS and LIMITS quote | not in the definition (message text) | kept, sourced |
+| ADMITS on `MutatingWebhook` | the kind name is the product's, not the API's | known failure; fix by naming the entity as the API does |
+| Argo CD `status.resources[]` and its keys | given by the definition | kept, checked |
+| Argo CD `tracking-id` annotation and its value format | not in the definition (an annotation) | kept, sourced |
+| Flux inventory id format | given by the definition (the field's description states it) | kept |
+| Flux HelmRelease inventory | given by the definition, and missing | **added**: `MANAGES` from `HelmRelease.helm.toolkit.fluxcd.io`, with a test; mutant killed (unqualified kind) |
+| `flux.applied-is-attempted` on HelmRelease (`docs/gitops-managed-by.md` § 2) | contradicted: HelmRelease v2 has no `lastAppliedRevision` | removed for HelmRelease; Kustomization only |
+| Argo CD health, sync and phase values | not in the definition (no enum), as predicted | stay declared |
+| the kstatus group list in `conditions.yaml` | not given by a schema: kstatus is a convention about condition *types*, and a schema lists no types | kept until step 6, where it is re-examined against the kstatus README |
+| condition polarities | not in the definition | kept, sourced |
+| field manager names (`managers.yaml`) | not in the definition | kept; Argo CD's server-side apply manager `argocd-controller` is in its documentation, to confirm live before it is added |
+| Argo CD `ignoreDifferences` | given by the definition, with `jsonPointers` and `managedFieldsManagers` | the `gitops-ignored` variability can be read from it (later step) |

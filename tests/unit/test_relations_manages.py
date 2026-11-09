@@ -65,3 +65,14 @@ def test_an_inventory_entry_of_another_kind_does_not_match_a_same_named_object()
     g.add_entity(_crd("Kustomization", "kustomize.toolkit.fluxcd.io", "apps", "flux-system",
                       {"inventory": {"entries": [{"id": "shop_api_apps_StatefulSet", "v": "v1"}]}}))
     assert _manages(g) == set()
+
+
+def test_a_flux_helmrelease_manages_its_inventory_entries():
+    # the discovered kind is qualified by its group, since HelmRelease is also a product kind (docs/gitops-managed-by.md § 3)
+    from ontology.dynamic_entity import discovered_kind
+    g = _graph()
+    hr = _crd("HelmRelease", "helm.toolkit.fluxcd.io", "pricing", "shop",
+              {"inventory": {"entries": [{"id": "shop_api_apps_Deployment", "v": "v1"}]}})
+    assert str(hr.kind) == discovered_kind("HelmRelease", "helm.toolkit.fluxcd.io")
+    g.add_entity(hr)
+    assert _manages(g) == {("HelmRelease-pricing", "d-api", "inventory")}

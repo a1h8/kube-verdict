@@ -122,3 +122,14 @@ approval.
   The correlation walk follows it. A YAML trap was found on the way: the key `on` reads as a boolean, so `marker`'s
   parameter is `store`. 5 tests on fresh fixtures, mutants killed (a Flux id read in the wrong order; an entry of
   another kind matching a same-named object). S2 unchanged, guards hold, `make ci` green.
+
+## Amendment, 2026-11-09: read in the definitions (`docs/schema-registry.md`)
+
+The pinned CRDs (Argo CD v3.6.1, Flux helm-controller v1.7.1, kustomize-controller v1.10.1) correct two points above:
+- Flux `HelmRelease` v2 has **no `lastAppliedRevision`**. The anchor `flux.applied-is-attempted` applies to
+  `Kustomization` only. A HelmRelease's failed upgrade is read from its conditions and `history[]`.
+- Flux `HelmRelease` **has an inventory** (`status.inventory.entries[].id`, same format). `MANAGES` is declared from it.
+
+They confirm three: the Flux id format `<namespace>_<name>_<group>_<kind>`; Argo CD's health, sync and operation
+phase are plain strings with no enum, so their values stay declared; `selfHeal` "revert[s] resources back to their
+desired state upon modification in the cluster".

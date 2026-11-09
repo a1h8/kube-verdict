@@ -111,3 +111,13 @@ relations:
     params: {list: "status.inventory.entries[]", id: flux-id}
     sources:
       - https://fluxcd.io/flux/components/kustomize/kustomizations/
+
+  # Read in the HelmRelease CRD (bundle flux-helm-controller), 2026-11-09: status.inventory, "the list of Kubernetes
+  # resource object references that have been applied for this release", ids in the Kustomization's format.
+  - name: MANAGES
+    source_kind: HelmRelease.helm.toolkit.fluxcd.io
+    target_kind: "*"
+    matcher: inventory
+    params: {list: "status.inventory.entries[]", id: flux-id}
+    sources:
+      - https://fluxcd.io/flux/components/helm/helmreleases/
