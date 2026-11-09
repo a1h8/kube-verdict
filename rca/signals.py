@@ -25,7 +25,7 @@ from ontology.entities import ResourceKind
 from ontology.graph import OntologyGraph
 from ontology.relationships import RelationshipType
 
-EXTRACTOR_VERSION = "signals/1"
+EXTRACTOR_VERSION = "signals/2"   # 2: an OOMKill over on a recovered container is restart.past (time rule, 2026-11-09)
 CORRELATOR_VERSION = "attribution/1"
 
 PLANS = {"k8s_status": "k8s", "k8s_event": "k8s", "helm": "helm", "gitops": "helm",
@@ -226,10 +226,15 @@ def _from_pods(graph: OntologyGraph, b: _Builder) -> None:
                     "ImagePullBackOff": "image.pull_failed", "ErrImagePull": "image.pull_failed"}.get(waiting)
             if kind:
                 b.add(kind, "k8s_status", pod.uid, me, observed={"container": name, "reason": waiting})
-            for term in ((state.get("terminated") or {}), (last.get("terminated") or {})):
+            # an OOMKill seen only in lastState, on a container that is ready and running now, is over: context,
+            # not a fault (docs/correlation-engine.md § 3; docs/s2-context-reach.md, the first time rule)
+            recovered = bool(cs.get("ready", False)) and "running" in state
+            for term, current in (((state.get("terminated") or {}), True), ((last.get("terminated") or {}), False)):
                 if term.get("reason") == "OOMKilled":
-                    b.add("container.oom_killed", "k8s_status", pod.uid, me, event_time=term.get("finishedAt", ""),
-                          observed={"container": name, "exit_code": term.get("exitCode", "")})
+                    if current or not recovered:
+                        b.add("container.oom_killed", "k8s_status", pod.uid, me,
+                              event_time=term.get("finishedAt", ""),
+                              observed={"container": name, "exit_code": term.get("exitCode", "")})
                     break
             if cs.get("restartCount") and cs.get("ready", False) and "running" in state:
                 b.add("restart.past", "k8s_status", pod.uid, me,

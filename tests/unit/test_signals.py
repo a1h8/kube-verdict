@@ -4,7 +4,7 @@ from __future__ import annotations
 from ontology.entities import Deployment, K8sEvent, LokiLog, Pod
 from ontology.graph import OntologyGraph
 from ontology.relationships import Edge, RelationshipType
-from rca.signals import extract_signals
+from rca.signals import EXTRACTOR_VERSION, extract_signals
 
 
 def _pod(name="api-1", *, phase="Running", ready=True, state=None, last=None, restarts=0) -> Pod:
@@ -90,7 +90,7 @@ def test_the_envelope_separates_authored_from_observed():
     sig = out.of("dependency.missing")[0]
     assert dict(sig.authored) == {"involved": "Pod/prod/api-1", "reason": "Failed"}   # kubelet wrote it
     assert dict(sig.observed) == {"kind": "configmap", "name": "cfg"}                  # we read it
-    assert sig.payload_ref.startswith("ev-") and sig.extractor_version == "signals/1"
+    assert sig.payload_ref.startswith("ev-") and sig.extractor_version == EXTRACTOR_VERSION
 
 
 def test_attribution_is_a_derived_edge_with_its_method():

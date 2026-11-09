@@ -220,3 +220,23 @@ cause, against **0 of 14** before (c1, l1, l2, q2), exactly as predicted. No cas
 6 stay `no_incident`, and q0 stays a false alarm (an OOMKill over before the symptom, which the engine's time rules,
 § 3, are for). `make ci` green (3,509 passed), S1 unchanged. By the rule, kept. 10 tests in
 `tests/unit/test_correlation_min.py`, mutants of the ordering and of the reported cause killed.
+
+## Rule for the first time rule (M4 § 3), written 2026-11-09 before its code
+
+**Change.** In `rca/signals.py`, an OOMKill seen only in a container's `lastState.terminated`, while that container is
+ready and running now, is `restart.past` (context), not `container.oom_killed` (a fault). An OOMKill in the current
+`state.terminated`, or on a container that is not ready, stays a fault. Not covered yet: a container that is ready
+between two OOMKills of an ongoing loop, which the engine's predicate still sees.
+
+**Metric.** D on S2 (development set): the outcomes of the 7 cases with no incident, and the cases naming the expected
+cause (`tests/unit/test_s2_reach_guard.py` floors). S1 stays 19/19 (`make ci`).
+
+**Prediction.** q0 becomes `no_incident`; no case with a cause loses its named cause; S1 unchanged.
+
+**Rule.** Kept if q0 stops being a false alarm, no other case with no incident changes, the D floor holds, and S1
+stays 19/19.
+
+**Result (2026-11-09, `signals/2`).** q0 becomes `no_incident`: D now answers the **7 cases with no incident 7/7**
+(6/7 before). The 4 named causes hold. q1 moves from the old OOMKill (a decoy) to the exhausted quota, which is its
+chain's first hop. S1: `make ci`. By the rule, kept. The guard `tests/unit/test_s2_reach_guard.py` now requires q0 to stay
+`no_incident`.
