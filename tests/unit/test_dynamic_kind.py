@@ -46,3 +46,23 @@ def test_a_discovered_quota_does_not_break_the_seed_search():
     g.add_entity(GenericEntity.from_api_object(
         {"metadata": {"name": "shop-quota", "namespace": "shop", "uid": "rq-1"}, "spec": {}}, _RQ))
     assert all(s.uid != "rq-1" for s in find_unhealthy(g))
+
+
+_FLUX_HR = APIResourceInfo(group="helm.toolkit.fluxcd.io", version="v2", kind="HelmRelease", plural="helmreleases",
+                           namespaced=True, verbs=["list"])
+
+
+def test_a_flux_helmrelease_is_not_taken_for_the_product_s_helm_release():
+    """docs/gitops-managed-by.md § 3: the CRD shares the name of the product's typed entity."""
+    from ontology.entities import ResourceKind
+    g = _graph()
+    g.add_entity(GenericEntity.from_api_object(
+        {"metadata": {"name": "podinfo", "namespace": "shop", "uid": "hr-1"}, "spec": {}}, _FLUX_HR))
+    e = next(x for x in g.entities() if x.uid == "hr-1")
+    assert e.kind == "HelmRelease.helm.toolkit.fluxcd.io"
+    assert all(x.uid != "hr-1" for x in g.entities(ResourceKind.HELM_RELEASE))
+
+
+def test_a_discovered_kubernetes_kind_keeps_its_name():
+    e = GenericEntity.from_api_object({"metadata": {"name": "q", "namespace": "ns", "uid": "q1"}}, _RQ)
+    assert e.kind == "ResourceQuota"
