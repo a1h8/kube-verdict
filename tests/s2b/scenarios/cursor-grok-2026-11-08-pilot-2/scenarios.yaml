@@ -1,0 +1,908 @@
+id: quota-1
+family: quota
+question: "why can't ledger roll out in payments"
+expected_outcome: cause
+cause_object: Job/payments/statement-export-28910
+origin_object: CronJob/payments/statement-export
+mechanism: "ResourceQuota/payments/high-mem only counts requests.memory of non-terminal pods whose priorityClassName is high. Job/payments/statement-export-28910 has six Running pods at 512Mi (3Gi) plus the four Running ledger pods at 256Mi (1Gi), so status.used is 4Gi against a hard limit of 4Gi. The ledger surge pod asks for another 256Mi and the ReplicaSet is rejected. The Job counts only because the CronJob template's priorityClassName was changed from batch to high; batch pods in the same namespace are outside this quota."
+passes_if: "names Job/payments/statement-export-28910 (its six Running high-priority pods, 512Mi requests.memory each) as what fills scoped ResourceQuota/payments/high-mem, so ReplicaSet/payments/ledger-7c9d8b6f4 cannot create its surge pod"
+partial_if_only:
+  - "ReplicaSet/payments/ledger-7c9d8b6f4 FailedCreate because ResourceQuota/payments/high-mem is at 4Gi"
+  - "Deployment/payments/ledger has ProgressDeadlineExceeded"
+chain:
+  - from: Deployment/payments/ledger
+    relation: "owner of the ReplicaSet created for the rollout"
+    to: ReplicaSet/payments/ledger-7c9d8b6f4
+    fields: "ReplicaSet.metadata.ownerReferences[0] is apps/v1 Deployment payments/ledger, controller true. Deployment.spec.selector.matchLabels app=ledger, track=stable matches the ReplicaSet. Deployment.spec.strategy.rollingUpdate maxSurge=1, maxUnavailable=0, so the new set is scaled to 1 before the old set drops."
+    abnormal: "T0-5m Deployment condition Progressing False, reason ProgressDeadlineExceeded, message ReplicaSet \"ledger-7c9d8b6f4\" has timed out progressing. Available remains True from the old set. Event T0-15m Normal ScalingReplicaSet deployment-controller Scaled up replica set ledger-7c9d8b6f4 to 1."
+  - from: ReplicaSet/payments/ledger-7c9d8b6f4
+    relation: "ResourceQuota admission on pod create, scoped to PriorityClass high"
+    to: ResourceQuota/payments/high-mem
+    fields: "ReplicaSet.spec.template.spec.priorityClassName=high and containers[0].resources.requests.memory=256Mi (no change from the running set). ResourceQuota.spec.hard[requests.memory]=4Gi. ResourceQuota.spec.scopeSelector.matchExpressions[0] is scopeName PriorityClass, operator In, values [high]. status.hard and status.used requests.memory are both 4Gi."
+    abnormal: "T0-15m through T0, ReplicaSet condition ReplicaFailure True, reason FailedCreate. Event Warning FailedCreate replicaset-controller: Error creating: pods \"ledger-7c9d8b6f4-x9k2m\" is forbidden: exceeded quota: high-mem, requested: requests.memory=256Mi, used: requests.memory=4Gi, limited: requests.memory=4Gi. The pod is never created."
+  - from: ResourceQuota/payments/high-mem
+    relation: "quota usage sums requests of non-terminal pods in the namespace that match the scopeSelector"
+    to: Pod/payments/statement-export-28910-a
+    fields: "Pod.status.phase=Running (not Succeeded or Failed, so it is counted). Pod.spec.priorityClassName=high, which is in the quota scopeSelector. Pod.spec.containers[0].resources.requests.memory=512Mi. Five sibling pods statement-export-28910-b through -f are identical. ResourceQuota.status.used requests.memory=4Gi equals those 6x512Mi plus the four Running ledger pods at 256Mi, and does not include batch pods."
+    abnormal: "At T0 all six Job pods are Running and Ready, started T0-45m, and still hold 3Gi of the 4Gi used."
+  - from: Pod/payments/statement-export-28910-a
+    relation: "controller ownerReference"
+    to: Job/payments/statement-export-28910
+    fields: "Pod.metadata.ownerReferences[0] is batch/v1 Job statement-export-28910, controller true. Job.spec.selector.matchLabels controller-uid matches the pods. Job.spec.template.spec.priorityClassName=high. Job.spec.template.spec.containers[0].resources.requests.memory=512Mi. Job.spec.parallelism=6 and Job.spec.completions=6. Job.status.active=6, status.ready=6, status.succeeded=0."
+    abnormal: "Job still active at T0, within its normal runtime, so its pods stay non-terminal and keep the quota full."
+decoys:
+  - object: Deployment/payments/ledger
+    looks_like: "the rollout object nearest the symptom: ProgressDeadlineExceeded and a new ReplicaSet stuck at 0 pods, so the new memory request looks too large"
+    why_not: "the new template asks for the same 256Mi and priorityClassName high as the four Ready pods of ReplicaSet/payments/ledger-5a1c2e8d0. That request fit at the T0-2h rollout, when this quota's used memory was only the ledger pods"
+  - object: Deployment/payments/analytics
+    looks_like: "the memory hog in the namespace: eight Running pods at requests.memory 1Gi each"
+    why_not: "those pods have priorityClassName batch. high-mem's scopeSelector counts only PriorityClass high. status.used 4Gi is fully explained by ledger (1Gi) plus the statement-export Job (3Gi); analytics is not in it. ResourceQuota/payments/batch-mem used 8Gi of hard 16Gi, so the batch quota is not what FailedCreate names"
+  - object: Node/ip-10-0-2-14
+    looks_like: "a node that could not run new pods"
+    why_not: "condition MemoryPressure was True from T0-5h and is False at T0, Ready True, lastTransitionTime T0-4h, before the rollout. No ledger pod exists to fail scheduling; admission rejects the create"
+timeline:
+  - "T0-5h: Node/ip-10-0-2-14 condition MemoryPressure True, Ready False"
+  - "T0-4h: Node/ip-10-0-2-14 Ready True, MemoryPressure False, lastTransitionTime T0-4h"
+  - "T0-2h: Deployment/payments/ledger rolled to the current image and reached 4/4; ResourceQuota/payments/high-mem used requests.memory was 1Gi"
+  - "T0-48m: Helm release statement-export revision 9 set CronJob/payments/statement-export jobTemplate priorityClassName from batch to high. requests.memory stayed 512Mi. The CronJob schedule was not changed"
+  - "T0-45m: Job/payments/statement-export-28910 started, six pods Running, priorityClassName high. Quota used requests.memory became 4Gi"
+  - "T0-15m: deployment-controller scaled ReplicaSet/payments/ledger-7c9d8b6f4 to 1. replicaset-controller FailedCreate, exceeded quota high-mem, and has retried since"
+  - "T0-5m: Deployment/payments/ledger ProgressDeadlineExceeded (progressDeadlineSeconds 600)"
+  - "T0: old ledger ReplicaSet 4/4 Ready; new ReplicaSet 0 pods; Job still active 6/6; quota used equals hard"
+objects:
+  - {kind: Namespace, namespace: "", name: payments, state: "Active, labels team=payments and pod-security=baseline"}
+  - {kind: Namespace, namespace: "", name: treasury, state: "Active, labels team=treasury"}
+  - {kind: Namespace, namespace: "", name: checkout, state: "Active, labels team=shop"}
+  - {kind: Node, namespace: "", name: ip-10-0-2-14, state: "Ready, MemoryPressure False since T0-4h, no taints"}
+  - {kind: Node, namespace: "", name: ip-10-0-2-22, state: "Ready, no pressure conditions"}
+  - {kind: Node, namespace: "", name: ip-10-0-2-31, state: "Ready, no pressure conditions"}
+  - {kind: ResourceQuota, namespace: payments, name: batch-mem, state: "hard requests.memory 16Gi, used 8Gi, scopeSelector PriorityClass batch; not named by the FailedCreate"}
+  - {kind: ResourceQuota, namespace: treasury, name: compute, state: "hard requests.cpu 8, used 2100m; hard pods 40, used 11"}
+  - {kind: LimitRange, namespace: payments, name: defaults, state: "Container default cpu 200m/500m; ledger and the Job set their own requests, so defaults do not apply"}
+  - {kind: ReplicaSet, namespace: payments, name: ledger-5a1c2e8d0, state: "4/4 Ready, requests.memory 256Mi, priorityClassName high, image ledger:1.9.3, same as the new set"}
+  - {kind: Deployment, namespace: payments, name: analytics, state: "8/8 Ready, priorityClassName batch, requests.memory 1Gi, image analytics:4.1.0"}
+  - {kind: ReplicaSet, namespace: payments, name: analytics-6aa91c, state: "8/8 Ready, owned by analytics"}
+  - {kind: Service, namespace: payments, name: ledger, state: "ClusterIP port 8080, selector app=ledger,track=stable, four ready pods"}
+  - {kind: Service, namespace: payments, name: analytics, state: "ClusterIP port 8080, eight ready pods"}
+  - {kind: ConfigMap, namespace: payments, name: ledger-env, state: "keys LOG_LEVEL=info and LEDGER_MODE=post; mounted by the running ledger pods"}
+  - {kind: ConfigMap, namespace: payments, name: statement-export, state: "key WINDOW=1d, unchanged since T0-6d; the Job reads it and is running, not crashlooping"}
+  - {kind: ServiceAccount, namespace: payments, name: ledger, state: "no imagePullSecrets; ledger pods pull the public registry image"}
+  - {kind: ServiceAccount, namespace: payments, name: statement-export, state: "used by the Job; pods are Running"}
+  - {kind: HorizontalPodAutoscaler, namespace: payments, name: analytics, state: "min 4 max 8, current 8, ScalingActive True, ScalingLimited True at max, cpu 71% of a 75% target; analytics is not the quota scope"}
+  - {kind: PodDisruptionBudget, namespace: payments, name: ledger, state: "selector app=ledger, minAvailable 2, currently 4 healthy, disruptionsAllowed 2"}
+  - {kind: CronJob, namespace: payments, name: fee-sweep, state: "schedule 15 2 * * *, last Job succeeded at T0-6h, priorityClassName batch"}
+  - {kind: Job, namespace: payments, name: fee-sweep-28890, state: "Complete, succeeded 1 at T0-6h; its pod is Succeeded and does not count in the quota"}
+  - {kind: Deployment, namespace: treasury, name: api, state: "3/3 Ready, image treasury-api:2.4.1"}
+  - {kind: Service, namespace: treasury, name: api, state: "ClusterIP port 8080, three ready pods"}
+  - {kind: Deployment, namespace: treasury, name: worker, state: "2/2 Ready"}
+  - {kind: StatefulSet, namespace: treasury, name: postgres, state: "1/1 Ready, PVC Bound"}
+  - {kind: Service, namespace: treasury, name: postgres, state: "ClusterIP port 5432, selector app=postgres"}
+  - {kind: PersistentVolumeClaim, namespace: treasury, name: data-postgres-0, state: "Bound, 20Gi, ReadWriteOnce"}
+  - {kind: ConfigMap, namespace: treasury, name: api-config, state: "mounted read-only; api pods Ready"}
+  - {kind: Ingress, namespace: treasury, name: api, state: "host api.treasury.example.com to service api port 8080, address assigned"}
+  - {kind: NetworkPolicy, namespace: treasury, name: api-ingress, state: "allows ingress to app=api from namespace edge only; treasury traffic is healthy"}
+  - {kind: Deployment, namespace: checkout, name: web, state: "5/5 Ready"}
+  - {kind: Service, namespace: checkout, name: web, state: "ClusterIP port 80, five ready pods"}
+  - {kind: HorizontalPodAutoscaler, namespace: checkout, name: web, state: "min 3 max 10, current 5, cpu 40% of target 70, ScalingActive True"}
+  - {kind: ConfigMap, namespace: checkout, name: web-nginx, state: "unchanged for 12d; web pods Ready"}
+  - {kind: PodDisruptionBudget, namespace: checkout, name: web, state: "minAvailable 3, disruptionsAllowed 2, 5 healthy"}
+  - {kind: DaemonSet, namespace: checkout, name: log-agent, state: "3/3 Ready, one per ready node, priorityClassName batch"}
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/resource-quotas/"
+  - "https://kubernetes.io/docs/concepts/policy/resource-quotas/#resource-quota-scopes"
+---
+id: netpol-1
+family: netpol
+question: "why is checkout failing in shop"
+expected_outcome: cause
+cause_object: NetworkPolicy/shop/checkout-egress
+origin_object: Namespace/data
+mechanism: "NetworkPolicy/shop/checkout-egress selects checkout pods and sets Egress, so those pods may open only the listed flows. DNS to kube-system still matches, but TCP 5432 is allowed only to pods labeled app=postgres in a namespace labeled purpose=datastore. Namespace/data lost that label at T0-22m, so the peer no longer matches Pod/data/postgres-0 and new connections time out. Postgres itself is Ready and accepts connections from pods the policy does not select."
+passes_if: "names NetworkPolicy/shop/checkout-egress and says its egress peer namespaceSelector purpose=datastore no longer matches Namespace/data, so checkout pods are denied TCP 5432 to postgres while DNS still works"
+partial_if_only:
+  - "checkout pods log dial tcp timeouts to postgres port 5432"
+  - "Service/data/postgres and Pod/data/postgres-0 are Ready"
+chain:
+  - from: Deployment/shop/checkout
+    relation: "label selector of the workload the question names"
+    to: Pod/shop/checkout-6c8d9e7f5-k3mqa
+    fields: "Deployment.spec.selector.matchLabels app=checkout, component=api. The same labels are on the pod and on the two sibling pods checkout-6c8d9e7f5-p8nrd and checkout-6c8d9e7f5-w1hts. All three use container env DATABASE_URL=postgres://payments@postgres.data.svc.cluster.local:5432/payments."
+    abnormal: "Since T0-21m each pod logs dial tcp 10.42.8.21:5432: i/o timeout. Readiness /healthz, which checks the database, fails. At T0 Ready is False, reason ContainersNotReady. OpenTelemetry span pg.query from service checkout is ERROR with that timeout, peer postgres.data.svc:5432. Prometheus alert CheckoutHighErrorRate, namespace=shop, service=checkout, is firing since T0-20m."
+  - from: Pod/shop/checkout-6c8d9e7f5-k3mqa
+    relation: "NetworkPolicy podSelector isolates the pod for egress"
+    to: NetworkPolicy/shop/checkout-egress
+    fields: "Pod.metadata.labels app=checkout (component=api does not matter). NetworkPolicy.spec.podSelector.matchLabels app=checkout. spec.policyTypes contains Egress. No other NetworkPolicy in shop selects these pods and lists Egress."
+    abnormal: "The pod is egress-isolated. Its only 5432 rule does not match a live peer (next hop). Connections to port 53 still succeed: the pods resolve postgres.data.svc to 10.42.8.21, which is Pod/data/postgres-0 status.podIP."
+  - from: NetworkPolicy/shop/checkout-egress
+    relation: "egress peer: namespaceSelector and podSelector in one list item, AND-combined, plus the port"
+    to: Namespace/data
+    fields: "NetworkPolicy.spec.egress[1].to[0].namespaceSelector.matchLabels purpose=datastore and, in the same list item, podSelector.matchLabels app=postgres, ports TCP 5432. Namespace/data.metadata.labels is only team=data (plus the default kubernetes.io/metadata.name=data). It has no purpose key. Pod/data/postgres-0.metadata.labels app=postgres, namespace data, containerPort 5432."
+    abnormal: "At T0 the namespace label the selector requires is absent, so this peer is empty. Pod/data/postgres-0 is Running and Ready. Pod/shop/net-debug, which is not labeled app=checkout and is not selected, logged at T0-5m: pg_isready -h postgres.data.svc -p 5432: accepting connections."
+decoys:
+  - object: Service/data/postgres
+    looks_like: "the dependency nearest the timeouts: checkout names postgres.data.svc:5432 and then fails"
+    why_not: "selector app=postgres matches Pod/data/postgres-0, Ready True, podIP 10.42.8.21, containerPort 5432 named postgres. It accepts sessions from shop/net-debug at T0-5m. The checkout timeout is after DNS resolution, and only pods selected by checkout-egress are affected"
+  - object: Pod/data/postgres-0
+    looks_like: "a database pod that crashed earlier and is still the outage"
+    why_not: "restartCount 1, lastState.terminated.reason Error, finishedAt T0-5h. The current container has been Ready since T0-5h. Alert PostgresDown ended at T0-5h. That is before checkout's first timeout at T0-21m. Postgres log at T0-5m records the net-debug session"
+  - object: NetworkPolicy/shop/checkout-ingress
+    looks_like: "a second policy on the same pods, easy to read as a total lockout"
+    why_not: "spec.policyTypes is only Ingress. spec.ingress allows TCP 8080 from namespaces labeled role=edge. It does not change egress. User requests still reach the pods; the failures are the pods' own dials to port 5432"
+timeline:
+  - "T0-10d: NetworkPolicy/shop/checkout-egress last applied; spec unchanged since"
+  - "T0-5h: Pod/data/postgres-0 container exited Error and the kubelet restarted it. Alert PostgresDown fired"
+  - "T0-5h: Pod/data/postgres-0 Ready True again. Alert PostgresDown ended"
+  - "T0-22m: Namespace/data label purpose=datastore removed. Remaining labels are team=data. The NetworkPolicy object was not edited"
+  - "T0-21m: checkout pods start logging dial tcp 10.42.8.21:5432 i/o timeout. DNS still returns that address"
+  - "T0-20m: alert CheckoutHighErrorRate starts firing. Checkout readiness goes False"
+  - "T0-5m: Pod/shop/net-debug pg_isready to postgres.data.svc:5432 succeeds. Postgres log records that session and no session from the checkout pods since T0-21m"
+  - "T0: three checkout pods Running, not Ready; postgres Ready; Namespace/data has no purpose label; the egress policy is unchanged"
+objects:
+  - {kind: Namespace, namespace: "", name: shop, state: "Active, labels team=shop and role=app"}
+  - {kind: Namespace, namespace: "", name: data, state: "Active, labels team=data only; purpose was removed at T0-22m"}
+  - {kind: Namespace, namespace: "", name: edge, state: "Active, labels role=edge and team=edge"}
+  - {kind: Namespace, namespace: "", name: kube-system, state: "Active, label kubernetes.io/metadata.name=kube-system"}
+  - {kind: Node, namespace: "", name: ip-10-0-4-11, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-4-12, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-4-18, state: "Ready"}
+  - {kind: Deployment, namespace: shop, name: catalog, state: "4/4 Ready, image catalog:3.3.1, not selected by checkout-egress"}
+  - {kind: Service, namespace: shop, name: catalog, state: "ClusterIP port 8080, four ready pods"}
+  - {kind: Deployment, namespace: shop, name: cart, state: "3/3 Ready; calls catalog in-namespace, not postgres"}
+  - {kind: Service, namespace: shop, name: cart, state: "ClusterIP port 8080, three ready pods"}
+  - {kind: ConfigMap, namespace: shop, name: checkout-flags, state: "CHECKOUT_TAX=on, unchanged for 9d; checkout logs still reach the dial, so the process starts"}
+  - {kind: ServiceAccount, namespace: shop, name: checkout, state: "no extra secrets referenced; pods are created normally"}
+  - {kind: HorizontalPodAutoscaler, namespace: shop, name: checkout, state: "min 3 max 12, current 3, ScalingActive True, cpu metric unknown while pods are unready, ScalingLimited False; replica count is not the failure"}
+  - {kind: PodDisruptionBudget, namespace: shop, name: checkout, state: "minAvailable 2, currentHealthy 0 because readiness is false, disruptionsAllowed 0; nobody is draining"}
+  - {kind: Pod, namespace: shop, name: net-debug, state: "Running, labels app=net-debug, not selected by checkout-egress; pg_isready succeeded at T0-5m"}
+  - {kind: Service, namespace: shop, name: checkout, state: "ClusterIP port 8080, selector app=checkout,component=api; all three pods not Ready"}
+  - {kind: ReplicaSet, namespace: shop, name: checkout-6c8d9e7f5, state: "3 desired, 3 Running, 0 Ready, image checkout:2.3.1 unchanged for 3d"}
+  - {kind: StatefulSet, namespace: data, name: postgres, state: "1/1 Ready, containerPort 5432 name postgres"}
+  - {kind: PersistentVolumeClaim, namespace: data, name: data-postgres-0, state: "Bound, 50Gi"}
+  - {kind: ConfigMap, namespace: data, name: postgres-conf, state: "listen_addresses=* and port=5432; postgres log shows it is accepting connections"}
+  - {kind: Service, namespace: data, name: postgres-headless, state: "headless, selector app=postgres, port 5432; not what checkout dials"}
+  - {kind: Deployment, namespace: data, name: postgres-exporter, state: "1/1 Ready, metrics only"}
+  - {kind: Service, namespace: data, name: postgres-exporter, state: "ClusterIP port 9187"}
+  - {kind: NetworkPolicy, namespace: data, name: postgres-ingress, state: "allows TCP 5432 to app=postgres from namespaces labeled role=app, which shop has; data-plane allow is present"}
+  - {kind: Pod, namespace: kube-system, name: coredns-7a8b9c-d1, state: "Running Ready, labels k8s-app=kube-dns"}
+  - {kind: Pod, namespace: kube-system, name: coredns-7a8b9c-d2, state: "Running Ready, labels k8s-app=kube-dns"}
+  - {kind: Service, namespace: kube-system, name: kube-dns, state: "ClusterIP port 53 UDP and TCP, ready cores"}
+  - {kind: Deployment, namespace: edge, name: gateway, state: "2/2 Ready"}
+  - {kind: Service, namespace: edge, name: gateway, state: "ClusterIP port 80"}
+  - {kind: Ingress, namespace: edge, name: shop, state: "host shop.example.com path /checkout to service checkout in shop via externalName; requests arrive and then the app logs the dial timeout"}
+  - {kind: Service, namespace: shop, name: checkout-ext, state: "ExternalName checkout.shop.svc.cluster.local, used by the edge ingress path; not a selector problem"}
+  - {kind: ConfigMap, namespace: edge, name: gateway-nginx, state: "proxy_pass to checkout.shop.svc port 8080; gateway access log shows checkout responses of 500 after T0-21m, not a gateway config edit"}
+  - {kind: Deployment, namespace: shop, name: recommendations, state: "2/2 Ready"}
+  - {kind: Service, namespace: shop, name: recommendations, state: "ClusterIP port 8080"}
+  - {kind: CronJob, namespace: data, name: vacuum, state: "schedule 30 3 * * *, last Job Complete at T0-9h"}
+  - {kind: Job, namespace: data, name: vacuum-28801, state: "Complete at T0-9h"}
+  - {kind: ResourceQuota, namespace: shop, name: compute, state: "requests.cpu used 3200m of 8; not exhausted"}
+  - {kind: LimitRange, namespace: shop, name: defaults, state: "Container defaultRequest cpu 50m; checkout sets its own requests"}
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/network-policies/"
+---
+id: dependency-1
+family: dependency
+question: "why is cart failing in shop"
+expected_outcome: cause
+cause_object: StatefulSet/cache/redis
+origin_object: StatefulSet/cache/redis
+mechanism: "Cart calls Service/cache/redis by the address in its pod env. The Service selector matches the redis pods, but their readiness probe dials TCP 8080 while redis listens on containerPort 6379, so Ready stays False and the Service has no ready pod. Clients receive connection refused. The process is up: the liveness probe still uses 6379, and the log says it is accepting connections there."
+passes_if: "names StatefulSet/cache/redis readinessProbe tcpSocket port 8080 against containerPort 6379 named redis, so the pods never go Ready and Service/cache/redis drops cart's connections"
+partial_if_only:
+  - "cart logs connection refused to redis.cache.svc.cluster.local:6379"
+  - "Service/cache/redis has no Ready pods"
+chain:
+  - from: Deployment/shop/cart
+    relation: "label selector"
+    to: Pod/shop/cart-8b7c6d5e4-m2kna
+    fields: "Deployment.spec.selector.matchLabels app=cart. Pod labels app=cart. Deployment.spec.template.spec.containers[0].env REDIS_ADDR=redis.cache.svc.cluster.local:6379. Two sibling pods carry the same env."
+    abnormal: "Since T0-17m the container logs dial tcp: connect: connection refused to redis.cache.svc.cluster.local:6379. OpenTelemetry span redis.GET service.name=cart status ERROR with that refused error. Ready is False because /ready checks redis. Alert CartHighErrorRate namespace=shop service=cart firing since T0-16m. The cart image and env have not changed for 3 days."
+  - from: Pod/shop/cart-8b7c6d5e4-m2kna
+    relation: "client port and DNS name of a Service, carried by the pod env and the Service port"
+    to: Service/cache/redis
+    fields: "Pod env REDIS_ADDR host redis and namespace cache match Service.metadata.name and .namespace. The env port 6379 matches Service.spec.ports[0].port 6379, name client. Service.spec.selector app=redis, role=cache."
+    abnormal: "Refused connections started at T0-17m. No cart pod uses a different port. The Service object was not edited; the selected pods are not Ready, so the ClusterIP has nowhere to send port 6379."
+  - from: Service/cache/redis
+    relation: "Service selector"
+    to: Pod/cache/redis-0
+    fields: "Service.spec.selector app=redis, role=cache matches both Pod/cache/redis-0 and Pod/cache/redis-1. Service targetPort is numeric 6379, equal to the container port number."
+    abnormal: "Both pods Running, Ready False, reason ContainersNotReady, message containers with unready status: [redis]. Event T0-2m Warning Unhealthy kubelet Readiness probe failed: dial tcp 10.42.3.20:8080: connect: connection refused. The same event is on redis-1 for 10.42.3.21:8080."
+  - from: Pod/cache/redis-0
+    relation: "controller ownerReference"
+    to: StatefulSet/cache/redis
+    fields: "Pod.metadata.ownerReferences[0] is apps/v1 StatefulSet cache/redis, controller true. StatefulSet.spec.template.spec.containers[0].name=redis, ports[0].name=redis, containerPort=6379. readinessProbe.tcpSocket.port=8080, periodSeconds=10. livenessProbe.tcpSocket.port=6379."
+    abnormal: "Pods started at T0-18m when the set rolled. restartCount 0. Log: Ready to accept connections tcp 6379. Liveness does not fail. Readiness never succeeds. Helm release redis revision 15 at T0-18m is the edit that set the readiness port to 8080; revision 14 had 6379."
+decoys:
+  - object: Deployment/shop/cart
+    looks_like: "the failing workload itself: not Ready, error spans, a bad release of cart"
+    why_not: "cart:4.6.0 and REDIS_ADDR have been on the pods since T0-3d, when redis commands succeeded. The first refused connection is T0-17m, one minute after the redis set rolled. Cart never listens on 6379; it only dials out"
+  - object: Job/cache/backup-28100
+    looks_like: "a redis-side failure still in the namespace: Job Failed, log connection reset"
+    why_not: "that Job finished Failed at T0-6h. Job/cache/backup-28110 succeeded at T0-5h against the same Service. Alert RedisBackupFailed ended at T0-5h. Cart was healthy from T0-5h until T0-17m"
+  - object: ConfigMap/cache/redis-conf
+    looks_like: "live redis config differs from the chart value requirepass, so clients would be refused"
+    why_not: "helm value auth.enabled=true is not in the live ConfigMap, and the redis log says protected-mode no and Ready to accept connections with no AUTH. Cart's error is ECONNREFUSED, not NOAUTH. The Service never gets a Ready backend, which happens before any Redis command"
+timeline:
+  - "T0-3d: Deployment/shop/cart at image cart:4.6.0 with REDIS_ADDR redis.cache.svc.cluster.local:6379; calls succeeded"
+  - "T0-6h: Job/cache/backup-28100 Failed. Alert RedisBackupFailed fired"
+  - "T0-5h: Job/cache/backup-28110 Succeeded. Alert RedisBackupFailed ended. Cart still healthy"
+  - "T0-18m: Helm release redis revision 15 rolled StatefulSet/cache/redis. readinessProbe.tcpSocket.port changed from 6379 to 8080. livenessProbe and containerPort stayed 6379. New pods redis-0 and redis-1 started"
+  - "T0-18m: kubelet Unhealthy readiness events begin, dial tcp podIP:8080 connection refused, and continue to T0"
+  - "T0-17m: cart logs and traces switch from successful GET to ECONNREFUSED redis.cache.svc.cluster.local:6379"
+  - "T0-16m: alert CartHighErrorRate firing"
+  - "T0: redis pods Running, not Ready, restartCount 0; cart pods Running, not Ready; Service/cache/redis spec unchanged"
+objects:
+  - {kind: Namespace, namespace: "", name: shop, state: "Active, labels team=shop"}
+  - {kind: Namespace, namespace: "", name: cache, state: "Active, labels team=cache and purpose=datastore"}
+  - {kind: Namespace, namespace: "", name: edge, state: "Active, labels role=edge"}
+  - {kind: Node, namespace: "", name: ip-10-0-6-3, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-6-4, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-6-9, state: "Ready"}
+  - {kind: ReplicaSet, namespace: shop, name: cart-8b7c6d5e4, state: "3 Running, 0 Ready, image cart:4.6.0, same env on every pod"}
+  - {kind: Service, namespace: shop, name: cart, state: "ClusterIP port 8080, selector app=cart, no Ready pods"}
+  - {kind: Deployment, namespace: shop, name: catalog, state: "4/4 Ready, does not call redis"}
+  - {kind: Service, namespace: shop, name: catalog, state: "ClusterIP port 8080, four ready pods"}
+  - {kind: Deployment, namespace: shop, name: checkout, state: "4/4 Ready, uses postgres in another namespace, healthy"}
+  - {kind: Service, namespace: shop, name: checkout, state: "ClusterIP port 8080"}
+  - {kind: ConfigMap, namespace: shop, name: cart-flags, state: "CART_TTL=3600, unchanged; cart logs show it parsed this before the redis dial"}
+  - {kind: ServiceAccount, namespace: shop, name: cart, state: "default token only"}
+  - {kind: HorizontalPodAutoscaler, namespace: shop, name: cart, state: "min 3 max 10, current 3, ScalingActive True but pods unready so the cpu metric is stale; not scaled this hour"}
+  - {kind: PodDisruptionBudget, namespace: shop, name: cart, state: "minAvailable 2, currentHealthy 0, no drain in progress"}
+  - {kind: Ingress, namespace: edge, name: shop, state: "host shop.example.com path /cart to service cart port 8080; 500s match the cart logs"}
+  - {kind: Deployment, namespace: edge, name: gateway, state: "2/2 Ready"}
+  - {kind: Service, namespace: edge, name: gateway, state: "ClusterIP port 80"}
+  - {kind: Pod, namespace: cache, name: redis-1, state: "Running, Ready False, same probes as redis-0, log accepting connections on 6379, podIP 10.42.3.21"}
+  - {kind: Service, namespace: cache, name: redis-headless, state: "headless port 6379, selector app=redis,role=cache; cart does not use it, REDIS_ADDR is the ClusterIP service"}
+  - {kind: ConfigMap, namespace: cache, name: redis-conf, state: "port 6379, protected-mode no, no requirepass; mounted by the StatefulSet"}
+  - {kind: ServiceAccount, namespace: cache, name: redis, state: "used by the StatefulSet"}
+  - {kind: PersistentVolumeClaim, namespace: cache, name: data-redis-0, state: "Bound, 10Gi"}
+  - {kind: PersistentVolumeClaim, namespace: cache, name: data-redis-1, state: "Bound, 10Gi"}
+  - {kind: PersistentVolume, namespace: "", name: pvc-redis-0, state: "Bound to cache/data-redis-0"}
+  - {kind: PersistentVolume, namespace: "", name: pvc-redis-1, state: "Bound to cache/data-redis-1"}
+  - {kind: Deployment, namespace: cache, name: redis-exporter, state: "1/1 Ready, scrapes local redis admin port 9121 inside the pod network via the headless DNS of a sidecarless exporter pointed at redis-0:9121; exporter target is down because redis publishes metrics only when Ready is not required — exporter logs connection refused to :9121, a metrics port redis was never given"}
+  - {kind: Service, namespace: cache, name: redis-exporter, state: "ClusterIP port 9121, one Ready exporter pod whose scrapes fail; not on cart's path"}
+  - {kind: Job, namespace: cache, name: backup-28110, state: "Complete, succeeded at T0-5h"}
+  - {kind: CronJob, namespace: cache, name: backup, state: "schedule 0 */6 * * *, last successful run backup-28110"}
+  - {kind: ResourceQuota, namespace: cache, name: compute, state: "requests.memory used 2Gi of 8Gi"}
+  - {kind: NetworkPolicy, namespace: cache, name: redis-ingress, state: "allows TCP 6379 to app=redis from namespaces labeled team=shop, which shop has"}
+  - {kind: Deployment, namespace: shop, name: search, state: "3/3 Ready"}
+  - {kind: Service, namespace: shop, name: search, state: "ClusterIP port 8080"}
+  - {kind: ConfigMap, namespace: shop, name: search-conf, state: "unchanged, search Ready"}
+  - {kind: LimitRange, namespace: shop, name: defaults, state: "defaults present; cart sets requests and limits explicitly"}
+  - {kind: HorizontalPodAutoscaler, namespace: cache, name: redis-exporter, state: "min 1 max 1, ScalingActive True, not related to the service cart calls"}
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/service/"
+  - "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes"
+---
+id: limitrange-1
+family: limitrange
+question: "why can't report-worker roll out in analytics"
+expected_outcome: cause
+cause_object: LimitRange/analytics/defaults
+origin_object: LimitRange/analytics/defaults
+mechanism: "LimitRanger defaults a container memory limit of 64Mi onto report-worker pods because the Deployment sets neither requests nor limits. Pods admitted after the default changed from 1Gi to 64Mi start and are OOMKilled. Pods still running from before the change have the old 1Gi limit and the same image, and they stay Ready, so the rollout never finishes."
+passes_if: "names LimitRange/analytics/defaults container default memory 64Mi, applied to Deployment/analytics/report-worker because its template sets no memory, and the resulting limit OOMKills the new pods"
+partial_if_only:
+  - "new report-worker pods are OOMKilled with limits.memory 64Mi"
+  - "Deployment/analytics/report-worker sets no memory request or limit"
+chain:
+  - from: Deployment/analytics/report-worker
+    relation: "label selector"
+    to: Pod/analytics/report-worker-6d4f8c9b7-a1b2c
+    fields: "Deployment.spec.selector.matchLabels app=report-worker. Pod labels match. Deployment.spec.template.spec.containers[0].name=report-worker has no resources.requests and no resources.limits. Image on the template and on this pod is worker:3.2.0."
+    abnormal: "Pod created T0-12m, phase Running, container lastState.terminated.reason OOMKilled, exitCode 137, at T0-11m, T0-8m and T0-3m. Current state Waiting, reason CrashLoopBackOff. Event T0-3m Warning BackOff kubelet Back-off restarting failed container report-worker in pod report-worker-6d4f8c9b7-a1b2c_analytics. The live pod spec has resources.requests.memory=64Mi and resources.limits.memory=64Mi, which the template does not set."
+  - from: Pod/analytics/report-worker-6d4f8c9b7-a1b2c
+    relation: "LimitRanger admission default for a container that omits memory"
+    to: LimitRange/analytics/defaults
+    fields: "LimitRange.spec.limits[0].type=Container, default.memory=64Mi, defaultRequest.memory=64Mi, default.cpu=100m, defaultRequest.cpu=50m. There is no max and no min. The pod's limits.memory and requests.memory equal that default. The pod has no memory field of its own in the owning Deployment template, which is what LimitRanger fills in at admission."
+    abnormal: "The 64Mi limit is the cgroup the OOMKilled status is charged to. Pod/analytics/report-worker-5b1e0a2c3-old1 and old2 were created at T0-2d, same image worker:3.2.0, live limits.memory=1Gi, Ready True, restartCount 0. They were admitted under the previous default and were not mutated when the LimitRange changed."
+decoys:
+  - object: Pod/analytics/report-worker-6d4f8c9b7-a1b2c
+    looks_like: "the new pod is the fault: OOMKilled, so worker:3.2.0 leaks or the rollout image is too heavy"
+    why_not: "worker:3.2.0 is also the image on report-worker-5b1e0a2c3-old1 and old2, Ready for two days with limits.memory 1Gi. The new pod differs in the admitted limit, 64Mi, not in the image or args"
+  - object: Pod/analytics/api-0
+    looks_like: "memory pressure already took down a pod in this namespace"
+    why_not: "api-0 lastState.terminated.reason OOMKilled finishedAt T0-7h, then the container started again with its explicit limits.memory 1Gi and has been Ready since T0-7h, restartCount 1. report-worker pods from that time are the old Ready replicas. The worker OOMKills start at T0-11m"
+  - object: ConfigMap/analytics/report-worker
+    looks_like: "data.GOMEMLIMIT=64MiB would make the process stay under 64Mi and then die"
+    why_not: "the key is not referenced. The pod spec has no env or envFrom and no volume pointing at this ConfigMap. The process log says GOMEMLIMIT is unset, using the cgroup limit. Helm values also omit GOMEMLIMIT; the key is leftover data the workload does not mount"
+timeline:
+  - "T0-2d: Pod/analytics/report-worker-5b1e0a2c3-old1 and old2 admitted with defaulted limits.memory 1Gi, image worker:3.2.0, and they are still Ready at T0"
+  - "T0-7h: Pod/analytics/api-0 OOMKilled once and returned to Ready with an explicit 1Gi limit"
+  - "T0-20m: Helm release analytics-limits revision 7 set LimitRange/analytics/defaults Container default.memory and defaultRequest.memory from 1Gi to 64Mi"
+  - "T0-12m: Deployment/analytics/report-worker restarted (annotation kubectl.kubernetes.io/restartedAt). Template still has no resources and the same image. ReplicaSet report-worker-6d4f8c9b7 created pods, maxUnavailable 0, so the old pods stayed"
+  - "T0-11m: new pod containers OOMKilled, exit 137, and kubelet BackOff continues through T0"
+  - "T0-2m: Deployment condition Progressing False, ProgressDeadlineExceeded, message ReplicaSet \"report-worker-6d4f8c9b7\" has timed out progressing. availableReplicas 2 from the old set, updatedReplicas 0"
+  - "T0: LimitRange default memory is 64Mi; new pods CrashLoopBackOff at 64Mi; old pods Ready at 1Gi"
+objects:
+  - {kind: Namespace, namespace: "", name: analytics, state: "Active, labels team=analytics"}
+  - {kind: Namespace, namespace: "", name: reporting, state: "Active, labels team=reporting"}
+  - {kind: Node, namespace: "", name: ip-10-0-8-2, state: "Ready, MemoryPressure False"}
+  - {kind: Node, namespace: "", name: ip-10-0-8-3, state: "Ready, MemoryPressure False"}
+  - {kind: ReplicaSet, namespace: analytics, name: report-worker-5b1e0a2c3, state: "2/2 Ready, image worker:3.2.0, limits.memory 1Gi, created T0-2d"}
+  - {kind: ReplicaSet, namespace: analytics, name: report-worker-6d4f8c9b7, state: "2 desired, both CrashLoopBackOff, limits.memory 64Mi"}
+  - {kind: Pod, namespace: analytics, name: report-worker-5b1e0a2c3-old1, state: "Ready, limits.memory 1Gi, restartCount 0, image worker:3.2.0"}
+  - {kind: Pod, namespace: analytics, name: report-worker-5b1e0a2c3-old2, state: "Ready, limits.memory 1Gi, restartCount 0, image worker:3.2.0"}
+  - {kind: Service, namespace: analytics, name: report-worker, state: "ClusterIP port 8080, selector app=report-worker; only the two old pods are Ready"}
+  - {kind: Deployment, namespace: analytics, name: api, state: "2/2 Ready, explicit limits.memory 1Gi"}
+  - {kind: Pod, namespace: analytics, name: api-0, state: "Ready since T0-7h after one OOMKilled, explicit limit 1Gi"}
+  - {kind: Service, namespace: analytics, name: api, state: "ClusterIP port 8080, two ready pods"}
+  - {kind: ConfigMap, namespace: analytics, name: api-config, state: "mounted by api; api Ready"}
+  - {kind: ConfigMap, namespace: analytics, name: report-worker, state: "contains unused key GOMEMLIMIT=64MiB; not referenced by the Deployment"}
+  - {kind: ServiceAccount, namespace: analytics, name: report-worker, state: "no imagePullSecrets"}
+  - {kind: ResourceQuota, namespace: analytics, name: compute, state: "limits.memory used 4Gi of 16Gi; the OOM is the container cgroup, not this quota. No FailedCreate event"}
+  - {kind: HorizontalPodAutoscaler, namespace: analytics, name: api, state: "min 2 max 6, current 2, ScalingActive True, cpu 30% of target 70"}
+  - {kind: PodDisruptionBudget, namespace: analytics, name: report-worker, state: "minAvailable 1, the two old pods are healthy, disruptionsAllowed 1; rollout is not a drain"}
+  - {kind: CronJob, namespace: analytics, name: compact, state: "schedule 0 4 * * *, last Job Complete"}
+  - {kind: Job, namespace: analytics, name: compact-28770, state: "Complete at T0-9h, explicit limit 512Mi"}
+  - {kind: Deployment, namespace: reporting, name: renderer, state: "3/3 Ready, sets its own limits.memory 512Mi"}
+  - {kind: Service, namespace: reporting, name: renderer, state: "ClusterIP port 8080"}
+  - {kind: LimitRange, namespace: reporting, name: defaults, state: "Container default memory 512Mi; reporting pods that set limits are unaffected and Ready"}
+  - {kind: ResourceQuota, namespace: reporting, name: compute, state: "requests.cpu used 1500m of 4"}
+  - {kind: ConfigMap, namespace: reporting, name: renderer-tpl, state: "mounted; renderer Ready"}
+  - {kind: Ingress, namespace: reporting, name: renderer, state: "host reports.example.com to service renderer port 8080"}
+  - {kind: PersistentVolumeClaim, namespace: analytics, name: scratch, state: "Bound, 10Gi, mounted by the old report-worker pods; volume is under the request and those pods are Ready"}
+  - {kind: StatefulSet, namespace: analytics, name: queue, state: "1/1 Ready, explicit memory limit 512Mi"}
+  - {kind: Service, namespace: analytics, name: queue, state: "ClusterIP port 5672"}
+  - {kind: PersistentVolumeClaim, namespace: analytics, name: data-queue-0, state: "Bound, 5Gi"}
+  - {kind: NetworkPolicy, namespace: analytics, name: api-ingress, state: "allows TCP 8080 to app=api from namespace edge; api is healthy"}
+  - {kind: Deployment, namespace: reporting, name: scheduler, state: "2/2 Ready"}
+  - {kind: Service, namespace: reporting, name: scheduler, state: "ClusterIP port 8080"}
+  - {kind: HorizontalPodAutoscaler, namespace: reporting, name: renderer, state: "min 2 max 8, current 3, ScalingActive True"}
+  - {kind: DaemonSet, namespace: analytics, name: node-metrics, state: "2/2 Ready"}
+  - {kind: ServiceAccount, namespace: reporting, name: renderer, state: "no imagePullSecrets"}
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/limit-range/"
+  - "https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/memory-default-namespace/"
+---
+id: hpa-1
+family: hpa
+question: "why is search slow in shop"
+expected_outcome: cause
+cause_object: HorizontalPodAutoscaler/shop/search
+origin_object: Deployment/shop/search
+mechanism: "Search latency is high because the Deployment stays at 2 replicas. Its HorizontalPodAutoscaler uses a ContainerResource cpu metric for a container named application. The Deployment's only container was renamed to search at T0-40m and the HPA was not updated, so every pod is missing that container in the metrics and ScalingActive is False. The controller keeps the last scale, which is minReplicas 2, through the traffic that started at T0-18m."
+passes_if: "names HorizontalPodAutoscaler/shop/search containerResource container application, which does not exist on Deployment/shop/search (container name search), so the HPA cannot compute a scale and search stays at 2 replicas"
+partial_if_only:
+  - "search is slow while Service/shop/search has only two Ready pods"
+  - "Deployment/shop/search did not add replicas after the latency alert"
+chain:
+  - from: Ingress/shop/web
+    relation: "Ingress backend service"
+    to: Service/shop/search
+    fields: "Ingress.spec.rules[0].host=search.example.com, http.paths[0].path=/ , pathType Prefix, backend.service.name=search, backend.service.port.number=80. Service.metadata.name=search, namespace shop, spec.ports[0].port=80, targetPort name http."
+    abnormal: "Prometheus alert SearchLatencyHigh, namespace=shop, service=search, is firing since T0-18m, p99 above 2s. The Ingress has no warning events. Its address is assigned."
+  - from: Service/shop/search
+    relation: "Service selector"
+    to: Pod/shop/search-7c8f9d6b4-a1b2c
+    fields: "Service.spec.selector app=search, component=http matches the pod and the sibling search-7c8f9d6b4-d4e5f. Both containers are named search, port name http, containerPort 8080."
+    abnormal: "Only these two pods are Ready. Since T0-18m they log in_flight=180, rejecting with 503 once the queue passes 200. They are not restarting. CPU throttling is present on container search; the replica count does not change."
+  - from: Pod/shop/search-7c8f9d6b4-a1b2c
+    relation: "controller ownerReference"
+    to: ReplicaSet/shop/search-7c8f9d6b4
+    fields: "Pod.metadata.ownerReferences[0] is apps/v1 ReplicaSet search-7c8f9d6b4, controller true. ReplicaSet.spec.replicas=2, status.readyReplicas=2. Pod template container name is search."
+    abnormal: "The set has been at 2/2 since the rollout at T0-40m. No FailedCreate. Pods are Ready, so this set is not stuck creating pods."
+  - from: ReplicaSet/shop/search-7c8f9d6b4
+    relation: "controller ownerReference"
+    to: Deployment/shop/search
+    fields: "ReplicaSet.metadata.ownerReferences[0] is apps/v1 Deployment search, controller true. Deployment.spec.replicas=2. Deployment.spec.selector.matchLabels app=search, component=http. Template containers[0].name=search, resources.requests.cpu=200m, limits.cpu=1."
+    abnormal: "Deployment availableReplicas 2, updatedReplicas 2. No progress deadline. Observed slowness is the alert and the pod reject log, not a failed rollout."
+  - from: Deployment/shop/search
+    relation: "HorizontalPodAutoscaler scaleTargetRef"
+    to: HorizontalPodAutoscaler/shop/search
+    fields: "HPA.spec.scaleTargetRef.apiVersion=apps/v1, kind=Deployment, name=search. spec.minReplicas=2, spec.maxReplicas=20. spec.metrics[0].type=ContainerResource, containerResource.name=cpu, containerResource.container=application, target.type=Utilization, target.averageUtilization=60. The Deployment container name is search, not application. No pod template container is named application."
+    abnormal: "HPA status.desiredReplicas=2, currentReplicas=2, lastScaleTime T0-3h. Condition AbleToScale True, SucceededGetScale. Condition ScalingActive False, reason FailedGetContainerResourceMetric, message: the HPA was unable to compute the replica count: failed to get cpu utilization: unable to get metric cpu: failed to get container metrics: container application not present in metrics for pod shop/search-7c8f9d6b4-a1b2c. Event Warning FailedGetContainerResourceMetric horizontal-pod-autoscaler with that text, first at T0-39m and still repeating at T0. No SuccessfulRescale since T0-3h."
+decoys:
+  - object: Deployment/shop/search
+    looks_like: "the slow pods themselves: CPU throttling and 503s, so the cpu limit 1 is too small or the image is bad"
+    why_not: "both pods are Ready and the limit has been 1 for weeks, including the T0-3h scale-down when latency was fine. The HPA target is 60% of the 200m request, which is what would add replicas. ScalingActive is false because the metric container name does not exist, not because metrics-server returned empty usage"
+  - object: Deployment/kube-system/metrics-server
+    looks_like: "HPA cannot scale because the metrics pipeline is down"
+    why_not: "metrics-server is 2/2 Ready, startTime T0-5h. Alert MetricsServerDown fired at T0-6h and ended at T0-5h. The HPA error text is container application not present in metrics for a named pod, not no metrics returned from resource metrics API. A SuccessfulRescale happened at T0-3h, after metrics-server recovered and before the rename"
+  - object: Deployment/shop/search
+    looks_like: "chart replicaCount 6 disagrees with spec.replicas 2, so the live deployment drifted too low"
+    why_not: "Helm release search revision 22 set the container name and did not change replicaCount; the live spec.replicas is 2 because the HPA scaled it there at T0-3h and wrote spec.replicas, which is normal while an HPA exists. Putting 6 in the chart would not clear FailedGetContainerResourceMetric, and the HPA would set the replica count again if the metric worked"
+timeline:
+  - "T0-6h: alert MetricsServerDown fired. HPA events at that time were no metrics returned from resource metrics API"
+  - "T0-5h: Deployment/kube-system/metrics-server 2/2 Ready. Alert MetricsServerDown ended"
+  - "T0-3h: HPA event Normal SuccessfulRescale horizontal-pod-autoscaler New size: 2; reason: cpu resource utilization (percentage of request) below target. Container name was still application. Latency alert was not firing"
+  - "T0-40m: Helm release search revision 22 rolled Deployment/shop/search and renamed containers[0] from application to search. Requests and the image tag search:5.4.0 stayed. The HPA object was not in that release and was not edited"
+  - "T0-39m: FailedGetContainerResourceMetric begins, container application not present, and repeats through T0. desiredReplicas stays 2"
+  - "T0-18m: alert SearchLatencyHigh firing. Search pods log in_flight 180 and 503s. Replica count stays 2"
+  - "T0: Ingress healthy, two search pods Ready, HPA ScalingActive False, maxReplicas 20 unused"
+objects:
+  - {kind: Namespace, namespace: "", name: shop, state: "Active, labels team=shop"}
+  - {kind: Namespace, namespace: "", name: edge, state: "Active, labels role=edge"}
+  - {kind: Namespace, namespace: "", name: kube-system, state: "Active"}
+  - {kind: Node, namespace: "", name: ip-10-0-1-4, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-1-5, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-1-8, state: "Ready, cpu allocatable 4, not under pressure"}
+  - {kind: Pod, namespace: shop, name: search-7c8f9d6b4-d4e5f, state: "Ready, container name search, requests.cpu 200m, sibling of the pod named in the HPA event"}
+  - {kind: Deployment, namespace: shop, name: catalog, state: "4/4 Ready, container name catalog"}
+  - {kind: Service, namespace: shop, name: catalog, state: "ClusterIP port 80"}
+  - {kind: HorizontalPodAutoscaler, namespace: shop, name: catalog, state: "resource cpu on the pod, not a container metric; ScalingActive True, current 4, target 70, current 41"}
+  - {kind: Deployment, namespace: shop, name: cart, state: "3/3 Ready"}
+  - {kind: Service, namespace: shop, name: cart, state: "ClusterIP port 80"}
+  - {kind: ConfigMap, namespace: shop, name: search-conf, state: "key INDEX=products, mounted; search pods log config loaded, not a config error"}
+  - {kind: ServiceAccount, namespace: shop, name: search, state: "no imagePullSecrets; pull of search:5.4.0 succeeded at T0-40m"}
+  - {kind: PodDisruptionBudget, namespace: shop, name: search, state: "minAvailable 1, currentHealthy 2, disruptionsAllowed 1"}
+  - {kind: Ingress, namespace: shop, name: web, state: "the symptom front door; no warning events, class nginx"}
+  - {kind: Deployment, namespace: edge, name: nginx, state: "2/2 Ready, ingress controller"}
+  - {kind: Service, namespace: edge, name: nginx, state: "LoadBalancer, ingress address assigned"}
+  - {kind: ConfigMap, namespace: edge, name: nginx-config, state: "unchanged for 20d"}
+  - {kind: Deployment, namespace: kube-system, name: metrics-server, state: "2/2 Ready since T0-5h"}
+  - {kind: Service, namespace: kube-system, name: metrics-server, state: "ClusterIP port 443, two ready pods"}
+  - {kind: Deployment, namespace: shop, name: recommendations, state: "2/2 Ready"}
+  - {kind: Service, namespace: shop, name: recommendations, state: "ClusterIP port 80"}
+  - {kind: HorizontalPodAutoscaler, namespace: shop, name: recommendations, state: "ScalingActive True, current 2 of max 5, cpu 22% of target 60"}
+  - {kind: ConfigMap, namespace: shop, name: recommendations, state: "mounted, pods Ready"}
+  - {kind: CronJob, namespace: shop, name: reindex, state: "schedule 0 2 * * *, last Job Complete, does not share the search selector"}
+  - {kind: Job, namespace: shop, name: reindex-28840, state: "Complete at T0-8h"}
+  - {kind: ResourceQuota, namespace: shop, name: compute, state: "requests.cpu used 2500m of 16; room for more search pods"}
+  - {kind: LimitRange, namespace: shop, name: defaults, state: "present; search sets requests.cpu 200m itself"}
+  - {kind: NetworkPolicy, namespace: shop, name: search-ingress, state: "allows TCP 8080 to app=search,component=http from namespace edge"}
+  - {kind: Deployment, namespace: edge, name: storefront, state: "6/6 Ready"}
+  - {kind: Service, namespace: edge, name: storefront, state: "ClusterIP port 80"}
+  - {kind: HorizontalPodAutoscaler, namespace: edge, name: storefront, state: "current 6, ScalingActive True, not the alert labeled service=search"}
+  - {kind: PodDisruptionBudget, namespace: edge, name: storefront, state: "minAvailable 4, disruptionsAllowed 2"}
+  - {kind: ConfigMap, namespace: edge, name: storefront-env, state: "FEATURE_SEARCH=on; storefront logs show it calling search.shop.svc and timing out on the slow responses"}
+  - {kind: ServiceAccount, namespace: edge, name: storefront, state: "no imagePullSecrets"}
+  - {kind: DaemonSet, namespace: kube-system, name: node-exporter, state: "3/3 Ready"}
+sources:
+  - "https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/#container-resource-metrics"
+---
+id: webhook-1
+family: webhook
+question: "why can't invoices roll out in billing"
+expected_outcome: cause
+cause_object: MutatingWebhookConfiguration/platform-pod-policy
+origin_object: Namespace/billing
+mechanism: "MutatingWebhookConfiguration/platform-pod-policy matches pod creates in namespaces labeled pod-policy=enforce and sets securityContext.runAsNonRoot, runAsUser 1000 and runAsGroup 1000. Namespace/billing gained that label at T0-35m. Invoices' image writes /var/lib/invoices as root and the new pods crash with permission denied. The webhook call succeeds, so this is a mutation, not an unavailable webhook. Pods created before the label have no such securityContext and stay Ready on the same image."
+passes_if: "names MutatingWebhookConfiguration/platform-pod-policy as injecting runAsNonRoot and runAsUser 1000 into new billing pods because Namespace/billing is labeled pod-policy=enforce, which makes invoices CrashLoop with permission denied on /var/lib/invoices"
+partial_if_only:
+  - "new invoices pods crash with permission denied on /var/lib/invoices"
+  - "those pods have securityContext.runAsUser 1000 and the Deployment template does not"
+chain:
+  - from: Deployment/billing/invoices
+    relation: "label selector"
+    to: Pod/billing/invoices-6b8d9c7f5-xk2pq
+    fields: "Deployment.spec.selector.matchLabels app=invoices. Pod labels match. Template containers[0].name=invoices, image invoices:1.8.0, no securityContext on the pod or the container. Template annotation kubectl.kubernetes.io/restartedAt is T0-10m. strategy maxUnavailable 0."
+    abnormal: "Pod created T0-10m, CrashLoopBackOff, restartCount 6. Log each start: ERROR cannot create /var/lib/invoices/queue: permission denied. Exit code 1. Live pod spec.securityContext.runAsNonRoot=true, runAsUser=1000, runAsGroup=1000. Sibling invoices-6b8d9c7f5-rr4nt is the same. Old pods invoices-5a4c3b2d1-old1, old2 and old3, image invoices:1.8.0, have no runAsUser, Ready since T0-2d. Deployment at T0: updatedReplicas 0, availableReplicas 3, Progressing False ProgressDeadlineExceeded at T0-0m."
+  - from: Pod/billing/invoices-6b8d9c7f5-xk2pq
+    relation: "mutating admission webhook whose namespaceSelector matches the pod's namespace and whose rules match pods on CREATE"
+    to: MutatingWebhookConfiguration/platform-pod-policy
+    fields: "webhooks[0].name=pod-policy.infra.example.com. namespaceSelector.matchLabels pod-policy=enforce matches Namespace/billing.metadata.labels pod-policy=enforce (also team=billing). rules[0] apiGroups [\"\"], apiVersions [v1], resources [pods], operations [CREATE], scope Namespaced. failurePolicy Fail. matchPolicy Equivalent. sideEffects None. clientConfig.service name=pod-policy, namespace=infra, port=443, path=/mutate. objectSelector is empty."
+    abnormal: "The injected securityContext is not in the Deployment template. Loki log of container policy on Pod/infra/pod-policy-7f6c8d9e-a at T0-10m: mutate ns=billing pod=invoices-6b8d9c7f5-xk2pq: set securityContext.runAsNonRoot=true runAsUser=1000 runAsGroup=1000. The same line exists for rr4nt. There is no FailedCreate and no failed calling webhook event; the pods exist and then crash."
+decoys:
+  - object: Deployment/billing/invoices
+    looks_like: "the rollout nearest the crash: invoices:1.8.0 is a bad image that cannot start"
+    why_not: "the three pods of ReplicaSet/billing/invoices-5a4c3b2d1 run invoices:1.8.0 and are Ready, logging queue opened. They have no runAsUser. Only pods created after the namespace label, which carry the injected securityContext, log permission denied"
+  - object: Deployment/infra/pod-policy
+    looks_like: "the admission webhook is down and failurePolicy Fail is blocking the rollout"
+    why_not: "webhook pods have been 2/2 Ready since T0-5h. New invoices pods were admitted and created, which a failed call with failurePolicy Fail would not do. The policy container logs a successful mutate at T0-10m. Alert WebhookUnavailable ended at T0-5h and is not firing"
+  - object: Deployment/billing/invoices
+    looks_like: "helm value runAsUser 1000 was applied to the workload"
+    why_not: "Helm release invoices values set podSecurityContext null, and the live Deployment template has no securityContext. The field exists only on pods created after admission. Ledger in the same namespace, which already set runAsUser 1000 in its own template, rolled successfully at T0-30m and is Ready"
+timeline:
+  - "T0-6h: Pods of Deployment/infra/pod-policy NotReady. Alert WebhookUnavailable fired. No billing pods were being created then"
+  - "T0-5h: Deployment/infra/pod-policy 2/2 Ready. Alert WebhookUnavailable ended"
+  - "T0-2d: ReplicaSet invoices-5a4c3b2d1 pods created, no runAsUser, image invoices:1.8.0, still Ready at T0"
+  - "T0-35m: Namespace/billing label pod-policy=enforce added. The MutatingWebhookConfiguration was not edited"
+  - "T0-30m: Deployment/billing/ledger rolled, webhook set the same securityContext the template already had, ledger reached 2/2 Ready"
+  - "T0-10m: invoices restarted with kubectl.kubernetes.io/restartedAt. Image unchanged. New ReplicaSet invoices-6b8d9c7f5 created two pods. Webhook mutate log at T0-10m"
+  - "T0-9m: invoices containers exit 1, permission denied on /var/lib/invoices/queue, then CrashLoopBackOff through T0"
+  - "T0: Deployment progress deadline exceeded. Old three pods Ready. New two pods CrashLoopBackOff. Webhook service Ready"
+objects:
+  - {kind: Namespace, namespace: "", name: billing, state: "Active, labels team=billing and pod-policy=enforce since T0-35m"}
+  - {kind: Namespace, namespace: "", name: infra, state: "Active, labels team=infra and pod-policy=enforce; its own webhook pods set runAsNonRoot in the template and are Ready"}
+  - {kind: Namespace, namespace: "", name: ledger, state: "Active, labels team=ledger, no pod-policy label"}
+  - {kind: Node, namespace: "", name: ip-10-0-9-2, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-9-7, state: "Ready"}
+  - {kind: ReplicaSet, namespace: billing, name: invoices-5a4c3b2d1, state: "3/3 Ready, image invoices:1.8.0, no securityContext, created T0-2d"}
+  - {kind: ReplicaSet, namespace: billing, name: invoices-6b8d9c7f5, state: "2 Running, 0 Ready, CrashLoopBackOff, runAsUser 1000"}
+  - {kind: Pod, namespace: billing, name: invoices-5a4c3b2d1-old1, state: "Ready, image invoices:1.8.0, no runAsUser, log queue opened"}
+  - {kind: Pod, namespace: billing, name: invoices-5a4c3b2d1-old2, state: "Ready, same as old1"}
+  - {kind: Pod, namespace: billing, name: invoices-5a4c3b2d1-old3, state: "Ready, same as old1"}
+  - {kind: Pod, namespace: billing, name: invoices-6b8d9c7f5-rr4nt, state: "CrashLoopBackOff, runAsUser 1000, same permission denied log"}
+  - {kind: Service, namespace: billing, name: invoices, state: "ClusterIP port 8080; the three old pods are Ready so the Service still has backends"}
+  - {kind: Deployment, namespace: billing, name: ledger, state: "2/2 Ready, template already runAsUser 1000, rolled at T0-30m"}
+  - {kind: Service, namespace: billing, name: ledger, state: "ClusterIP port 8080, two ready pods"}
+  - {kind: ConfigMap, namespace: billing, name: invoices-env, state: "DATA_DIR=/var/lib/invoices, unchanged for 15d; old and new pods both use it"}
+  - {kind: ServiceAccount, namespace: billing, name: invoices, state: "no imagePullSecrets; image pull of invoices:1.8.0 succeeded"}
+  - {kind: ResourceQuota, namespace: billing, name: compute, state: "requests.cpu used 1800m of 8; no FailedCreate"}
+  - {kind: LimitRange, namespace: billing, name: defaults, state: "Container default memory 256Mi; invoices sets a 512Mi limit in the template, and both old and new pods have that limit"}
+  - {kind: PodDisruptionBudget, namespace: billing, name: invoices, state: "minAvailable 2, currentHealthy 3 from the old pods, disruptionsAllowed 1"}
+  - {kind: Deployment, namespace: infra, name: pod-policy, state: "2/2 Ready since T0-5h, container policy"}
+  - {kind: Service, namespace: infra, name: pod-policy, state: "ClusterIP port 443 targetPort 8443, two ready pods; the webhook clientConfig points here"}
+  - {kind: ServiceAccount, namespace: infra, name: pod-policy, state: "used by the webhook Deployment"}
+  - {kind: ConfigMap, namespace: infra, name: pod-policy, state: "key RUN_AS_USER=1000, mounted by the webhook; matches the mutate log"}
+  - {kind: Deployment, namespace: ledger, name: api, state: "3/3 Ready; namespace has no pod-policy label, pods have no injected runAsUser"}
+  - {kind: Service, namespace: ledger, name: api, state: "ClusterIP port 8080"}
+  - {kind: HorizontalPodAutoscaler, namespace: ledger, name: api, state: "current 3, ScalingActive True"}
+  - {kind: ConfigMap, namespace: ledger, name: api, state: "mounted, api Ready"}
+  - {kind: Ingress, namespace: billing, name: invoices, state: "host invoices.example.com to service invoices port 8080; responses still 200 from the old pods"}
+  - {kind: NetworkPolicy, namespace: billing, name: invoices-ingress, state: "allows TCP 8080 from namespace edge to app=invoices"}
+  - {kind: Deployment, namespace: billing, name: pdf, state: "1/1 Ready, template runAsUser 65534, image not invoices"}
+  - {kind: Service, namespace: billing, name: pdf, state: "ClusterIP port 8080"}
+  - {kind: CronJob, namespace: billing, name: statements, state: "suspended true, no Job running"}
+  - {kind: PersistentVolumeClaim, namespace: billing, name: pdf-tmp, state: "Bound, 5Gi, used by pdf"}
+  - {kind: Deployment, namespace: infra, name: gateway-monitor, state: "1/1 Ready"}
+  - {kind: Service, namespace: infra, name: gateway-monitor, state: "ClusterIP port 8080"}
+  - {kind: ConfigMap, namespace: billing, name: pdf-fonts, state: "mounted by pdf only"}
+sources:
+  - "https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/"
+---
+id: configmap-1
+family: configmap
+question: "why is the storefront returning errors in edge"
+expected_outcome: cause
+cause_object: ConfigMap/edge/gateway-nginx
+origin_object: ConfigMap/edge/gateway-nginx
+mechanism: "Ingress/edge/storefront sends / to Service/edge/gateway. The gateway pods mount ConfigMap/edge/gateway-nginx key upstream.conf and nginx reloaded it in place at T0-11m. proxy_pass now uses port 8081. Service/shop/checkout and its pods listen on 8080, so nginx gets connection refused and returns 502. Checkout is Ready and is not receiving these requests."
+passes_if: "names ConfigMap/edge/gateway-nginx key upstream.conf proxy_pass port 8081, which does not match Service/shop/checkout port 8080, so the gateway returns 502 after reloading that file"
+partial_if_only:
+  - "gateway pods log connection refused to an upstream on port 8081 and return 502"
+  - "Service/shop/checkout is Ready on port 8080"
+chain:
+  - from: Ingress/edge/storefront
+    relation: "Ingress backend service"
+    to: Service/edge/gateway
+    fields: "Ingress.spec.rules[0].host=storefront.example.com, paths[0].path=/, pathType Prefix, backend.service.name=gateway, backend.service.port.number=80. Service spec.ports[0].port=80, name http, targetPort name http. Selector app=gateway."
+    abnormal: "Alert Gateway5xxHigh, namespace=edge, service=gateway, firing since T0-11m. Ingress events are only Normal Sync from the ingress controller at T0-11m, not an error. The Ingress object was not edited."
+  - from: Service/edge/gateway
+    relation: "Service selector"
+    to: Pod/edge/gateway-5d6e7f8a9-b1c2d
+    fields: "Service.spec.selector app=gateway matches this pod and gateway-5d6e7f8a9-c3d4e. Container port name http, containerPort 8080, which is what Service port 80 targets. Pods started at T0-8h, restartCount 0."
+    abnormal: "Nginx error log since T0-11m: connect() failed (111: Connection refused) while connecting to upstream, upstream: \"http://10.8.2.14:8081/api/checkout\". Access log status 502 for GET /api/checkout. At T0-11m a notice line says config file /etc/nginx/conf.d/upstream.conf changed, reloading, then signal process started. No container restart."
+  - from: Pod/edge/gateway-5d6e7f8a9-b1c2d
+    relation: "volume projected from a ConfigMap"
+    to: ConfigMap/edge/gateway-nginx
+    fields: "Pod.spec.volumes[name=nginx-conf].configMap.name=gateway-nginx, items key upstream.conf path upstream.conf and key server.conf path server.conf. volumeMounts mountPath=/etc/nginx/conf.d, no subPath. ConfigMap.data[upstream.conf] contains proxy_pass http://checkout.shop.svc.cluster.local:8081; . ConfigMap.data[server.conf] contains the server listen 8080 and the include of upstream.conf."
+    abnormal: "The upstream.conf key has had port 8081 since the T0-12m edit. Checkout's Service port is 8080 (next object, not the fault). The reload notice quotes the mounted path of this key."
+decoys:
+  - object: Service/shop/checkout
+    looks_like: "the upstream named in the 502s is down, so checkout is the failure"
+    why_not: "selector app=checkout matches three Ready pods, containerPort 8080 named http, Service port 8080 targetPort http. Checkout access log has no request from the gateway since T0-12m and shows normal local probes returning 200 at T0-2m. The refused port in the gateway log is 8081, which this Service does not listen on"
+  - object: Deployment/edge/gateway
+    looks_like: "the 502s come from a bad gateway image or a crash"
+    why_not: "both pods have been Running since T0-8h, restartCount 0, image gateway-nginx:1.25.4. The process reloaded config without exiting. From T0-8h until T0-11m the same pods logged successful upstreams to checkout.shop.svc.cluster.local:8080"
+  - object: ConfigMap/edge/gateway-nginx
+    looks_like: "server.conf keepalive_timeout 75s differs from the chart value 65s and is a bad config push"
+    why_not: "that key is mounted, but the error log is connection refused to port 8081, not a keepalive timeout. Requests fail in a few milliseconds. The 75s value was already in revision 40, during the hours the gateway returned 200s"
+timeline:
+  - "T0-9h: gateway pods CrashLoopBackOff on a syntax error in upstream.conf. Alert GatewayCrashLoop fired"
+  - "T0-8h: Helm release edge-gateway revision 40 restored a valid upstream.conf with proxy_pass port 8080. Pods started, restartCount still 0 at T0. Alert GatewayCrashLoop ended. Access log 200s to checkout:8080"
+  - "T0-12m: Helm release edge-gateway revision 41 changed only ConfigMap/edge/gateway-nginx data.upstream.conf proxy_pass port from 8080 to 8081. The Deployment template was not changed, so pods were not rolled"
+  - "T0-11m: nginx notice, upstream.conf changed, reloading. Error log connection refused to :8081 begins. Alert Gateway5xxHigh firing. Ingress Normal Sync only"
+  - "T0-2m: checkout pods log 200 on their own readiness probes and no gateway requests"
+  - "T0: gateway pods still the T0-8h processes; ConfigMap upstream.conf still port 8081; checkout Ready on 8080"
+objects:
+  - {kind: Namespace, namespace: "", name: edge, state: "Active, labels role=edge"}
+  - {kind: Namespace, namespace: "", name: shop, state: "Active, labels team=shop and role=app"}
+  - {kind: Node, namespace: "", name: ip-10-0-3-4, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-3-5, state: "Ready"}
+  - {kind: Deployment, namespace: edge, name: gateway, state: "2/2 Ready, image gateway-nginx:1.25.4, started T0-8h, restartCount 0"}
+  - {kind: ReplicaSet, namespace: edge, name: gateway-5d6e7f8a9, state: "2/2 Ready"}
+  - {kind: Pod, namespace: edge, name: gateway-5d6e7f8a9-c3d4e, state: "Ready, same mount and the same connection refused log as b1c2d"}
+  - {kind: Service, namespace: edge, name: gateway, state: "ClusterIP port 80 targetPort http, two ready pods"}
+  - {kind: Deployment, namespace: shop, name: checkout, state: "3/3 Ready, containerPort 8080, image checkout:2.3.1"}
+  - {kind: ReplicaSet, namespace: shop, name: checkout-6c8d9e7f5, state: "3/3 Ready"}
+  - {kind: Service, namespace: shop, name: checkout, state: "ClusterIP port 8080 targetPort http, three ready pods"}
+  - {kind: ConfigMap, namespace: shop, name: checkout-env, state: "CHECKOUT_BIND=8080, matches the container port; checkout Ready"}
+  - {kind: ServiceAccount, namespace: edge, name: gateway, state: "no imagePullSecrets"}
+  - {kind: ServiceAccount, namespace: shop, name: checkout, state: "no imagePullSecrets"}
+  - {kind: HorizontalPodAutoscaler, namespace: edge, name: gateway, state: "min 2 max 6, current 2, ScalingActive True, cpu 35% of target 70"}
+  - {kind: PodDisruptionBudget, namespace: edge, name: gateway, state: "minAvailable 1, disruptionsAllowed 1, 2 healthy"}
+  - {kind: Deployment, namespace: shop, name: catalog, state: "4/4 Ready"}
+  - {kind: Service, namespace: shop, name: catalog, state: "ClusterIP port 8080"}
+  - {kind: Deployment, namespace: shop, name: cart, state: "3/3 Ready"}
+  - {kind: Service, namespace: shop, name: cart, state: "ClusterIP port 8080"}
+  - {kind: ConfigMap, namespace: shop, name: catalog-env, state: "mounted, catalog Ready"}
+  - {kind: Ingress, namespace: edge, name: storefront, state: "host storefront.example.com / to service gateway port 80; object unchanged this week"}
+  - {kind: NetworkPolicy, namespace: shop, name: checkout-ingress, state: "allows TCP 8080 to app=checkout from namespace edge; not an egress deny"}
+  - {kind: NetworkPolicy, namespace: edge, name: gateway-egress, state: "allows TCP 8080 to namespaces labeled role=app; shop has role=app. Port 8081 is not blocked by a policy the gateway would log as a timeout; the log is connection refused"}
+  - {kind: ResourceQuota, namespace: edge, name: compute, state: "requests.cpu used 900m of 4"}
+  - {kind: LimitRange, namespace: edge, name: defaults, state: "gateway sets its own requests"}
+  - {kind: Deployment, namespace: shop, name: search, state: "2/2 Ready"}
+  - {kind: Service, namespace: shop, name: search, state: "ClusterIP port 8080"}
+  - {kind: HorizontalPodAutoscaler, namespace: shop, name: search, state: "current 2, ScalingActive True, cpu 25% of target 60"}
+  - {kind: ConfigMap, namespace: edge, name: mime-types, state: "mounted at /etc/nginx/mime.types by a separate volume; not edited"}
+  - {kind: DaemonSet, namespace: edge, name: log-shipper, state: "2/2 Ready"}
+  - {kind: StatefulSet, namespace: shop, name: sessions, state: "1/1 Ready"}
+  - {kind: Service, namespace: shop, name: sessions, state: "ClusterIP port 6379"}
+  - {kind: PersistentVolumeClaim, namespace: shop, name: data-sessions-0, state: "Bound, 5Gi"}
+  - {kind: CronJob, namespace: shop, name: cleanup-carts, state: "schedule 0 * * * *, last Job Complete"}
+  - {kind: Job, namespace: shop, name: cleanup-carts-28920, state: "Complete at T0-40m"}
+sources:
+  - "https://kubernetes.io/docs/concepts/configuration/configmap/#using-configmaps-as-files-from-a-pod"
+  - "https://kubernetes.io/docs/concepts/services-networking/ingress/"
+---
+id: pdb-1
+family: pdb
+question: "why is node ip-10-0-3-27 stuck draining"
+expected_outcome: cause
+cause_object: PodDisruptionBudget/batch/indexer
+origin_object: Job/batch/indexer
+mechanism: "The drain evicts Ready indexer pods that sit on the node. PodDisruptionBudget/batch/indexer sets minAvailable to 80%. expectedPods is 10 because the selector also matches two Pending pods, so desiredHealthy is 8, currentHealthy is 8 and disruptionsAllowed is 0. The eviction API refuses the Ready pods. Those two Pending pods exist because Job parallelism went from 8 to 10 at T0-25m and the extras cannot schedule."
+passes_if: "names PodDisruptionBudget/batch/indexer minAvailable 80% and that expectedPods counts two Pending indexer pods so desiredHealthy equals the 8 Ready pods and disruptionsAllowed is 0, which denies eviction on ip-10-0-3-27"
+partial_if_only:
+  - "node ip-10-0-3-27 is cordoned and ScaleDownFailed"
+  - "indexer pods are Pending with Insufficient cpu"
+chain:
+  - from: Node/ip-10-0-3-27
+    relation: "pods bound to the node"
+    to: Pod/batch/indexer-3
+    fields: "Pod.spec.nodeName=ip-10-0-3-27 and Node.metadata.name is that node. Pods indexer-4 and indexer-5 also have this nodeName. All three are phase Running, Ready True, labels job=indexer, component=executor. The node spec.unschedulable is true and it has taint node.kubernetes.io/unschedulable."
+    abnormal: "None of the three pods has deletionTimestamp or a finalizer. Event on the node, T0-2m, Warning ScaleDownFailed cluster-autoscaler: failed to drain the node, aborting. Reason: Cannot evict pod as it would violate the pod's disruption budget. (pod batch/indexer-3). The same event names indexer-4 and indexer-5 on the retries at T0-1m and T0. Loki on Deployment/ops/cluster-autoscaler repeats that API error."
+  - from: Pod/batch/indexer-3
+    relation: "PodDisruptionBudget selector"
+    to: PodDisruptionBudget/batch/indexer
+    fields: "PDB.spec.selector.matchLabels job=indexer, component=executor matches indexer-3 and the other indexer executor pods. spec.minAvailable is the string 80%. status.expectedPods=10, status.currentHealthy=8, status.desiredHealthy=8, status.disruptionsAllowed=0. status.observedGeneration matches the PDB generation."
+    abnormal: "disruptionsAllowed 0 at T0. The eight Running Ready pods are currentHealthy. Pod/batch/indexer-8 and Pod/batch/indexer-9 are phase Pending, so they are in expectedPods and not in currentHealthy. Their events, T0-25m and still true: Warning FailedScheduling default-scheduler 0/6 nodes are available: 6 Insufficient cpu. They have no nodeName."
+decoys:
+  - object: Pod/batch/indexer-3
+    looks_like: "the pod on the node is stuck terminating or held by a finalizer, which is the nearest object to a failed drain"
+    why_not: "metadata.deletionTimestamp is unset and metadata.finalizers is empty. The container is Ready. The ScaleDownFailed event is the eviction API refusing the pod, so the drain never deleted it"
+  - object: Pod/batch/indexer-8
+    looks_like: "the node cannot drain because the cluster is out of CPU, FailedScheduling Insufficient cpu"
+    why_not: "indexer-8 and indexer-9 are the pods that cannot be placed. They are not on ip-10-0-3-27. The pods the autoscaler is trying to evict are Ready. The drain error text is the disruption budget, not FailedScheduling. The Pending pods matter only because this PDB's percentage counts them in expectedPods"
+  - object: Node/ip-10-0-3-27
+    looks_like: "DiskPressure left the node undrainable"
+    why_not: "condition DiskPressure was True from T0-4h to T0-3h and is False at T0, lastTransitionTime T0-3h. Ready is True. The cordon unschedulable=true started at T0-15m with the scale-down, after DiskPressure had cleared. No eviction was in progress during DiskPressure"
+timeline:
+  - "T0-4h: Node/ip-10-0-3-27 DiskPressure True"
+  - "T0-3h: Node/ip-10-0-3-27 DiskPressure False, Ready True, lastTransitionTime T0-3h. The node was schedulable"
+  - "T0-2h: Job/batch/indexer running with parallelism 8, eight Ready pods, PDB expectedPods 8, desiredHealthy 7, disruptionsAllowed 1"
+  - "T0-25m: Job/batch/indexer spec.parallelism and completions edited from 8 to 10. indexer-8 and indexer-9 created and Pending, FailedScheduling Insufficient cpu. PDB expectedPods 10, desiredHealthy 8, currentHealthy 8, disruptionsAllowed 0"
+  - "T0-15m: cluster-autoscaler cordoned Node/ip-10-0-3-27, spec.unschedulable true, and started a drain"
+  - "T0-2m: Node event Warning ScaleDownFailed, Cannot evict pod as it would violate the pod's disruption budget, pod batch/indexer-3. Retries at T0-1m and T0 name indexer-4 and indexer-5"
+  - "T0: node still unschedulable; three Ready indexer pods remain on it; PDB disruptionsAllowed 0; indexer-8 and indexer-9 still Pending"
+objects:
+  - {kind: Namespace, namespace: "", name: batch, state: "Active, labels team=batch"}
+  - {kind: Namespace, namespace: "", name: ops, state: "Active, labels team=ops"}
+  - {kind: Node, namespace: "", name: ip-10-0-3-21, state: "Ready, schedulable, two indexer pods"}
+  - {kind: Node, namespace: "", name: ip-10-0-3-22, state: "Ready, schedulable, three indexer pods"}
+  - {kind: Node, namespace: "", name: ip-10-0-3-23, state: "Ready, schedulable, no indexer pods, Insufficient cpu for a new 2-cpu executor"}
+  - {kind: Node, namespace: "", name: ip-10-0-3-24, state: "Ready, schedulable, Insufficient cpu for a new executor"}
+  - {kind: Node, namespace: "", name: ip-10-0-3-25, state: "Ready, schedulable"}
+  - {kind: Pod, namespace: batch, name: indexer-4, state: "Running Ready on ip-10-0-3-27, labels job=indexer, component=executor"}
+  - {kind: Pod, namespace: batch, name: indexer-5, state: "Running Ready on ip-10-0-3-27, same labels"}
+  - {kind: Pod, namespace: batch, name: indexer-0, state: "Running Ready on ip-10-0-3-21"}
+  - {kind: Pod, namespace: batch, name: indexer-1, state: "Running Ready on ip-10-0-3-21"}
+  - {kind: Pod, namespace: batch, name: indexer-2, state: "Running Ready on ip-10-0-3-22"}
+  - {kind: Pod, namespace: batch, name: indexer-6, state: "Running Ready on ip-10-0-3-22"}
+  - {kind: Pod, namespace: batch, name: indexer-7, state: "Running Ready on ip-10-0-3-22"}
+  - {kind: Pod, namespace: batch, name: indexer-9, state: "Pending, FailedScheduling Insufficient cpu, no nodeName"}
+  - {kind: Job, namespace: batch, name: indexer, state: "active 10, parallelism 10, completions 10, succeeded 0; pods labeled job=indexer, component=executor, requests.cpu 2"}
+  - {kind: PodDisruptionBudget, namespace: batch, name: coordinator, state: "selector component=coordinator, minAvailable 1, expectedPods 2, currentHealthy 2, disruptionsAllowed 1; does not match indexer-3"}
+  - {kind: Deployment, namespace: batch, name: coordinator, state: "2/2 Ready, labels component=coordinator, not job=indexer"}
+  - {kind: Service, namespace: batch, name: coordinator, state: "ClusterIP port 8080, two ready pods"}
+  - {kind: ConfigMap, namespace: batch, name: indexer-env, state: "PARALLELISM=10, mounted; the Job reads it and the pods that are Running are healthy"}
+  - {kind: ServiceAccount, namespace: batch, name: indexer, state: "used by the Job"}
+  - {kind: ResourceQuota, namespace: batch, name: compute, state: "requests.cpu hard 24, used 22; the two Pending pods would need 4 more cpu and also fail quota, but the drain error is not a quota message"}
+  - {kind: LimitRange, namespace: batch, name: defaults, state: "the Job sets requests.cpu 2 explicitly"}
+  - {kind: Deployment, namespace: ops, name: cluster-autoscaler, state: "1/1 Ready; its log is the drain failure quoted on the node event"}
+  - {kind: ServiceAccount, namespace: ops, name: cluster-autoscaler, state: "used by the autoscaler"}
+  - {kind: ConfigMap, namespace: ops, name: cluster-autoscaler, state: "expander=least-waste, skip-nodes-with-system-pods true; ip-10-0-3-27 has no kube-system pods other than DaemonSets the autoscaler skips, and the event names the indexer pod"}
+  - {kind: Deployment, namespace: ops, name: metrics, state: "1/1 Ready"}
+  - {kind: Service, namespace: ops, name: metrics, state: "ClusterIP port 9090"}
+  - {kind: DaemonSet, namespace: ops, name: node-problem-detector, state: "6/6 Ready, including on the cordoned node"}
+  - {kind: CronJob, namespace: batch, name: cleanup, state: "schedule 0 1 * * *, last Job Complete"}
+  - {kind: Job, namespace: batch, name: cleanup-28800, state: "Complete at T0-10h"}
+  - {kind: Deployment, namespace: batch, name: ui, state: "2/2 Ready, not on ip-10-0-3-27"}
+  - {kind: Service, namespace: batch, name: ui, state: "ClusterIP port 8080"}
+  - {kind: Ingress, namespace: batch, name: ui, state: "host batch.example.com to service ui"}
+  - {kind: NetworkPolicy, namespace: batch, name: ui-ingress, state: "allows TCP 8080 to app=ui from namespace edge"}
+  - {kind: Namespace, namespace: "", name: edge, state: "Active, labels role=edge"}
+  - {kind: Deployment, namespace: edge, name: gateway, state: "2/2 Ready"}
+  - {kind: HorizontalPodAutoscaler, namespace: batch, name: ui, state: "min 2 max 4, current 2, ScalingActive True"}
+  - {kind: PersistentVolumeClaim, namespace: batch, name: ui-data, state: "Bound, 1Gi"}
+sources:
+  - "https://kubernetes.io/docs/concepts/workloads/pods/disruptions/"
+  - "https://kubernetes.io/docs/tasks/run-application/configure-pdb/"
+  - "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md"
+---
+id: ingress-0
+family: ingress
+question: "why is storefront slow in shop"
+expected_outcome: no_incident
+mechanism: "At T0 storefront is not slow and nothing is failing. Deployment/shop/storefront is 12/12 Ready, Ingress/shop/storefront has an assigned address and only Normal Sync events, and no latency or 5xx alert is firing. The HPA holding 12 replicas is inside its maximum and under its CPU target. A 5xx alert and an ingress-controller restart earlier in the day have both ended. The canary Service has no pods, and the canary annotation weight is 0, so it takes no traffic. The live proxy-body-size differs from the chart and there is no 413 in the log. Ingress/marketing/landing is serving 200s."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only:
+  - "storefront is running 12 replicas"
+  - "a 5xx alert fired earlier and the canary service has no pods"
+chain: []
+decoys:
+  - object: HorizontalPodAutoscaler/shop/storefront
+    looks_like: "twelve replicas is a runaway scale and explains a slow or overloaded storefront"
+    why_not: "maxReplicas is 30, desiredReplicas is 12, cpu is 48% against target 70, ScalingActive True, ScalingLimited False. No storefront latency alert is firing. The count is the healthy result of an earlier traffic peak, not a stuck scaler"
+  - object: Service/shop/storefront-canary
+    looks_like: "the Ingress points at a canary Service with zero pods, so users hit a dead backend"
+    why_not: "Ingress annotation nginx.ingress.kubernetes.io/canary is true on Ingress/shop/storefront-canary and nginx.ingress.kubernetes.io/canary-weight is 0. The main Ingress/shop/storefront backend is Service/shop/storefront, which has 12 Ready pods. Gateway access log at T0-1m is status 200 for host storefront.example.com and names upstream port 8080 on those pods"
+  - object: Deployment/edge/nginx
+    looks_like: "the ingress controller crashed and storefront is still affected"
+    why_not: "one container restart finished at T0-4h; both pods have been Ready since T0-3h50m. Alert NGINXControllerDown ended at T0-3h50m. Alert NGINXIngress5xx ended at T0-2h40m. Neither is firing at T0"
+timeline:
+  - "T0-4h: one container of Deployment/edge/nginx restarted. Alert NGINXControllerDown fired"
+  - "T0-3h50m: Deployment/edge/nginx 2/2 Ready. Alert NGINXControllerDown ended"
+  - "T0-3h: alert NGINXIngress5xx fired for host storefront.example.com during that restart window"
+  - "T0-2h40m: alert NGINXIngress5xx ended. Access log since then is 200s"
+  - "T0-1h: HPA/shop/storefront scaled to 12 on cpu. At T0 cpu is 48% of a 70% target and the replica count has not moved; scaleDown stabilization is 300s and the metric is still inside the tolerance the controller is not acting on"
+  - "T0-1m: gateway access log 200 for storefront.example.com"
+  - "T0: 12/12 storefront pods Ready, no storefront alert firing, canary weight 0, Ingress address assigned"
+objects:
+  - {kind: Namespace, namespace: "", name: shop, state: "Active, labels team=shop"}
+  - {kind: Namespace, namespace: "", name: edge, state: "Active, labels role=edge"}
+  - {kind: Namespace, namespace: "", name: marketing, state: "Active, labels team=marketing"}
+  - {kind: Node, namespace: "", name: ip-10-0-5-2, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-5-3, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-5-6, state: "Ready"}
+  - {kind: Deployment, namespace: shop, name: storefront, state: "12/12 Ready, image storefront:6.2.0, containerPort 8080"}
+  - {kind: ReplicaSet, namespace: shop, name: storefront-9b1c2d3e4, state: "12/12 Ready"}
+  - {kind: Service, namespace: shop, name: storefront, state: "ClusterIP port 80 targetPort http, 12 ready pods"}
+  - {kind: Service, namespace: shop, name: storefront-canary, state: "ClusterIP port 80, selector app=storefront,track=canary, zero pods"}
+  - {kind: Ingress, namespace: shop, name: storefront, state: "host storefront.example.com / to service storefront port 80, address 203.0.113.10, events only Normal Sync"}
+  - {kind: Ingress, namespace: shop, name: storefront-canary, state: "canary true, canary-weight 0, backend storefront-canary port 80"}
+  - {kind: HorizontalPodAutoscaler, namespace: shop, name: storefront, state: "min 4 max 30 current 12, cpu 48% of target 70, ScalingActive True, ScalingLimited False"}
+  - {kind: PodDisruptionBudget, namespace: shop, name: storefront, state: "minAvailable 8, currentHealthy 12, disruptionsAllowed 4"}
+  - {kind: ConfigMap, namespace: shop, name: storefront-env, state: "ASSET_HOST=cdn.example.com; pods log config loaded"}
+  - {kind: ServiceAccount, namespace: shop, name: storefront, state: "imagePullSecrets regcred; pulls succeed"}
+  - {kind: Deployment, namespace: edge, name: nginx, state: "2/2 Ready since T0-3h50m, one historical restart at T0-4h"}
+  - {kind: Service, namespace: edge, name: nginx, state: "LoadBalancer 203.0.113.10"}
+  - {kind: ConfigMap, namespace: edge, name: nginx, state: "controller config, unchanged"}
+  - {kind: Deployment, namespace: shop, name: catalog, state: "3/3 Ready"}
+  - {kind: Service, namespace: shop, name: catalog, state: "ClusterIP port 80"}
+  - {kind: Deployment, namespace: shop, name: cart, state: "2/2 Ready"}
+  - {kind: Service, namespace: shop, name: cart, state: "ClusterIP port 80"}
+  - {kind: HorizontalPodAutoscaler, namespace: shop, name: catalog, state: "current 3, ScalingActive True, cpu 33% of target 65"}
+  - {kind: Ingress, namespace: marketing, name: landing, state: "host landing.example.com to service landing port 80; marketing access log 200 at T0-2m"}
+  - {kind: Deployment, namespace: marketing, name: landing, state: "2/2 Ready"}
+  - {kind: Service, namespace: marketing, name: landing, state: "ClusterIP port 80, two ready pods"}
+  - {kind: ConfigMap, namespace: marketing, name: landing, state: "mounted, landing Ready"}
+  - {kind: Certificate, namespace: marketing, name: landing, state: "Ready True, reason Ready, not renewing"}
+  - {kind: Deployment, namespace: shop, name: search, state: "2/2 Ready"}
+  - {kind: Service, namespace: shop, name: search, state: "ClusterIP port 80"}
+  - {kind: NetworkPolicy, namespace: shop, name: storefront-ingress, state: "allows TCP 8080 from namespace edge to app=storefront; requests are arriving"}
+  - {kind: ResourceQuota, namespace: shop, name: compute, state: "requests.cpu used 6 of 20"}
+  - {kind: LimitRange, namespace: shop, name: defaults, state: "storefront sets its own requests"}
+  - {kind: CronJob, namespace: shop, name: sitemap, state: "schedule 0 5 * * *, last Job Complete"}
+  - {kind: Job, namespace: shop, name: sitemap-28888, state: "Complete at T0-7h"}
+  - {kind: DaemonSet, namespace: edge, name: log-agent, state: "3/3 Ready"}
+  - {kind: PersistentVolumeClaim, namespace: shop, name: assets-cache, state: "Bound, 10Gi, mounted by storefront, plenty of free space in the pod log"}
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/ingress/"
+  - "https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/"
+---
+id: storage-0
+family: storage
+question: "is something wrong with the orders volume in orders"
+expected_outcome: no_incident
+mechanism: "At T0 the orders database volume is fine. PVC/orders/data-orders-db-0 is Bound to PV/pvc-orders-db-0 and mounted by the Ready pod of StatefulSet/orders/orders-db, which is serving. PV/pvc-orders-db-prev is Released from an old claim that no pod mounts. PVC/analytics/warehouse-scratch is Pending only because it is WaitForFirstConsumer and no pod references it. The chart's 50Gi size is not what is applied; the live claim is 20Gi and the pod is healthy with no disk alert firing. A filling-up alert on the live volume ended at T0-7h."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only:
+  - "PV/pvc-orders-db-prev is Released"
+  - "PVC/analytics/warehouse-scratch is Pending"
+chain: []
+decoys:
+  - object: PersistentVolume/pvc-orders-db-prev
+    looks_like: "a Released volume means the orders data was lost"
+    why_not: "status.phase is Released and spec.claimRef names orders/data-orders-db-old, a claim that is gone. No pod volume references this PV. StatefulSet/orders/orders-db mounts claimName data-orders-db-0 only. That claim is Bound and the database pod is Ready, logging checkpoint complete at T0-2m"
+  - object: PersistentVolumeClaim/analytics/warehouse-scratch
+    looks_like: "a Pending PVC means storage is broken for the cluster, including orders"
+    why_not: "it is in namespace analytics, spec.storageClassName standard, phase Pending, event Normal WaitForFirstConsumer from T0-1d, and no Pod in any namespace references it. Orders uses a different claim that is already Bound. Nothing is trying to schedule a pod onto the scratch claim"
+  - object: StatefulSet/orders/orders-db
+    looks_like: "helm persistence.size 50Gi disagrees with the live 20Gi claim, so the database is on the wrong disk"
+    why_not: "the live StatefulSet volumeClaimTemplates request and the PVC request are both 20Gi, and they match PV capacity 20Gi. The chart value 50Gi was never applied; helm release orders-db revision 4 is two weeks old and matches the live 20Gi. No resize is in progress. Alert KubePersistentVolumeFillingUp ended at T0-7h and is not firing"
+timeline:
+  - "T0-14d: PVC/orders/data-orders-db-0 Bound to PV/pvc-orders-db-0 at 20Gi. StatefulSet orders-db has been Ready on it since"
+  - "T0-14d: PV/pvc-orders-db-prev left Released after claim data-orders-db-old was removed; no pod has referenced it since"
+  - "T0-8h: alert KubePersistentVolumeFillingUp fired for orders/data-orders-db-0"
+  - "T0-7h: alert KubePersistentVolumeFillingUp ended after the database compacted. It is not firing at T0"
+  - "T0-1d: PVC/analytics/warehouse-scratch created and has stayed Pending WaitForFirstConsumer, unused"
+  - "T0-2m: orders-db-0 log checkpoint complete"
+  - "T0: orders-db 1/1 Ready, PVC Bound, no storage alert firing"
+objects:
+  - {kind: Namespace, namespace: "", name: orders, state: "Active, labels team=orders"}
+  - {kind: Namespace, namespace: "", name: analytics, state: "Active, labels team=analytics"}
+  - {kind: Node, namespace: "", name: ip-10-0-7-2, state: "Ready, DiskPressure False"}
+  - {kind: Node, namespace: "", name: ip-10-0-7-3, state: "Ready, DiskPressure False"}
+  - {kind: StatefulSet, namespace: orders, name: orders-db, state: "1/1 Ready, volumeClaimTemplates 20Gi claim data, mounted at /var/lib/postgresql/data"}
+  - {kind: Pod, namespace: orders, name: orders-db-0, state: "Ready, restartCount 0, PVC data-orders-db-0 mounted, checkpoint log at T0-2m"}
+  - {kind: PersistentVolumeClaim, namespace: orders, name: data-orders-db-0, state: "Bound, request 20Gi, volumeName pvc-orders-db-0, storageClassName standard"}
+  - {kind: PersistentVolume, namespace: "", name: pvc-orders-db-0, state: "Bound, claim orders/data-orders-db-0, capacity 20Gi"}
+  - {kind: PersistentVolume, namespace: "", name: pvc-orders-db-prev, state: "Released, claimRef orders/data-orders-db-old, capacity 20Gi, no pod references it"}
+  - {kind: Service, namespace: orders, name: orders-db, state: "ClusterIP port 5432, selector app=orders-db, the Ready pod is the backend"}
+  - {kind: ConfigMap, namespace: orders, name: orders-db, state: "max_connections=100, mounted; postmaster is up"}
+  - {kind: ServiceAccount, namespace: orders, name: orders-db, state: "used by the StatefulSet"}
+  - {kind: Deployment, namespace: orders, name: api, state: "3/3 Ready, connects to orders-db and logs queries succeeding at T0-1m"}
+  - {kind: Service, namespace: orders, name: api, state: "ClusterIP port 8080, three ready pods"}
+  - {kind: HorizontalPodAutoscaler, namespace: orders, name: api, state: "min 2 max 8, current 3, ScalingActive True, cpu 28% of target 65"}
+  - {kind: PodDisruptionBudget, namespace: orders, name: api, state: "minAvailable 2, disruptionsAllowed 1"}
+  - {kind: Ingress, namespace: orders, name: api, state: "host orders.example.com to service api port 8080"}
+  - {kind: ConfigMap, namespace: orders, name: api, state: "DATABASE_HOST=orders-db.orders.svc, mounted; api Ready"}
+  - {kind: NetworkPolicy, namespace: orders, name: db-ingress, state: "allows TCP 5432 to app=orders-db from pods labeled app=api in the same namespace"}
+  - {kind: ResourceQuota, namespace: orders, name: storage, state: "requests.storage used 20Gi of 100Gi; persistentvolumeclaims used 1 of 10"}
+  - {kind: LimitRange, namespace: orders, name: storage, state: "PersistentVolumeClaim min 1Gi max 50Gi; the 20Gi claim is inside the range"}
+  - {kind: PersistentVolumeClaim, namespace: analytics, name: warehouse-scratch, state: "Pending, WaitForFirstConsumer, 100Gi, storageClassName standard, no pod selected it"}
+  - {kind: Deployment, namespace: analytics, name: worker, state: "2/2 Ready, emptyDir only, does not reference warehouse-scratch"}
+  - {kind: Service, namespace: analytics, name: worker, state: "ClusterIP port 8080"}
+  - {kind: ConfigMap, namespace: analytics, name: worker, state: "mounted, worker Ready"}
+  - {kind: CronJob, namespace: orders, name: report, state: "schedule 0 6 * * *, last Job Complete"}
+  - {kind: Job, namespace: orders, name: report-28850, state: "Complete at T0-6h"}
+  - {kind: Deployment, namespace: orders, name: receipts, state: "2/2 Ready"}
+  - {kind: Service, namespace: orders, name: receipts, state: "ClusterIP port 8080"}
+  - {kind: PersistentVolumeClaim, namespace: orders, name: receipts-archive, state: "Bound, 10Gi, mounted by receipts, pod Ready"}
+  - {kind: PersistentVolume, namespace: "", name: pvc-receipts-archive, state: "Bound to orders/receipts-archive"}
+  - {kind: DaemonSet, namespace: orders, name: backup-agent, state: "2/2 Ready, does not mount the database PVC"}
+  - {kind: ServiceAccount, namespace: orders, name: api, state: "no imagePullSecrets"}
+  - {kind: HorizontalPodAutoscaler, namespace: analytics, name: worker, state: "current 2, ScalingActive True"}
+sources:
+  - "https://kubernetes.io/docs/concepts/storage/persistent-volumes/#phase"
+  - "https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode"
+---
+id: pullsecret-0
+family: pullsecret
+question: "why can't checkout pull its image in shop"
+expected_outcome: no_incident
+mechanism: "At T0 checkout is not failing to pull. The running pods record a kubelet warning that expired-regcred could not be retrieved and, in the same minute, a Pulled event for registry.example.com/shop/checkout:2.3.1; the containers are Ready. ServiceAccount/shop/checkout lists that extra name while the chart lists only regcred, and the pull still completed. An image-pull alert for a Job in lab fired earlier and has ended; that Job is Complete."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only:
+  - "checkout pods emitted FailedToRetrieveImagePullSecret for expired-regcred"
+  - "a pull alert fired for a Job in lab"
+chain: []
+decoys:
+  - object: Pod/shop/checkout-6c8d9e7f5-k3mqa
+    looks_like: "FailedToRetrieveImagePullSecret means checkout cannot pull its image"
+    why_not: "the same pod has event Normal Pulled kubelet Successfully pulled image registry.example.com/shop/checkout:2.3.1 in 842ms at T0-20m, after the warning at T0-20m. The container is Ready, restartCount 0, and all three checkout pods are the same. Deployment updatedReplicas is 3 of 3"
+  - object: Job/lab/experiment-28900
+    looks_like: "an image pull failure is still going on in the cluster"
+    why_not: "alert KubePodImagePullBackOff for namespace lab, pod experiment-28900-x, fired at T0-2h and ended at T0-90m. The Job status is Complete, succeeded 1, completionTime T0-90m. No pull alert is firing at T0, and the Job is not checkout"
+  - object: ServiceAccount/shop/checkout
+    looks_like: "live imagePullSecrets [regcred, expired-regcred] drift from the chart's [regcred], so credentials are wrong"
+    why_not: "the extra name is what the warning mentions, and the following Pulled event shows the image was retrieved. The pods have been Ready since T0-20m. The drift does not leave checkout unable to run"
+timeline:
+  - "T0-2h: alert KubePodImagePullBackOff fired for lab/experiment-28900-x"
+  - "T0-90m: Job/lab/experiment-28900 succeeded. The alert ended"
+  - "T0-20m: ReplicaSet checkout-6c8d9e7f5 created three pods. Each has Warning FailedToRetrieveImagePullSecret kubelet Unable to retrieve some image pull secrets (expired-regcred); attempting to pull the image may not succeed. Each then has Normal Pulled for checkout:2.3.1"
+  - "T0-20m: all three containers started and are still Ready at T0, restartCount 0"
+  - "T0: Deployment/shop/checkout 3/3 Ready, no pull alert firing"
+objects:
+  - {kind: Namespace, namespace: "", name: shop, state: "Active, labels team=shop"}
+  - {kind: Namespace, namespace: "", name: lab, state: "Active, labels team=lab"}
+  - {kind: Node, namespace: "", name: ip-10-0-4-11, state: "Ready"}
+  - {kind: Node, namespace: "", name: ip-10-0-4-12, state: "Ready"}
+  - {kind: Deployment, namespace: shop, name: checkout, state: "3/3 Ready, image registry.example.com/shop/checkout:2.3.1, serviceAccountName checkout"}
+  - {kind: ReplicaSet, namespace: shop, name: checkout-6c8d9e7f5, state: "3/3 Ready, pods started T0-20m"}
+  - {kind: Pod, namespace: shop, name: checkout-6c8d9e7f5-p8nrd, state: "Ready, same Pulled event at T0-20m and the same warning"}
+  - {kind: Pod, namespace: shop, name: checkout-6c8d9e7f5-w1hts, state: "Ready, same events"}
+  - {kind: Service, namespace: shop, name: checkout, state: "ClusterIP port 8080, three ready pods"}
+  - {kind: ServiceAccount, namespace: shop, name: checkout, state: "imagePullSecrets regcred and expired-regcred"}
+  - {kind: ConfigMap, namespace: shop, name: checkout-env, state: "mounted, checkout Ready and logging healthy at T0-1m"}
+  - {kind: HorizontalPodAutoscaler, namespace: shop, name: checkout, state: "min 3 max 10, current 3, ScalingActive True, cpu 31% of target 65"}
+  - {kind: PodDisruptionBudget, namespace: shop, name: checkout, state: "minAvailable 2, currentHealthy 3, disruptionsAllowed 1"}
+  - {kind: Ingress, namespace: shop, name: checkout, state: "host shop.example.com path /checkout to service checkout port 8080"}
+  - {kind: Deployment, namespace: shop, name: catalog, state: "4/4 Ready, image pulled, no pull warning"}
+  - {kind: Service, namespace: shop, name: catalog, state: "ClusterIP port 8080"}
+  - {kind: ServiceAccount, namespace: shop, name: catalog, state: "imagePullSecrets regcred only"}
+  - {kind: Deployment, namespace: shop, name: cart, state: "2/2 Ready"}
+  - {kind: Service, namespace: shop, name: cart, state: "ClusterIP port 8080"}
+  - {kind: ConfigMap, namespace: shop, name: catalog-env, state: "mounted, catalog Ready"}
+  - {kind: Job, namespace: lab, name: experiment-28900, state: "Complete, succeeded 1 at T0-90m"}
+  - {kind: CronJob, namespace: lab, name: experiment, state: "schedule 0 */6 * * *, last Job experiment-28900 Complete"}
+  - {kind: ServiceAccount, namespace: lab, name: experiment, state: "imagePullSecrets lab-regcred; the completed Job's pod pulled on the retry"}
+  - {kind: Deployment, namespace: lab, name: notebook, state: "1/1 Ready, image pulled with lab-regcred"}
+  - {kind: Service, namespace: lab, name: notebook, state: "ClusterIP port 8888"}
+  - {kind: ConfigMap, namespace: lab, name: notebook, state: "mounted, notebook Ready"}
+  - {kind: ResourceQuota, namespace: shop, name: compute, state: "pods used 12 of 50; requests.cpu used 2 of 8"}
+  - {kind: LimitRange, namespace: shop, name: defaults, state: "checkout sets requests explicitly"}
+  - {kind: NetworkPolicy, namespace: shop, name: checkout-ingress, state: "allows TCP 8080 from namespace edge"}
+  - {kind: Namespace, namespace: "", name: edge, state: "Active, labels role=edge"}
+  - {kind: Deployment, namespace: edge, name: gateway, state: "2/2 Ready"}
+  - {kind: Service, namespace: edge, name: gateway, state: "ClusterIP port 80"}
+  - {kind: ConfigMap, namespace: edge, name: gateway-nginx, state: "proxy_pass checkout.shop.svc:8080; access log 200 at T0-1m"}
+  - {kind: DaemonSet, namespace: shop, name: log-agent, state: "2/2 Ready"}
+  - {kind: PersistentVolumeClaim, namespace: shop, name: checkout-cache, state: "Bound, 5Gi, mounted by checkout, pods Ready"}
+  - {kind: PersistentVolume, namespace: "", name: pvc-checkout-cache, state: "Bound to shop/checkout-cache"}
+sources:
+  - "https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod"
+  - "https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy"

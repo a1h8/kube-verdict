@@ -109,3 +109,11 @@ def test_file_level_checks_fail_their_mutants(tmp_path):
     rows, errors = c.check_file(dup)
     assert errors == ["duplicate ids: x-1"]
     assert any("duplicate chain signature" in r for r in rows[1][1])
+
+
+def test_objects_as_mappings_count_their_namespaces():
+    """Grok's pilot 2 wrote objects as {kind, namespace, name, state}; the brief allows it (added 2026-11-09)."""
+    import tools.s2b_check as chk
+    objs = [{"kind": "Pod", "namespace": f"ns{i % 3}", "name": f"p{i}", "state": "Ready"} for i in range(25)]
+    assert not any(w.startswith("A9") for w in chk.check({"objects": objs}))
+    assert any(w.startswith("A9") for w in chk.check({"objects": objs[:5]}))     # too few still fails

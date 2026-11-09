@@ -1,0 +1,41 @@
+{
+ "channel": "Grok in the Cursor editor chat, pasted by the user (no API), new conversation",
+ "date": "2026-11-08",
+ "model": "to fill: not stated by the user yet",
+ "prompt_sha256": "df2cf11a692f3370f716b96eceff7cefd9dc516c19dc4137dad701e5ff168aaf",
+ "same_prompt_as": "cursor-grok-2026-11-08-pilot-1",
+ "response": "scenarios.yaml, pasted back by the user on 2026-11-09, kept as given; whole prompt (prompt.md) or parts not stated",
+ "parts": [
+  {
+   "file": "prompt-part1.md",
+   "families": [
+    "quota",
+    "netpol",
+    "dependency",
+    "limitrange"
+   ],
+   "prompt_sha256": "4a2399551728c77ba4aecea32acfcab4304b9c3816b49070e770efed82a08ff4"
+  },
+  {
+   "file": "prompt-part2.md",
+   "families": [
+    "hpa",
+    "webhook",
+    "configmap",
+    "pdb"
+   ],
+   "prompt_sha256": "efd6b41d9957d598d5d73ab4554d4d4463b32e655c66650cf77fc565d6f13765"
+  },
+  {
+   "file": "prompt-part3.md",
+   "families": [
+    "ingress",
+    "storage",
+    "pullsecret"
+   ],
+   "prompt_sha256": "f05af510b01b67d13a3d39494d8dc95c961601cb89f27bb05c860abc8a37fe3e"
+  }
+ ],
+ "note": "same brief as pilot 1; the request may be sent in 3 parts if the whole batch gets no answer",
+ "response_sha256": "cdb1106446a3252651e3867e594ce3f91c6cd58faa247e49c2e00febf4a1f3d7"
+}

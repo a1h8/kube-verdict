@@ -132,7 +132,16 @@ def check(s: dict) -> list[str]:
         why.append("fewer than 2 decoys")
     objects = s.get("objects") or []
     objects = objects if isinstance(objects, list) else []
-    namespaces = {ns for o in objects for _k, ns, _n in refs(o)[:1] if ns}
+    # an object is a "Kind/ns/name: state" line or a {kind, namespace, name, state} mapping; both are what the
+    # brief asks for. A Namespace object names a namespace too.
+    namespaces = set()
+    for o in objects:
+        if isinstance(o, dict):
+            ns = o.get("namespace") or (o.get("name") if o.get("kind") == "Namespace" else "")
+            if ns:
+                namespaces.add(str(ns))
+        else:
+            namespaces |= {ns for _k, ns, _n in refs(str(o))[:1] if ns}
     if len(objects) < 25 or len(namespaces) < 2:
         why.append(f"A9: {len(objects)} objects over {len(namespaces)} namespace(s), at least 25 over 2 needed")
     return why
