@@ -15,7 +15,7 @@ from ontology.anchors import evaluate, quantity  # noqa: F401  (quantity: re-exp
 from ontology.relationships import RelationshipType as R
 
 MAX_HOPS = 4
-BACK = {R.OWNS, R.LIMITS, R.QUOTA_BLOCKS, R.CONFIGURES}
+BACK = {R.OWNS, R.LIMITS, R.QUOTA_BLOCKS, R.CONFIGURES, R.SCALES, R.RESTRICTS}
 
 
 @dataclass

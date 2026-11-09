@@ -231,6 +231,11 @@ def ingest_node(state: RCAState, config: RunnableConfig) -> dict:
             log.warning("policy collection failed: %s", exc)
             policy_stat = {"fallback": True, "error": str(exc)}
 
+        # relations whose source a later collector adds (a webhook, from the policy collector): the declared
+        # relations are built again once the graph is whole; an existing edge is never doubled
+        from ontology.declared_relations import build_declared
+        build_declared(built_graph)
+
         kube_ver = getattr(collector, "kube_version", None)
         log.info("ingest: %s", built_graph.summary())
         # A refused listing (403, timeout) leaves a hole the diagnosis would read as "nothing

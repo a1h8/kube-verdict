@@ -56,7 +56,8 @@ class RelationshipType(str, Enum):
     PROVISIONED_BY = "PROVISIONED_BY"  # PersistentVolumeClaim → StorageClass
 
     # Network
-    RESTRICTS = "RESTRICTS"        # NetworkPolicy → Namespace
+    RESTRICTS = "RESTRICTS"        # NetworkPolicy → Pod its podSelector selects (ontology/spec/relations.yaml)
+    ADMITS = "ADMITS"              # MutatingWebhook → Namespace its namespaceSelector matches
 
 
 @dataclass(frozen=True)

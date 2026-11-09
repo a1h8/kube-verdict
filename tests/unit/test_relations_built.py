@@ -18,8 +18,6 @@ BUILDERS = {"Edge", "_edge", "_lazy_edge", "add_edge"}
 
 # declared, not built yet: each one is a known gap (docs/correlation-engine.md § 1), removed from here when built
 NOT_BUILT_YET = {
-    "SCALES": "HPA → workload, from spec.scaleTargetRef",
-    "RESTRICTS": "NetworkPolicy → Pod, from podSelector and the peers of each rule",
     "SPAWNED_BY": "Job → CronJob: built as OWNS from ownerReferences instead",
     "PROVISIONED_BY": "PVC → StorageClass",
     "OVERRIDES_VALUES": "helmfile environment values → release",

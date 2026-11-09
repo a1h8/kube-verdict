@@ -75,13 +75,20 @@ def _name_reference(graph: OntologyGraph, spec: RelationSpec) -> Iterator[tuple]
     holder_is_source = spec.params["holder"] == "source"
     holder_kind = spec.source_kind if holder_is_source else spec.target_kind
     ref_kind = spec.target_kind if holder_is_source else spec.source_kind
-    refs = {(e.namespace, e.name): e for e in graph.entities() if _matches_kind(e, ref_kind)}
+    kind_path = spec.params.get("kind_path")
+    refs = {(_kind(e), e.namespace, e.name): e for e in graph.entities()
+            if kind_path or _matches_kind(e, ref_kind)}
     for holder in list(graph.entities()):
         if not _matches_kind(holder, holder_kind):
             continue
+        # the referenced kind is fixed by the spec, or read on the holder (an HPA's scaleTargetRef.kind)
+        want = (resolve(holder.raw or {}, kind_path) or [None])[0] if kind_path else None
         for path in paths:
             for name in resolve(holder.raw or {}, path):
-                ref = refs.get((holder.namespace, str(name)))
+                if kind_path:
+                    ref = refs.get((str(want), holder.namespace, str(name)))
+                else:
+                    ref = next((e for (k, ns, n), e in refs.items() if ns == holder.namespace and n == str(name)), None)
                 if ref is None:
                     continue
                 src, dst = (holder, ref) if holder_is_source else (ref, holder)
@@ -90,16 +97,31 @@ def _name_reference(graph: OntologyGraph, spec: RelationSpec) -> Iterator[tuple]
 
 
 def _label_selector(graph: OntologyGraph, spec: RelationSpec) -> Iterator[tuple]:
+    """``selector``: the path of one or more ``matchLabels`` maps (or plain label maps) on the source. ``scope``:
+    ``same_namespace`` (default) or ``cluster`` (targets in any namespace, as a webhook's ``namespaceSelector``).
+    ``empty_selects_all``: an empty selector selects every target in scope (a NetworkPolicy's ``podSelector: {}``).
+    Only matchLabels is read; a selector with matchExpressions is not matched yet."""
+    cluster = spec.params.get("scope") == "cluster"
+    empty_all = bool(spec.params.get("empty_selects_all"))
+    targets = [e for e in graph.entities() if _matches_kind(e, spec.target_kind)]
     for src in list(graph.entities()):
         if not _matches_kind(src, spec.source_kind):
             continue
-        sel = (resolve(src.raw or {}, spec.params["selector"]) or [None])[0] or getattr(src, "selector", None)
-        if not isinstance(sel, dict) or not sel:
-            continue
-        for dst in graph.entities():
-            if (_matches_kind(dst, spec.target_kind) and dst.namespace == src.namespace
-                    and all((dst.labels or {}).get(k) == v for k, v in sel.items())):
-                yield src, dst, "selector", f"{sel}", 1.0
+        sels = [x for x in resolve(src.raw or {}, spec.params["selector"]) if isinstance(x, dict)]
+        if not sels and getattr(src, "selector", None):
+            sels = [src.selector]
+        for sel in sels:
+            if "matchExpressions" in sel or "match_expressions" in sel:
+                if sel.get("matchExpressions") or sel.get("match_expressions"):
+                    continue
+            labels = sel.get("matchLabels", sel.get("match_labels", sel)) if isinstance(sel, dict) else {}
+            labels = labels or {}
+            if not labels and not empty_all:
+                continue
+            for dst in targets:
+                if (cluster or dst.namespace == src.namespace) and all(
+                        (dst.labels or {}).get(k) == v for k, v in labels.items()):
+                    yield src, dst, "selector", f"{labels or 'all'}", 1.0
 
 
 def _fill(template: str, groups: dict[str, str]) -> str:

@@ -168,6 +168,8 @@ def build_graph_live(case_dir: Path, wire_signals: bool = True) -> OntologyGraph
     collector = collector_for_case(docs, namespaces)
     graph = collector.collect(namespaces=namespaces)
     _add_webhooks(graph, docs)
+    from ontology.declared_relations import build_declared
+    build_declared(graph)        # as the workflow does once the policy collector has run
 
     ns = case["expect"].get("namespace", "default")
     release = _build_helm_release(name=case["expect"].get("release", case["case_name"]), namespace=ns,

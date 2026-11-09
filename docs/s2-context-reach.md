@@ -240,3 +240,40 @@ stays 19/19.
 (6/7 before). The 4 named causes hold. q1 moves from the old OOMKill (a decoy) to the exhausted quota, which is its
 chain's first hop. S1: `make ci`. By the rule, kept. The guard `tests/unit/test_s2_reach_guard.py` now requires q0 to stay
 `no_incident`.
+
+## Rule for SCALES, RESTRICTS and ADMITS as declared relations, written 2026-11-09 before their code
+
+**Change.** Three relations are declared in `ontology/spec/relations.yaml` and built by the generic matchers. Two
+matcher parameters are added:
+- SCALES: HPA → workload, from `spec.scaleTargetRef`. The target kind is read from the holder (`kind_path`);
+- RESTRICTS: NetworkPolicy → Pod, from `spec.podSelector`. An empty selector selects every pod of the namespace, as
+  the documentation states (`empty_selects_all`);
+- ADMITS: MutatingWebhook → Namespace, from each webhook's `namespaceSelector`, matched against namespaces' labels
+  (`scope: cluster`).
+
+The walk follows SCALES and RESTRICTS backwards. Only `matchLabels` is read; `matchExpressions` is not yet, and a
+selector using it is not matched.
+
+**Metric.** D on S2 (cases naming the expected cause; outcomes of the 7 cases with no incident); the guards.
+
+**Prediction.** a1's HPA is reached (SCALES) and its `ScalingActive=False` makes it a chain's cause. That is the right
+path, but not a1's expected cause (the APIService), so a PARTIAL. a0's healthy HPA gives no chain. No other case
+changes. The named count stays 4.
+
+**Rule.** Kept if no case with no incident gets a chain or changes its outcome, and the guards hold.
+
+**Result (2026-11-09).** SCALES, RESTRICTS and ADMITS are built from the declared ontology:
+- SCALES in a0, a1, a2 and the quota family;
+- RESTRICTS 17 times in the NetworkPolicy family;
+- ADMITS from `mesh-injector` to `shop` in the three webhook cases.
+
+Two findings:
+- **The prediction for a1 was wrong.** a1's HPA is not reached by the walk: its events are the symptoms, so the HPA is
+  the walk's start, and the engine judges only the objects it reaches, never the start. No chain changes.
+- **ADMITS needed two fixes found on the way:**
+  - the policy collector kept no raw object for a webhook, so its `namespaceSelector` was lost; it keeps it now;
+  - the declared relations were built before the policy collector added webhooks. They are built again once the
+    graph is whole, in the workflow and in S2's harness, and an existing edge is never doubled.
+
+Rule: no case with no incident gets a chain or changes its outcome, and the guards hold (`make ci` green, 3,545
+passed). Kept. Named causes: still 4.

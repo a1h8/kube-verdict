@@ -63,3 +63,27 @@ relations:
       link: involved
     sources:
       - https://kubernetes.io/docs/concepts/policy/limit-range/
+
+  - name: SCALES
+    source_kind: HorizontalPodAutoscaler
+    target_kind: "*"
+    matcher: name_reference
+    params: {path: spec.scaleTargetRef.name, kind_path: spec.scaleTargetRef.kind, holder: source}
+    sources:
+      - https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+
+  - name: RESTRICTS
+    source_kind: NetworkPolicy
+    target_kind: Pod
+    matcher: label_selector
+    params: {selector: spec.podSelector, scope: same_namespace, empty_selects_all: true}
+    sources:
+      - https://kubernetes.io/docs/concepts/services-networking/network-policies/
+
+  - name: ADMITS
+    source_kind: MutatingWebhook
+    target_kind: Namespace
+    matcher: label_selector
+    params: {selector: "webhooks[].namespaceSelector", scope: cluster}
+    sources:
+      - https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/

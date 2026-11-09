@@ -44,6 +44,7 @@ _INCIDENT_RELS_BACKWARD = {
     RelationshipType.QUOTA_BLOCKS,
     RelationshipType.LIMITS,
     RelationshipType.CONFIGURES,
+    RelationshipType.RESTRICTS,
 }
 
 
