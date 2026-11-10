@@ -1,0 +1,17 @@
+[
+  {
+    "labels": {
+      "alertname": "HighErrorRate",
+      "severity": "critical",
+      "namespace": "shop",
+      "deployment": "search"
+    },
+    "annotations": {
+      "summary": "search error rate above 5%",
+      "description": "12% of GET /search requests fail."
+    },
+    "state": "firing",
+    "activeAt": "2026-11-02T08:15:00Z",
+    "value": "1"
+  }
+]

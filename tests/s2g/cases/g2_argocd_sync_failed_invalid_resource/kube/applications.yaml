@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ApplicationList
+metadata: {}
+items:
+- apiVersion: argoproj.io/v1alpha1
+  kind: Application
+  metadata:
+    name: checkout
+    namespace: argocd
+    uid: 81aa63da-e706-bd1d-d847-69b5eb1bc3cb
+    generation: 3
+    creationTimestamp: '2026-08-04T09:00:00Z'
+  spec:
+    project: default
+    source:
+      repoURL: https://git.example.com/acme/deploy.git
+      path: apps/checkout
+      targetRevision: main
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: shop
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+      - ServerSideApply=true
+  status:
+    sync:
+      status: OutOfSync
+      revision: b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5
+      comparedTo:
+        source:
+          repoURL: https://git.example.com/acme/deploy.git
+          path: apps/checkout
+          targetRevision: main
+        destination:
+          server: https://kubernetes.default.svc
+          namespace: shop
+    health:
+      status: Degraded
+    resources:
+    - group: apps
+      version: v1
+      kind: Deployment
+      namespace: shop
+      name: checkout
+      status: Synced
+      health:
+        status: Degraded
+    - group: ''
+      version: v1
+      kind: ConfigMap
+      namespace: shop
+      name: checkout-config
+      status: OutOfSync
+    - group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      namespace: shop
+      name: checkout
+      status: OutOfSync
+      health:
+        status: Missing
+    operationState:
+      operation:
+        sync:
+          revision: b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5
+        initiatedBy:
+          automated: true
+      startedAt: '2026-11-02T08:20:00Z'
+      finishedAt: '2026-11-02T08:20:12Z'
+      message: 'one or more objects failed to apply, reason: Ingress.networking.k8s.io
+        "checkout" is invalid: spec.rules[0].http.paths[0].pathType: Unsupported value:
+        "Prefixx": supported values: "Exact", "ImplementationSpecific", "Prefix"'
+      syncResult:
+        revision: b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5
+        source:
+          repoURL: https://git.example.com/acme/deploy.git
+          targetRevision: main
+      phase: Failed
+    reconciledAt: '2026-11-02T09:00:00Z'
+    sourceType: Directory
+- apiVersion: argoproj.io/v1alpha1
+  kind: Application
+  metadata:
+    name: billing
+    namespace: argocd
+    uid: 9eec87c6-0032-339c-786b-825b47fa3834
+    generation: 3
+    creationTimestamp: '2026-08-04T09:00:00Z'
+  spec:
+    project: default
+    source:
+      repoURL: https://git.example.com/acme/deploy.git
+      path: apps/billing
+      targetRevision: main
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: billing
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+      - ServerSideApply=true
+  status:
+    sync:
+      status: Synced
+      revision: 4f1c2a9e7b3d5f60a8c1e2d3b4a5968778695a4b
+      comparedTo:
+        source:
+          repoURL: https://git.example.com/acme/deploy.git
+          path: apps/billing
+          targetRevision: main
+        destination:
+          server: https://kubernetes.default.svc
+          namespace: billing
+    health:
+      status: Healthy
+    resources:
+    - group: apps
+      version: v1
+      kind: Deployment
+      namespace: billing
+      name: billing-worker
+      status: Synced
+      health:
+        status: Healthy
+    - group: apps
+      version: v1
+      kind: Deployment
+      namespace: billing
+      name: billing-api
+      status: Synced
+      health:
+        status: Healthy
+    reconciledAt: '2026-11-02T09:00:00Z'
+    sourceType: Directory

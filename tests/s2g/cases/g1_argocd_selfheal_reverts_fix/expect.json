@@ -1,0 +1,50 @@
+{
+  "set": "S2-GitOps",
+  "spec": "docs/s2g/gitops-cases.md",
+  "sources": [
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/",
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/",
+    "https://fluxcd.io/flux/components/kustomize/kustomizations/",
+    "https://fluxcd.io/flux/components/helm/helmreleases/",
+    "ontology/spec/upstream/bundle (Argo CD v3.6.1, Flux helm v1.7.1, kustomize v1.10.1 CRDs)"
+  ],
+  "family": "gitops",
+  "namespace": "billing",
+  "release": "billing",
+  "scenario": "an operator raised billing-worker's memory limit by hand; Argo CD's self-heal reapplied Git's 256Mi and the worker is OOMKilled again",
+  "query": "why does billing-worker keep getting OOMKilled in billing",
+  "expected_outcome": "cause",
+  "cause_object": "Application/argocd/billing",
+  "mechanism": "selfHeal reapplies the Git revision's 256Mi limit two minutes after the hand fix to 768Mi; the fix belongs in Git",
+  "pass_if": "names the Application's self-heal reverting the limit to Git's value",
+  "partial_if_only": [
+    "the memory limit is too low, without Argo CD"
+  ],
+  "chain": [
+    "billing-worker's pods are OOMKilled and crash-loop",
+    "the Deployment's memory limit is 256Mi, owned by argocd-controller since T0+2 min",
+    "a ReplicaSet of revision 2 with 768Mi was created at T0 and scaled to 0 at T0+2 min",
+    "Application/argocd/billing, selfHeal true, synced Git's revision at T0+2 min"
+  ],
+  "decoys": [
+    {
+      "object": "Pod of billing-api, OOMKilled 72h ago",
+      "why_not": "running and ready since"
+    },
+    {
+      "object": "Application/argocd/storefront OutOfSync",
+      "why_not": "another namespace, healthy"
+    },
+    {
+      "object": "Certificate/shop/storefront",
+      "why_not": "Ready, renewal in 59 days"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/billing/billing-worker"
+  ],
+  "root_cause_concepts": [
+    "argo|application|self-heal|selfheal|sync|git",
+    "memory|oom|limit"
+  ]
+}

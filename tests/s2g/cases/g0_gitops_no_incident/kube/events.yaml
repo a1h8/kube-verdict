@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-worker.3bcc2abd525a
+    namespace: billing
+    uid: 7dac6d6e-5eab-7aec-7361-8569c6b60af8
+    creationTimestamp: '2026-11-01T13:00:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set billing-worker-664b52d70e from 1 to 2
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: billing-worker
+    namespace: billing
+    uid: b343ec33-c822-5883-b72d-3d4372d26983
+  count: 1
+  firstTimestamp: '2026-11-01T13:00:00Z'
+  lastTimestamp: '2026-11-01T13:00:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller

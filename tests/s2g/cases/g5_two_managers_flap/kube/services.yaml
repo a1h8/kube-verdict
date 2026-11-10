@@ -1,0 +1,274 @@
+apiVersion: v1
+kind: ServiceList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: argocd-server
+    namespace: argocd
+    uid: c6ceb06f-2b25-0839-93d6-ccb0ec552f36
+    labels:
+      app.kubernetes.io/name: argocd-server
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: argocd-server
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: argocd-repo-server
+    namespace: argocd
+    uid: 6093c50f-806c-87df-6995-05fd982bac04
+    labels:
+      app.kubernetes.io/name: argocd-repo-server
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: argocd-repo-server
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: kustomize-controller
+    namespace: flux-system
+    uid: 99a40876-8565-e7a4-0309-830b08e107d0
+    labels:
+      app.kubernetes.io/name: kustomize-controller
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: kustomize-controller
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-controller
+    namespace: flux-system
+    uid: d7b22d55-c26e-2fcd-7d75-60cdcfb3d794
+    labels:
+      app.kubernetes.io/name: helm-controller
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: helm-controller
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: source-controller
+    namespace: flux-system
+    uid: 579c8e96-56f7-43f0-8179-02d67523086f
+    labels:
+      app.kubernetes.io/name: source-controller
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: source-controller
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: prometheus
+    namespace: monitoring
+    uid: 41f6e882-5b9d-03f7-deec-81500f4c8c0f
+    labels:
+      app.kubernetes.io/name: prometheus
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: prometheus
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: coredns
+    namespace: kube-system
+    uid: 611794e6-1b8a-10dd-5527-2ee14bcddac9
+    labels:
+      app.kubernetes.io/name: coredns
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: coredns
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: cart
+    namespace: shop
+    uid: 214b259a-c322-1d34-46db-cdce111892c8
+    labels:
+      app.kubernetes.io/name: cart
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: cart
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: catalog
+    namespace: shop
+    uid: fa208fe6-2259-0795-1044-a2c65758b3ec
+    labels:
+      app.kubernetes.io/name: catalog
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: catalog
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: checkout
+    namespace: shop
+    uid: 3b21c9e3-55f4-4e4b-428d-6885e7b56f1b
+    labels:
+      app.kubernetes.io/name: checkout
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: checkout
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: search
+    namespace: shop
+    uid: c8c982c7-0f89-7647-9cc9-0554d03d8515
+    labels:
+      app.kubernetes.io/name: search
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: search
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: pricing
+    namespace: shop
+    uid: a3af07db-2cb3-5591-1ffd-ef618cddd40d
+    labels:
+      app.kubernetes.io/name: pricing
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: pricing
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: billing-worker
+    namespace: billing
+    uid: 6ef4be88-086a-28d5-613b-b29606563782
+    labels:
+      app.kubernetes.io/name: billing-worker
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: billing-worker
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: billing-api
+    namespace: billing
+    uid: 40d56020-abe2-4264-e774-139f336e72bb
+    labels:
+      app.kubernetes.io/name: billing-api
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: billing-api
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: api
+    namespace: shop
+    uid: 7a26735d-c4bc-1111-9b6b-e4c843115c46
+    labels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/part-of: acme
+  spec:
+    selector:
+      app.kubernetes.io/name: api
+    type: ClusterIP
+    ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

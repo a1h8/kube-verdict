@@ -1,0 +1,44 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "checkout-c7ad3089b0-e539c",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "checkout"
+    },
+    "values": [
+      [
+        "1793606400000000000",
+        "level=fatal msg=\"invalid configuration\" key=PAYMENT_TIMEOUT value=\"30x\" err=\"time: unknown unit \\\"x\\\" in duration \\\"30x\\\"\""
+      ],
+      [
+        "1793608200000000000",
+        "level=fatal msg=\"invalid configuration\" key=PAYMENT_TIMEOUT value=\"30x\" err=\"time: unknown unit \\\"x\\\" in duration \\\"30x\\\"\""
+      ],
+      [
+        "1793609940000000000",
+        "level=fatal msg=\"invalid configuration\" key=PAYMENT_TIMEOUT value=\"30x\" err=\"time: unknown unit \\\"x\\\" in duration \\\"30x\\\"\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "checkout-c7ad3089b0-f049c",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "checkout"
+    },
+    "values": [
+      [
+        "1793606400000000000",
+        "level=fatal msg=\"invalid configuration\" key=PAYMENT_TIMEOUT value=\"30x\" err=\"time: unknown unit \\\"x\\\" in duration \\\"30x\\\"\""
+      ],
+      [
+        "1793608200000000000",
+        "level=fatal msg=\"invalid configuration\" key=PAYMENT_TIMEOUT value=\"30x\" err=\"time: unknown unit \\\"x\\\" in duration \\\"30x\\\"\""
+      ],
+      [
+        "1793609940000000000",
+        "level=fatal msg=\"invalid configuration\" key=PAYMENT_TIMEOUT value=\"30x\" err=\"time: unknown unit \\\"x\\\" in duration \\\"30x\\\"\""
+      ]
+    ]
+  }
+]

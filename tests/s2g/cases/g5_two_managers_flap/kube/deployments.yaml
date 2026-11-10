@@ -1,0 +1,934 @@
+apiVersion: v1
+kind: DeploymentList
+metadata: {}
+items:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: argocd-server
+    namespace: argocd
+    uid: 2cd5042a-128e-9978-9224-50f4143a4dbe
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: argocd-server
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: argocd-server
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: argocd-server
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: argocd-server
+          image: ghcr.io/acme/argocd-server:v3.6.1
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "argocd-server-0f8e1a99ee" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: argocd-repo-server
+    namespace: argocd
+    uid: a1d62072-d561-7b76-7d82-5f562fdbcc74
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: argocd-repo-server
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: argocd-repo-server
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: argocd-repo-server
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: argocd-repo-server
+          image: ghcr.io/acme/argocd-repo-server:v3.6.1
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "argocd-repo-server-b1e7b1d7c2" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: kustomize-controller
+    namespace: flux-system
+    uid: db895ea3-827a-1159-45df-3b1cb1014240
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: kustomize-controller
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: kustomize-controller
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: kustomize-controller
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: kustomize-controller
+          image: ghcr.io/acme/kustomize-controller:v1.10.1
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "kustomize-controller-2033839ce9" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: helm-controller
+    namespace: flux-system
+    uid: 3df87ab4-2872-c662-a6cd-bff7e2f33ccb
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: helm-controller
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: helm-controller
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: helm-controller
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: helm-controller
+          image: ghcr.io/acme/helm-controller:v1.7.1
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "helm-controller-36c49664ce" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: source-controller
+    namespace: flux-system
+    uid: dcb47790-7a54-7e5a-2386-b646cefec3cc
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: source-controller
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: source-controller
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: source-controller
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: source-controller
+          image: ghcr.io/acme/source-controller:v1.10.1
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "source-controller-67f2cf77b0" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: prometheus
+    namespace: monitoring
+    uid: 06c04767-149f-48f6-07b6-96b9c9b7c433
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: prometheus
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: prometheus
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: prometheus
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: prometheus
+          image: ghcr.io/acme/prometheus:v3.5.0
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 2Gi
+            limits:
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "prometheus-9179a81426" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: coredns
+    namespace: kube-system
+    uid: f95ad5fa-93b1-9014-4767-548dfd40e404
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: coredns
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: coredns
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: coredns
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: coredns
+          image: ghcr.io/acme/coredns:1.12.3
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 170Mi
+            limits:
+              memory: 170Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "coredns-f4612a1944" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: cart
+    namespace: shop
+    uid: 22f3371d-6dc0-3b82-801c-dc24b7070739
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: cart
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: cart
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: cart
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: cart
+          image: ghcr.io/acme/cart:2.3.1
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "cart-d49f659d09" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: catalog
+    namespace: shop
+    uid: 68af1734-17ac-d1be-fe11-265561bf7527
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: catalog
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 3
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: catalog
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: catalog
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: catalog
+          image: ghcr.io/acme/catalog:3.2.0
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 3
+    readyReplicas: 3
+    availableReplicas: 3
+    updatedReplicas: 3
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "catalog-7740e4210b" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: checkout
+    namespace: shop
+    uid: 00f228f1-3cab-8b26-1700-d9cf7e529a16
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: checkout
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: checkout
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: checkout
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: checkout
+          image: ghcr.io/acme/checkout:5.1.0
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+          env:
+          - name: PAYMENT_TIMEOUT
+            valueFrom:
+              configMapKeyRef:
+                name: checkout-config
+                key: PAYMENT_TIMEOUT
+  status:
+    observedGeneration: 1
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "checkout-c7ad3089b0" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: search
+    namespace: shop
+    uid: 1250b462-cecb-8bda-9b00-7df9ab1b057d
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: search
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: search
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: search
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: search
+          image: ghcr.io/acme/search:2.4.0
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "search-b0f1a1f8e6" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: pricing
+    namespace: shop
+    uid: b8ae932f-0bd2-4e07-e28e-22fa675bfe9d
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: pricing
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: pricing
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: pricing
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: pricing
+          image: ghcr.io/acme/pricing:1.4.0
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "pricing-532ee89dcc" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: billing-worker
+    namespace: billing
+    uid: b343ec33-c822-5883-b72d-3d4372d26983
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: billing-worker
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: billing-worker
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: billing-worker
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: billing-worker
+          image: ghcr.io/acme/billing-worker:1.8.0
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "billing-worker-664b52d70e" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: billing-api
+    namespace: billing
+    uid: dafe75fd-25eb-efac-981a-a366ed133a9f
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: billing-api
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: billing-api
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: billing-api
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: billing-api
+          image: ghcr.io/acme/billing-api:1.8.0
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "billing-api-c57878a582" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+    generation: 1
+    creationTimestamp: '2026-10-03T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/part-of: acme
+    annotations:
+      deployment.kubernetes.io/revision: '1'
+    managedFields:
+    - manager: argocd-controller
+      operation: Apply
+      apiVersion: apps/v1
+      time: '2026-11-02T08:55:00Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:spec:
+          f:replicas: {}
+  spec:
+    replicas: 3
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: api
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: api
+          app.kubernetes.io/part-of: acme
+      spec:
+        containers:
+        - name: api
+          image: ghcr.io/acme/api:4.0.2
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+  status:
+    observedGeneration: 1
+    replicas: 3
+    readyReplicas: 3
+    availableReplicas: 3
+    updatedReplicas: 3
+    conditions:
+    - type: Available
+      status: 'True'
+      reason: MinimumReplicasAvailable
+      message: Deployment has minimum availability.
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'
+    - type: Progressing
+      status: 'True'
+      reason: NewReplicaSetAvailable
+      message: ReplicaSet "api-cb09e762eb" has successfully progressed.
+      lastTransitionTime: '2026-10-03T09:00:00Z'
+      lastUpdateTime: '2026-11-01T09:00:00Z'

@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMapList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: checkout-config
+    namespace: shop
+    uid: 84ca68cd-2b51-7d19-d97c-3fd92de99444
+    creationTimestamp: '2026-08-04T09:00:00Z'
+    managedFields:
+    - manager: argocd-controller
+      operation: Apply
+      apiVersion: v1
+      time: '2026-11-01T07:00:00Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          f:PAYMENT_TIMEOUT: {}
+          f:PAYMENT_PROVIDER: {}
+  data:
+    PAYMENT_TIMEOUT: 30x
+    PAYMENT_PROVIDER: acquirer-b

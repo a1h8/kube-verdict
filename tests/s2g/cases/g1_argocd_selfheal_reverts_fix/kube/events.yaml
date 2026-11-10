@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-worker.7d7d36757a6a
+    namespace: billing
+    uid: fbf61bfa-f5f3-9b8e-e691-450b2c8189a4
+    creationTimestamp: '2026-11-02T09:00:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set billing-worker-ab237bf09b from 0 to 1
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: billing-worker
+    namespace: billing
+    uid: b343ec33-c822-5883-b72d-3d4372d26983
+  count: 1
+  firstTimestamp: '2026-11-02T09:00:00Z'
+  lastTimestamp: '2026-11-02T09:00:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-worker.5165a533a37b
+    namespace: billing
+    uid: 7744632b-431a-8de4-9e04-a0c5efeda663
+    creationTimestamp: '2026-11-02T09:02:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled down replica set billing-worker-ab237bf09b from 1 to 0
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: billing-worker
+    namespace: billing
+    uid: b343ec33-c822-5883-b72d-3d4372d26983
+  count: 1
+  firstTimestamp: '2026-11-02T09:02:00Z'
+  lastTimestamp: '2026-11-02T09:02:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-worker.13661eef84f9
+    namespace: billing
+    uid: c36a30bb-c9f8-2a22-ba3d-bc9d54c08ada
+    creationTimestamp: '2026-11-02T09:02:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set billing-worker-664b52d70e from 0 to 2
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: billing-worker
+    namespace: billing
+    uid: b343ec33-c822-5883-b72d-3d4372d26983
+  count: 1
+  firstTimestamp: '2026-11-02T09:02:00Z'
+  lastTimestamp: '2026-11-02T09:02:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-worker-664b52d70e-53956.d1b86314267c
+    namespace: billing
+    uid: 9f70e739-0695-2d88-178a-7a310c95777a
+    creationTimestamp: '2026-11-02T09:06:00Z'
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container billing-worker in pod billing-worker-664b52d70e-53956_billing(e1f1175f-bce3-f4f6-49bd-36070304de0f)
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: billing-worker-664b52d70e-53956
+    namespace: billing
+    uid: e1f1175f-bce3-f4f6-49bd-36070304de0f
+  count: 9
+  firstTimestamp: '2026-11-02T09:06:00Z'
+  lastTimestamp: '2026-11-02T09:22:00Z'
+  source:
+    component: kubelet
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-worker-664b52d70e-d7995.615c3a5390c6
+    namespace: billing
+    uid: b75e3e34-4003-9e21-820e-5dcd05fa6b36
+    creationTimestamp: '2026-11-02T09:06:00Z'
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container billing-worker in pod billing-worker-664b52d70e-d7995_billing(67386bfb-e73c-6950-fd6c-09a7bca90020)
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: billing-worker-664b52d70e-d7995
+    namespace: billing
+    uid: 67386bfb-e73c-6950-fd6c-09a7bca90020
+  count: 9
+  firstTimestamp: '2026-11-02T09:06:00Z'
+  lastTimestamp: '2026-11-02T09:22:00Z'
+  source:
+    component: kubelet
+  reportingComponent: kubelet

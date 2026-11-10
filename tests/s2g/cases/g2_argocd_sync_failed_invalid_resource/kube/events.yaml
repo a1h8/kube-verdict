@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: checkout-c7ad3089b0-e539c.68dacec03ed8
+    namespace: shop
+    uid: 962b276f-b527-aad1-9b42-d8f8cb114d07
+    creationTimestamp: '2026-11-02T06:10:00Z'
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container checkout in pod checkout-c7ad3089b0-e539c_shop(a462b8f6-712e-ac00-9b52-69c536c70955)
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: checkout-c7ad3089b0-e539c
+    namespace: shop
+    uid: a462b8f6-712e-ac00-9b52-69c536c70955
+  count: 40
+  firstTimestamp: '2026-11-02T06:10:00Z'
+  lastTimestamp: '2026-11-02T08:59:00Z'
+  source:
+    component: kubelet
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: checkout-c7ad3089b0-f049c.947a6ce79192
+    namespace: shop
+    uid: 4a8ac83a-a3af-28cc-7f68-2c1d2ad04ade
+    creationTimestamp: '2026-11-02T06:10:00Z'
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container checkout in pod checkout-c7ad3089b0-f049c_shop(2d2dc616-af9f-4b01-3cbd-1a39d11f87b7)
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: checkout-c7ad3089b0-f049c
+    namespace: shop
+    uid: 2d2dc616-af9f-4b01-3cbd-1a39d11f87b7
+  count: 40
+  firstTimestamp: '2026-11-02T06:10:00Z'
+  lastTimestamp: '2026-11-02T08:59:00Z'
+  source:
+    component: kubelet
+  reportingComponent: kubelet

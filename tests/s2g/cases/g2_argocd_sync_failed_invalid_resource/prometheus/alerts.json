@@ -1,0 +1,34 @@
+[
+  {
+    "labels": {
+      "alertname": "KubePodCrashLooping",
+      "severity": "warning",
+      "namespace": "shop",
+      "pod": "checkout-c7ad3089b0-e539c",
+      "container": "checkout"
+    },
+    "annotations": {
+      "summary": "Pod is crash looping.",
+      "description": "Pod shop/checkout-c7ad3089b0-e539c (checkout) is in waiting state (reason: \"CrashLoopBackOff\")."
+    },
+    "state": "firing",
+    "activeAt": "2026-11-02T06:30:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubePodCrashLooping",
+      "severity": "warning",
+      "namespace": "shop",
+      "pod": "checkout-c7ad3089b0-f049c",
+      "container": "checkout"
+    },
+    "annotations": {
+      "summary": "Pod is crash looping.",
+      "description": "Pod shop/checkout-c7ad3089b0-f049c (checkout) is in waiting state (reason: \"CrashLoopBackOff\")."
+    },
+    "state": "firing",
+    "activeAt": "2026-11-02T06:30:00Z",
+    "value": "1"
+  }
+]

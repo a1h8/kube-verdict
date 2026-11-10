@@ -1,0 +1,224 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.527c36340e76
+    namespace: shop
+    uid: 1fe57102-5541-ed26-ae74-82e40451766e
+    creationTimestamp: '2026-11-02T08:10:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set api-cb09e762eb from 3 to 5
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:10:00Z'
+  lastTimestamp: '2026-11-02T08:10:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.a10627c61430
+    namespace: shop
+    uid: f2d05808-ebaf-2e8d-3a15-619c67a51102
+    creationTimestamp: '2026-11-02T08:15:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled down replica set api-cb09e762eb from 5 to 3
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:15:00Z'
+  lastTimestamp: '2026-11-02T08:15:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.967bd81b107b
+    namespace: shop
+    uid: 622d9330-5288-ef5a-0fed-26e9378c0901
+    creationTimestamp: '2026-11-02T08:20:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set api-cb09e762eb from 3 to 5
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:20:00Z'
+  lastTimestamp: '2026-11-02T08:20:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.70083d8ffffa
+    namespace: shop
+    uid: 12042a12-17ef-6ae9-61e5-93d8d1a3e7ec
+    creationTimestamp: '2026-11-02T08:25:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled down replica set api-cb09e762eb from 5 to 3
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:25:00Z'
+  lastTimestamp: '2026-11-02T08:25:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.77b75dadf201
+    namespace: shop
+    uid: f34cfc3a-9b8c-c235-9887-837aaa78e48c
+    creationTimestamp: '2026-11-02T08:30:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set api-cb09e762eb from 3 to 5
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:30:00Z'
+  lastTimestamp: '2026-11-02T08:30:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.7fdf6675053e
+    namespace: shop
+    uid: 8e979c3c-59a2-c689-45b3-8cde9803f0bc
+    creationTimestamp: '2026-11-02T08:35:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled down replica set api-cb09e762eb from 5 to 3
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:35:00Z'
+  lastTimestamp: '2026-11-02T08:35:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.425049f1fb3e
+    namespace: shop
+    uid: 58cfe9ce-d478-4c51-1ab0-0d71ab8558d1
+    creationTimestamp: '2026-11-02T08:40:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set api-cb09e762eb from 3 to 5
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:40:00Z'
+  lastTimestamp: '2026-11-02T08:40:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.da4065a31893
+    namespace: shop
+    uid: 0a22b612-2989-6b02-b682-fd8c2f82d552
+    creationTimestamp: '2026-11-02T08:45:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled down replica set api-cb09e762eb from 5 to 3
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:45:00Z'
+  lastTimestamp: '2026-11-02T08:45:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.a5e25895b372
+    namespace: shop
+    uid: e47a91ec-5495-c786-170a-67dc32422a7f
+    creationTimestamp: '2026-11-02T08:50:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set api-cb09e762eb from 3 to 5
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:50:00Z'
+  lastTimestamp: '2026-11-02T08:50:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: api.f50aead9caae
+    namespace: shop
+    uid: 264533c7-ba3c-4f9d-2dde-f004027c6bfd
+    creationTimestamp: '2026-11-02T08:55:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled down replica set api-cb09e762eb from 5 to 3
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+    namespace: shop
+    uid: d381c644-8be1-8bcc-839c-34708a989316
+  count: 1
+  firstTimestamp: '2026-11-02T08:55:00Z'
+  lastTimestamp: '2026-11-02T08:55:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller

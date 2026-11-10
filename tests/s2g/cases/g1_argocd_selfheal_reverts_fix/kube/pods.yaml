@@ -1,0 +1,1484 @@
+apiVersion: v1
+kind: PodList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: argocd-server-0f8e1a99ee-8b678
+    namespace: argocd
+    uid: 5bcb5eef-6a38-bbfe-025b-5565ad62db66
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: argocd-server
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 0f8e1a99ee
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: argocd-server-0f8e1a99ee
+      uid: 30a247be-5e08-f7ae-50cb-359f2f75f3e4
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: argocd-server
+      image: ghcr.io/acme/argocd-server:v3.6.1
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: argocd-server
+      image: ghcr.io/acme/argocd-server:v3.6.1
+      imageID: ghcr.io/acme/argocd-server@sha256:e900733a4f1af2b554f082651e8d4fc2d610c39a007356f3d947ce02cc90f6c9
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: argocd-repo-server-b1e7b1d7c2-4b5c5
+    namespace: argocd
+    uid: 2f753e5c-cd14-e6ca-2222-3f51bf5f43e8
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: argocd-repo-server
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: b1e7b1d7c2
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: argocd-repo-server-b1e7b1d7c2
+      uid: 0d93876e-c368-7e37-97d9-b06c79317990
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: argocd-repo-server
+      image: ghcr.io/acme/argocd-repo-server:v3.6.1
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: argocd-repo-server
+      image: ghcr.io/acme/argocd-repo-server:v3.6.1
+      imageID: ghcr.io/acme/argocd-repo-server@sha256:d6b69a10a71a263d8a872150a3b5a6635e4137ba6b16f19e8bb239e254e22633
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: kustomize-controller-2033839ce9-e3389
+    namespace: flux-system
+    uid: 544b03ab-2043-b8c5-1ec6-4a158565c38d
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: kustomize-controller
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 2033839ce9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: kustomize-controller-2033839ce9
+      uid: 4e156f9d-b11e-546a-0940-588a10f14d9d
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: kustomize-controller
+      image: ghcr.io/acme/kustomize-controller:v1.10.1
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: kustomize-controller
+      image: ghcr.io/acme/kustomize-controller:v1.10.1
+      imageID: ghcr.io/acme/kustomize-controller@sha256:e95564bf41c17983266d0b787525ebd9b91a134e91043260d5bf91ea60e96be0
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-controller-36c49664ce-70630
+    namespace: flux-system
+    uid: 7f0a7ee1-b5ba-6457-8c1c-7cbacbf3530d
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: helm-controller
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 36c49664ce
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: helm-controller-36c49664ce
+      uid: bd9bb8be-a78c-2ccf-45c9-fd7e33b1aef6
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: helm-controller
+      image: ghcr.io/acme/helm-controller:v1.7.1
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: helm-controller
+      image: ghcr.io/acme/helm-controller:v1.7.1
+      imageID: ghcr.io/acme/helm-controller@sha256:2f60e3b6b38cca8a48690737f44e372e4d49a24a4f65e3ba7139d920d17e4f08
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: source-controller-67f2cf77b0-a6924
+    namespace: flux-system
+    uid: 95343d5c-2c85-7917-6c06-8131cfca2a0d
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: source-controller
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 67f2cf77b0
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: source-controller-67f2cf77b0
+      uid: bf5afa6a-a698-14a2-d81e-465d6dafe57b
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: source-controller
+      image: ghcr.io/acme/source-controller:v1.10.1
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: source-controller
+      image: ghcr.io/acme/source-controller:v1.10.1
+      imageID: ghcr.io/acme/source-controller@sha256:b68ef301ba849cb82740e6077f4ed7c5a697b7b353de2b119da7805c90358b74
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: prometheus-9179a81426-29b59
+    namespace: monitoring
+    uid: 87c8977c-fcd1-c92c-52ae-de7f04b7401d
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: prometheus
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 9179a81426
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: prometheus-9179a81426
+      uid: f6142c58-63bd-8e15-b19c-8a36e87552b0
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: prometheus
+      image: ghcr.io/acme/prometheus:v3.5.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 2Gi
+        limits:
+          memory: 2Gi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: prometheus
+      image: ghcr.io/acme/prometheus:v3.5.0
+      imageID: ghcr.io/acme/prometheus@sha256:d3a986669fec7d325c1f9c84949b729683dc3756e769ec61b3ef757b3ae1a4c9
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: coredns-f4612a1944-78c9d
+    namespace: kube-system
+    uid: 056dfbd0-2526-b759-db20-a03fa17104de
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: coredns
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: f4612a1944
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: coredns-f4612a1944
+      uid: ba76e3a6-e9d0-4cd2-ca9f-7941ea370df4
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.12.3
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 170Mi
+        limits:
+          memory: 170Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.12.3
+      imageID: ghcr.io/acme/coredns@sha256:ab8d15fc75d599ab8bc8d1ecbceb204381fa2481d67f305d8354273a5d87e74d
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: coredns-f4612a1944-11937
+    namespace: kube-system
+    uid: c49c8881-9e3d-278c-2f9b-5fbcaf797ff1
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: coredns
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: f4612a1944
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: coredns-f4612a1944
+      uid: ba76e3a6-e9d0-4cd2-ca9f-7941ea370df4
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.12.3
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 170Mi
+        limits:
+          memory: 170Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.1.11
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.12.3
+      imageID: ghcr.io/acme/coredns@sha256:ab8d15fc75d599ab8bc8d1ecbceb204381fa2481d67f305d8354273a5d87e74d
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: cart-d49f659d09-e2fea
+    namespace: shop
+    uid: 25e547f0-a6f5-a205-ea2e-0dce377a7d63
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: cart
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: d49f659d09
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: cart-d49f659d09
+      uid: 9b61345a-6c0f-51f3-bef3-fdf00fbe406d
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: cart
+      image: ghcr.io/acme/cart:2.3.1
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: cart
+      image: ghcr.io/acme/cart:2.3.1
+      imageID: ghcr.io/acme/cart@sha256:f586766da347a98285757f2b41004be1a88167c40fcc6cb6edef22fd68fa9d4c
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: cart-d49f659d09-0c917
+    namespace: shop
+    uid: ddbebcb6-fb34-39fe-8964-d8ad89bcaae7
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: cart
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: d49f659d09
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: cart-d49f659d09
+      uid: 9b61345a-6c0f-51f3-bef3-fdf00fbe406d
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: cart
+      image: ghcr.io/acme/cart:2.3.1
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.1.11
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: cart
+      image: ghcr.io/acme/cart:2.3.1
+      imageID: ghcr.io/acme/cart@sha256:f586766da347a98285757f2b41004be1a88167c40fcc6cb6edef22fd68fa9d4c
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-7740e4210b-150f2
+    namespace: shop
+    uid: b063063e-9e1a-dfd8-750e-60df9b9f5922
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: catalog
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 7740e4210b
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-7740e4210b
+      uid: 1f6ee3f2-f301-36aa-640f-d21bfecee7da
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: catalog
+      image: ghcr.io/acme/catalog:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: catalog
+      image: ghcr.io/acme/catalog:3.2.0
+      imageID: ghcr.io/acme/catalog@sha256:3ec31ad29c5e988168ff4df48f2001b595855abbea285d822ee9e6e0a858c6cd
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-7740e4210b-b331b
+    namespace: shop
+    uid: 14ed0d92-7d95-5a8a-3da7-11a93fc0c9c7
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: catalog
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 7740e4210b
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-7740e4210b
+      uid: 1f6ee3f2-f301-36aa-640f-d21bfecee7da
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: catalog
+      image: ghcr.io/acme/catalog:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.1.11
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: catalog
+      image: ghcr.io/acme/catalog:3.2.0
+      imageID: ghcr.io/acme/catalog@sha256:3ec31ad29c5e988168ff4df48f2001b595855abbea285d822ee9e6e0a858c6cd
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: catalog-7740e4210b-eb53d
+    namespace: shop
+    uid: 46a069ea-e270-9d7b-cf68-c4e3718e55f4
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: catalog
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 7740e4210b
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: catalog-7740e4210b
+      uid: 1f6ee3f2-f301-36aa-640f-d21bfecee7da
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: catalog
+      image: ghcr.io/acme/catalog:3.2.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.2.12
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: catalog
+      image: ghcr.io/acme/catalog:3.2.0
+      imageID: ghcr.io/acme/catalog@sha256:3ec31ad29c5e988168ff4df48f2001b595855abbea285d822ee9e6e0a858c6cd
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: checkout-c7ad3089b0-e539c
+    namespace: shop
+    uid: a462b8f6-712e-ac00-9b52-69c536c70955
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: checkout
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: c7ad3089b0
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: checkout-c7ad3089b0
+      uid: 37ec1a6a-872e-9a2a-0807-28b94e46978b
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: checkout
+      image: ghcr.io/acme/checkout:5.1.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+      env:
+      - name: PAYMENT_TIMEOUT
+        valueFrom:
+          configMapKeyRef:
+            name: checkout-config
+            key: PAYMENT_TIMEOUT
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: checkout
+      image: ghcr.io/acme/checkout:5.1.0
+      imageID: ghcr.io/acme/checkout@sha256:1ec7112a3268b3bde0e48d194f0f0028a7afa80285e2d2f045e9519d320d4946
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: checkout-c7ad3089b0-f049c
+    namespace: shop
+    uid: 2d2dc616-af9f-4b01-3cbd-1a39d11f87b7
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: checkout
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: c7ad3089b0
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: checkout-c7ad3089b0
+      uid: 37ec1a6a-872e-9a2a-0807-28b94e46978b
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: checkout
+      image: ghcr.io/acme/checkout:5.1.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+      env:
+      - name: PAYMENT_TIMEOUT
+        valueFrom:
+          configMapKeyRef:
+            name: checkout-config
+            key: PAYMENT_TIMEOUT
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.1.11
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: checkout
+      image: ghcr.io/acme/checkout:5.1.0
+      imageID: ghcr.io/acme/checkout@sha256:1ec7112a3268b3bde0e48d194f0f0028a7afa80285e2d2f045e9519d320d4946
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: search-b0f1a1f8e6-75af4
+    namespace: shop
+    uid: f23db4d5-ca9e-45d1-0569-58c6f6bf9b8d
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: search
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: b0f1a1f8e6
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: search-b0f1a1f8e6
+      uid: e1e018cd-821e-1165-b65b-a8aec68075a9
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: search
+      image: ghcr.io/acme/search:2.4.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: search
+      image: ghcr.io/acme/search:2.4.0
+      imageID: ghcr.io/acme/search@sha256:14759ca4e6334b99dccdfe6f0a5a01c89da747ac2d65ce80aac614d3a40a0a5c
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: search-b0f1a1f8e6-1f2b5
+    namespace: shop
+    uid: 1664278c-a4ba-de34-5901-cd75f6255b16
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: search
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: b0f1a1f8e6
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: search-b0f1a1f8e6
+      uid: e1e018cd-821e-1165-b65b-a8aec68075a9
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: search
+      image: ghcr.io/acme/search:2.4.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.1.11
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: search
+      image: ghcr.io/acme/search:2.4.0
+      imageID: ghcr.io/acme/search@sha256:14759ca4e6334b99dccdfe6f0a5a01c89da747ac2d65ce80aac614d3a40a0a5c
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: pricing-532ee89dcc-43d12
+    namespace: shop
+    uid: 77b3573a-2483-cdf0-18c6-69934a4124d0
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: pricing
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 532ee89dcc
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: pricing-532ee89dcc
+      uid: ae6cd380-0dde-1313-cff2-6d9233468484
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: pricing
+      image: ghcr.io/acme/pricing:1.4.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: pricing
+      image: ghcr.io/acme/pricing:1.4.0
+      imageID: ghcr.io/acme/pricing@sha256:c8971d315450f5021d83462bae305fb50038661b57898b23195d4da716347dd3
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: pricing-532ee89dcc-2acff
+    namespace: shop
+    uid: 7e2fe0e8-58f2-6282-25ca-146a625a23e0
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: pricing
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 532ee89dcc
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: pricing-532ee89dcc
+      uid: ae6cd380-0dde-1313-cff2-6d9233468484
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: pricing
+      image: ghcr.io/acme/pricing:1.4.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.1.11
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: pricing
+      image: ghcr.io/acme/pricing:1.4.0
+      imageID: ghcr.io/acme/pricing@sha256:c8971d315450f5021d83462bae305fb50038661b57898b23195d4da716347dd3
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-cb09e762eb-16218
+    namespace: shop
+    uid: 6b9eaf7d-89d0-f800-1b1c-e2957353cdb3
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: cb09e762eb
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-cb09e762eb
+      uid: 7da0647c-ae98-8f71-7f57-390a14849fc3
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:4.0.2
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:4.0.2
+      imageID: ghcr.io/acme/api@sha256:5ba9d7f713d33c0da4b7e39011155f0a974616336429e921c9a1b6ff0a783851
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-cb09e762eb-af9cb
+    namespace: shop
+    uid: 9da02ba0-e9f2-da6c-b5d9-0fcb9346b1fc
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: cb09e762eb
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-cb09e762eb
+      uid: 7da0647c-ae98-8f71-7f57-390a14849fc3
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:4.0.2
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.1.11
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:4.0.2
+      imageID: ghcr.io/acme/api@sha256:5ba9d7f713d33c0da4b7e39011155f0a974616336429e921c9a1b6ff0a783851
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-cb09e762eb-73a6b
+    namespace: shop
+    uid: 948a570b-ea33-325f-d019-7b7c60f5ffbf
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: cb09e762eb
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-cb09e762eb
+      uid: 7da0647c-ae98-8f71-7f57-390a14849fc3
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:4.0.2
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.2.12
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:4.0.2
+      imageID: ghcr.io/acme/api@sha256:5ba9d7f713d33c0da4b7e39011155f0a974616336429e921c9a1b6ff0a783851
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: billing-worker-664b52d70e-53956
+    namespace: billing
+    uid: e1f1175f-bce3-f4f6-49bd-36070304de0f
+    creationTimestamp: '2026-11-02T09:03:00Z'
+    labels:
+      app.kubernetes.io/name: billing-worker
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 664b52d70e
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: billing-worker-664b52d70e
+      uid: 8183187c-9343-1e1d-07da-2da8f65a1822
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: billing-worker
+      image: ghcr.io/acme/billing-worker:1.8.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+        limits:
+          memory: 256Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-02T09:03:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'False'
+      lastTransitionTime: '2026-11-02T09:03:00Z'
+    containerStatuses:
+    - name: billing-worker
+      image: ghcr.io/acme/billing-worker:1.8.0
+      imageID: ghcr.io/acme/billing-worker@sha256:e41e9d9d53d9e4e2e5932a4e2b9ee2a0a176dd52ae8f59f5a500a82469aa9fe2
+      ready: false
+      started: false
+      restartCount: 3
+      state: &id001
+        waiting:
+          reason: CrashLoopBackOff
+          message: back-off 2m40s restarting failed container=billing-worker
+      lastState: &id002
+        terminated:
+          reason: OOMKilled
+          exitCode: 137
+          startedAt: '2026-11-02T09:04:00Z'
+          finishedAt: '2026-11-02T09:21:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: billing-worker-664b52d70e-d7995
+    namespace: billing
+    uid: 67386bfb-e73c-6950-fd6c-09a7bca90020
+    creationTimestamp: '2026-11-02T09:03:00Z'
+    labels:
+      app.kubernetes.io/name: billing-worker
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: 664b52d70e
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: billing-worker-664b52d70e
+      uid: 8183187c-9343-1e1d-07da-2da8f65a1822
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: billing-worker
+      image: ghcr.io/acme/billing-worker:1.8.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+        limits:
+          memory: 256Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-02T09:03:00Z'
+    podIP: 10.42.1.11
+    conditions:
+    - type: Ready
+      status: 'False'
+      lastTransitionTime: '2026-11-02T09:03:00Z'
+    containerStatuses:
+    - name: billing-worker
+      image: ghcr.io/acme/billing-worker:1.8.0
+      imageID: ghcr.io/acme/billing-worker@sha256:e41e9d9d53d9e4e2e5932a4e2b9ee2a0a176dd52ae8f59f5a500a82469aa9fe2
+      ready: false
+      started: false
+      restartCount: 4
+      state: *id001
+      lastState: *id002
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: billing-api-c57878a582-07154
+    namespace: billing
+    uid: eae75029-93a6-bfee-92ae-91bf37cdd1ee
+    creationTimestamp: '2026-10-30T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: billing-api
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: c57878a582
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: billing-api-c57878a582
+      uid: 08882369-06ea-1e19-2b01-f7143649907c
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: billing-api
+      image: ghcr.io/acme/billing-api:1.8.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-10-30T09:00:00Z'
+    podIP: 10.42.0.10
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-10-30T09:00:00Z'
+    containerStatuses:
+    - name: billing-api
+      image: ghcr.io/acme/billing-api:1.8.0
+      imageID: ghcr.io/acme/billing-api@sha256:665802bf8ddc63b001005102f46ade27780fb8fbea8db84bf1c8838a37da4f21
+      ready: true
+      started: true
+      restartCount: 1
+      state:
+        running:
+          startedAt: '2026-10-30T09:00:00Z'
+      lastState:
+        terminated:
+          reason: OOMKilled
+          exitCode: 137
+          startedAt: '2026-10-30T07:00:00Z'
+          finishedAt: '2026-10-30T09:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: billing-api-c57878a582-94661
+    namespace: billing
+    uid: 6176ce83-d2ab-2c9f-6bfb-756d889dde31
+    creationTimestamp: '2026-11-01T09:00:00Z'
+    labels:
+      app.kubernetes.io/name: billing-api
+      app.kubernetes.io/part-of: acme
+      pod-template-hash: c57878a582
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: billing-api-c57878a582
+      uid: 08882369-06ea-1e19-2b01-f7143649907c
+      controller: true
+      blockOwnerDeletion: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: billing-api
+      image: ghcr.io/acme/billing-api:1.8.0
+      ports:
+      - containerPort: 8080
+        name: http
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 512Mi
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        periodSeconds: 10
+  status:
+    phase: Running
+    startTime: '2026-11-01T09:00:00Z'
+    podIP: 10.42.1.11
+    conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2026-11-01T09:00:00Z'
+    containerStatuses:
+    - name: billing-api
+      image: ghcr.io/acme/billing-api:1.8.0
+      imageID: ghcr.io/acme/billing-api@sha256:665802bf8ddc63b001005102f46ade27780fb8fbea8db84bf1c8838a37da4f21
+      ready: true
+      started: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-11-01T09:00:00Z'

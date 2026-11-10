@@ -1,0 +1,44 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "search-b0f1a1f8e6-75af4",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "search"
+    },
+    "values": [
+      [
+        "1793607000000000000",
+        "level=error msg=\"ranking failed\" err=\"index out of range [3] with length 3\" query_id=q-2fb999"
+      ],
+      [
+        "1793608800000000000",
+        "level=error msg=\"ranking failed\" err=\"index out of range [3] with length 3\" query_id=q-016147"
+      ],
+      [
+        "1793609880000000000",
+        "level=error msg=\"ranking failed\" err=\"index out of range [3] with length 3\" query_id=q-cf3bae"
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "search-b0f1a1f8e6-1f2b5",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "search"
+    },
+    "values": [
+      [
+        "1793607000000000000",
+        "level=error msg=\"ranking failed\" err=\"index out of range [3] with length 3\" query_id=q-2fb999"
+      ],
+      [
+        "1793608800000000000",
+        "level=error msg=\"ranking failed\" err=\"index out of range [3] with length 3\" query_id=q-016147"
+      ],
+      [
+        "1793609880000000000",
+        "level=error msg=\"ranking failed\" err=\"index out of range [3] with length 3\" query_id=q-cf3bae"
+      ]
+    ]
+  }
+]

@@ -42,16 +42,18 @@ from tools.veracity import grade, normalize_label  # noqa: E402
 CASES_ROOT = ROOT / "tests/integration/cases"
 # set S2 (docs/s2-correlation-cases.md): its own cases, frozen by hash, built by the product's collectors
 S2_ROOT = ROOT / "tests/s2/cases"
+# set S2-GitOps (docs/s2g/gitops-cases.md): a development set like S2, read the same way
+SET_DIRS = {"s2": ROOT / "tests/s2", "s2g": ROOT / "tests/s2g"}
 CASE_SET = "s1"
 
 
 def use_set(name: str) -> None:
     """``s1`` (the native cases, the default) or ``s2``."""
     global CASES_ROOT, CASE_SET
-    if name not in ("s1", "s2"):
+    if name not in ("s1", *SET_DIRS):
         raise ValueError(f"unknown case set {name!r}")
     CASE_SET = name
-    CASES_ROOT = S2_ROOT if name == "s2" else ROOT / "tests/integration/cases"
+    CASES_ROOT = SET_DIRS[name] / "cases" if name in SET_DIRS else ROOT / "tests/integration/cases"
 REPLAY_BASELINES = ROOT / "tests/veracity/replay-baselines"
 GRADING_FILES = ("tools/veracity.py", "tests/veracity/synonyms.yaml")
 GRADING_KEYS = ("root_cause_concepts", "root_cause_concepts_all",
@@ -72,10 +74,18 @@ def tier_of(case_name: str, expect: dict) -> str:
     """A h001–h012, B h013–h016, C h017–h029, M h030+; ``expect["tier"]`` overrides."""
     if expect.get("tier"):
         return expect["tier"]
-    if expect.get("set") == "S2":
-        return "S2"                                     # S2's cases are graded apart, by family
+    if expect.get("set") in ("S2", "S2-GitOps"):
+        return expect["set"]                                     # S2's cases are graded apart, by family
     n = int(re.match(r"h(\d+)", case_name).group(1))
     return "A" if n <= 12 else "B" if n <= 16 else "C" if n <= 29 else "M"
+
+
+def cause_named(cause_object: str, text: str) -> bool:
+    """Does ``text`` name ``Kind/namespace/name``: the kind, and the name as a whole token, not inside a longer
+    name ("billing" is not named by "billing-worker"). Rule of 2026-11-10 (docs/s2g/gitops-cases.md)."""
+    kind, *_, name = cause_object.split("/")
+    token = re.compile(r"(?<![\w.-])" + re.escape(name) + r"(?![\w-])", re.I)
+    return kind.split(".")[0].lower() in text.lower() and bool(token.search(text))
 
 
 def grading_expect(expect: dict) -> dict:
@@ -95,8 +105,8 @@ def answerable(expect: dict, prompts: list[str]) -> bool | None:
 
 
 def native_cases() -> list[str]:
-    if CASE_SET == "s2":
-        return sorted(json.loads((ROOT / "tests/s2/frozen.json").read_text())["cases"])
+    if CASE_SET in SET_DIRS:
+        return sorted(json.loads((SET_DIRS[CASE_SET] / "frozen.json").read_text())["cases"])
     return [d.name for d in sorted(CASES_ROOT.glob("h[0-9]*/"))
             if any(k in json.loads((d / "expect.json").read_text()) for k in GRADING_KEYS)]
 
@@ -107,7 +117,7 @@ def _key(case_name: str) -> str:
 
 def frozen_mismatches(cases: list[str]) -> list[str]:
     """S2's cases whose files no longer match their frozen hash: a changed case is a new case."""
-    frozen = json.loads((ROOT / "tests/s2/frozen.json").read_text())["cases"]
+    frozen = json.loads((SET_DIRS.get(CASE_SET, SET_DIRS["s2"]) / "frozen.json").read_text())["cases"]
     return [c for c in cases if frozen.get(c) != case_hash(c)]
 
 
@@ -115,7 +125,7 @@ def _run(case_name: str, cut: str | None = None, llm=None):
     """The case through the harness; for S2, its own directory, the product's collectors and every
     namespace it holds."""
     from tests.integration.workflow_harness import run_case
-    if CASE_SET != "s2":
+    if CASE_SET not in SET_DIRS:
         return run_case(_key(case_name), cut=cut, llm=llm)
     from tests.s2.live_graph import build_graph_live, kube_docs, namespaces_of
     case_dir = CASES_ROOT / case_name
@@ -185,7 +195,7 @@ def run_dir_name(solver: str, model: str, prompt: str | None,
                  store: str = "stub", examples: str = "off") -> str:
     """``<solver>[-<model>]-prompt_<v>-store_<store>-examples_<on|off>``; no model or prompt for
     the solvers without one. ``:`` and ``/`` of a model name become ``_``."""
-    parts = (["s2"] if CASE_SET == "s2" else []) + [solver]
+    parts = ([CASE_SET] if CASE_SET in SET_DIRS else []) + [solver]
     if solver not in ("structured", "rules", "retrieval"):
         parts += [re.sub(r"[:/]", "_", model), f"prompt_{prompt}"]
     return "-".join(parts + [f"store_{store}", f"examples_{examples}"])
@@ -770,9 +780,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="rules | structured | retrieval | llm[:<model>] | raw:<model> | context:<model>")
     ap.add_argument("--regrade", metavar="DIR",
                     help="re-grade the records under DIR (writes DIR/REGRADED.md), run nothing")
-    ap.add_argument("--set", choices=("s1", "s2"), default="s1",
+    ap.add_argument("--set", choices=("s1", "s2", "s2g"), default="s1",
                     help="s1: the native cases (default); s2: docs/s2-correlation-cases.md, frozen, "
-                         "built by the product's collectors")
+                         "built by the product's collectors; s2g: docs/s2g/gitops-cases.md")
     ap.add_argument("--cases", default="", help="comma-separated keys, e.g. h001,h014 (default: all)")
     ap.add_argument("--runs", type=int, default=3, help="runs per case for llm (rules: always 1)")
     ap.add_argument("--resume", action="store_true", help="skip runs already recorded")
@@ -814,7 +824,7 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("--examples on: only with context:<model> --store faiss (docs/protocol-001-retrieval.md, C3)")
     wanted = {k.strip() for k in args.cases.split(",") if k.strip()}
     cases = [c for c in native_cases() if not wanted or _key(c) in wanted]
-    if CASE_SET == "s2":
+    if CASE_SET in SET_DIRS:
         if args.cut:
             ap.error("--cut: S2 has no collector-cut control (docs/s2-correlation-cases.md)")
         if solver not in ("structured", "context"):
@@ -862,7 +872,7 @@ def main(argv: list[str] | None = None) -> int:
         ap.error(error)
     digest = getattr(client, "model_digest", None)
     meta = {"commit": commit_id(), "grading_hashes": grading_hashes(), "set": CASE_SET.upper(),
-            "graph": "collectors" if CASE_SET == "s2" else "case_loader",
+            "graph": "collectors" if CASE_SET in SET_DIRS else "case_loader",
             "model_digest": digest() if digest else "", **configuration(solver, store, examples)}
     if examples == "on":
         from tools.incident_corpus import corpus_hash
