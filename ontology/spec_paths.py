@@ -54,6 +54,7 @@ def _paths(params: dict) -> list[tuple[str, str]]:
 
 
 CHECKED: list[tuple[str, str]] = []     # (kind, path) of every check, for the test that the check is not vacuous
+UNCHECKED: list[tuple[str, str, str]] = []   # paths read on any kind ("*"): no single definition to check them in
 
 
 def _check(reg: SchemaRegistry, where: str, kind: str, path: str, why: list[str]) -> None:
@@ -93,8 +94,14 @@ def check_anchors(reg: SchemaRegistry, anchors: list[AnchorSpec], relations: lis
     why: list[str] = []
     for a in anchors:
         where = f"anchor {a.id}"
+        through = next((r for r in relations if r.name == a.params.get("through")), None)
         for param, path in _paths(a.params):
             kind = a.kind
+            if through is not None and param != "consumer_start" and a.type == "fits":
+                kind = through.target_kind     # read on the managed object, at the other end of the hop
+                if kind == "*":
+                    UNCHECKED.append((a.id, param, path))
+                    continue
             if param == "consumer_start":       # read on the object at the other end of the hop it goes through
                 rel = next((r for r in relations if r.name == a.params.get("through")), None)
                 kind = rel.target_kind if rel else ""

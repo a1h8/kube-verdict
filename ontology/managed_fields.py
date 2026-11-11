@@ -112,6 +112,12 @@ def roles(path: Path = MANAGERS_FILE) -> dict[str, str]:
     return out
 
 
+def for_kinds(path: Path = MANAGERS_FILE) -> dict[str, str]:
+    """Field manager name -> the kind of object it writes for (``for_kind``), when ``managers.yaml`` says it."""
+    doc = yaml.safe_load(path.read_text()) or {}
+    return {m["name"]: m["for_kind"] for m in doc.get("managers") or [] if m.get("for_kind")}
+
+
 def owner_of(entity: K8sEntity, kind: str, drift_field: str) -> Owner | None:
     path = fields_path(kind, drift_field)
     return owners(entity).get(path) if path else None

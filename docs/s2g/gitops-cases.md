@@ -182,11 +182,48 @@ new rule too.
 | g0 | pass | `no_incident` | right |
 
 0 of 5 named, g0 right. Two findings for the next changes:
-- **g2:** an anchor that fires stops the walk. When the object it flags is managed (`MANAGES`) by a manager whose own
-  state is abnormal, the cause is further up. The change for g2 is therefore not only the `valid` evaluator for Argo
-  CD's health: the walk must go on past an anchored object to its manager.
+- **g2:** the ConfigMap's `fresh` anchor fires and its chain is reported. *Corrected the same day, on reading
+  `rca/correlation.py`:* the walk does not stop there; it goes on to the Application over `MANAGES`, where no anchor
+  judges it. Two things follow: the Application needs its anchor (Argo CD's health), and when both chains exist, the
+  report lists every chain's cause (`Outcome.root_cause` joins them), shortest first, so the ConfigMap would still
+  come first.
 - **g4 and g5 have no fault signal.** The symptom is "the old behaviour" or "replicas changing", which no signal
   extractor reads. A manager's own abnormal state (`Released=False`) is evidence, but the walk starts from signals.
   The change for them has to let a manager's abnormal state be a seed, or the question's object be one.
 
 The guard `tests/unit/test_s2g_guard.py` holds the baseline: the floor is empty, g0 stays `no_incident`.
+
+## Change 1 (g1), rule written 2026-11-10 before its code
+
+**What is missing.** The walk reaches `Application/argocd/billing` from the Deployment over `MANAGES`. Nothing judges
+it: it is Synced and Healthy. Its fault is that the field the symptom points at, the memory limit of an OOMKilled
+container, is written by its own field manager.
+
+**The change, as data and one generic evaluator:**
+- `ontology/spec/managers.yaml`: `argocd-controller`, role `release`, `for_kind: Application`, sourced from Argo CD's
+  *Sync Options* page ("Argo CD's server-side apply manager (`argocd-controller`)"). Flux's managers are added when a
+  live run shows their names.
+- `ontology/spec/anchors.yaml`: `gitops.applied-limit-fits`, kind `Application`, type `fits`, params
+  `through: MANAGES`, `resource: spec.template.spec.containers[].resources.limits.memory`,
+  `evidence: lastState.terminated.reason=OOMKilled`.
+- `ontology/anchors.py`: `fits` reads `through` when given: reached over that relation from a managed object whose
+  `managedFields` say the manager `for_kind` of the reached kind owns `managed_field`, while a pod the managed object
+  owns is OOMKilled. The existing LimitRange path is unchanged.
+
+**Pass rule, sharpened.** A case passes when `cause_named()` holds for the **first** chain's cause, not for any of the
+joined causes, so that a report naming a decoy first does not pass. Applied from this change to S2-GitOps only; S2's
+guard is checked under it too, and reported.
+
+**Predictions:** g1 passes. g0–g5 otherwise unchanged (no other case has an OOMKilled pod under an Application whose
+manager owns the limit; g0's old OOMKill is on a container that is ready and running, which is no signal, and its
+Deployment has no managedFields). S1 19/19 and the S2 guards hold: no S1 or S2 case has an Application.
+
+**Change 1, result (2026-11-10).** g1 passes: D's first diagnosis is `Application/argocd/billing`, "Deployment/billing/
+billing-worker spec.template.spec.containers[].resources.limits.memory is written by argocd-controller for
+Application/argocd/billing (managedFields, 2026-11-02 09:02); 2 of its pods are OOMKilled". g0, g2–g5 unchanged, as
+predicted. S2 unchanged: the same four cases named, also under the first-chain rule, and its seven no-incident cases
+keep `no_incident`. S1 19/19 (`make ci`). By the rule, kept. One bug of the change itself found on the frozen case
+before it passed: the typed Deployment's raw object is in the client's snake_case (`api_version`), so its group was
+not read; fixed by reading both spellings, as the rest of the engine does. 6 tests on fresh fixtures, 4 mutants killed
+(the relation, the manager's kind, the OOMKill, the pods' depth). `spec_paths` reads a `fits` anchor's paths on the
+hop's target kind; with `*`, the path is listed as unchecked.

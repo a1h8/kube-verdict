@@ -155,7 +155,48 @@ def _conditions(e: K8sEntity) -> list[dict]:
     return list(_get(e.raw or {}, "status", "conditions") or getattr(e, "conditions", None) or [])
 
 
+def _owned_pods(graph: OntologyGraph, e: K8sEntity, depth: int = 2) -> list[K8sEntity]:
+    """The pods an object owns, through OWNS (a Deployment's ReplicaSets' pods)."""
+    out, frontier = [], [e]
+    for _ in range(depth):
+        nxt = []
+        for x in frontier:
+            for edge in graph._adj.get(x.uid, []):
+                child = graph.get(edge.target_uid) if edge.rel_type == R.OWNS else None
+                if child is not None:
+                    (out if _kind(child) == "Pod" else nxt).append(child)
+        frontier = nxt
+    return out
+
+
+def _applied_by(node: K8sEntity, managed: K8sEntity, path: str) -> tuple[str, str] | None:
+    """(manager, time) when ``managed``'s field at ``path`` (``[]`` over containers) is owned by a field manager that
+    ``managers.yaml`` says writes for ``node``'s kind."""
+    from ontology.managed_fields import fields_v1, for_kinds, owners
+    writes_for = for_kinds()
+    group = str(_any(managed.raw or {}, "apiVersion", "api_version") or getattr(managed, "api_version", "") or ""
+                ).rpartition("/")[0]
+    owned = owners(managed)
+    tpl = _get(managed.raw, "spec", "template", "spec", "containers") or _get(managed.raw, "spec", "containers") or []
+    for c in tpl:
+        fp = fields_v1(group, _kind(managed), path.replace("containers[]", f"containers[name={c.get('name')}]"))
+        o = owned.get(fp) if fp else None
+        if o and writes_for.get(o.manager) == _kind(node).split(".")[0]:
+            return o.manager, o.time
+    return None
+
+
 def _fits(graph, node, anchor, edge, came_from):
+    through = anchor["params"].get("through")
+    if through:
+        if edge.rel_type.name != through or came_from is None:
+            return None
+        found = _applied_by(node, came_from, anchor["params"]["resource"])
+        oom = [p for p in _owned_pods(graph, came_from) if oom_killed(p)]
+        if found and oom:
+            return (f"{_fqn(came_from)} {anchor['params']['resource']} is written by {found[0]} for {_fqn(node)} "
+                    f"(managedFields, {found[1]}); {len(oom)} of its pods are OOMKilled", node)
+        return None
     if (edge.rel_type == R.LIMITS and str((edge.metadata or {}).get("method", "")).startswith("default injected")
             and _kind(came_from) == "Pod" and oom_killed(came_from)):
         return f"its default limit was injected and the container is OOMKilled: {edge.metadata['evidence']}", node

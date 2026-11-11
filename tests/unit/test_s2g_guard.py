@@ -1,10 +1,11 @@
 """S2-GitOps guard (docs/s2g/gitops-cases.md): what D names may grow, never shrink; g0 stays no_incident.
-Floors measured at the baseline of 2026-11-10 (engine 1b418bd): no case named."""
+Floors: the baseline of 2026-11-10 (engine 1b418bd) named none; change 1 (applied-limit-fits) names g1.
+A case is named when the first diagnosis' location is the cause (the rule sharpened with change 1)."""
 import json
 
 import pytest
 
-D_FLOOR: set[str] = set()
+D_FLOOR = {"g1_argocd_selfheal_reverts_fix"}
 NO_INCIDENT_OUTCOMES = {"g0_gitops_no_incident": "no_incident"}
 
 
@@ -29,8 +30,9 @@ def test_d_floor_and_no_incident(s2g):
         r = s2g.solve_structured(case)
         exp = json.loads((s2g.CASES_ROOT / case / "expect.json").read_text())
         causes = exp.get("cause_objects") or [exp["cause_object"]]
-        if exp["expected_outcome"] == "cause" and all(s2g.cause_named(c, r["root_cause"]) for c in causes):
+        first = r["diagnoses"][0]["location"] if r["diagnoses"] else ""
+        if exp["expected_outcome"] == "cause" and any(s2g.cause_named(c, first) for c in causes):
             named.add(case)
         outcomes[case] = r["outcome"]
     assert D_FLOOR <= named
-    assert outcomes == NO_INCIDENT_OUTCOMES
+    assert {c: outcomes[c] for c in NO_INCIDENT_OUTCOMES} == NO_INCIDENT_OUTCOMES

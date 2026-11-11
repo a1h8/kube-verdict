@@ -42,3 +42,16 @@ anchors:
     variability: controller:hpa
     sources:
       - https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+
+  # docs/s2g/gitops-cases.md, change 1: the reached manager's own field manager owns the limit that OOMKills the
+  # managed object's pods. Not in any definition: what a field manager writes, and for which object, is read in
+  # managedFields and ontology/spec/managers.yaml.
+  - id: gitops.applied-limit-fits
+    kind: Application
+    type: fits
+    params: {through: MANAGES, resource: "spec.template.spec.containers[].resources.limits.memory",
+             evidence: "lastState.terminated.reason=OOMKilled"}
+    variability: static
+    sources:
+      - https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/
+      - https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/
