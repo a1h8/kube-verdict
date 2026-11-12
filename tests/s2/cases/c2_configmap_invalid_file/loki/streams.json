@@ -1,0 +1,86 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "search-api-6f9c8d7b4-ffafa",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "search-api"
+    },
+    "values": [
+      [
+        "1792483260000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ],
+      [
+        "1792483620000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ],
+      [
+        "1792484160000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "search-api-6f9c8d7b4-019e9",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "search-api"
+    },
+    "values": [
+      [
+        "1792483260000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ],
+      [
+        "1792483620000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ],
+      [
+        "1792484160000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "web-9c8d7b6f5-4cb4b",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "web"
+    },
+    "values": [
+      [
+        "1792483260000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ],
+      [
+        "1792483620000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ],
+      [
+        "1792484160000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "web-9c8d7b6f5-4ea3a",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "web"
+    },
+    "values": [
+      [
+        "1792483260000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ],
+      [
+        "1792483620000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ],
+      [
+        "1792484160000000000",
+        "level=fatal msg=\"failed to load /etc/flags/features.yaml: yaml: line 7: found character that cannot start any token\""
+      ]
+    ]
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "api",
+    "namespace": "shop",
+    "revision": 11,
+    "status": "deployed",
+    "chart": "api-3.1.4",
+    "updated": "2026-09-20T08:00:00Z"
+  },
+  {
+    "name": "prometheus-adapter",
+    "namespace": "observability",
+    "revision": 1,
+    "status": "deployed",
+    "chart": "prometheus-adapter-4.10.0",
+    "updated": "2026-10-20T08:00:00Z"
+  },
+  {
+    "name": "prometheus-adapter",
+    "namespace": "monitoring",
+    "revision": 9,
+    "status": "uninstalled",
+    "chart": "prometheus-adapter-4.9.1",
+    "updated": "2026-10-20T08:00:00Z"
+  }
+]

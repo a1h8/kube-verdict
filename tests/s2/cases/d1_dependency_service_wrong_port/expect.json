@@ -1,0 +1,49 @@
+{
+  "set": "S2",
+  "family": "dependency",
+  "namespace": "shop",
+  "sources": [
+    "prometheus-operator/runbooks@a685d14 KubePodNotReady",
+    "prometheus-operator/runbooks@a685d14 KubeDeploymentReplicasMismatch",
+    "https://kubernetes.io/docs/concepts/services-networking/service/",
+    "https://redis.io/docs/latest/develop/reference/eviction/"
+  ],
+  "spec": "docs/s2/family-dependency.md",
+  "release": "inventory",
+  "scenario": "checkout-api's calls to inventory are refused; inventory is Ready, its Service targets the old port",
+  "query": "why does checkout-api fail to reserve stock in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Service/platform/inventory",
+  "mechanism": "the inventory upgrade moved the container to port 9090, while Service platform/inventory, owned by another release, still targets 8080: every connection is refused while the pods report Ready",
+  "pass_if": "names the port mismatch between the Service and the inventory pods, blaming either side",
+  "partial_if_only": [
+    "inventory unreachable or connection refused, without the port"
+  ],
+  "chain": [
+    "checkout-api's calls to inventory.platform:80 are refused",
+    "Service/platform/inventory has ready endpoints: the inventory pods are Ready",
+    "the Service sends traffic to targetPort 8080",
+    "the inventory upgrade at T0 moved the container and its probe to 9090"
+  ],
+  "decoys": [
+    {
+      "object": "Pod/shop/checkout-api (CPUThrottlingHigh)",
+      "why_not": "older than T0, unrelated to the errors"
+    },
+    {
+      "object": "Deployment/platform/inventory (image 2.0.0)",
+      "why_not": "expected with the upgrade"
+    },
+    {
+      "object": "Pod/platform/inventory (one readiness failure)",
+      "why_not": "during the rollout, then Ready"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/checkout-api"
+  ],
+  "root_cause_concepts": [
+    "port|targetport|9090|8080",
+    "inventory"
+  ]
+}

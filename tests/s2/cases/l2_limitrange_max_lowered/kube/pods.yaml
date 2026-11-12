@@ -1,0 +1,591 @@
+apiVersion: v1
+kind: PodList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: report-worker-7d9c8b6f5-4c645
+    namespace: shop
+    uid: pod-shop-report-worker-7d9c8b6f5-4c645
+    annotations:
+      kubernetes.io/limit-ranger: 'LimitRanger plugin set: memory limit for container report-worker'
+    labels:
+      app.kubernetes.io/name: report-worker
+      pod-template-hash: 7d9c8b6f5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: report-worker-7d9c8b6f5
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: report-worker
+      image: ghcr.io/acme/report-worker:2.6.0
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: report-worker
+      image: ghcr.io/acme/report-worker:2.6.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: report-worker-7d9c8b6f5-4e534
+    namespace: shop
+    uid: pod-shop-report-worker-7d9c8b6f5-4e534
+    annotations:
+      kubernetes.io/limit-ranger: 'LimitRanger plugin set: memory limit for container report-worker'
+    labels:
+      app.kubernetes.io/name: report-worker
+      pod-template-hash: 7d9c8b6f5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: report-worker-7d9c8b6f5
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: report-worker
+      image: ghcr.io/acme/report-worker:2.6.0
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: report-worker
+      image: ghcr.io/acme/report-worker:2.6.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: notify-worker-5c8b9d7f6-4c645
+    namespace: shop
+    uid: pod-shop-notify-worker-5c8b9d7f6-4c645
+    annotations:
+      kubernetes.io/limit-ranger: 'LimitRanger plugin set: memory limit for container notify-worker'
+    labels:
+      app.kubernetes.io/name: notify-worker
+      pod-template-hash: 5c8b9d7f6
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: notify-worker-5c8b9d7f6
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: notify-worker
+      image: ghcr.io/acme/notify-worker:1.1.0
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          memory: 1Gi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: notify-worker
+      image: ghcr.io/acme/notify-worker:1.1.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: cart-api-5d6f8c7b9-cc8c8
+    namespace: shop
+    uid: pod-shop-cart-api-5d6f8c7b9-cc8c8
+    annotations: {}
+    labels:
+      app.kubernetes.io/name: cart-api
+      pod-template-hash: 5d6f8c7b9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: cart-api-5d6f8c7b9
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.1
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.1
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: cart-api-5d6f8c7b9-ce7b7
+    namespace: shop
+    uid: pod-shop-cart-api-5d6f8c7b9-ce7b7
+    annotations: {}
+    labels:
+      app.kubernetes.io/name: cart-api
+      pod-template-hash: 5d6f8c7b9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: cart-api-5d6f8c7b9
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.1
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.1
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: search-api-6f9c8d7b4-ffafa
+    namespace: shop
+    uid: pod-shop-search-api-6f9c8d7b4-ffafa
+    annotations: {}
+    labels:
+      app.kubernetes.io/name: search-api
+      pod-template-hash: 6f9c8d7b4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: search-api-6f9c8d7b4
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          memory: 2Gi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: search-api-6f9c8d7b4-019e9
+    namespace: shop
+    uid: pod-shop-search-api-6f9c8d7b4-019e9
+    annotations: {}
+    labels:
+      app.kubernetes.io/name: search-api
+      pod-template-hash: 6f9c8d7b4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: search-api-6f9c8d7b4
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          memory: 2Gi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: search-api-6f9c8d7b4-038d8
+    namespace: shop
+    uid: pod-shop-search-api-6f9c8d7b4-038d8
+    annotations: {}
+    labels:
+      app.kubernetes.io/name: search-api
+      pod-template-hash: 6f9c8d7b4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: search-api-6f9c8d7b4
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          memory: 2Gi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: search-api
+      image: ghcr.io/acme/search-api:4.0.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: checkout-web-9b8c7d6f5-32d2c
+    namespace: shop
+    uid: pod-shop-checkout-web-9b8c7d6f5-32d2c
+    annotations: {}
+    labels:
+      app.kubernetes.io/name: checkout-web
+      pod-template-hash: 9b8c7d6f5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: checkout-web-9b8c7d6f5
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: checkout-web
+      image: ghcr.io/acme/checkout-web:5.1.0
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: checkout-web
+      image: ghcr.io/acme/checkout-web:5.1.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: checkout-web-9b8c7d6f5-34c1b
+    namespace: shop
+    uid: pod-shop-checkout-web-9b8c7d6f5-34c1b
+    annotations: {}
+    labels:
+      app.kubernetes.io/name: checkout-web
+      pod-template-hash: 9b8c7d6f5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: checkout-web-9b8c7d6f5
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: checkout-web
+      image: ghcr.io/acme/checkout-web:5.1.0
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: checkout-web
+      image: ghcr.io/acme/checkout-web:5.1.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: prometheus-server-5b6c7d8e9-b2aa9
+    namespace: monitoring
+    uid: pod-monitoring-prometheus-server-5b6c7d8e9-b2aa9
+    labels:
+      app.kubernetes.io/name: prometheus-server
+      pod-template-hash: 5b6c7d8e9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: prometheus-server-5b6c7d8e9
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: prometheus-server
+      image: ghcr.io/acme/prometheus-server:2.53.0
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: prometheus-server
+      image: ghcr.io/acme/prometheus-server:2.53.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-06T10:40:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: alertmanager-6c7d8e9f5-32d2c
+    namespace: monitoring
+    uid: pod-monitoring-alertmanager-6c7d8e9f5-32d2c
+    labels:
+      app.kubernetes.io/name: alertmanager
+      pod-template-hash: 6c7d8e9f5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: alertmanager-6c7d8e9f5
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: alertmanager
+      image: ghcr.io/acme/alertmanager:0.27.0
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: alertmanager
+      image: ghcr.io/acme/alertmanager:0.27.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-06T10:40:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: coredns-7db6d8ff4-b2faf
+    namespace: kube-system
+    uid: pod-kube-system-coredns-7db6d8ff4-b2faf
+    labels:
+      app.kubernetes.io/name: coredns
+      pod-template-hash: 7db6d8ff4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: coredns-7db6d8ff4
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-06T10:40:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: coredns-7db6d8ff4-b4e9e
+    namespace: kube-system
+    uid: pod-kube-system-coredns-7db6d8ff4-b4e9e
+    labels:
+      app.kubernetes.io/name: coredns
+      pod-template-hash: 7db6d8ff4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: coredns-7db6d8ff4
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+      ports:
+      - containerPort: 8080
+  status:
+    phase: Running
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-06T10:40:00Z'
+      lastState: {}

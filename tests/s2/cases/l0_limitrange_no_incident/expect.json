@@ -1,0 +1,37 @@
+{
+  "set": "S2",
+  "family": "limitrange",
+  "namespace": "shop",
+  "sources": [
+    "https://kubernetes.io/docs/concepts/policy/limit-range/",
+    "prometheus-operator/runbooks@a685d14 KubePodCrashLooping",
+    "prometheus-operator/runbooks@a685d14 KubeDeploymentReplicasMismatch"
+  ],
+  "spec": "docs/s2/family-limitrange.md",
+  "release": "report-worker",
+  "scenario": "No incident: the same objects, a LimitRange that fits every workload",
+  "query": "is something wrong in shop",
+  "expected_outcome": "no_incident",
+  "cause_object": null,
+  "decoys": [
+    {
+      "object": "Node/worker-node-02 (old drain)",
+      "why_not": "long ago"
+    },
+    {
+      "object": "report-worker logLevel diff",
+      "why_not": "harmless"
+    },
+    {
+      "object": "Pod/shop/search-api (CPUThrottlingHigh)",
+      "why_not": "unrelated"
+    },
+    {
+      "object": "ResourceQuota/shop/shop-quota",
+      "why_not": "at 60 %"
+    }
+  ],
+  "affected_resources": [],
+  "root_cause_contains": [],
+  "notes": "Passes only on an explicit no-incident answer (protocol 002, A2)."
+}

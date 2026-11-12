@@ -422,13 +422,17 @@ def case_dir_for(key: str) -> Path:
     return matches[0]
 
 
-def run_case(key: str, cut: str | None = None, llm: Any = None) -> CaseRun:
+def run_case(key: str, cut: str | None = None, llm: Any = None, case_dir: Path | None = None,
+             graph_builder: Any = None, namespaces: list[str] | None = None) -> CaseRun:
     """Run one case through the workflow.
 
     Without ``llm``: a scripted case (``h013`` … ``h016``, ``h022``, ``h024``),
     answered by ``ScriptedLLM``. With ``llm``: any native case, answered by that
     model (wrapped in ``RecordingLLM``), with ``expect.json["query"]`` as the query.
     ``cut`` — one of CUTTABLE — makes that collector's backend unreachable.
+    ``case_dir``, ``graph_builder`` and ``namespaces`` are for set S2 (docs/s2-correlation-cases.md):
+    a case outside this directory, its graph built from its directory by ``graph_builder``, and the
+    namespaces the investigation covers. Unset, nothing changes for S1.
     """
     if cut is not None and cut not in CUTTABLE:
         raise ValueError(f"cut must be one of {CUTTABLE}, got {cut!r}")
@@ -436,14 +440,17 @@ def run_case(key: str, cut: str | None = None, llm: Any = None) -> CaseRun:
     # (docs/structured-in-product.md, rule 5) — any native case
     no_llm = llm == "none"
     if llm is None:
+        if case_dir is not None:
+            raise ValueError("a case outside the native cases needs an llm (or llm='none')")
         script = {**CASE_SCRIPTS, **MULTI_SIGNAL_SCRIPTS, **TIER_C_SCRIPTS}[key]
         case = load_case(script.case_dir)
         query = script.query
     else:
-        case = load_case(case_dir_for(key))
+        case = load_case(case_dir if case_dir is not None else case_dir_for(key))
         query = case["expect"]["query"]
     namespace = case["expect"].get("namespace", "default")
-    graph = build_case_graph(case, wire_signals=False)
+    graph = (graph_builder(Path(case["case_dir"])) if graph_builder is not None
+             else build_case_graph(case, wire_signals=False))
     llm = None if no_llm else ScriptedLLM(script, namespace) if llm is None else RecordingLLM(llm)
 
     alerts = case.get("prometheus_alerts", [])
@@ -494,7 +501,7 @@ def run_case(key: str, cut: str | None = None, llm: Any = None) -> CaseRun:
             "thread_id": f"fixture-replay-{key}" + (f"-cut-{cut}" if cut else ""),
             "graph": graph, "store": StubStore(), "llm": llm,
         }}
-        workflow.invoke({"query": query, "namespaces": [namespace]}, config)
+        workflow.invoke({"query": query, "namespaces": namespaces or [namespace]}, config)
         snapshot = workflow.get_state(config)
 
     review_payload = None

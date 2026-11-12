@@ -1,0 +1,208 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: cart-api.scalingreplicaset.-2a7b0
+    namespace: shop
+    uid: evt-shop-cart-api-scalingreplicaset--2a7b0
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set cart-api-5d6f8c7b9 to 2
+  involvedObject:
+    kind: Deployment
+    name: cart-api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-18T07:40:00Z'
+  lastTimestamp: '2026-10-18T07:40:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: catalog-api.scalingreplicaset.0
+    namespace: shop
+    uid: evt-shop-catalog-api-scalingreplicaset-0
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set catalog-api-5f6b7d9c8 to 4
+  involvedObject:
+    kind: Deployment
+    name: catalog-api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:00:00Z'
+  lastTimestamp: '2026-10-20T08:00:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: catalog-api.scalingreplicaset.78
+    namespace: shop
+    uid: evt-shop-catalog-api-scalingreplicaset-78
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled down replica set catalog-api-7c9d8b6f5 to 0 from 4
+  involvedObject:
+    kind: Deployment
+    name: catalog-api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:02:00Z'
+  lastTimestamp: '2026-10-20T08:02:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: catalog-api.successfulrescale.258
+    namespace: shop
+    uid: evt-shop-catalog-api-successfulrescale-258
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 8; reason: cpu resource utilization (percentage of request) above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: catalog-api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:10:00Z'
+  lastTimestamp: '2026-10-20T08:10:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: catalog-api.successfulrescale.3c0
+    namespace: shop
+    uid: evt-shop-catalog-api-successfulrescale-3c0
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 14; reason: cpu resource utilization (percentage of request) above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: catalog-api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:16:00Z'
+  lastTimestamp: '2026-10-20T08:16:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: catalog-api.successfulrescale.5a0
+    namespace: shop
+    uid: evt-shop-catalog-api-successfulrescale-5a0
+  type: Normal
+  reason: SuccessfulRescale
+  message: 'New size: 20; reason: cpu resource utilization (percentage of request) above target'
+  involvedObject:
+    kind: HorizontalPodAutoscaler
+    name: catalog-api
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:24:00Z'
+  lastTimestamp: '2026-10-20T08:24:00Z'
+  reportingComponent: horizontal-pod-autoscaler
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-worker.scalingreplicaset.960
+    namespace: shop
+    uid: evt-shop-billing-worker-scalingreplicaset-960
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set billing-worker-6b8c4d7f9 to 1
+  involvedObject:
+    kind: Deployment
+    name: billing-worker
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:40:00Z'
+  lastTimestamp: '2026-10-20T08:40:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: billing-worker-6b8c4d7f9.failedcreate.960
+    namespace: shop
+    uid: evt-shop-billing-worker-6b8c4d7f9-failedcreate-960
+  type: Warning
+  reason: FailedCreate
+  message: 'Error creating: pods "billing-worker-6b8c4d7f9-" is forbidden: exceeded quota: shop-quota, requested: requests.memory=2Gi, used: requests.memory=31Gi, limited: requests.memory=32Gi'
+  involvedObject:
+    kind: ReplicaSet
+    name: billing-worker-6b8c4d7f9
+    namespace: shop
+  count: 11
+  firstTimestamp: '2026-10-20T08:40:00Z'
+  lastTimestamp: '2026-10-20T09:28:00Z'
+  reportingComponent: replicaset-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: report-export.successfulcreate.f3c
+    namespace: shop
+    uid: evt-shop-report-export-successfulcreate-f3c
+  type: Normal
+  reason: SuccessfulCreate
+  message: Created job report-export-29342400
+  involvedObject:
+    kind: CronJob
+    name: report-export
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T09:05:00Z'
+  lastTimestamp: '2026-10-20T09:05:00Z'
+  reportingComponent: cronjob-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: report-export.sawcompletedjob.10a4
+    namespace: shop
+    uid: evt-shop-report-export-sawcompletedjob-10a4
+  type: Normal
+  reason: SawCompletedJob
+  message: 'Saw completed job: report-export-29342400, status: Complete'
+  involvedObject:
+    kind: CronJob
+    name: report-export
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T09:11:00Z'
+  lastTimestamp: '2026-10-20T09:11:00Z'
+  reportingComponent: cronjob-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: report-export.successfulcreate.1194
+    namespace: shop
+    uid: evt-shop-report-export-successfulcreate-1194
+  type: Normal
+  reason: SuccessfulCreate
+  message: Created job report-export-29342410
+  involvedObject:
+    kind: CronJob
+    name: report-export
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T09:15:00Z'
+  lastTimestamp: '2026-10-20T09:15:00Z'
+  reportingComponent: cronjob-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: report-export.sawcompletedjob.12fc
+    namespace: shop
+    uid: evt-shop-report-export-sawcompletedjob-12fc
+  type: Normal
+  reason: SawCompletedJob
+  message: 'Saw completed job: report-export-29342410, status: Complete'
+  involvedObject:
+    kind: CronJob
+    name: report-export
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T09:21:00Z'
+  lastTimestamp: '2026-10-20T09:21:00Z'
+  reportingComponent: cronjob-controller

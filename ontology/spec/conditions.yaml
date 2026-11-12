@@ -1,0 +1,22 @@
+# Polarity of documented conditions (docs/anchors-and-relations.md, step 3 design): which status of a condition type
+# is normal. Only types whose documentation says it are listed; a condition not listed is reported, never a fault.
+# kstatus resources (Reconciling / Stalled, abnormal-true) are handled by the convention, not listed here.
+version: 1
+conditions:
+  - {kind: Node, type: Ready, normal: "True", sources: [https://kubernetes.io/docs/reference/node/node-status/]}
+  - {kind: Node, type: MemoryPressure, normal: "False", sources: [https://kubernetes.io/docs/reference/node/node-status/]}
+  - {kind: Node, type: DiskPressure, normal: "False", sources: [https://kubernetes.io/docs/reference/node/node-status/]}
+  - {kind: Node, type: PIDPressure, normal: "False", sources: [https://kubernetes.io/docs/reference/node/node-status/]}
+  - {kind: Node, type: NetworkUnavailable, normal: "False", sources: [https://kubernetes.io/docs/reference/node/node-status/]}
+  - {kind: Deployment, type: Progressing, abnormal_reason: ProgressDeadlineExceeded,
+     sources: [https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#deployment-status]}
+  - {kind: HorizontalPodAutoscaler, type: ScalingActive, normal: "True",
+     sources: [https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/]}
+  - {kind: Job, type: Failed, normal: "False", sources: [https://kubernetes.io/docs/concepts/workloads/controllers/job/]}
+  - {kind: Certificate.cert-manager.io, type: Ready, normal: "True", sources: [https://cert-manager.io/docs/reference/api-docs/]}
+  - {kind: Certificate, type: Ready, normal: "True", sources: [https://cert-manager.io/docs/reference/api-docs/]}
+kstatus:
+  # Applied to any object that reports a Stalled condition: the README computes status "solely based on the data in the
+  # resource passed in", with no opt-in step for CRDs (docs/schema-registry.md, step 6). No group list.
+  sources:
+    - https://github.com/kubernetes-sigs/cli-utils/blob/master/pkg/kstatus/README.md

@@ -1,0 +1,65 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "report-export-29342400-02105",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "report-export"
+    },
+    "values": [
+      [
+        "1792483260000000000",
+        "level=warn msg=\"waiting for database\" target=reports-db.data.svc.cluster.local:5432 err=\"connection refused\" attempt=1"
+      ],
+      [
+        "1792483860000000000",
+        "level=warn msg=\"waiting for database\" target=reports-db.data.svc.cluster.local:5432 err=\"connection refused\" attempt=2"
+      ],
+      [
+        "1792484460000000000",
+        "level=warn msg=\"waiting for database\" target=reports-db.data.svc.cluster.local:5432 err=\"connection refused\" attempt=3"
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "report-export-29342410-03ff4",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "report-export"
+    },
+    "values": [
+      [
+        "1792483860000000000",
+        "level=warn msg=\"waiting for database\" target=reports-db.data.svc.cluster.local:5432 err=\"connection refused\" attempt=1"
+      ],
+      [
+        "1792484460000000000",
+        "level=warn msg=\"waiting for database\" target=reports-db.data.svc.cluster.local:5432 err=\"connection refused\" attempt=2"
+      ],
+      [
+        "1792485060000000000",
+        "level=warn msg=\"waiting for database\" target=reports-db.data.svc.cluster.local:5432 err=\"connection refused\" attempt=3"
+      ]
+    ]
+  },
+  {
+    "stream": {
+      "k8s_pod_name": "report-export-29342420-05ee3",
+      "k8s_namespace_name": "shop",
+      "k8s_container_name": "report-export"
+    },
+    "values": [
+      [
+        "1792484460000000000",
+        "level=warn msg=\"waiting for database\" target=reports-db.data.svc.cluster.local:5432 err=\"connection refused\" attempt=1"
+      ],
+      [
+        "1792485060000000000",
+        "level=warn msg=\"waiting for database\" target=reports-db.data.svc.cluster.local:5432 err=\"connection refused\" attempt=2"
+      ],
+      [
+        "1792485660000000000",
+        "level=warn msg=\"waiting for database\" target=reports-db.data.svc.cluster.local:5432 err=\"connection refused\" attempt=3"
+      ]
+    ]
+  }
+]

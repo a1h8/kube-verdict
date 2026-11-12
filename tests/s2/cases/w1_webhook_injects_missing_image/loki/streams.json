@@ -1,0 +1,19 @@
+[
+  {
+    "stream": {
+      "k8s_pod_name": "mesh-injector-84b7c6d5f-q7k2m",
+      "k8s_namespace_name": "mesh-system",
+      "k8s_container_name": "injector"
+    },
+    "values": [
+      [
+        "1792484460000000000",
+        "level=info msg=\"injected sidecar\" proxy=ghcr.io/acme/mesh-proxy:1.21.0-rc"
+      ],
+      [
+        "1792484760000000000",
+        "level=info msg=\"injected sidecar\" proxy=ghcr.io/acme/mesh-proxy:1.21.0-rc"
+      ]
+    ]
+  }
+]

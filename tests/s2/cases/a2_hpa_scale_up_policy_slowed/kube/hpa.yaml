@@ -1,0 +1,45 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api
+  namespace: shop
+  uid: hpa-shop-api
+  annotations:
+    meta.helm.sh/release-name: api
+    meta.helm.sh/release-namespace: shop
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 4
+  maxReplicas: 20
+  metrics:
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: '50'
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 600
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 600
+status:
+  currentReplicas: 7
+  desiredReplicas: 12
+  conditions:
+  - type: AbleToScale
+    status: 'True'
+    reason: ReadyForNewScale
+  - type: ScalingActive
+    status: 'True'
+    reason: ValidMetricFound
+  - type: ScalingLimited
+    status: 'True'
+    reason: ScaleUpLimit
+    message: the desired replica count is increasing faster than the maximum scale rate

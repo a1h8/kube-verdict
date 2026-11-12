@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: {name: kv-defaults-ds}
+spec:
+  selector: {matchLabels: {app: kv-defaults-ds}}
+  template:
+    metadata: {labels: {app: kv-defaults-ds}}
+    spec:
+      containers:
+        - {name: c, image: "registry.example/app:1.0"}

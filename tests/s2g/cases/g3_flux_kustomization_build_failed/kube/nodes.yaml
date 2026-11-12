@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: NodeList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Node
+  metadata:
+    name: worker-node-01
+    uid: 7b3c4cdc-cc3a-c76c-5d2e-35d63e097b78
+    labels:
+      kubernetes.io/hostname: worker-node-01
+  status:
+    conditions:
+    - type: Ready
+      status: 'True'
+      reason: KubeletReady
+      message: kubelet is posting ready status
+      lastHeartbeatTime: '2026-11-02T09:00:00Z'
+      lastTransitionTime: '2026-09-03T09:00:00Z'
+    - type: MemoryPressure
+      status: 'False'
+      reason: KubeletHasSufficientMemory
+      message: kubelet has sufficient memory available
+      lastHeartbeatTime: '2026-11-02T09:00:00Z'
+      lastTransitionTime: '2026-09-03T09:00:00Z'
+    capacity:
+      cpu: '8'
+      memory: 32Gi
+      pods: '110'
+    allocatable:
+      cpu: 7800m
+      memory: 31Gi
+      pods: '110'
+    nodeInfo:
+      kubeletVersion: v1.35.5
+      architecture: amd64
+      bootID: 1ab59b8f
+      containerRuntimeVersion: containerd://2.1.4
+      kernelVersion: 6.8.0
+      kubeProxyVersion: v1.35.5
+      machineID: 057374f4ecb75f346bfac38152ca2145
+      operatingSystem: linux
+      osImage: Ubuntu 24.04
+      systemUUID: e19b42d9-318b-d812-5651-ca97e55012eb
+- apiVersion: v1
+  kind: Node
+  metadata:
+    name: worker-node-02
+    uid: cf91080a-c7b0-19c5-3694-5584b8087ca5
+    labels:
+      kubernetes.io/hostname: worker-node-02
+  status:
+    conditions:
+    - type: Ready
+      status: 'True'
+      reason: KubeletReady
+      message: kubelet is posting ready status
+      lastHeartbeatTime: '2026-11-02T09:00:00Z'
+      lastTransitionTime: '2026-09-03T09:00:00Z'
+    - type: MemoryPressure
+      status: 'False'
+      reason: KubeletHasSufficientMemory
+      message: kubelet has sufficient memory available
+      lastHeartbeatTime: '2026-11-02T09:00:00Z'
+      lastTransitionTime: '2026-09-03T09:00:00Z'
+    capacity:
+      cpu: '8'
+      memory: 32Gi
+      pods: '110'
+    allocatable:
+      cpu: 7800m
+      memory: 31Gi
+      pods: '110'
+    nodeInfo:
+      kubeletVersion: v1.35.5
+      architecture: amd64
+      bootID: 6a755a88
+      containerRuntimeVersion: containerd://2.1.4
+      kernelVersion: 6.8.0
+      kubeProxyVersion: v1.35.5
+      machineID: cf8d7f736ebfbacbee22cb7632453477
+      operatingSystem: linux
+      osImage: Ubuntu 24.04
+      systemUUID: 127dbf7b-b30d-b5a2-8e41-1fcaba571435
+- apiVersion: v1
+  kind: Node
+  metadata:
+    name: worker-node-03
+    uid: 426395e4-7353-ae9f-63db-b9268d121053
+    labels:
+      kubernetes.io/hostname: worker-node-03
+  status:
+    conditions:
+    - type: Ready
+      status: 'True'
+      reason: KubeletReady
+      message: kubelet is posting ready status
+      lastHeartbeatTime: '2026-11-02T09:00:00Z'
+      lastTransitionTime: '2026-09-03T09:00:00Z'
+    - type: MemoryPressure
+      status: 'False'
+      reason: KubeletHasSufficientMemory
+      message: kubelet has sufficient memory available
+      lastHeartbeatTime: '2026-11-02T09:00:00Z'
+      lastTransitionTime: '2026-09-03T09:00:00Z'
+    capacity:
+      cpu: '8'
+      memory: 32Gi
+      pods: '110'
+    allocatable:
+      cpu: 7800m
+      memory: 31Gi
+      pods: '110'
+    nodeInfo:
+      kubeletVersion: v1.35.5
+      architecture: amd64
+      bootID: a390c11f
+      containerRuntimeVersion: containerd://2.1.4
+      kernelVersion: 6.8.0
+      kubeProxyVersion: v1.35.5
+      machineID: 3f769d5b0b1ae2d4409302ba8316401c
+      operatingSystem: linux
+      osImage: Ubuntu 24.04
+      systemUUID: 43d422e2-5a51-ba7d-bc1b-547dc6173569

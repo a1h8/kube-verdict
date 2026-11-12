@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: KustomizationList
+metadata: {}
+items:
+- apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: apps
+    namespace: flux-system
+    uid: 523b9c00-a14f-2ef5-bf34-055b4489652e
+    generation: 2
+    creationTimestamp: '2026-08-04T09:00:00Z'
+  spec:
+    interval: 5m
+    path: ./apps/shop
+    prune: true
+    sourceRef:
+      kind: GitRepository
+      name: flux-system
+  status:
+    observedGeneration: 2
+    conditions:
+    - type: Ready
+      status: 'True'
+      reason: ReconciliationSucceeded
+      message: 'Applied revision: main@sha1:4f1c2a9e7b3d5f60a8c1e2d3b4a5968778695a4b'
+      lastTransitionTime: '2026-11-02T08:58:00Z'
+      observedGeneration: 2
+    lastAppliedRevision: main@sha1:4f1c2a9e7b3d5f60a8c1e2d3b4a5968778695a4b
+    lastAttemptedRevision: main@sha1:4f1c2a9e7b3d5f60a8c1e2d3b4a5968778695a4b
+    inventory:
+      entries:
+      - id: shop_cart_apps_Deployment
+        v: v1
+      - id: shop_catalog_apps_Deployment
+        v: v1
+      - id: shop_search_apps_Deployment
+        v: v1
+      - id: shop_api_apps_Deployment
+        v: v1
+      - id: shop_cart__Service
+        v: v1
+      - id: shop_catalog__Service
+        v: v1
+      - id: shop_search__Service
+        v: v1
+      - id: shop_api__Service
+        v: v1

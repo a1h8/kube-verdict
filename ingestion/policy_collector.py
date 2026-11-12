@@ -311,6 +311,8 @@ class PolicyCollector:
                     name=meta.name,
                     failure_policy=failure_policy,
                     matched_resources=matched[:10],
+                    # kept whole: its namespaceSelector and objectSelector are what ADMITS reads
+                    raw=item.to_dict() if hasattr(item, "to_dict") else {},
                 )
                 graph.add_entity(webhook)
                 count += 1

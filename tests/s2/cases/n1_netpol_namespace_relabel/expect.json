@@ -1,0 +1,48 @@
+{
+  "set": "S2",
+  "family": "netpol",
+  "namespace": "shop",
+  "sources": [
+    "https://kubernetes.io/docs/concepts/services-networking/network-policies/",
+    "prometheus-operator/runbooks@a685d14 KubePodNotReady",
+    "prometheus-operator/runbooks@a685d14 KubePodCrashLooping"
+  ],
+  "spec": "docs/s2/family-netpol.md",
+  "release": "checkout-api",
+  "scenario": "checkout-api's calls to payments time out; a namespace relabel stopped matching an allow rule",
+  "query": "why are checkout-api's payments failing in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Namespace/shop",
+  "mechanism": "Namespace shop's team label changed from storefront to shop, so NetworkPolicy pay/allow-from-storefront no longer matches it and pay/default-deny-ingress drops checkout-api's calls to payments",
+  "pass_if": "names the label mismatch, through the Namespace or the policy",
+  "partial_if_only": [
+    "a NetworkPolicy without the label mismatch"
+  ],
+  "chain": [
+    "checkout-api's calls to payments.pay time out; its readiness fails",
+    "Service/pay/payments has ready endpoints: payments is healthy",
+    "NetworkPolicy/pay/default-deny-ingress isolates pay; allow-from-storefront allows team=storefront",
+    "Namespace/shop was relabelled team=shop at T0"
+  ],
+  "decoys": [
+    {
+      "object": "Deployment/pay/payments",
+      "why_not": "rolled out at T0+5 min, after the first timeouts; healthy"
+    },
+    {
+      "object": "Pod/kube-system/coredns (old restart)",
+      "why_not": "resolved 26 h before; DNS resolves in the logs"
+    },
+    {
+      "object": "NetworkPolicy/shop/allow-egress-all",
+      "why_not": "allows every egress, so it blocks nothing"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/checkout-api"
+  ],
+  "root_cause_concepts": [
+    "label|team",
+    "networkpolic|network policy|allow-from-storefront"
+  ]
+}

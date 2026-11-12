@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: report-export
+  namespace: shop
+  uid: cj-shop-report-export
+  labels:
+    app.kubernetes.io/name: report-export
+    app.kubernetes.io/instance: shop
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: shop
+    meta.helm.sh/release-namespace: shop
+spec:
+  schedule: '*/10 * * * *'
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: report-export
+            image: ghcr.io/acme/report-export:1.3.0
+            ports:
+            - containerPort: 8080
+              name: http
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
+            readinessProbe:
+              httpGet:
+                path: /ready
+                port: 8080
+              periodSeconds: 10
+            args:
+            - --db
+            - reports-db.data.svc.cluster.local:5432
+status:
+  active: []
+  lastScheduleTime: '2026-10-20T09:15:00Z'

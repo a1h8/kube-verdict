@@ -1,0 +1,689 @@
+id: quota-1
+family: quota
+question: "why can't the checkout deployment scale up in shop"
+expected_outcome: cause
+cause_object: ResourceQuota/payments/rq-compute
+origin_object: Deployment/payments/invoice-worker
+mechanism: "The ResourceQuota in payments is exhausted by invoice-worker pods that request cpu/memory; the shop namespace has no local quota, but the checkout Deployment's new ReplicaSet cannot create pods because the cluster-scoped admission check against the payments quota (via a shared node pool and cross-namespace accounting in this setup) rejects them after the invoice-worker scale-up."
+passes_if: "names ResourceQuota/payments/rq-compute as the object whose hard limits block the new checkout pods"
+partial_if_only: ["names the checkout ReplicaSet FailedCreate events", "names the invoice-worker Deployment high replica count"]
+chain:
+  - from: Deployment/shop/checkout
+    relation: "owns via ownerReference"
+    to: ReplicaSet/shop/checkout-7f9d8c
+    fields: "Deployment.status.conditions and ReplicaSet.metadata.ownerReferences; ReplicaSet.spec.replicas > status.readyReplicas"
+    abnormal: "ReplicaSet event FailedCreate at T0-2m: 'Error creating: pods \"checkout-7f9d8c-xyz\" is forbidden: exceeded quota: rq-compute, requested: requests.cpu=500m, used: requests.cpu=8, limited: requests.cpu=8'"
+  - from: ReplicaSet/shop/checkout-7f9d8c
+    relation: "subject to ResourceQuota via admission (namespace selector and hard limits on requests)"
+    to: ResourceQuota/payments/rq-compute
+    fields: "ResourceQuota.spec.hard.requests.cpu=8, status.used.requests.cpu=8; the FailedCreate message references the quota name"
+    abnormal: "ResourceQuota status.used.requests.cpu == hard at T0; event on the ReplicaSet cites exceeded quota rq-compute"
+decoys:
+  - object: ResourceQuota/shop/rq-shop
+    looks_like: "shop has its own ResourceQuota with low remaining pods"
+    why_not: "rq-shop still has headroom (used.pods=3 of hard=20); the FailedCreate message names rq-compute not rq-shop"
+  - object: Deployment/shop/checkout
+    looks_like: "the Deployment itself is the nearest object and shows unavailable replicas"
+    why_not: "the Deployment is healthy; the failure is only on new pod creation by its ReplicaSet, caused by the remote quota"
+  - object: Pod/payments/invoice-worker-0
+    looks_like: "a previously failing pod in payments that was CrashLooping"
+    why_not: "that CrashLoop was resolved at T0-4h; current pods are Running and Ready; the quota exhaustion is from the successful scale-up of invoice-worker"
+timeline:
+  - "T0-6h: ResourceQuota/payments/rq-compute created with hard requests.cpu=8, requests.memory=16Gi"
+  - "T0-4h: invoice-worker CrashLoop resolved after image fix; pods now Running"
+  - "T0-45m: Deployment/payments/invoice-worker scaled from 4 to 16 replicas (each requesting 500m cpu), filling the quota"
+  - "T0-30m: shop/checkout Deployment scaled from 3 to 6 replicas"
+  - "T0-2m: ReplicaSet/shop/checkout-7f9d8c emits FailedCreate events citing exceeded quota rq-compute"
+  - "T0: operator asks why checkout cannot scale"
+objects:
+  - Namespace/shop: Active
+  - Namespace/payments: Active
+  - Namespace/observability: Active
+  - Deployment/shop/frontend: 3/3 Ready
+  - Deployment/shop/cart: 2/2 Ready
+  - Deployment/shop/search: 4/4 Ready
+  - Deployment/payments/payment-api: 5/5 Ready
+  - Deployment/payments/invoice-worker: 16/16 Ready (requests 500m each)
+  - Deployment/observability/prometheus: 1/1 Ready
+  - ReplicaSet/shop/checkout-7f9d8c: desired 6, ready 3, FailedCreate events
+  - ReplicaSet/shop/frontend-abc: 3/3
+  - ReplicaSet/payments/invoice-worker-xyz: 16/16
+  - Service/shop/checkout: ClusterIP, endpoints ready
+  - Service/shop/frontend: ClusterIP
+  - Service/payments/payment-api: ClusterIP
+  - ConfigMap/shop/checkout-config: data present
+  - ConfigMap/payments/worker-config: data present
+  - ResourceQuota/shop/rq-shop: hard pods=20, used=9
+  - ResourceQuota/payments/rq-compute: hard requests.cpu=8, used=8
+  - LimitRange/shop/lr-default: default requests present
+  - Pod/shop/checkout-7f9d8c-aaa: Running
+  - Pod/shop/checkout-7f9d8c-bbb: Running
+  - Pod/shop/checkout-7f9d8c-ccc: Running
+  - Pod/payments/invoice-worker-0: Running
+  - Pod/payments/invoice-worker-1: Running
+  - HorizontalPodAutoscaler/shop/checkout-hpa: current 3, desired 3
+  - NetworkPolicy/shop/allow-frontend: allows ingress
+  - ServiceAccount/shop/default: present
+  - ServiceAccount/payments/default: present
+  - PersistentVolumeClaim/shop/checkout-cache: Bound
+  - Ingress/shop/shop-ingress: routes to frontend
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/resource-quotas/"
+  - "https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/#pod-failure-policy"
+---
+id: netpol-1
+family: netpol
+question: "why is the search service in shop returning connection refused from the frontend pods"
+expected_outcome: cause
+cause_object: NetworkPolicy/observability/deny-cross-ns
+origin_object: NetworkPolicy/observability/deny-cross-ns
+mechanism: "A NetworkPolicy in the observability namespace selects all pods via an empty podSelector and uses a namespaceSelector that matches the shop namespace on the label monitoring=enabled; its egress rule is empty, so shop pods that were labelled for scraping can no longer initiate connections to the search Service."
+passes_if: "names NetworkPolicy/observability/deny-cross-ns as blocking egress from shop pods to search"
+partial_if_only: ["names that frontend cannot reach search", "names the search Service has no endpoints"]
+chain:
+  - from: Pod/shop/frontend-7d8f9-xyz
+    relation: "selected by NetworkPolicy podSelector + namespaceSelector"
+    to: NetworkPolicy/observability/deny-cross-ns
+    fields: "NetworkPolicy.spec.podSelector={} (selects all), namespaceSelector.matchLabels.monitoring=enabled; Pod.metadata.labels and Namespace/shop.metadata.labels.monitoring=enabled"
+    abnormal: "Pod logs at T0-8m show 'dial tcp 10.96.12.45:8080: connect: connection refused'; NetworkPolicy status shows it is active"
+  - from: NetworkPolicy/observability/deny-cross-ns
+    relation: "controls egress for selected pods; empty egress denies all"
+    to: Service/shop/search
+    fields: "NetworkPolicy.spec.policyTypes=[Egress], egress=[]; Service.spec.selector matches search pods that frontend tries to reach"
+    abnormal: "No allowed egress ports or peers; frontend connection attempts fail while search pods themselves are Ready"
+decoys:
+  - object: NetworkPolicy/shop/allow-search
+    looks_like: "the local NetworkPolicy in shop that should allow traffic"
+    why_not: "allow-search only governs ingress into search pods; the deny is an egress policy applied to the frontend pods via the cross-namespace selector"
+  - object: Service/shop/search
+    looks_like: "search Service has 0 endpoints"
+    why_not: "endpoints are present (search pods Ready); the refusal is from the client side NetworkPolicy drop, not missing endpoints"
+  - object: Pod/shop/search-0
+    looks_like: "a search pod that restarted 2h ago"
+    why_not: "restart was a normal rolling update; pod is Ready and listening; the failure started only after the observability NetworkPolicy was applied"
+timeline:
+  - "T0-3h: Namespace/shop labelled monitoring=enabled for Prometheus scraping"
+  - "T0-90m: NetworkPolicy/observability/deny-cross-ns created with empty egress to isolate observability tooling"
+  - "T0-10m: frontend pods begin failing connections to search (connection refused in logs)"
+  - "T0-8m: increased error rate visible in frontend container logs"
+  - "T0: operator asks why search is unreachable from frontend"
+objects:
+  - Namespace/shop: Active, labels monitoring=enabled
+  - Namespace/observability: Active
+  - Namespace/payments: Active
+  - Deployment/shop/frontend: 3/3 Ready
+  - Deployment/shop/search: 2/2 Ready
+  - Deployment/shop/cart: 2/2 Ready
+  - Deployment/observability/prometheus: 1/1 Ready
+  - Deployment/observability/grafana: 1/1 Ready
+  - Deployment/payments/payment-api: 3/3 Ready
+  - Service/shop/search: ClusterIP 10.96.12.45:8080, endpoints present
+  - Service/shop/frontend: ClusterIP
+  - Service/observability/prometheus: ClusterIP
+  - NetworkPolicy/shop/allow-search: ingress from frontend
+  - NetworkPolicy/observability/deny-cross-ns: podSelector={}, namespaceSelector monitoring=enabled, egress empty
+  - NetworkPolicy/payments/default-deny: present
+  - Pod/shop/frontend-7d8f9-xyz: Running, logs show connection refused
+  - Pod/shop/frontend-7d8f9-abc: Running
+  - Pod/shop/search-0: Running Ready
+  - Pod/shop/search-1: Running Ready
+  - ConfigMap/shop/search-config: present
+  - ConfigMap/observability/prometheus-config: present
+  - ServiceAccount/shop/default: present
+  - ServiceAccount/observability/prometheus: present
+  - HorizontalPodAutoscaler/shop/search-hpa: current 2
+  - Ingress/shop/shop-ingress: present
+  - PersistentVolumeClaim/observability/grafana-data: Bound
+  - LimitRange/shop/defaults: present
+  - ResourceQuota/shop/rq: hard pods=30, used=12
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/network-policies/"
+  - "https://kubernetes.io/docs/concepts/services-networking/network-policies/#behavior-of-to-and-from-selectors"
+---
+id: dependency-1
+family: dependency
+question: "why are checkout pods in shop crash-looping"
+expected_outcome: cause
+cause_object: Deployment/payments/redis
+origin_object: ConfigMap/payments/redis-config
+mechanism: "Checkout pods connect to the redis Service in payments; the redis Deployment was scaled to 0 after a ConfigMap change that set an invalid maxmemory, causing redis pods to fail readiness; checkout therefore cannot open connections and crashes."
+passes_if: "names Deployment/payments/redis (or its pods) as the unreachable dependency that causes checkout to crash"
+partial_if_only: ["names checkout CrashLoopBackOff", "names the redis Service"]
+chain:
+  - from: Pod/shop/checkout-5f6g7-xyz
+    relation: "env and connection string reference the dependency Service"
+    to: Service/payments/redis
+    fields: "Pod.spec.containers.env valueFrom or value containing redis.payments.svc; Service.metadata.name=redis, namespace=payments"
+    abnormal: "checkout container logs at T0-4m: 'dial tcp: lookup redis.payments.svc.cluster.local: no such host' / connection refused; Pod status CrashLoopBackOff"
+  - from: Service/payments/redis
+    relation: "selects pods of the redis Deployment"
+    to: Deployment/payments/redis
+    fields: "Service.spec.selector.app=redis; Deployment.metadata.labels.app=redis, status.replicas=0, status.readyReplicas=0"
+    abnormal: "Deployment status replicas=0 at T0; no endpoints; redis pods terminated after ConfigMap-driven crash"
+decoys:
+  - object: ConfigMap/shop/checkout-config
+    looks_like: "checkout ConfigMap was updated recently"
+    why_not: "the update only changed a feature flag; connection string to redis is unchanged and still correct"
+  - object: Pod/shop/checkout-5f6g7-xyz
+    looks_like: "the crash-looping pod itself is the problem"
+    why_not: "the pod is a symptom; its logs show it cannot reach the redis dependency"
+  - object: NetworkPolicy/payments/allow-redis
+    looks_like: "a NetworkPolicy that might block traffic"
+    why_not: "the policy allows ingress from shop; the redis pods are simply not running"
+timeline:
+  - "T0-2h: ConfigMap/payments/redis-config updated with invalid maxmemory value"
+  - "T0-90m: redis pods enter CrashLoopBackOff due to bad config"
+  - "T0-60m: Deployment/payments/redis scaled to 0 by operator while debugging"
+  - "T0-10m: checkout pods begin CrashLoopBackOff after redis became unavailable"
+  - "T0-4m: checkout logs show connection failures to redis.payments.svc"
+  - "T0: operator asks why checkout is crash-looping"
+objects:
+  - Namespace/shop: Active
+  - Namespace/payments: Active
+  - Namespace/observability: Active
+  - Deployment/shop/checkout: desired 3, ready 0, CrashLoopBackOff
+  - Deployment/shop/frontend: 3/3 Ready
+  - Deployment/shop/cart: 2/2 Ready
+  - Deployment/payments/redis: desired 0, ready 0
+  - Deployment/payments/payment-api: 4/4 Ready
+  - Deployment/observability/loki: 1/1 Ready
+  - Service/payments/redis: ClusterIP, 0 endpoints
+  - Service/shop/checkout: ClusterIP
+  - Service/payments/payment-api: ClusterIP
+  - ConfigMap/payments/redis-config: contains maxmemory=invalid
+  - ConfigMap/shop/checkout-config: present
+  - Pod/shop/checkout-5f6g7-xyz: CrashLoopBackOff, logs connection refused
+  - Pod/shop/checkout-5f6g7-abc: CrashLoopBackOff
+  - Pod/payments/payment-api-0: Running
+  - NetworkPolicy/payments/allow-redis: allows from shop
+  - NetworkPolicy/shop/default: present
+  - ServiceAccount/shop/checkout: present
+  - ServiceAccount/payments/redis: present
+  - HorizontalPodAutoscaler/shop/checkout-hpa: current 0
+  - PersistentVolumeClaim/payments/redis-data: Bound but unused
+  - Ingress/shop/shop-ingress: present
+  - ResourceQuota/payments/rq: present
+  - LimitRange/shop/lr: present
+  - Job/payments/redis-backup: Completed
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/service/"
+  - "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-restarts"
+---
+id: limitrange-1
+family: limitrange
+question: "why do new pods of the worker Deployment in batch fail to schedule"
+expected_outcome: cause
+cause_object: LimitRange/batch/lr-mem
+origin_object: LimitRange/batch/lr-mem
+mechanism: "The LimitRange in batch sets a default memory limit of 256Mi and a max of 512Mi; the worker Deployment specifies a memory request of 1Gi with no limit, so the LimitRanger admission plugin rejects the pods because the implied limit would violate maxLimitRequestRatio and the max limit."
+passes_if: "names LimitRange/batch/lr-mem as rejecting the worker pods via default or max memory constraints"
+partial_if_only: ["names the worker ReplicaSet FailedCreate", "names that pods have high memory requests"]
+chain:
+  - from: Deployment/batch/worker
+    relation: "owns via ownerReference"
+    to: ReplicaSet/batch/worker-9h8j7
+    fields: "Deployment.status and ReplicaSet.metadata.ownerReferences; ReplicaSet events"
+    abnormal: "ReplicaSet event FailedCreate at T0-3m: 'Error creating: pods \"worker-9h8j7-xyz\" is forbidden: [maximum memory usage per Container is 512Mi, but limit is 1Gi]'"
+  - from: ReplicaSet/batch/worker-9h8j7
+    relation: "subject to LimitRange defaults and max via LimitRanger admission"
+    to: LimitRange/batch/lr-mem
+    fields: "LimitRange.spec.limits.default.memory=256Mi, max.memory=512Mi, maxLimitRequestRatio.memory=2; Pod.spec.containers.resources.requests.memory=1Gi (no limits)"
+    abnormal: "LimitRange is active; admission rejects because request 1Gi would force a limit exceeding max"
+decoys:
+  - object: ResourceQuota/batch/rq-batch
+    looks_like: "the ResourceQuota is nearly full"
+    why_not: "rq-batch still has memory headroom; the error message cites the LimitRange max, not quota exceeded"
+  - object: Deployment/batch/worker
+    looks_like: "the Deployment is the object the operator is looking at"
+    why_not: "the Deployment is correctly configured for its intent; the LimitRange silently injects/enforces constraints that make the pods invalid"
+  - object: LimitRange/shop/lr-default
+    looks_like: "another LimitRange in a different namespace"
+    why_not: "shop LimitRange does not apply to batch pods; the rejection is namespace-local to batch"
+timeline:
+  - "T0-5h: LimitRange/batch/lr-mem created with max memory 512Mi and default 256Mi"
+  - "T0-2h: Deployment/batch/worker updated to request 1Gi memory (previously 200Mi)"
+  - "T0-30m: worker Deployment scaled up, triggering new pod creation"
+  - "T0-3m: ReplicaSet emits FailedCreate citing maximum memory usage"
+  - "T0: operator asks why new worker pods fail"
+objects:
+  - Namespace/batch: Active
+  - Namespace/shop: Active
+  - Namespace/payments: Active
+  - Deployment/batch/worker: desired 5, ready 2
+  - Deployment/batch/scheduler: 1/1 Ready
+  - Deployment/shop/frontend: 3/3 Ready
+  - Deployment/payments/payment-api: 3/3 Ready
+  - ReplicaSet/batch/worker-9h8j7: desired 5, ready 2, FailedCreate events
+  - ReplicaSet/batch/scheduler-abc: 1/1
+  - LimitRange/batch/lr-mem: max memory 512Mi, default 256Mi
+  - LimitRange/shop/lr-default: defaults present
+  - ResourceQuota/batch/rq-batch: hard memory 32Gi, used 8Gi
+  - ResourceQuota/shop/rq-shop: present
+  - Pod/batch/worker-9h8j7-aaa: Running (old revision)
+  - Pod/batch/worker-9h8j7-bbb: Running
+  - Service/batch/worker: ClusterIP
+  - ConfigMap/batch/worker-config: present
+  - ServiceAccount/batch/worker: present
+  - HorizontalPodAutoscaler/batch/worker-hpa: current 2
+  - NetworkPolicy/batch/allow-internal: present
+  - Job/batch/cleanup: Completed
+  - CronJob/batch/nightly: present
+  - PersistentVolumeClaim/batch/worker-data: Bound
+  - Ingress/shop/shop-ingress: present
+sources:
+  - "https://kubernetes.io/docs/concepts/policy/limit-range/"
+  - "https://kubernetes.io/docs/concepts/policy/limit-range/#limitrange-admission-controller"
+---
+id: hpa-1
+family: hpa
+question: "why is the api Deployment in shop not scaling up under load"
+expected_outcome: cause
+cause_object: HorizontalPodAutoscaler/shop/api-hpa
+origin_object: ConfigMap/shop/api-config
+mechanism: "The HPA targets the api Deployment but its metric is a custom pods metric that was broken when the api ConfigMap removed the sidecar that exported the metric; the HPA therefore sees no metric values and stays at the minimum replica count while CPU load is high."
+passes_if: "names HorizontalPodAutoscaler/shop/api-hpa as unable to scale because its metric is missing or stale"
+partial_if_only: ["names high CPU on api pods", "names the api Deployment replica count is low"]
+chain:
+  - from: Deployment/shop/api
+    relation: "scale target of the HPA"
+    to: HorizontalPodAutoscaler/shop/api-hpa
+    fields: "HPA.spec.scaleTargetRef.kind=Deployment, name=api; Deployment.status.replicas=2 (minReplicas)"
+    abnormal: "HPA status.conditions AbleToScale=False, reason FailedGetPodsMetric at T0-5m; currentReplicas=2 while load is high"
+  - from: HorizontalPodAutoscaler/shop/api-hpa
+    relation: "depends on metric produced by pods selected by the target"
+    to: ConfigMap/shop/api-config
+    fields: "HPA.spec.metrics.pods.metric.name=http_requests_per_second; ConfigMap data that previously enabled the metrics sidecar, now removed"
+    abnormal: "HPA event FailedGetPodsMetric: 'unable to get metric http_requests_per_second: no metrics returned'; ConfigMap change at T0-40m removed the exporter"
+decoys:
+  - object: ResourceQuota/shop/rq-shop
+    looks_like: "quota prevents more pods"
+    why_not: "quota has headroom (used.pods well below hard); the HPA itself is not generating a scale-up decision"
+  - object: Deployment/shop/api
+    looks_like: "the Deployment is stuck at 2 replicas"
+    why_not: "the Deployment would accept a higher replica count; the HPA is not requesting it because of the missing metric"
+  - object: HorizontalPodAutoscaler/shop/frontend-hpa
+    looks_like: "another HPA that is scaling correctly"
+    why_not: "frontend-hpa uses CPU metric and is healthy; it is unrelated to the api symptom"
+timeline:
+  - "T0-40m: ConfigMap/shop/api-config updated, removing metrics-sidecar enablement"
+  - "T0-35m: api pods rolled, no longer exporting http_requests_per_second"
+  - "T0-20m: load increases, CPU on api pods > 80%"
+  - "T0-5m: HPA status shows FailedGetPodsMetric, remains at minReplicas=2"
+  - "T0: operator asks why api is not scaling"
+objects:
+  - Namespace/shop: Active
+  - Namespace/payments: Active
+  - Namespace/observability: Active
+  - Deployment/shop/api: 2/2 Ready, high CPU
+  - Deployment/shop/frontend: 4/4 Ready
+  - Deployment/shop/cart: 2/2 Ready
+  - Deployment/payments/payment-api: 3/3 Ready
+  - HorizontalPodAutoscaler/shop/api-hpa: minReplicas=2, current=2, FailedGetPodsMetric
+  - HorizontalPodAutoscaler/shop/frontend-hpa: scaling normally on CPU
+  - ConfigMap/shop/api-config: metrics sidecar disabled
+  - ConfigMap/shop/frontend-config: present
+  - Service/shop/api: ClusterIP
+  - Service/shop/frontend: ClusterIP
+  - Pod/shop/api-7k8l9-xyz: Running, CPU 85%
+  - Pod/shop/api-7k8l9-abc: Running, CPU 90%
+  - ResourceQuota/shop/rq-shop: used.pods=12 of 30
+  - LimitRange/shop/lr: present
+  - NetworkPolicy/shop/allow-api: present
+  - ServiceAccount/shop/api: present
+  - Ingress/shop/shop-ingress: routes to api
+  - PersistentVolumeClaim/shop/api-cache: Bound
+  - Deployment/observability/prometheus: 1/1 Ready
+  - Service/observability/prometheus: ClusterIP
+  - PodDisruptionBudget/shop/api-pdb: present
+sources:
+  - "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+  - "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/"
+---
+id: webhook-1
+family: webhook
+question: "why do new pods for the payments Deployment fail to create"
+expected_outcome: cause
+cause_object: MutatingWebhookConfiguration/istio-sidecar-injector
+origin_object: Deployment/istio-system/istiod
+mechanism: "The MutatingWebhookConfiguration for the sidecar injector points at a Service whose pods are not ready because istiod was scaled to 0; the webhook call times out and the apiserver rejects the pod create for the payments Deployment."
+passes_if: "names MutatingWebhookConfiguration/istio-sidecar-injector (or the unreachable webhook Service) as causing the pod creation failures"
+partial_if_only: ["names FailedCreate on the payments ReplicaSet", "names that the webhook is configured"]
+chain:
+  - from: Deployment/payments/payment-api
+    relation: "owns via ownerReference"
+    to: ReplicaSet/payments/payment-api-3d4e5
+    fields: "Deployment and ReplicaSet ownerReferences; ReplicaSet events"
+    abnormal: "ReplicaSet event FailedCreate at T0-2m: 'Error creating: Internal error occurred: failed calling webhook \"namespace.sidecar-injector.istio.io\": failed to call webhook: Post \"https://istiod.istio-system.svc:443/inject\": context deadline exceeded'"
+  - from: ReplicaSet/payments/payment-api-3d4e5
+    relation: "subject to mutating admission webhook"
+    to: MutatingWebhookConfiguration/istio-sidecar-injector
+    fields: "MutatingWebhookConfiguration.webhooks[].clientConfig.service.name=istiod, namespace=istio-system; rules match pods in payments"
+    abnormal: "Webhook configuration active; the target Service has 0 ready pods because Deployment/istio-system/istiod replicas=0"
+decoys:
+  - object: Deployment/payments/payment-api
+    looks_like: "the Deployment the operator is trying to roll out"
+    why_not: "the Deployment and its container image are valid; the failure is injected by the admission webhook before the pod is persisted"
+  - object: ValidatingWebhookConfiguration/pod-security
+    looks_like: "another webhook that might reject"
+    why_not: "the tool cannot read ValidatingWebhookConfigurations; the error message explicitly names the istio sidecar-injector webhook"
+  - object: NetworkPolicy/istio-system/allow-webhook
+    looks_like: "a NetworkPolicy blocking the webhook call"
+    why_not: "the istiod pods themselves are not running; there is no network path issue, just no endpoints"
+timeline:
+  - "T0-3h: Deployment/istio-system/istiod scaled to 0 during maintenance"
+  - "T0-30m: payments/payment-api image updated, triggering new ReplicaSet"
+  - "T0-2m: ReplicaSet emits FailedCreate with webhook timeout to istiod.istio-system.svc"
+  - "T0: operator asks why new payment-api pods cannot be created"
+objects:
+  - Namespace/payments: Active
+  - Namespace/istio-system: Active
+  - Namespace/shop: Active
+  - Deployment/payments/payment-api: desired 4, ready 2 (old pods)
+  - Deployment/istio-system/istiod: desired 0, ready 0
+  - Deployment/shop/frontend: 3/3 Ready
+  - ReplicaSet/payments/payment-api-3d4e5: desired 4, ready 2, FailedCreate events
+  - MutatingWebhookConfiguration/istio-sidecar-injector: clientConfig service istiod.istio-system
+  - Service/istio-system/istiod: ClusterIP, 0 endpoints
+  - Service/payments/payment-api: ClusterIP
+  - Pod/payments/payment-api-old-xyz: Running
+  - Pod/payments/payment-api-old-abc: Running
+  - ConfigMap/istio-system/istio: present
+  - ConfigMap/payments/api-config: present
+  - ServiceAccount/payments/payment-api: present
+  - ServiceAccount/istio-system/istiod: present
+  - NetworkPolicy/istio-system/allow-webhook: present
+  - ResourceQuota/payments/rq: present
+  - LimitRange/payments/lr: present
+  - HorizontalPodAutoscaler/payments/payment-api-hpa: current 2
+  - Ingress/payments/payments-ingress: present
+  - PersistentVolumeClaim/payments/api-data: Bound
+  - Deployment/observability/prometheus: 1/1 Ready
+sources:
+  - "https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/"
+  - "https://istio.io/latest/docs/setup/additional-setup/sidecar-injection/"
+---
+id: configmap-1
+family: configmap
+question: "why is the cart service in shop returning 500s after the last deploy"
+expected_outcome: cause
+cause_object: ConfigMap/shop/cart-config
+origin_object: ConfigMap/shop/cart-config
+mechanism: "The cart Deployment mounts ConfigMap/shop/cart-config as a volume; an update to the ConfigMap introduced an invalid YAML key that the cart application cannot parse, causing it to start but immediately return 500 on every request."
+passes_if: "names ConfigMap/shop/cart-config as containing the invalid configuration that breaks the cart pods"
+partial_if_only: ["names cart pods are Ready but returning errors", "names the cart Deployment was rolled"]
+chain:
+  - from: Deployment/shop/cart
+    relation: "mounts the ConfigMap as a volume"
+    to: ConfigMap/shop/cart-config
+    fields: "Deployment.spec.template.spec.volumes.configMap.name=cart-config; Pod.spec.volumes and volumeMounts; ConfigMap.data"
+    abnormal: "ConfigMap data contains invalid key 'features::enabled' (double colon) at T0-15m; cart container logs show 'yaml: unmarshal errors'"
+  - from: ConfigMap/shop/cart-config
+    relation: "consumed by the application inside the pods selected by the Deployment"
+    to: Pod/shop/cart-8j9k0-xyz
+    fields: "Pod mounts the ConfigMap; container logs reference the parse failure"
+    abnormal: "Pod is Running/Ready but logs at T0-12m: 'failed to load config: yaml: line 12: did not find expected key'; application returns HTTP 500"
+decoys:
+  - object: Deployment/shop/cart
+    looks_like: "the Deployment that was just rolled out"
+    why_not: "the new image is healthy; the breakage is solely from the ConfigMap content that was updated in the same change window"
+  - object: Service/shop/cart
+    looks_like: "the Service might have lost endpoints"
+    why_not: "endpoints are present and pods are Ready; the 500s are application-level from bad config"
+  - object: ConfigMap/shop/frontend-config
+    looks_like: "another ConfigMap changed around the same time"
+    why_not: "frontend-config change was a harmless annotation; cart-config is the one mounted by the failing pods"
+timeline:
+  - "T0-20m: ConfigMap/shop/cart-config updated with invalid YAML"
+  - "T0-18m: cart Deployment rolled to pick up the new ConfigMap (via checksum annotation)"
+  - "T0-15m: new cart pods start, log yaml unmarshal error"
+  - "T0-12m: cart begins returning 500 on all requests"
+  - "T0: operator asks why cart is returning 500s"
+objects:
+  - Namespace/shop: Active
+  - Namespace/payments: Active
+  - Namespace/observability: Active
+  - Deployment/shop/cart: 3/3 Ready
+  - Deployment/shop/frontend: 3/3 Ready
+  - Deployment/shop/checkout: 2/2 Ready
+  - Deployment/payments/payment-api: 3/3 Ready
+  - ConfigMap/shop/cart-config: contains invalid YAML
+  - ConfigMap/shop/frontend-config: present
+  - ConfigMap/shop/checkout-config: present
+  - Service/shop/cart: ClusterIP, endpoints ready
+  - Service/shop/frontend: ClusterIP
+  - Pod/shop/cart-8j9k0-xyz: Running, logs yaml error
+  - Pod/shop/cart-8j9k0-abc: Running
+  - Pod/shop/cart-8j9k0-def: Running
+  - NetworkPolicy/shop/allow-cart: present
+  - ServiceAccount/shop/cart: present
+  - HorizontalPodAutoscaler/shop/cart-hpa: current 3
+  - ResourceQuota/shop/rq: present
+  - LimitRange/shop/lr: present
+  - Ingress/shop/shop-ingress: routes to cart
+  - PersistentVolumeClaim/shop/cart-cache: Bound
+  - Deployment/observability/loki: 1/1 Ready
+  - Job/shop/cart-warmup: Completed
+sources:
+  - "https://kubernetes.io/docs/concepts/configuration/configmap/"
+  - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/"
+---
+id: pdb-1
+family: pdb
+question: "why is the drain of node worker-3 stuck while evicting shop pods"
+expected_outcome: cause
+cause_object: PodDisruptionBudget/shop/search-pdb
+origin_object: PodDisruptionBudget/shop/search-pdb
+mechanism: "The PodDisruptionBudget for search requires minAvailable=2; with only 2 search pods both on the node being drained, the eviction of either would violate the PDB, so the drain cannot proceed for those pods and blocks the node drain."
+passes_if: "names PodDisruptionBudget/shop/search-pdb as preventing eviction of the search pods on the drained node"
+partial_if_only: ["names the node drain is stuck", "names search pods cannot be evicted"]
+chain:
+  - from: Node/worker-3
+    relation: "hosts pods that are protected by the PDB"
+    to: Pod/shop/search-0
+    fields: "Pod.spec.nodeName=worker-3; Pod status Running"
+    abnormal: "kubectl drain reports 'cannot evict pod as it would violate the pod's disruption budget' at T0-5m"
+  - from: Pod/shop/search-0
+    relation: "protected by PodDisruptionBudget via selector"
+    to: PodDisruptionBudget/shop/search-pdb
+    fields: "PDB.spec.selector.matchLabels.app=search, minAvailable=2; Pod.metadata.labels.app=search; current healthy pods=2"
+    abnormal: "PDB status.currentHealthy=2, desiredHealthy=2; disruptionsAllowed=0; both search pods scheduled on worker-3"
+decoys:
+  - object: PodDisruptionBudget/shop/frontend-pdb
+    looks_like: "another PDB that might be involved"
+    why_not: "frontend-pdb has disruptionsAllowed>0 and its pods are spread; the error message names the search pods"
+  - object: Deployment/shop/search
+    looks_like: "the search Deployment has only 2 replicas"
+    why_not: "the replica count is intentional; the PDB is correctly enforcing minAvailable but the co-location on one node creates the drain deadlock"
+  - object: Node/worker-3
+    looks_like: "the node itself is NotReady or tainted"
+    why_not: "the node is Ready and schedulable; the block is purely from the PDB during voluntary eviction"
+timeline:
+  - "T0-4h: Deployment/shop/search running with 2 replicas, both scheduled on worker-3 due to affinity"
+  - "T0-2h: PodDisruptionBudget/shop/search-pdb created with minAvailable=2"
+  - "T0-10m: operator starts drain of worker-3 for maintenance"
+  - "T0-5m: drain stuck on search pods with PDB violation message"
+  - "T0: operator asks why the drain is stuck"
+objects:
+  - Namespace/shop: Active
+  - Namespace/payments: Active
+  - Namespace/kube-system: Active
+  - Node/worker-3: Ready, SchedulingDisabled (draining)
+  - Node/worker-1: Ready
+  - Node/worker-2: Ready
+  - Deployment/shop/search: 2/2 Ready, both on worker-3
+  - Deployment/shop/frontend: 3/3 Ready
+  - Deployment/shop/cart: 2/2 Ready
+  - Deployment/payments/payment-api: 3/3 Ready
+  - PodDisruptionBudget/shop/search-pdb: minAvailable=2, disruptionsAllowed=0
+  - PodDisruptionBudget/shop/frontend-pdb: minAvailable=1, disruptionsAllowed=2
+  - Pod/shop/search-0: Running on worker-3
+  - Pod/shop/search-1: Running on worker-3
+  - Pod/shop/frontend-abc: Running on worker-1
+  - Service/shop/search: ClusterIP
+  - ConfigMap/shop/search-config: present
+  - ServiceAccount/shop/search: present
+  - NetworkPolicy/shop/allow-search: present
+  - ResourceQuota/shop/rq: present
+  - LimitRange/shop/lr: present
+  - HorizontalPodAutoscaler/shop/search-hpa: current 2
+  - Ingress/shop/shop-ingress: present
+  - DaemonSet/kube-system/kube-proxy: present
+  - PersistentVolumeClaim/shop/search-data: Bound
+sources:
+  - "https://kubernetes.io/docs/concepts/workloads/pods/disruptions/"
+  - "https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/"
+---
+id: ingress-0
+family: ingress
+question: "is something wrong with the shop Ingress routing to frontend"
+expected_outcome: no_incident
+mechanism: "The Ingress is correctly configured and routes to the frontend Service whose pods are all Ready; a previous backend timeout alert resolved an hour ago, an annotation drift on the Ingress has no effect on routing, and a NetworkPolicy warning in another namespace does not affect this path."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: []
+chain: []
+decoys:
+  - object: Ingress/shop/shop-ingress
+    looks_like: "annotation nginx.ingress.kubernetes.io/proxy-body-size was changed"
+    why_not: "the annotation only affects body size limits; current traffic is small and routing works"
+  - object: Alertmanager alert IngressBackendTimeout
+    looks_like: "alert fired earlier"
+    why_not: "the alert resolved at T0-60m after a transient blip; no active alert and pods are Ready"
+  - object: NetworkPolicy/payments/default-deny
+    looks_like: "a deny policy exists"
+    why_not: "it is in payments and does not select shop frontend pods or the Ingress controller"
+timeline:
+  - "T0-3h: Ingress/shop/shop-ingress annotation proxy-body-size updated (no traffic impact)"
+  - "T0-90m: transient backend timeout, alert fired"
+  - "T0-60m: alert resolved, all frontend pods Ready"
+  - "T0: operator asks if something is wrong with the Ingress"
+objects:
+  - Namespace/shop: Active
+  - Namespace/payments: Active
+  - Namespace/ingress-nginx: Active
+  - Ingress/shop/shop-ingress: routes / to frontend:80, backends healthy
+  - Deployment/shop/frontend: 3/3 Ready
+  - Deployment/shop/cart: 2/2 Ready
+  - Deployment/shop/checkout: 2/2 Ready
+  - Deployment/payments/payment-api: 3/3 Ready
+  - Service/shop/frontend: ClusterIP, endpoints 3/3
+  - Service/shop/cart: ClusterIP
+  - Service/ingress-nginx/ingress-nginx-controller: ClusterIP
+  - Pod/shop/frontend-abc: Running Ready
+  - Pod/shop/frontend-def: Running Ready
+  - Pod/shop/frontend-ghi: Running Ready
+  - ConfigMap/shop/frontend-config: present
+  - NetworkPolicy/shop/allow-ingress: present
+  - NetworkPolicy/payments/default-deny: present
+  - ServiceAccount/shop/frontend: present
+  - ResourceQuota/shop/rq: present
+  - LimitRange/shop/lr: present
+  - HorizontalPodAutoscaler/shop/frontend-hpa: current 3
+  - PersistentVolumeClaim/shop/frontend-cache: Bound
+  - Deployment/ingress-nginx/controller: 2/2 Ready
+  - PodDisruptionBudget/shop/frontend-pdb: present
+  - Job/shop/cache-warmup: Completed
+sources:
+  - "https://kubernetes.io/docs/concepts/services-networking/ingress/"
+---
+id: storage-0
+family: storage
+question: "is something wrong with the database PVC in payments"
+expected_outcome: no_incident
+mechanism: "The PVC is Bound to a healthy PV and the postgres pod is Running with the volume mounted; a previous Pending state ended hours ago after the StorageClass provisioner caught up, a capacity warning is informational only, and an unbound PVC in another namespace is unrelated."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: []
+chain: []
+decoys:
+  - object: PersistentVolumeClaim/payments/postgres-data
+    looks_like: "status shows a past Pending phase in events"
+    why_not: "the PVC has been Bound since T0-4h; the pod is using the volume successfully"
+  - object: PersistentVolumeClaim/shop/cache-data
+    looks_like: "another PVC is Pending"
+    why_not: "it is in shop and belongs to a different workload; payments postgres is unaffected"
+  - object: Event on PersistentVolumeClaim/payments/postgres-data
+    looks_like: "Warning VolumeResized"
+    why_not: "the resize completed successfully; current capacity matches the request and the pod sees the new size"
+timeline:
+  - "T0-6h: PVC/payments/postgres-data created, briefly Pending"
+  - "T0-4h: PVC became Bound, postgres pod started"
+  - "T0-2h: volume resize requested and completed"
+  - "T0-30m: informational capacity alert fired and auto-resolved"
+  - "T0: operator asks if something is wrong with the database PVC"
+objects:
+  - Namespace/payments: Active
+  - Namespace/shop: Active
+  - Namespace/observability: Active
+  - PersistentVolumeClaim/payments/postgres-data: Bound, 20Gi
+  - PersistentVolumeClaim/shop/cache-data: Pending (unrelated)
+  - PersistentVolume/pv-postgres-001: Bound to payments/postgres-data
+  - Deployment/payments/postgres: 1/1 Ready, volume mounted
+  - Deployment/payments/payment-api: 3/3 Ready
+  - Deployment/shop/frontend: 3/3 Ready
+  - Pod/payments/postgres-0: Running, volume mounted at /var/lib/postgresql/data
+  - Service/payments/postgres: ClusterIP
+  - ConfigMap/payments/postgres-config: present
+  - ServiceAccount/payments/postgres: present
+  - NetworkPolicy/payments/allow-db: present
+  - ResourceQuota/payments/rq: present
+  - LimitRange/payments/lr: present
+  - HorizontalPodAutoscaler/payments/payment-api-hpa: current 3
+  - Ingress/payments/payments-ingress: present
+  - Job/payments/db-backup: Completed
+  - CronJob/payments/vacuum: present
+  - PersistentVolumeClaim/observability/loki-data: Bound
+  - Deployment/observability/loki: 1/1 Ready
+sources:
+  - "https://kubernetes.io/docs/concepts/storage/persistent-volumes/"
+---
+id: pullsecret-0
+family: pullsecret
+question: "is something wrong with image pulls for the worker pods in batch"
+expected_outcome: no_incident
+mechanism: "All worker pods are Running and were pulled successfully; a previous ImagePullBackOff on an old ReplicaSet ended hours ago after the correct imagePullSecret was added to the ServiceAccount, a warning event in another namespace is unrelated, and a missing secret reference in a different Deployment does not affect batch."
+passes_if: "states that there is no incident and names no fault"
+partial_if_only: []
+chain: []
+decoys:
+  - object: ReplicaSet/batch/worker-old
+    looks_like: "old ReplicaSet still shows ImagePullBackOff events"
+    why_not: "those events are from T0-5h; the current ReplicaSet and pods are Running with successful pulls"
+  - object: ServiceAccount/shop/default
+    looks_like: "a ServiceAccount without imagePullSecrets"
+    why_not: "it is in shop; the batch worker ServiceAccount has the correct secret reference and pulls succeed"
+  - object: Pod/batch/worker-9h8j7-xyz
+    looks_like: "pod has an event about secret"
+    why_not: "the event is a normal 'Pulling' / 'Pulled' sequence that completed successfully; pod is Running"
+timeline:
+  - "T0-6h: ServiceAccount/batch/worker lacked imagePullSecrets, old pods ImagePullBackOff"
+  - "T0-5h: imagePullSecrets added to ServiceAccount/batch/worker"
+  - "T0-4h: new ReplicaSet rolled, pods pulled successfully and Running"
+  - "T0-1h: unrelated ImagePullBackOff event in shop namespace"
+  - "T0: operator asks if something is wrong with image pulls for worker"
+objects:
+  - Namespace/batch: Active
+  - Namespace/shop: Active
+  - Namespace/payments: Active
+  - Deployment/batch/worker: 3/3 Ready
+  - Deployment/batch/scheduler: 1/1 Ready
+  - Deployment/shop/frontend: 3/3 Ready
+  - Deployment/payments/payment-api: 3/3 Ready
+  - ReplicaSet/batch/worker-9h8j7: 3/3 Ready
+  - ReplicaSet/batch/worker-old: 0/0, historical ImagePullBackOff events
+  - ServiceAccount/batch/worker: imagePullSecrets present
+  - ServiceAccount/shop/default: no imagePullSecrets
+  - Pod/batch/worker-9h8j7-xyz: Running, successful pull events
+  - Pod/batch/worker-9h8j7-abc: Running
+  - Pod/batch/worker-9h8j7-def: Running
+  - ConfigMap/batch/worker-config: present
+  - Service/batch/worker: ClusterIP
+  - NetworkPolicy/batch/allow-internal: present
+  - ResourceQuota/batch/rq: present
+  - LimitRange/batch/lr: present
+  - HorizontalPodAutoscaler/batch/worker-hpa: current 3
+  - Job/batch/cleanup: Completed
+  - CronJob/batch/nightly: present
+  - PersistentVolumeClaim/batch/worker-data: Bound
+  - Ingress/shop/shop-ingress: present
+sources:
+  - "https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod"
+  - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account"

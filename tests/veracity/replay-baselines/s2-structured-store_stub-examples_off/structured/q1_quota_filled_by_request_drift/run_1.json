@@ -1,0 +1,77 @@
+{
+  "answerable": null,
+  "case": "q1_quota_filled_by_request_drift",
+  "case_hash": "c6f0edfbe01858e31de2106f33cded41cbc51e981a97100f1a5ac060c81726e1",
+  "commit": "a1da285d2440d3c441a391a49d96df1a1a9467d2",
+  "confidence": "MEDIUM",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": null,
+  "diagnoses": [
+    {
+      "family": "oom",
+      "location": "Pod/shop/billing-worker-84b7c6d5f-04d9e",
+      "rule": "oom.limit",
+      "score": 0.5,
+      "signals": [
+        "dd9c0850b7a0dbbc"
+      ]
+    },
+    {
+      "family": "quota",
+      "location": "ResourceQuota/shop/shop-quota",
+      "rule": "quota.exceeded",
+      "score": 0.5,
+      "signals": [
+        "bcab282c8ae2ca3a"
+      ]
+    }
+  ],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "cf01579c032b333ddf9b9e901e05bd0eba483ada3c02fb03b5a6ef58f918c857"
+  },
+  "graph": "collectors",
+  "invalid": [],
+  "matched_groups": [
+    [
+      "hpa|autoscal|scaled|replicas"
+    ]
+  ],
+  "matched_keywords": [
+    "hpa|autoscal|scaled|replicas"
+  ],
+  "model": "",
+  "model_digest": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause concept(s) not named: catalog-api, request",
+  "root_cause": "The container billing-worker of billing-worker-84b7c6d5f-04d9e exceeds its memory limit (OOMKilled). The ResourceQuota shop-quota of namespace shop is exhausted: the replicaset controller cannot create the pods it needs (exceeded quota).",
+  "rules_version": "rules/5",
+  "run": 1,
+  "set": "S2",
+  "signal_kinds": [
+    "container.oom_killed",
+    "drift.config",
+    "quota.exceeded",
+    "restart.past",
+    "rollout.progressing"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-08T03:33:29.060987+00:00",
+  "store": "stub",
+  "tier": "S2",
+  "unclassified": {
+    "prometheus": 3
+  },
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 1.31
+}

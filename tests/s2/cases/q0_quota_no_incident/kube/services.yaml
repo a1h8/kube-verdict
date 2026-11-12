@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ServiceList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: catalog-api
+    namespace: shop
+    uid: svc-shop-catalog-api
+  spec:
+    selector:
+      app.kubernetes.io/name: catalog-api
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: cart-api
+    namespace: shop
+    uid: svc-shop-cart-api
+  spec:
+    selector:
+      app.kubernetes.io/name: cart-api
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: billing-worker
+    namespace: shop
+    uid: svc-shop-billing-worker
+  spec:
+    selector:
+      app.kubernetes.io/name: billing-worker
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: search-api
+    namespace: shop
+    uid: svc-shop-search-api
+  spec:
+    selector:
+      app.kubernetes.io/name: search-api
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: checkout-web
+    namespace: shop
+    uid: svc-shop-checkout-web
+  spec:
+    selector:
+      app.kubernetes.io/name: checkout-web
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: inventory-api
+    namespace: shop
+    uid: svc-shop-inventory-api
+  spec:
+    selector:
+      app.kubernetes.io/name: inventory-api
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: notify-worker
+    namespace: shop
+    uid: svc-shop-notify-worker
+  spec:
+    selector:
+      app.kubernetes.io/name: notify-worker
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: reports-db
+    namespace: data
+    uid: svc-data-reports-db
+  spec:
+    selector:
+      app.kubernetes.io/name: reports-db
+    ports:
+    - port: 5432

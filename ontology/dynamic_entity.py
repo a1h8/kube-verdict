@@ -32,6 +32,34 @@ class APIResourceInfo:
         return f"{self.api_version}/{self.kind}"
 
 
+class DynamicKind(str):
+    """A discovered kind: a plain string that also answers ``.value``, as ``ResourceKind`` does.
+
+    Code across the product reads ``entity.kind.value``; with a bare ``str`` every such line raised
+    AttributeError as soon as discovery had added an entity (found 2026-11-08, when S2's harness first served
+    discovery). Comparisons, hashing and serialization are those of the string.
+    """
+
+    @property
+    def value(self) -> str:
+        return str(self)
+
+
+# kinds the product creates itself, which are not Kubernetes API kinds: a discovered resource with one of these names
+# (Flux's HelmRelease, HelmChart and HelmRepository CRDs) would be taken for the product's own entity, so its kind is
+# qualified by its API group, as kubectl does ("HelmRelease.helm.toolkit.fluxcd.io"). docs/gitops-managed-by.md § 3.
+PRODUCT_KINDS = frozenset({
+    ResourceKind.HELM_RELEASE.value, ResourceKind.HELM_CHART.value, ResourceKind.HELM_REPOSITORY.value,
+    ResourceKind.HELMFILE_ENV.value, ResourceKind.PROMETHEUS_ALERT.value, ResourceKind.OTEL_TRACE.value,
+    ResourceKind.LOKI_LOG.value, ResourceKind.POLICY_VIOLATION.value, ResourceKind.MUTATING_WEBHOOK.value,
+})
+
+
+def discovered_kind(kind: str, group: str) -> "DynamicKind":
+    """The kind a discovered resource gets in the graph: its own, or ``Kind.group`` when it collides."""
+    return DynamicKind(f"{kind}.{group}" if kind in PRODUCT_KINDS and group else kind)
+
+
 @dataclass
 class GenericEntity(K8sEntity):
     """
@@ -46,7 +74,7 @@ class GenericEntity(K8sEntity):
     def __post_init__(self):
         # Use UNKNOWN as a sentinel; the real kind string is in resource_kind_str
         self.kind = ResourceKind.NAMESPACE  # placeholder — not used for routing
-        self.kind = self.resource_kind_str  # type: ignore[assignment]
+        self.kind = DynamicKind(self.resource_kind_str)  # type: ignore[assignment]  (qualified in from_api_object)
 
     @classmethod
     def from_api_object(cls, obj: dict[str, Any], resource_info: APIResourceInfo) -> "GenericEntity":
@@ -75,7 +103,7 @@ class GenericEntity(K8sEntity):
             status_fields=_flatten(obj.get("status") or {}),
             raw=obj,
         )
-        entity.kind = resource_info.kind  # type: ignore[assignment]
+        entity.kind = discovered_kind(resource_info.kind, resource_info.group)  # type: ignore[assignment]
         return entity
 
     def to_text(self) -> str:

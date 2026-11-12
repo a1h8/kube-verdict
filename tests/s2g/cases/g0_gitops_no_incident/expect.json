@@ -1,0 +1,30 @@
+{
+  "set": "S2-GitOps",
+  "spec": "docs/s2g/gitops-cases.md",
+  "sources": [
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/",
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/",
+    "https://fluxcd.io/flux/components/kustomize/kustomizations/",
+    "https://fluxcd.io/flux/components/helm/helmreleases/",
+    "ontology/spec/upstream/bundle (Argo CD v3.6.1, Flux helm v1.7.1, kustomize v1.10.1 CRDs)"
+  ],
+  "family": "gitops",
+  "namespace": "billing",
+  "release": "billing",
+  "scenario": "every Application Synced and Healthy, the Kustomization Ready, the HelmRelease Released; an OOMKill two days ago, recovered",
+  "query": "is anything wrong with billing",
+  "expected_outcome": "no_incident",
+  "cause_object": "",
+  "decoys": [
+    {
+      "object": "Pod of billing-api, OOMKilled 49h ago",
+      "why_not": "running and ready since"
+    },
+    {
+      "object": "HelmRelease/shop/pricing history",
+      "why_not": "superseded revision, not a failure"
+    }
+  ],
+  "affected_resources": [],
+  "root_cause_concepts": []
+}

@@ -1,0 +1,25 @@
+{
+ "channel": "Grok in the Cursor editor chat, pasted by the user (no API)",
+ "date": "2026-11-08",
+ "model": "Grok, \"mod\u00e8le rapide\" as the user named it in Cursor (2026-11-08); exact model id not shown",
+ "brief": "tests/s2b/scenarios/brief-v2.md",
+ "brief_sha256": "86aa4903fe251909b93139f49ef9dc9855225b650e256d0378ff0e2ced8e1324",
+ "prompt_sha256": "df2cf11a692f3370f716b96eceff7cefd9dc516c19dc4137dad701e5ff168aaf",
+ "families_with_cause": [
+  "quota",
+  "netpol",
+  "dependency",
+  "limitrange",
+  "hpa",
+  "webhook",
+  "configmap",
+  "pdb"
+ ],
+ "families_no_incident": [
+  "ingress",
+  "storage",
+  "pullsecret"
+ ],
+ "response": "scenarios.yaml, pasted back by the user, kept as given",
+ "response_sha256": "db973632e16df74ae0224a31d5f7aa0882caa62c116cc3286c6c9a2cda772599"
+}

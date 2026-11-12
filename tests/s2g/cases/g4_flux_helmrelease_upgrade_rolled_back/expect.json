@@ -1,0 +1,45 @@
+{
+  "set": "S2-GitOps",
+  "spec": "docs/s2g/gitops-cases.md",
+  "sources": [
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/",
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/",
+    "https://fluxcd.io/flux/components/kustomize/kustomizations/",
+    "https://fluxcd.io/flux/components/helm/helmreleases/",
+    "ontology/spec/upstream/bundle (Argo CD v3.6.1, Flux helm v1.7.1, kustomize v1.10.1 CRDs)"
+  ],
+  "family": "gitops",
+  "namespace": "shop",
+  "release": "pricing",
+  "scenario": "the HelmRelease's upgrade of pricing to 1.5.0 timed out and was rolled back to 1.4.0, the version with the old behaviour",
+  "query": "why is pricing still on the old behaviour in shop",
+  "expected_outcome": "cause",
+  "cause_object": "HelmRelease/shop/pricing",
+  "mechanism": "Released=False UpgradeFailed for 1.5.0, then Remediated RollbackSucceeded to 1.4.0",
+  "pass_if": "names the HelmRelease's failed upgrade and rollback",
+  "partial_if_only": [
+    "pricing runs 1.4.0, without the failed upgrade"
+  ],
+  "chain": [
+    "Deployment/shop/pricing runs image 1.4.0",
+    "it is in HelmRelease/shop/pricing's inventory",
+    "the HelmRelease attempted 1.5.0, failed and rolled back (history v5 failed, v6 deployed 1.4.0)"
+  ],
+  "decoys": [
+    {
+      "object": "ReplicaSet of pricing 1.5.0, scaled to 0",
+      "why_not": "the effect of the rollback"
+    },
+    {
+      "object": "HelmRepository/flux-system/acme",
+      "why_not": "Ready"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/pricing"
+  ],
+  "root_cause_concepts": [
+    "helmrelease|helm|upgrade|rollback",
+    "fail|upgradefailed|rolled back|rollback"
+  ]
+}

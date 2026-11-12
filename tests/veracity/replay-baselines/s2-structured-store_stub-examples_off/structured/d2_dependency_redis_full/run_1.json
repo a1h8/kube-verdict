@@ -1,0 +1,64 @@
+{
+  "answerable": null,
+  "case": "d2_dependency_redis_full",
+  "case_hash": "08868176be6d813346bd7488e46a095cca0b21343590fd12d2cefd780ce022f1",
+  "commit": "a1da285d2440d3c441a391a49d96df1a1a9467d2",
+  "confidence": "MEDIUM",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": null,
+  "diagnoses": [
+    {
+      "family": "helm-drift",
+      "location": "Deployment/platform/pricing",
+      "rule": "config.drift",
+      "score": 0.65,
+      "signals": [
+        "8ed4772e61e7d543",
+        "1594b5e9ca5acd19"
+      ]
+    }
+  ],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "cf01579c032b333ddf9b9e901e05bd0eba483ada3c02fb03b5a6ef58f918c857"
+  },
+  "graph": "collectors",
+  "invalid": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "model_digest": "",
+  "outcome": "cause",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause concept(s) not named: redis, maxmemory|memory|noeviction|eviction|full",
+  "root_cause": "pricing drifted from its declared configuration: spec.replicas is declared 3 but deployed 5. It was changed outside Helm after the release was applied.",
+  "rules_version": "rules/5",
+  "run": 1,
+  "set": "S2",
+  "signal_kinds": [
+    "app.error_rate",
+    "drift.config",
+    "event.past"
+  ],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-08T03:33:22.813026+00:00",
+  "store": "stub",
+  "tier": "S2",
+  "unclassified": {
+    "loki": 12,
+    "prometheus": 2
+  },
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.82
+}

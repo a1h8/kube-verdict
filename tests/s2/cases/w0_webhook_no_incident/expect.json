@@ -1,0 +1,33 @@
+{
+  "set": "S2",
+  "family": "webhook",
+  "namespace": "shop",
+  "release": "mesh-injector",
+  "sources": [
+    "https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/",
+    "prometheus-operator/runbooks@a685d14 KubeContainerWaiting",
+    "prometheus-operator/runbooks@a685d14 KubeDeploymentReplicasMismatch"
+  ],
+  "spec": "docs/s2/family-webhook.md",
+  "scenario": "No incident: the injector injects an image that exists, its certificate is valid",
+  "query": "is something wrong in shop",
+  "expected_outcome": "no_incident",
+  "cause_object": null,
+  "decoys": [
+    {
+      "object": "Deployment/shop/cart-api (redeployed)",
+      "why_not": "rolled out, Ready"
+    },
+    {
+      "object": "Certificate/shop/shop-tls",
+      "why_not": "renewed"
+    },
+    {
+      "object": "ResourceQuota/shop/shop-quota",
+      "why_not": "at 50 %"
+    }
+  ],
+  "affected_resources": [],
+  "root_cause_contains": [],
+  "notes": "Passes only on an explicit no-incident answer (protocol 002, A2)."
+}

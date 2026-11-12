@@ -1,0 +1,45 @@
+{
+  "set": "S2-GitOps",
+  "spec": "docs/s2g/gitops-cases.md",
+  "sources": [
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/",
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/",
+    "https://fluxcd.io/flux/components/kustomize/kustomizations/",
+    "https://fluxcd.io/flux/components/helm/helmreleases/",
+    "ontology/spec/upstream/bundle (Argo CD v3.6.1, Flux helm v1.7.1, kustomize v1.10.1 CRDs)"
+  ],
+  "family": "gitops",
+  "namespace": "shop",
+  "release": "checkout",
+  "scenario": "the fix of checkout's PAYMENT_TIMEOUT was merged in Git; the Application's sync of that revision fails on an invalid Ingress of the same revision, so the live ConfigMap keeps 30x",
+  "query": "why is checkout still failing after the fix was merged in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Application/argocd/checkout",
+  "mechanism": "its last sync of the Git revision with the fix failed on an invalid Ingress; the ConfigMap with the bad value, written 26 h ago, stays live",
+  "pass_if": "names the Application's failed sync as why the fix is not live",
+  "partial_if_only": [
+    "checkout crashes on its PAYMENT_TIMEOUT value, without the failed sync"
+  ],
+  "chain": [
+    "checkout's pods exit on PAYMENT_TIMEOUT=30x",
+    "ConfigMap/shop/checkout-config holds 30x, last written by argocd-controller 26 h ago, OutOfSync",
+    "Application/argocd/checkout's last sync of the new revision failed on Ingress checkout"
+  ],
+  "decoys": [
+    {
+      "object": "ConfigMap/shop/checkout-config",
+      "why_not": "holds the bad value but is the old revision's, not the cause of it staying"
+    },
+    {
+      "object": "Application/argocd/billing",
+      "why_not": "Synced and Healthy"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/checkout"
+  ],
+  "root_cause_concepts": [
+    "argo|application|sync|ingress",
+    "fail|invalid|unsupported"
+  ]
+}

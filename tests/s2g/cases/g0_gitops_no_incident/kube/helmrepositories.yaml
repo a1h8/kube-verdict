@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: HelmRepositoryList
+metadata: {}
+items:
+- apiVersion: source.toolkit.fluxcd.io/v1
+  kind: HelmRepository
+  metadata:
+    name: acme
+    namespace: flux-system
+    uid: 90b30907-b099-b992-84e8-58dedc51d9ab
+    generation: 1
+  spec:
+    interval: 10m
+    url: https://charts.example.com/acme
+  status:
+    observedGeneration: 1
+    conditions:
+    - type: Ready
+      status: 'True'
+      reason: Succeeded
+      message: 'stored artifact: revision ''sha256:c66a8eb7e6a7'''
+      lastTransitionTime: '2026-11-02T08:30:00Z'
+      observedGeneration: 2

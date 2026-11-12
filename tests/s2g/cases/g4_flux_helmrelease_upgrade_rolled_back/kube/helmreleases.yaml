@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: HelmReleaseList
+metadata: {}
+items:
+- apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: pricing
+    namespace: shop
+    uid: 57e5cb26-a960-1de7-d591-1d986758d264
+    generation: 4
+    creationTimestamp: '2026-09-03T09:00:00Z'
+  spec:
+    interval: 10m
+    chart:
+      spec:
+        chart: pricing
+        version: '>=1.4.0'
+        sourceRef:
+          kind: HelmRepository
+          name: acme
+          namespace: flux-system
+    upgrade:
+      remediation:
+        retries: 1
+  status:
+    observedGeneration: 4
+    conditions:
+    - type: Released
+      status: 'False'
+      reason: UpgradeFailed
+      message: 'Helm upgrade failed for release shop/pricing with chart pricing@1.5.0:
+        context deadline exceeded'
+      lastTransitionTime: '2026-11-02T08:35:00Z'
+      observedGeneration: 2
+    - type: Remediated
+      status: 'True'
+      reason: RollbackSucceeded
+      message: Helm rollback to previous release shop/pricing.v4 with chart pricing@1.4.0
+        succeeded
+      lastTransitionTime: '2026-11-02T08:36:00Z'
+      observedGeneration: 2
+    history:
+    - name: pricing
+      namespace: shop
+      version: 6
+      status: deployed
+      chartName: pricing
+      chartVersion: 1.4.0
+      appVersion: 1.4.0
+      configDigest: sha256:f915d25202d2464a054066ade8b27127d0cbcadaaae7340cbf82eeaaba29048a
+      digest: sha256:62d8d26fb6b4756c850f0bbd70c215ab9c0db6d0c3369cd5289e2db8abe226ef
+      firstDeployed: '2026-09-03T09:00:00Z'
+      lastDeployed: '2026-11-02T08:36:00Z'
+    - name: pricing
+      namespace: shop
+      version: 5
+      status: failed
+      chartName: pricing
+      chartVersion: 1.5.0
+      appVersion: 1.5.0
+      configDigest: sha256:76254c232c72fcbbedb43b1df17c3071ffce74966ecd999fab51526850896a57
+      digest: sha256:c47f5f88905ce99253251341b7983717a820a61dd7d0e9d3c4a93deedfc281ad
+      firstDeployed: '2026-09-03T09:00:00Z'
+      lastDeployed: '2026-11-02T08:30:00Z'
+    - name: pricing
+      namespace: shop
+      version: 4
+      status: superseded
+      chartName: pricing
+      chartVersion: 1.4.0
+      appVersion: 1.4.0
+      configDigest: sha256:f915d25202d2464a054066ade8b27127d0cbcadaaae7340cbf82eeaaba29048a
+      digest: sha256:fddaaa9adb8f5564d7989e9f5c0c9eb70b9c4208426dd051211763fad0612122
+      firstDeployed: '2026-09-03T09:00:00Z'
+      lastDeployed: '2026-10-26T09:00:00Z'
+    lastAttemptedRevision: 1.5.0
+    inventory:
+      entries:
+      - id: shop_pricing_apps_Deployment
+        v: v1
+      - id: shop_pricing__Service
+        v: v1

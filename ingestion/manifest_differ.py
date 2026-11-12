@@ -108,6 +108,7 @@ class ManifestDiffer:
             if any(e.rel_type == RelationshipType.SCALES for e in graph._radj.get(entity.uid, [])):
                 # an HPA owns the replica count: not a drift (docs/three-states.md, rule 3)
                 drifts = [d for d in drifts if d.field_path != "spec.replicas"]
+            drifts = _with_owners(drifts, entity, kind, prefix)
             for d in drifts:
                 all_drifts.append(d)
                 entity.annotations[f"{prefix}.{d.field_path}"] = d.to_text()
@@ -217,6 +218,26 @@ def _diff_replicas(spec: dict, entity: K8sEntity) -> list[DriftItem]:
         severity="critical" if delta > 1 else "warning",
         source="gitops",
     )]
+
+
+def _with_owners(drifts: list[DriftItem], entity: K8sEntity, kind: str, prefix: str) -> list[DriftItem]:
+    """Read each drifted field's owner in managedFields (docs/anchors-and-relations.md, M2 step 2). A field a
+    controller owns is not a drift: the difference is that controller's, recorded as such. Otherwise the owner and its
+    entry's time are recorded beside the drift, as its author and origin (an upper bound)."""
+    from ontology.managed_fields import owner_of, roles
+    role_of = roles()
+    kept = []
+    for d in drifts:
+        o = owner_of(entity, kind, d.field_path)
+        if o is not None and role_of.get(o.manager) == "controller":
+            entity.annotations[f"{prefix}.controller-owned.{d.field_path}"] = f"manager={o.manager} time={o.time}"
+            continue
+        if o is not None:
+            entity.annotations[f"{prefix}.{d.field_path}.author"] = (
+                f"manager={o.manager} operation={o.operation} role={role_of.get(o.manager, 'unknown')} "
+                f"entry_time={o.time}")
+        kept.append(d)
+    return kept
 
 
 def _diff_containers(pod_spec: dict, entity: K8sEntity) -> list[DriftItem]:

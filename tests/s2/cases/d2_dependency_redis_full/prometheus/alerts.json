@@ -1,0 +1,63 @@
+[
+  {
+    "labels": {
+      "alertname": "CPUThrottlingHigh",
+      "severity": "info",
+      "namespace": "shop",
+      "pod": "checkout-api-6d9f7c8b5-32d2c",
+      "container": "checkout-api"
+    },
+    "annotations": {
+      "summary": "Processes experience elevated CPU throttling.",
+      "description": "27.4% throttling of CPU in namespace shop for container checkout-api."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-19T22:00:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "HighErrorRate",
+      "severity": "critical",
+      "namespace": "shop",
+      "deployment": "checkout-api"
+    },
+    "annotations": {
+      "summary": "checkout-api error rate above 5%",
+      "description": "38% of POST /checkout requests fail."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T11:03:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "HighLatencyP95",
+      "severity": "warning",
+      "namespace": "shop",
+      "deployment": "checkout-api"
+    },
+    "annotations": {
+      "summary": "checkout-api p95 latency above 300ms",
+      "description": "p95 latency is 410ms."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T11:04:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "HighErrorRate",
+      "severity": "critical",
+      "namespace": "platform",
+      "deployment": "pricing"
+    },
+    "annotations": {
+      "summary": "pricing error rate above 5%",
+      "description": "47% of GET /v1/price requests return 503."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T11:02:00Z",
+    "value": "1"
+  }
+]

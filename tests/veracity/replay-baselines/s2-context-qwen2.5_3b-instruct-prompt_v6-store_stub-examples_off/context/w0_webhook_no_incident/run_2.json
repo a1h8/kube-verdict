@@ -1,0 +1,59 @@
+{
+  "case": "w0_webhook_no_incident",
+  "case_hash": "c9ce73cac15a6dbac232cbb697d195b84f889350f7825cd1db69f39b6b533dee",
+  "commit": "a1da285d2440d3c441a391a49d96df1a1a9467d2",
+  "confidence": "LOW",
+  "confidence_raw": "LOW",
+  "config": "C1",
+  "corpus_hash": null,
+  "cut": null,
+  "did_not_fit": false,
+  "examples": "off",
+  "expected_outcome": "no_incident",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "cf01579c032b333ddf9b9e901e05bd0eba483ada3c02fb03b5a6ef58f918c857"
+  },
+  "graph": "collectors",
+  "index": null,
+  "invalid": [],
+  "llm_calls": [
+    {
+      "answer_s": 36.3,
+      "answer_tokens": 442,
+      "estimated_prompt_tokens": 3126,
+      "num_ctx": 4096,
+      "num_predict": 512,
+      "prompt_eval_s": 34.1,
+      "prompt_tokens_read": 2300,
+      "temperature": 0.1
+    }
+  ],
+  "matched_groups": [],
+  "matched_keywords": [],
+  "model": "qwen2.5:3b-instruct",
+  "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+  "num_ctx_max": 8192,
+  "prompt": "v6",
+  "prompt_chars": 7198,
+  "prompts": [
+    "## Cluster information\nKubernetes version   : unknown\nAnalysis timestamp   : 2026-11-08 10:11:39 UTC\nTotal context chunks : 31\nContext quality score: LOW (0.35/1.00) \u2014 BFS depth 3/5 \u2192 0.15, Jaccard diversity 0% \u2192 0.00, TF-IDF features 0/20 \u2192 0.00, Anchors matched 30 \u2192 0.15, Critical signals 0 \u2192 0.00, Helm drift items 0 \u2192 0.00, Policy violations (fail=0 audit=0 webhooks=1) \u2192 +0.05\n\n### ANCHORS \u2014 Declared values & K8s schema (30)\n  - Deployment/shop/cart-api: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/shop/cart-api: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/shop/cart-api: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/shop/cart-api: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n  - Deployment/shop/cart-api: spec.revisionHistoryLimit: declared='10' [k8s_defaults] | Number of old ReplicaSets retained for rollback.\n  - Deployment/shop/cart-api: spec.strategy.rollingUpdate.maxSurge: declared='25%' [k8s_defaults] | Max extra pods above desired during rolling update.\n  - Deployment/shop/cart-api: spec.strategy.rollingUpdate.maxUnavailable: declared='25%' [k8s_defaults] | Max pods unavailable during rolling update. 0 = never reduce below desired.\n  - Deployment/shop/cart-api: spec.strategy.type: declared='RollingUpdate' [k8s_defaults] | valid=Recreate|RollingUpdate | Recreate causes downtime; RollingUpdate does not.\n  - Service/shop/cart-api: spec.externalTrafficPolicy: declared='Cluster' [k8s_defaults] | valid=Cluster|Local | Local preserves source IP but may cause uneven load.\n  - Service/shop/cart-api: spec.internalTrafficPolicy: declared='Cluster' [k8s_defaults] | valid=Cluster|Local | Local routes to node-local pods only.\n  - Service/shop/cart-api: spec.sessionAffinity: declared='None' [k8s_defaults] | valid=ClientIP|None | ClientIP routes same client to same pod. None is stateless.\n  - Service/shop/cart-api: spec.type: declared='ClusterIP' [k8s_defaults] | valid=ClusterIP|NodePort|LoadBalancer|ExternalName | ClusterIP=internal; NodePort=node port; LoadBalancer=cloud LB.\n  - Pod/shop/cart-api-9c7d8b6f5-cc8d1: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/shop/cart-api-9c7d8b6f5-cc8d1: container.cart-api.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/shop/cart-api-9c7d8b6f5-cc8d1: container.mesh-proxy.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/shop/cart-api-9c7d8b6f5-cc8d1: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/shop/cart-api-9c7d8b6f5-cc8d1: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/shop/cart-api-9c7d8b6f5-cc8d1: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/shop/cart-api-9c7d8b6f5-cc8d1: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - Pod/shop/cart-api-9c7d8b6f5-ce7c0: container.*.terminationMessagePolicy: declared='File' [k8s_defaults] | valid=File|FallbackToLogsOnError | FallbackToLogsOnError captures stderr when termination message is empty.\n  - Pod/shop/cart-api-9c7d8b6f5-ce7c0: container.cart-api.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/shop/cart-api-9c7d8b6f5-ce7c0: container.mesh-proxy.imagePullPolicy: declared='IfNotPresent' [k8s_defaults] | valid=Always|IfNotPresent|Never | IfNotPresent skips pull if image is cached. Always re-pulls every start. Default: Always for :latest\n  - Pod/shop/cart-api-9c7d8b6f5-ce7c0: spec.dnsPolicy: declared='ClusterFirst' [k8s_defaults] | valid=ClusterFirst|ClusterFirstWithHostNet|Default|None | DNS policy. Default=ClusterFirst. None=custom resolv.conf only.\n  - Pod/shop/cart-api-9c7d8b6f5-ce7c0: spec.restartPolicy: declared='Always' [k8s_defaults] | valid=Always|OnFailure|Never | Restart policy for all containers. Never = no restart on crash.\n  - Pod/shop/cart-api-9c7d8b6f5-ce7c0: spec.serviceAccountName: declared='default' [k8s_defaults] | ServiceAccount to run as. 'default' if unset.\n  - Pod/shop/cart-api-9c7d8b6f5-ce7c0: spec.terminationGracePeriodSeconds: declared='30' [k8s_defaults] | Seconds before SIGKILL is sent after SIGTERM. 0 = immediate kill.\n  - Deployment/shop/checkout: spec.minReadySeconds: declared='0' [k8s_defaults] | Seconds a pod must be Ready before considered available.\n  - Deployment/shop/checkout: spec.paused: declared='false' [k8s_defaults] | Paused=true halts rollouts. Often left set accidentally.\n  - Deployment/shop/checkout: spec.progressDeadlineSeconds: declared='600' [k8s_defaults] | Seconds before stalled rollout is marked failed (Progressing=False).\n  - Deployment/shop/checkout: spec.replicas: declared='1' [k8s_defaults] | Desired pod count. 0 = fully scaled down.\n### Helm / Helmfile releases (1)\n  - kind=HelmRelease name=mesh-injector namespace=shop chart= chartVersion= appVersion= status=deployed source=helm\n\n---\n## Incident query\nis something wrong in shop\n\n---\n## Task \u2014 Root Cause Analysis\n\nRespond using EXACTLY this structure (keep the ### headers):\n\n### 1. Summary\nOne sentence.\n\n### 2. Affected resources\nBullet list: `kind/namespace/name \u2014 symptom observed`\n\n### 3. Root cause\nMost probable root cause. Cite specific resource names and drift/event evidence.\n\n### 4. Causal chain\nNumbered steps from trigger to visible impact.\n\n### 5. Remediation\nCommands that directly FIX the root cause (kubectl apply, kubectl rollout restart,\nhelm upgrade\u2026). Diagnostic commands (kubectl describe, kubectl logs, kubectl get)\ngo in section 7, not here.\n\n### 6. Confidence\nChoose LOW | MEDIUM | HIGH using this rule:\n- If every causal link is observed in the evidence above, answer HIGH.\n- If one causal link is inferred rather than observed, answer MEDIUM.\n- If context is sparse or contradictory, answer LOW.\nStart your answer with exactly one word: HIGH, MEDIUM, or LOW.\n\n### 7. Checks\nUp to 5 read-only commands that would confirm or rule out the root cause above,\none per line:\n- <command> | verifies: <what it shows> | confirms if: <output> | refutes if: <output>\nRead-only only (kubectl get / describe / logs / top, helm status / get / diff).\nNever print Secret values (no kubectl get secret -o yaml or -o json).\n"
+  ],
+  "raw_analysis": "### 1. Summary\nThe deployment and services for the \"shop\" namespace are not functioning as expected, indicated by the paused status and low replica counts.\n\n### 2. Affected resources\n- Deployment/shop/cart-api \u2014 paused=true, replicas=1\n- Deployment/shop/checkout \u2014 paused=true, replicas=1\n- Service/shop/cart-api \u2014 type=ClusterIP, externalTrafficPolicy=Cluster, internalTrafficPolicy=Cluster\n- Service/shop/checkout \u2014 type=ClusterIP, externalTrafficPolicy=Cluster, internalTrafficPolicy=Cluster\n\n### 3. Root cause\nThe root cause is likely that the deployments for \"shop/cart-api\" and \"shop/checkout\" are paused, which is contrary to the expected operational state. This is indicated by the `paused=true` field in the deployment objects.\n\n### 4. Causal chain\n1. The deployments for \"shop/cart-api\" and \"shop/checkout\" are set to `paused=true` in their respective Helm charts.\n2. The `paused=true` setting in the deployments prevents any rollouts or updates, leading to the current paused state.\n3. The `replicas=1` setting in the deployments indicates that the desired number of pods is set to 1, which is not sufficient for the expected operational state.\n\n### 5. Remediation\n```shell\nkubectl rollout restart deployment/shop/cart-api\nkubectl rollout restart deployment/shop/checkout\n```\n\n### 6. Confidence\nLOW\n\n### 7. Checks\n- kubectl get deployments/shop/cart-api \u2014 confirms if: the status is not paused, refutes if: the status is paused\n- kubectl get deployments/shop/checkout \u2014 confirms if: the status is not paused, refutes if: the status is paused\n- kubectl get services/shop/cart-api \u2014 confirms if: the type is not ClusterIP, refutes if: the type is ClusterIP\n- kubectl get services/shop/checkout \u2014 confirms if: the type is not ClusterIP, refutes if: the type is ClusterIP\n- kubectl get deployments \u2014 confirms if: the deployments are not paused, refutes if: the deployments are paused",
+  "reason": "no_incident: the answer does not say there is no incident",
+  "remediation": [
+    "kubectl rollout restart deployment/shop/cart-api",
+    "kubectl rollout restart deployment/shop/checkout"
+  ],
+  "root_cause": "The root cause is likely that the deployments for \"shop/cart-api\" and \"shop/checkout\" are paused, which is contrary to the expected operational state. This is indicated by the `paused=true` field in the deployment objects.",
+  "run": 2,
+  "set": "S2",
+  "solver": "context",
+  "started_at": "2026-11-08T10:12:49.513835+00:00",
+  "store": "stub",
+  "tier": "S2",
+  "veracity": "FAIL",
+  "wall_s": 70.8
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "labels": {
+      "alertname": "KubePodCrashLooping",
+      "severity": "warning",
+      "namespace": "billing",
+      "pod": "billing-worker-664b52d70e-53956",
+      "container": "billing-worker"
+    },
+    "annotations": {
+      "summary": "Pod is crash looping.",
+      "description": "Pod billing/billing-worker-664b52d70e-53956 (billing-worker) is in waiting state (reason: \"CrashLoopBackOff\")."
+    },
+    "state": "firing",
+    "activeAt": "2026-11-02T09:10:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubePodCrashLooping",
+      "severity": "warning",
+      "namespace": "billing",
+      "pod": "billing-worker-664b52d70e-d7995",
+      "container": "billing-worker"
+    },
+    "annotations": {
+      "summary": "Pod is crash looping.",
+      "description": "Pod billing/billing-worker-664b52d70e-d7995 (billing-worker) is in waiting state (reason: \"CrashLoopBackOff\")."
+    },
+    "state": "firing",
+    "activeAt": "2026-11-02T09:10:00Z",
+    "value": "1"
+  }
+]

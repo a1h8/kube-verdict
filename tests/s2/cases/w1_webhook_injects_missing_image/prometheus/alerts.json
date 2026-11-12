@@ -1,0 +1,34 @@
+[
+  {
+    "labels": {
+      "alertname": "KubeContainerWaiting",
+      "severity": "warning",
+      "namespace": "shop",
+      "pod": "cart-api-9c7d8b6f5-cc8d1",
+      "container": "mesh-proxy"
+    },
+    "annotations": {
+      "summary": "Pod container waiting longer than 1 hour",
+      "description": "pod/cart-api-9c7d8b6f5-cc8d1 in namespace shop on container mesh-proxy has been in waiting state."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T08:50:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "KubeContainerWaiting",
+      "severity": "warning",
+      "namespace": "shop",
+      "pod": "web-8c7b6d5f9-4ea43",
+      "container": "mesh-proxy"
+    },
+    "annotations": {
+      "summary": "Pod container waiting longer than 1 hour",
+      "description": "pod/web-8c7b6d5f9-4ea43 in namespace shop on container mesh-proxy has been in waiting state."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T08:50:00Z",
+    "value": "1"
+  }
+]

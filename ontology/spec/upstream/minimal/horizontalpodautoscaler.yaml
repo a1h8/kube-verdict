@@ -1,0 +1,6 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: {name: kv-defaults-hpa}
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: kv-defaults-deploy}
+  maxReplicas: 3

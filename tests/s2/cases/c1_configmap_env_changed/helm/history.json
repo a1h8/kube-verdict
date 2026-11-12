@@ -1,0 +1,16 @@
+[
+  {
+    "revision": 3,
+    "updated": "2026-09-22T13:20:00Z",
+    "status": "superseded",
+    "chart": "platform-config-1.4.0",
+    "description": "Upgrade complete"
+  },
+  {
+    "revision": 4,
+    "updated": "2026-10-20T08:00:00Z",
+    "status": "deployed",
+    "chart": "platform-config-1.5.0",
+    "description": "Upgrade complete"
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "image": {
+    "tag": "1.21.1"
+  },
+  "tls": {
+    "secretName": "mesh-injector-tls",
+    "issuer": "mesh-ca"
+  }
+}

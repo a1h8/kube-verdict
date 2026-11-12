@@ -183,6 +183,10 @@ class K8sCollector:
                     self._wire_namespace_edge(graph, entity)
 
         log.info("Dynamic resources added: %d", dynamic_count)
+
+        # 3. Relations computed from the API's fields, once every object is in (docs/correlation-engine.md § 1)
+        from ontology.relations import build_relations
+        log.info("Relations built: %s", build_relations(graph))
         log.info(graph.summary())
         return graph
 

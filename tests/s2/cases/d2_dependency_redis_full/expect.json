@@ -1,0 +1,50 @@
+{
+  "set": "S2",
+  "family": "dependency",
+  "namespace": "shop",
+  "sources": [
+    "prometheus-operator/runbooks@a685d14 KubePodNotReady",
+    "prometheus-operator/runbooks@a685d14 KubeDeploymentReplicasMismatch",
+    "https://kubernetes.io/docs/concepts/services-networking/service/",
+    "https://redis.io/docs/latest/develop/reference/eviction/"
+  ],
+  "spec": "docs/s2/family-dependency.md",
+  "release": "pricing",
+  "scenario": "checkout-api gets 503 from pricing; pricing's writes to Redis are refused, Redis is full",
+  "query": "why does checkout-api return errors on pricing in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Deployment/cache/redis",
+  "origin_object": "Deployment/platform/pricing",
+  "mechanism": "Redis reached its maxmemory (512mb) with the noeviction policy, so it refuses writes; pricing, which since its T0 release caches every price without a TTL, fails on them and returns 503 to checkout-api",
+  "pass_if": "names Redis's memory limit or eviction policy as what refuses the writes",
+  "partial_if_only": [
+    "pricing as failing, without Redis's limit"
+  ],
+  "chain": [
+    "checkout-api logs and traces: pricing returned 503",
+    "pricing's logs and traces: Redis SET refused, OOM command not allowed when used memory > maxmemory",
+    "Deployment/cache/redis runs with --maxmemory 512mb --maxmemory-policy noeviction",
+    "pricing's T0 release caches every price with ttlSeconds 0"
+  ],
+  "decoys": [
+    {
+      "object": "Pod/shop/checkout-api (CPUThrottlingHigh)",
+      "why_not": "older than T0, unrelated to the errors"
+    },
+    {
+      "object": "Certificate/shop/shop-tls",
+      "why_not": "expires in 12 days, Ready; a warning, not a fault"
+    },
+    {
+      "object": "Deployment/platform/pricing (scaled 3 to 5)",
+      "why_not": "a manual reaction at T0+3 h 10 min"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/checkout-api"
+  ],
+  "root_cause_concepts": [
+    "redis",
+    "maxmemory|memory|noeviction|eviction|full"
+  ]
+}

@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: mesh-injector-tls.issuing.-15180
+    namespace: mesh-system
+    uid: evt-mesh-system-mesh-injector-tls-issuing--15180
+  type: Warning
+  reason: Issuing
+  message: 'Issuing certificate as Secret will expire in 24h: issuer mesh-ca not found'
+  involvedObject:
+    kind: Certificate
+    name: mesh-injector-tls
+    namespace: mesh-system
+  count: 24
+  firstTimestamp: '2026-10-19T08:00:00Z'
+  lastTimestamp: '2026-10-20T07:00:00Z'
+  reportingComponent: cert-manager-certificates-trigger
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: shop-tls.issuing.12c
+    namespace: shop
+    uid: evt-shop-shop-tls-issuing-12c
+  type: Normal
+  reason: Issuing
+  message: The certificate has been successfully issued
+  involvedObject:
+    kind: Certificate
+    name: shop-tls
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:05:00Z'
+  lastTimestamp: '2026-10-20T08:05:00Z'
+  reportingComponent: cert-manager-certificates-issuing
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: checkout.scalingreplicaset.384
+    namespace: shop
+    uid: evt-shop-checkout-scalingreplicaset-384
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set checkout-7b8c9d6f4 to 1
+  involvedObject:
+    kind: Deployment
+    name: checkout
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T08:15:00Z'
+  lastTimestamp: '2026-10-20T08:15:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: checkout-7b8c9d6f4.failedcreate.384
+    namespace: shop
+    uid: evt-shop-checkout-7b8c9d6f4-failedcreate-384
+  type: Warning
+  reason: FailedCreate
+  message: 'Error creating: Internal error occurred: failed calling webhook "inject.mesh.acme.io": failed to call webhook: Post "https://mesh-injector.mesh-system.svc:443/inject?timeout=10s": tls: failed to verify certificate: x509: certificate has expired or is not yet valid: current time 2026-10-20T08:15:00Z is after 2026-10-20T08:00:00Z'
+  involvedObject:
+    kind: ReplicaSet
+    name: checkout-7b8c9d6f4
+    namespace: shop
+  count: 17
+  firstTimestamp: '2026-10-20T08:15:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: replicaset-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: report-export-29342410.failedcreate.708
+    namespace: shop
+    uid: evt-shop-report-export-29342410-failedcreate-708
+  type: Warning
+  reason: FailedCreate
+  message: 'Error creating: Internal error occurred: failed calling webhook "inject.mesh.acme.io": failed to call webhook: Post "https://mesh-injector.mesh-system.svc:443/inject?timeout=10s": tls: failed to verify certificate: x509: certificate has expired or is not yet valid: current time 2026-10-20T08:30:00Z is after 2026-10-20T08:00:00Z'
+  involvedObject:
+    kind: Job
+    name: report-export-29342410
+    namespace: shop
+  count: 6
+  firstTimestamp: '2026-10-20T08:30:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: job-controller

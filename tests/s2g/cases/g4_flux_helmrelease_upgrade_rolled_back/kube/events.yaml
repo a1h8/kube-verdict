@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: pricing.3fca10a8eff9
+    namespace: shop
+    uid: 437d7f55-dc59-d1c3-3700-1fa9afc2bafb
+    creationTimestamp: '2026-11-02T08:30:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set pricing-ccdad76804 from 0 to 1
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pricing
+    namespace: shop
+    uid: b8ae932f-0bd2-4e07-e28e-22fa675bfe9d
+  count: 1
+  firstTimestamp: '2026-11-02T08:30:00Z'
+  lastTimestamp: '2026-11-02T08:30:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: pricing.96f73bdc4ee7
+    namespace: shop
+    uid: e25b02b9-aa3d-c503-1581-abb70d8f7007
+    creationTimestamp: '2026-11-02T08:36:00Z'
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled down replica set pricing-ccdad76804 from 1 to 0
+  involvedObject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pricing
+    namespace: shop
+    uid: b8ae932f-0bd2-4e07-e28e-22fa675bfe9d
+  count: 1
+  firstTimestamp: '2026-11-02T08:36:00Z'
+  lastTimestamp: '2026-11-02T08:36:00Z'
+  source:
+    component: deployment-controller
+  reportingComponent: deployment-controller

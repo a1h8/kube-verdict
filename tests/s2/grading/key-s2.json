@@ -1,0 +1,1034 @@
+{
+ "seed": 20261108,
+ "items": [
+  {
+   "item": 1,
+   "case": "c2_configmap_invalid_file",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/c2_configmap_invalid_file/run_1.json"
+  },
+  {
+   "item": 2,
+   "case": "a1_hpa_custom_metrics_api_points_away",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/a1_hpa_custom_metrics_api_points_away/run_3.json"
+  },
+  {
+   "item": 3,
+   "case": "d1_dependency_service_wrong_port",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/d1_dependency_service_wrong_port/run_3.json"
+  },
+  {
+   "item": 4,
+   "case": "d2_dependency_redis_full",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/d2_dependency_redis_full/run_1.json"
+  },
+  {
+   "item": 5,
+   "case": "d0_dependency_no_incident",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/d0_dependency_no_incident/run_3.json"
+  },
+  {
+   "item": 6,
+   "case": "q0_quota_no_incident",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/q0_quota_no_incident/run_1.json"
+  },
+  {
+   "item": 7,
+   "case": "c2_configmap_invalid_file",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/c2_configmap_invalid_file/run_2.json"
+  },
+  {
+   "item": 8,
+   "case": "l0_limitrange_no_incident",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/l0_limitrange_no_incident/run_1.json"
+  },
+  {
+   "item": 9,
+   "case": "c2_configmap_invalid_file",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/c2_configmap_invalid_file/run_3.json"
+  },
+  {
+   "item": 10,
+   "case": "a2_hpa_scale_up_policy_slowed",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/a2_hpa_scale_up_policy_slowed/run_2.json"
+  },
+  {
+   "item": 11,
+   "case": "c0_configmap_no_incident",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/c0_configmap_no_incident/run_2.json"
+  },
+  {
+   "item": 12,
+   "case": "q0_quota_no_incident",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/q0_quota_no_incident/run_3.json"
+  },
+  {
+   "item": 13,
+   "case": "w0_webhook_no_incident",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/w0_webhook_no_incident/run_3.json"
+  },
+  {
+   "item": 14,
+   "case": "n0_netpol_no_incident",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/n0_netpol_no_incident/run_1.json"
+  },
+  {
+   "item": 15,
+   "case": "q0_quota_no_incident",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/q0_quota_no_incident/run_3.json"
+  },
+  {
+   "item": 16,
+   "case": "q2_quota_filled_by_stuck_jobs",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/q2_quota_filled_by_stuck_jobs/run_3.json"
+  },
+  {
+   "item": 17,
+   "case": "w1_webhook_injects_missing_image",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/w1_webhook_injects_missing_image/run_3.json"
+  },
+  {
+   "item": 18,
+   "case": "l0_limitrange_no_incident",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/l0_limitrange_no_incident/run_3.json"
+  },
+  {
+   "item": 19,
+   "case": "a1_hpa_custom_metrics_api_points_away",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/a1_hpa_custom_metrics_api_points_away/run_3.json"
+  },
+  {
+   "item": 20,
+   "case": "n2_netpol_pod_labels_changed",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/n2_netpol_pod_labels_changed/run_3.json"
+  },
+  {
+   "item": 21,
+   "case": "c0_configmap_no_incident",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/c0_configmap_no_incident/run_2.json"
+  },
+  {
+   "item": 22,
+   "case": "d1_dependency_service_wrong_port",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/d1_dependency_service_wrong_port/run_1.json"
+  },
+  {
+   "item": 23,
+   "case": "l2_limitrange_max_lowered",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/l2_limitrange_max_lowered/run_1.json"
+  },
+  {
+   "item": 24,
+   "case": "d2_dependency_redis_full",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/d2_dependency_redis_full/run_2.json"
+  },
+  {
+   "item": 25,
+   "case": "l1_limitrange_default_injected",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/l1_limitrange_default_injected/run_3.json"
+  },
+  {
+   "item": 26,
+   "case": "d2_dependency_redis_full",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/d2_dependency_redis_full/run_2.json"
+  },
+  {
+   "item": 27,
+   "case": "a2_hpa_scale_up_policy_slowed",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/a2_hpa_scale_up_policy_slowed/run_1.json"
+  },
+  {
+   "item": 28,
+   "case": "d0_dependency_no_incident",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/d0_dependency_no_incident/run_2.json"
+  },
+  {
+   "item": 29,
+   "case": "a0_hpa_no_incident",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/a0_hpa_no_incident/run_2.json"
+  },
+  {
+   "item": 30,
+   "case": "q0_quota_no_incident",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/q0_quota_no_incident/run_2.json"
+  },
+  {
+   "item": 31,
+   "case": "n1_netpol_namespace_relabel",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/n1_netpol_namespace_relabel/run_1.json"
+  },
+  {
+   "item": 32,
+   "case": "w1_webhook_injects_missing_image",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/w1_webhook_injects_missing_image/run_1.json"
+  },
+  {
+   "item": 33,
+   "case": "c1_configmap_env_changed",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/c1_configmap_env_changed/run_1.json"
+  },
+  {
+   "item": 34,
+   "case": "a2_hpa_scale_up_policy_slowed",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/a2_hpa_scale_up_policy_slowed/run_3.json"
+  },
+  {
+   "item": 35,
+   "case": "a2_hpa_scale_up_policy_slowed",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/a2_hpa_scale_up_policy_slowed/run_1.json"
+  },
+  {
+   "item": 36,
+   "case": "n2_netpol_pod_labels_changed",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/n2_netpol_pod_labels_changed/run_2.json"
+  },
+  {
+   "item": 37,
+   "case": "n1_netpol_namespace_relabel",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/n1_netpol_namespace_relabel/run_2.json"
+  },
+  {
+   "item": 38,
+   "case": "l2_limitrange_max_lowered",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/l2_limitrange_max_lowered/run_3.json"
+  },
+  {
+   "item": 39,
+   "case": "a0_hpa_no_incident",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/a0_hpa_no_incident/run_2.json"
+  },
+  {
+   "item": 40,
+   "case": "w0_webhook_no_incident",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/w0_webhook_no_incident/run_1.json"
+  },
+  {
+   "item": 41,
+   "case": "w0_webhook_no_incident",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/w0_webhook_no_incident/run_1.json"
+  },
+  {
+   "item": 42,
+   "case": "n1_netpol_namespace_relabel",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/n1_netpol_namespace_relabel/run_2.json"
+  },
+  {
+   "item": 43,
+   "case": "w1_webhook_injects_missing_image",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/w1_webhook_injects_missing_image/run_2.json"
+  },
+  {
+   "item": 44,
+   "case": "c1_configmap_env_changed",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/c1_configmap_env_changed/run_2.json"
+  },
+  {
+   "item": 45,
+   "case": "q2_quota_filled_by_stuck_jobs",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/q2_quota_filled_by_stuck_jobs/run_1.json"
+  },
+  {
+   "item": 46,
+   "case": "w0_webhook_no_incident",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/w0_webhook_no_incident/run_3.json"
+  },
+  {
+   "item": 47,
+   "case": "n0_netpol_no_incident",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/n0_netpol_no_incident/run_3.json"
+  },
+  {
+   "item": 48,
+   "case": "n1_netpol_namespace_relabel",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/n1_netpol_namespace_relabel/run_1.json"
+  },
+  {
+   "item": 49,
+   "case": "c1_configmap_env_changed",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/c1_configmap_env_changed/run_1.json"
+  },
+  {
+   "item": 50,
+   "case": "n2_netpol_pod_labels_changed",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/n2_netpol_pod_labels_changed/run_1.json"
+  },
+  {
+   "item": 51,
+   "case": "a2_hpa_scale_up_policy_slowed",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/a2_hpa_scale_up_policy_slowed/run_3.json"
+  },
+  {
+   "item": 52,
+   "case": "w0_webhook_no_incident",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/w0_webhook_no_incident/run_1.json"
+  },
+  {
+   "item": 53,
+   "case": "l1_limitrange_default_injected",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/l1_limitrange_default_injected/run_2.json"
+  },
+  {
+   "item": 54,
+   "case": "c0_configmap_no_incident",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/c0_configmap_no_incident/run_1.json"
+  },
+  {
+   "item": 55,
+   "case": "d1_dependency_service_wrong_port",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/d1_dependency_service_wrong_port/run_2.json"
+  },
+  {
+   "item": 56,
+   "case": "q1_quota_filled_by_request_drift",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/q1_quota_filled_by_request_drift/run_1.json"
+  },
+  {
+   "item": 57,
+   "case": "d0_dependency_no_incident",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/d0_dependency_no_incident/run_1.json"
+  },
+  {
+   "item": 58,
+   "case": "c1_configmap_env_changed",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/c1_configmap_env_changed/run_2.json"
+  },
+  {
+   "item": 59,
+   "case": "q0_quota_no_incident",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/q0_quota_no_incident/run_1.json"
+  },
+  {
+   "item": 60,
+   "case": "c2_configmap_invalid_file",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/c2_configmap_invalid_file/run_2.json"
+  },
+  {
+   "item": 61,
+   "case": "q1_quota_filled_by_request_drift",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/q1_quota_filled_by_request_drift/run_2.json"
+  },
+  {
+   "item": 62,
+   "case": "d0_dependency_no_incident",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/d0_dependency_no_incident/run_3.json"
+  },
+  {
+   "item": 63,
+   "case": "a1_hpa_custom_metrics_api_points_away",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/a1_hpa_custom_metrics_api_points_away/run_1.json"
+  },
+  {
+   "item": 64,
+   "case": "q1_quota_filled_by_request_drift",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/q1_quota_filled_by_request_drift/run_1.json"
+  },
+  {
+   "item": 65,
+   "case": "n2_netpol_pod_labels_changed",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/n2_netpol_pod_labels_changed/run_1.json"
+  },
+  {
+   "item": 66,
+   "case": "q2_quota_filled_by_stuck_jobs",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/q2_quota_filled_by_stuck_jobs/run_2.json"
+  },
+  {
+   "item": 67,
+   "case": "n0_netpol_no_incident",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/n0_netpol_no_incident/run_3.json"
+  },
+  {
+   "item": 68,
+   "case": "q1_quota_filled_by_request_drift",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/q1_quota_filled_by_request_drift/run_1.json"
+  },
+  {
+   "item": 69,
+   "case": "n0_netpol_no_incident",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/n0_netpol_no_incident/run_2.json"
+  },
+  {
+   "item": 70,
+   "case": "l0_limitrange_no_incident",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/l0_limitrange_no_incident/run_2.json"
+  },
+  {
+   "item": 71,
+   "case": "d0_dependency_no_incident",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/d0_dependency_no_incident/run_1.json"
+  },
+  {
+   "item": 72,
+   "case": "a0_hpa_no_incident",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/a0_hpa_no_incident/run_3.json"
+  },
+  {
+   "item": 73,
+   "case": "d1_dependency_service_wrong_port",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/d1_dependency_service_wrong_port/run_2.json"
+  },
+  {
+   "item": 74,
+   "case": "d2_dependency_redis_full",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/d2_dependency_redis_full/run_3.json"
+  },
+  {
+   "item": 75,
+   "case": "q1_quota_filled_by_request_drift",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/q1_quota_filled_by_request_drift/run_2.json"
+  },
+  {
+   "item": 76,
+   "case": "c1_configmap_env_changed",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/c1_configmap_env_changed/run_1.json"
+  },
+  {
+   "item": 77,
+   "case": "n1_netpol_namespace_relabel",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/n1_netpol_namespace_relabel/run_3.json"
+  },
+  {
+   "item": 78,
+   "case": "c2_configmap_invalid_file",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/c2_configmap_invalid_file/run_1.json"
+  },
+  {
+   "item": 79,
+   "case": "q2_quota_filled_by_stuck_jobs",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/q2_quota_filled_by_stuck_jobs/run_2.json"
+  },
+  {
+   "item": 80,
+   "case": "l0_limitrange_no_incident",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/l0_limitrange_no_incident/run_1.json"
+  },
+  {
+   "item": 81,
+   "case": "a0_hpa_no_incident",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/a0_hpa_no_incident/run_1.json"
+  },
+  {
+   "item": 82,
+   "case": "n1_netpol_namespace_relabel",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/n1_netpol_namespace_relabel/run_1.json"
+  },
+  {
+   "item": 83,
+   "case": "l2_limitrange_max_lowered",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/l2_limitrange_max_lowered/run_2.json"
+  },
+  {
+   "item": 84,
+   "case": "q0_quota_no_incident",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/q0_quota_no_incident/run_1.json"
+  },
+  {
+   "item": 85,
+   "case": "c0_configmap_no_incident",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/c0_configmap_no_incident/run_3.json"
+  },
+  {
+   "item": 86,
+   "case": "l1_limitrange_default_injected",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/l1_limitrange_default_injected/run_1.json"
+  },
+  {
+   "item": 87,
+   "case": "w1_webhook_injects_missing_image",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/w1_webhook_injects_missing_image/run_1.json"
+  },
+  {
+   "item": 88,
+   "case": "c2_configmap_invalid_file",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/c2_configmap_invalid_file/run_3.json"
+  },
+  {
+   "item": 89,
+   "case": "c1_configmap_env_changed",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/c1_configmap_env_changed/run_3.json"
+  },
+  {
+   "item": 90,
+   "case": "d0_dependency_no_incident",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/d0_dependency_no_incident/run_1.json"
+  },
+  {
+   "item": 91,
+   "case": "d2_dependency_redis_full",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/d2_dependency_redis_full/run_1.json"
+  },
+  {
+   "item": 92,
+   "case": "c0_configmap_no_incident",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/c0_configmap_no_incident/run_1.json"
+  },
+  {
+   "item": 93,
+   "case": "d2_dependency_redis_full",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/d2_dependency_redis_full/run_3.json"
+  },
+  {
+   "item": 94,
+   "case": "w2_webhook_fails_closed_expired_cert",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/w2_webhook_fails_closed_expired_cert/run_1.json"
+  },
+  {
+   "item": 95,
+   "case": "l2_limitrange_max_lowered",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/l2_limitrange_max_lowered/run_1.json"
+  },
+  {
+   "item": 96,
+   "case": "l1_limitrange_default_injected",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/l1_limitrange_default_injected/run_1.json"
+  },
+  {
+   "item": 97,
+   "case": "n2_netpol_pod_labels_changed",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/n2_netpol_pod_labels_changed/run_3.json"
+  },
+  {
+   "item": 98,
+   "case": "w2_webhook_fails_closed_expired_cert",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/w2_webhook_fails_closed_expired_cert/run_2.json"
+  },
+  {
+   "item": 99,
+   "case": "l0_limitrange_no_incident",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/l0_limitrange_no_incident/run_2.json"
+  },
+  {
+   "item": 100,
+   "case": "q1_quota_filled_by_request_drift",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/q1_quota_filled_by_request_drift/run_3.json"
+  },
+  {
+   "item": 101,
+   "case": "l0_limitrange_no_incident",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/l0_limitrange_no_incident/run_1.json"
+  },
+  {
+   "item": 102,
+   "case": "n2_netpol_pod_labels_changed",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/n2_netpol_pod_labels_changed/run_2.json"
+  },
+  {
+   "item": 103,
+   "case": "a2_hpa_scale_up_policy_slowed",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/a2_hpa_scale_up_policy_slowed/run_2.json"
+  },
+  {
+   "item": 104,
+   "case": "n0_netpol_no_incident",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/n0_netpol_no_incident/run_2.json"
+  },
+  {
+   "item": 105,
+   "case": "w2_webhook_fails_closed_expired_cert",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/w2_webhook_fails_closed_expired_cert/run_1.json"
+  },
+  {
+   "item": 106,
+   "case": "d1_dependency_service_wrong_port",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/d1_dependency_service_wrong_port/run_1.json"
+  },
+  {
+   "item": 107,
+   "case": "n0_netpol_no_incident",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/n0_netpol_no_incident/run_1.json"
+  },
+  {
+   "item": 108,
+   "case": "a1_hpa_custom_metrics_api_points_away",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/a1_hpa_custom_metrics_api_points_away/run_1.json"
+  },
+  {
+   "item": 109,
+   "case": "n2_netpol_pod_labels_changed",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/n2_netpol_pod_labels_changed/run_1.json"
+  },
+  {
+   "item": 110,
+   "case": "c2_configmap_invalid_file",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/c2_configmap_invalid_file/run_1.json"
+  },
+  {
+   "item": 111,
+   "case": "a1_hpa_custom_metrics_api_points_away",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/a1_hpa_custom_metrics_api_points_away/run_2.json"
+  },
+  {
+   "item": 112,
+   "case": "l1_limitrange_default_injected",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/l1_limitrange_default_injected/run_1.json"
+  },
+  {
+   "item": 113,
+   "case": "d1_dependency_service_wrong_port",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/d1_dependency_service_wrong_port/run_3.json"
+  },
+  {
+   "item": 114,
+   "case": "w1_webhook_injects_missing_image",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/w1_webhook_injects_missing_image/run_2.json"
+  },
+  {
+   "item": 115,
+   "case": "a1_hpa_custom_metrics_api_points_away",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/a1_hpa_custom_metrics_api_points_away/run_1.json"
+  },
+  {
+   "item": 116,
+   "case": "a0_hpa_no_incident",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/a0_hpa_no_incident/run_3.json"
+  },
+  {
+   "item": 117,
+   "case": "w2_webhook_fails_closed_expired_cert",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/w2_webhook_fails_closed_expired_cert/run_3.json"
+  },
+  {
+   "item": 118,
+   "case": "n1_netpol_namespace_relabel",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/n1_netpol_namespace_relabel/run_3.json"
+  },
+  {
+   "item": 119,
+   "case": "l0_limitrange_no_incident",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/l0_limitrange_no_incident/run_3.json"
+  },
+  {
+   "item": 120,
+   "case": "l2_limitrange_max_lowered",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/l2_limitrange_max_lowered/run_2.json"
+  },
+  {
+   "item": 121,
+   "case": "a1_hpa_custom_metrics_api_points_away",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/a1_hpa_custom_metrics_api_points_away/run_2.json"
+  },
+  {
+   "item": 122,
+   "case": "d1_dependency_service_wrong_port",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/d1_dependency_service_wrong_port/run_1.json"
+  },
+  {
+   "item": 123,
+   "case": "q2_quota_filled_by_stuck_jobs",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/q2_quota_filled_by_stuck_jobs/run_1.json"
+  },
+  {
+   "item": 124,
+   "case": "l1_limitrange_default_injected",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/l1_limitrange_default_injected/run_3.json"
+  },
+  {
+   "item": 125,
+   "case": "l2_limitrange_max_lowered",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/l2_limitrange_max_lowered/run_1.json"
+  },
+  {
+   "item": 126,
+   "case": "q2_quota_filled_by_stuck_jobs",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/q2_quota_filled_by_stuck_jobs/run_1.json"
+  },
+  {
+   "item": 127,
+   "case": "w2_webhook_fails_closed_expired_cert",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/w2_webhook_fails_closed_expired_cert/run_2.json"
+  },
+  {
+   "item": 128,
+   "case": "q2_quota_filled_by_stuck_jobs",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/q2_quota_filled_by_stuck_jobs/run_3.json"
+  },
+  {
+   "item": 129,
+   "case": "q1_quota_filled_by_request_drift",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/q1_quota_filled_by_request_drift/run_3.json"
+  },
+  {
+   "item": 130,
+   "case": "q0_quota_no_incident",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/q0_quota_no_incident/run_2.json"
+  },
+  {
+   "item": 131,
+   "case": "a0_hpa_no_incident",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/a0_hpa_no_incident/run_1.json"
+  },
+  {
+   "item": 132,
+   "case": "l2_limitrange_max_lowered",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/l2_limitrange_max_lowered/run_3.json"
+  },
+  {
+   "item": 133,
+   "case": "d0_dependency_no_incident",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/d0_dependency_no_incident/run_2.json"
+  },
+  {
+   "item": 134,
+   "case": "w1_webhook_injects_missing_image",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/w1_webhook_injects_missing_image/run_3.json"
+  },
+  {
+   "item": 135,
+   "case": "c0_configmap_no_incident",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/c0_configmap_no_incident/run_3.json"
+  },
+  {
+   "item": 136,
+   "case": "a0_hpa_no_incident",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/a0_hpa_no_incident/run_1.json"
+  },
+  {
+   "item": 137,
+   "case": "a2_hpa_scale_up_policy_slowed",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/a2_hpa_scale_up_policy_slowed/run_1.json"
+  },
+  {
+   "item": 138,
+   "case": "w0_webhook_no_incident",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/w0_webhook_no_incident/run_2.json"
+  },
+  {
+   "item": 139,
+   "case": "w2_webhook_fails_closed_expired_cert",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/w2_webhook_fails_closed_expired_cert/run_1.json"
+  },
+  {
+   "item": 140,
+   "case": "d2_dependency_redis_full",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/d2_dependency_redis_full/run_1.json"
+  },
+  {
+   "item": 141,
+   "case": "c0_configmap_no_incident",
+   "arm": "D",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-structured-store_stub-examples_off/structured/c0_configmap_no_incident/run_1.json"
+  },
+  {
+   "item": 142,
+   "case": "w1_webhook_injects_missing_image",
+   "arm": "S0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/w1_webhook_injects_missing_image/run_1.json"
+  },
+  {
+   "item": 143,
+   "case": "c1_configmap_env_changed",
+   "arm": "S0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/c1_configmap_env_changed/run_3.json"
+  },
+  {
+   "item": 144,
+   "case": "w0_webhook_no_incident",
+   "arm": "L0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/w0_webhook_no_incident/run_2.json"
+  },
+  {
+   "item": 145,
+   "case": "n0_netpol_no_incident",
+   "arm": "L0",
+   "run": 1,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/n0_netpol_no_incident/run_1.json"
+  },
+  {
+   "item": 146,
+   "case": "l1_limitrange_default_injected",
+   "arm": "S0",
+   "run": 2,
+   "record": "tests/veracity/replay-baselines/s2-context-qwen2.5_3b-instruct-prompt_v6-store_stub-examples_off/context/l1_limitrange_default_injected/run_2.json"
+  },
+  {
+   "item": 147,
+   "case": "w2_webhook_fails_closed_expired_cert",
+   "arm": "L0",
+   "run": 3,
+   "record": "tests/veracity/replay-baselines/s2-context-mistral-prompt_v6-store_stub-examples_off/context/w2_webhook_fails_closed_expired_cert/run_3.json"
+  }
+ ]
+}

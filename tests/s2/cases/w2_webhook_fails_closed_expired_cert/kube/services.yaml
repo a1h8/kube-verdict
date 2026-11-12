@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ServiceList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: cart-api
+    namespace: shop
+    uid: svc-shop-cart-api
+  spec:
+    selector:
+      app.kubernetes.io/name: cart-api
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: web
+    namespace: shop
+    uid: svc-shop-web
+  spec:
+    selector:
+      app.kubernetes.io/name: web
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: orders-api
+    namespace: shop
+    uid: svc-shop-orders-api
+  spec:
+    selector:
+      app.kubernetes.io/name: orders-api
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: checkout
+    namespace: shop
+    uid: svc-shop-checkout
+  spec:
+    selector:
+      app.kubernetes.io/name: checkout
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: mesh-injector
+    namespace: mesh-system
+    uid: svc-mesh-system-mesh-injector
+  spec:
+    selector:
+      app.kubernetes.io/name: mesh-injector
+    ports:
+    - name: https
+      port: 443
+      targetPort: 8443

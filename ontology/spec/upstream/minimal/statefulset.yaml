@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: kv-defaults-sts}
+spec:
+  selector: {matchLabels: {app: kv-defaults-sts}}
+  template:
+    metadata: {labels: {app: kv-defaults-sts}}
+    spec:
+      containers:
+        - {name: c, image: "registry.example/app:1.0"}

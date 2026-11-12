@@ -1,0 +1,644 @@
+apiVersion: v1
+kind: PodList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-6d8f9c7b5-4cb4b
+    namespace: shop
+    uid: pod-shop-api-6d8f9c7b5-4cb4b
+    labels:
+      app.kubernetes.io/name: api
+      pod-template-hash: 6d8f9c7b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-6d8f9c7b5
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.1.43
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-6d8f9c7b5-4ea3a
+    namespace: shop
+    uid: pod-shop-api-6d8f9c7b5-4ea3a
+    labels:
+      app.kubernetes.io/name: api
+      pod-template-hash: 6d8f9c7b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-6d8f9c7b5
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.2.44
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-6d8f9c7b5-50929
+    namespace: shop
+    uid: pod-shop-api-6d8f9c7b5-50929
+    labels:
+      app.kubernetes.io/name: api
+      pod-template-hash: 6d8f9c7b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-6d8f9c7b5
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.3.45
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-6d8f9c7b5-52818
+    namespace: shop
+    uid: pod-shop-api-6d8f9c7b5-52818
+    labels:
+      app.kubernetes.io/name: api
+      pod-template-hash: 6d8f9c7b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-6d8f9c7b5
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.1.46
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-6d8f9c7b5-54707
+    namespace: shop
+    uid: pod-shop-api-6d8f9c7b5-54707
+    labels:
+      app.kubernetes.io/name: api
+      pod-template-hash: 6d8f9c7b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-6d8f9c7b5
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.2.47
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-22T13:10:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-6d8f9c7b5-565f6
+    namespace: shop
+    uid: pod-shop-api-6d8f9c7b5-565f6
+    labels:
+      app.kubernetes.io/name: api
+      pod-template-hash: 6d8f9c7b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-6d8f9c7b5
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.3.48
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-22T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: api-6d8f9c7b5-584e5
+    namespace: shop
+    uid: pod-shop-api-6d8f9c7b5-584e5
+    labels:
+      app.kubernetes.io/name: api
+      pod-template-hash: 6d8f9c7b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-6d8f9c7b5
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.1.49
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: api
+      image: ghcr.io/acme/api:3.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-22T13:30:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: web-8c7b6d5f9-4cb4b
+    namespace: shop
+    uid: pod-shop-web-8c7b6d5f9-4cb4b
+    labels:
+      app.kubernetes.io/name: web
+      pod-template-hash: 8c7b6d5f9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: web-8c7b6d5f9
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: web
+      image: ghcr.io/acme/web:4.2.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.1.43
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: web
+      image: ghcr.io/acme/web:4.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: web-8c7b6d5f9-4ea3a
+    namespace: shop
+    uid: pod-shop-web-8c7b6d5f9-4ea3a
+    labels:
+      app.kubernetes.io/name: web
+      pod-template-hash: 8c7b6d5f9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: web-8c7b6d5f9
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: web
+      image: ghcr.io/acme/web:4.2.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.2.44
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: web
+      image: ghcr.io/acme/web:4.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: worker-5f6c7d8b9-99696
+    namespace: shop
+    uid: pod-shop-worker-5f6c7d8b9-99696
+    labels:
+      app.kubernetes.io/name: worker
+      pod-template-hash: 5f6c7d8b9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: worker-5f6c7d8b9
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: worker
+      image: ghcr.io/acme/worker:1.4.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.1.46
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: worker
+      image: ghcr.io/acme/worker:1.4.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: worker-5f6c7d8b9-9b585
+    namespace: shop
+    uid: pod-shop-worker-5f6c7d8b9-9b585
+    labels:
+      app.kubernetes.io/name: worker
+      pod-template-hash: 5f6c7d8b9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: worker-5f6c7d8b9
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: worker
+      image: ghcr.io/acme/worker:1.4.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.2.47
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: worker
+      image: ghcr.io/acme/worker:1.4.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: prometheus-server-5b6c7d8e9-b2aa9
+    namespace: monitoring
+    uid: pod-monitoring-prometheus-server-5b6c7d8e9-b2aa9
+    labels:
+      app.kubernetes.io/name: prometheus-server
+      pod-template-hash: 5b6c7d8e9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: prometheus-server-5b6c7d8e9
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: prometheus-server
+      image: ghcr.io/acme/prometheus-server:2.53.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.1.57
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: prometheus-server
+      image: ghcr.io/acme/prometheus-server:2.53.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: prometheus-adapter-7c8d9b6f4-cc3c2
+    namespace: observability
+    uid: pod-observability-prometheus-adapter-7c8d9b6f4-cc3c2
+    labels:
+      app.kubernetes.io/name: prometheus-adapter
+      pod-template-hash: 7c8d9b6f4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: prometheus-adapter-7c8d9b6f4
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: prometheus-adapter
+      image: ghcr.io/acme/prometheus-adapter:0.12.0
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.1.58
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: prometheus-adapter
+      image: ghcr.io/acme/prometheus-adapter:0.12.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: metrics-server-6b7c8d9f5-65f5e
+    namespace: kube-system
+    uid: pod-kube-system-metrics-server-6b7c8d9f5-65f5e
+    labels:
+      app.kubernetes.io/name: metrics-server
+      pod-template-hash: 6b7c8d9f5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: metrics-server-6b7c8d9f5
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: metrics-server
+      image: ghcr.io/acme/metrics-server:0.7.1
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.1.54
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: metrics-server
+      image: ghcr.io/acme/metrics-server:0.7.1
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: coredns-7db6d8ff4-b2faf
+    namespace: kube-system
+    uid: pod-kube-system-coredns-7db6d8ff4-b2faf
+    labels:
+      app.kubernetes.io/name: coredns
+      pod-template-hash: 7db6d8ff4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: coredns-7db6d8ff4
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.1.47
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: coredns-7db6d8ff4-b4e9e
+    namespace: kube-system
+    uid: pod-kube-system-coredns-7db6d8ff4-b4e9e
+    labels:
+      app.kubernetes.io/name: coredns
+      pod-template-hash: 7db6d8ff4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: coredns-7db6d8ff4
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+  status:
+    phase: Running
+    podIP: 10.42.2.48
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-14T02:00:00Z'
+      lastState: {}

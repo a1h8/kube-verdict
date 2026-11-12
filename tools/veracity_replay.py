@@ -40,6 +40,20 @@ sys.path.insert(0, str(ROOT))
 from tools.veracity import grade, normalize_label  # noqa: E402
 
 CASES_ROOT = ROOT / "tests/integration/cases"
+# set S2 (docs/s2-correlation-cases.md): its own cases, frozen by hash, built by the product's collectors
+S2_ROOT = ROOT / "tests/s2/cases"
+# set S2-GitOps (docs/s2g/gitops-cases.md): a development set like S2, read the same way
+SET_DIRS = {"s2": ROOT / "tests/s2", "s2g": ROOT / "tests/s2g"}
+CASE_SET = "s1"
+
+
+def use_set(name: str) -> None:
+    """``s1`` (the native cases, the default) or ``s2``."""
+    global CASES_ROOT, CASE_SET
+    if name not in ("s1", *SET_DIRS):
+        raise ValueError(f"unknown case set {name!r}")
+    CASE_SET = name
+    CASES_ROOT = SET_DIRS[name] / "cases" if name in SET_DIRS else ROOT / "tests/integration/cases"
 REPLAY_BASELINES = ROOT / "tests/veracity/replay-baselines"
 GRADING_FILES = ("tools/veracity.py", "tests/veracity/synonyms.yaml")
 GRADING_KEYS = ("root_cause_concepts", "root_cause_concepts_all",
@@ -60,8 +74,18 @@ def tier_of(case_name: str, expect: dict) -> str:
     """A h001–h012, B h013–h016, C h017–h029, M h030+; ``expect["tier"]`` overrides."""
     if expect.get("tier"):
         return expect["tier"]
+    if expect.get("set") in ("S2", "S2-GitOps"):
+        return expect["set"]                                     # S2's cases are graded apart, by family
     n = int(re.match(r"h(\d+)", case_name).group(1))
     return "A" if n <= 12 else "B" if n <= 16 else "C" if n <= 29 else "M"
+
+
+def cause_named(cause_object: str, text: str) -> bool:
+    """Does ``text`` name ``Kind/namespace/name``: the kind, and the name as a whole token, not inside a longer
+    name ("billing" is not named by "billing-worker"). Rule of 2026-11-10 (docs/s2g/gitops-cases.md)."""
+    kind, *_, name = cause_object.split("/")
+    token = re.compile(r"(?<![\w.-])" + re.escape(name) + r"(?![\w-])", re.I)
+    return kind.split(".")[0].lower() in text.lower() and bool(token.search(text))
 
 
 def grading_expect(expect: dict) -> dict:
@@ -81,12 +105,33 @@ def answerable(expect: dict, prompts: list[str]) -> bool | None:
 
 
 def native_cases() -> list[str]:
+    if CASE_SET in SET_DIRS:
+        return sorted(json.loads((SET_DIRS[CASE_SET] / "frozen.json").read_text())["cases"])
     return [d.name for d in sorted(CASES_ROOT.glob("h[0-9]*/"))
             if any(k in json.loads((d / "expect.json").read_text()) for k in GRADING_KEYS)]
 
 
 def _key(case_name: str) -> str:
     return case_name.split("_", 1)[0]
+
+
+def frozen_mismatches(cases: list[str]) -> list[str]:
+    """S2's cases whose files no longer match their frozen hash: a changed case is a new case."""
+    frozen = json.loads((SET_DIRS.get(CASE_SET, SET_DIRS["s2"]) / "frozen.json").read_text())["cases"]
+    return [c for c in cases if frozen.get(c) != case_hash(c)]
+
+
+def _run(case_name: str, cut: str | None = None, llm=None):
+    """The case through the harness; for S2, its own directory, the product's collectors and every
+    namespace it holds."""
+    from tests.integration.workflow_harness import run_case
+    if CASE_SET not in SET_DIRS:
+        return run_case(_key(case_name), cut=cut, llm=llm)
+    from tests.s2.live_graph import build_graph_live, kube_docs, namespaces_of
+    case_dir = CASES_ROOT / case_name
+    return run_case(_key(case_name), cut=cut, llm=llm, case_dir=case_dir,
+                    graph_builder=lambda d: build_graph_live(d, wire_signals=False),
+                    namespaces=namespaces_of(kube_docs(case_dir)))
 
 
 def cuttable(case_name: str) -> list[str]:
@@ -150,7 +195,7 @@ def run_dir_name(solver: str, model: str, prompt: str | None,
                  store: str = "stub", examples: str = "off") -> str:
     """``<solver>[-<model>]-prompt_<v>-store_<store>-examples_<on|off>``; no model or prompt for
     the solvers without one. ``:`` and ``/`` of a model name become ``_``."""
-    parts = [solver]
+    parts = ([CASE_SET] if CASE_SET in SET_DIRS else []) + [solver]
     if solver not in ("structured", "rules", "retrieval"):
         parts += [re.sub(r"[:/]", "_", model), f"prompt_{prompt}"]
     return "-".join(parts + [f"store_{store}", f"examples_{examples}"])
@@ -221,6 +266,11 @@ def _base_record(case_name: str, expect: dict, solver: str, model: str, run: int
             "started_at": datetime.now(timezone.utc).isoformat()}
 
 
+# What a solver without a model answers when it has nothing to propose: an explicit abstention,
+# which a case with no incident accepts and a case with a cause fails (protocol 002, amendment A2).
+NO_HYPOTHESIS = "No incident: no hypothesis reaches the threshold."
+
+
 def solve_rules(case_name: str) -> dict:
     """Top RemediationEngine hypothesis on the case graph, no LLM, label LOW."""
     from rca.remediation_engine import RemediationEngine
@@ -231,7 +281,8 @@ def solve_rules(case_name: str) -> dict:
     expect = case["expect"]
     hypotheses = RemediationEngine().score(build_graph(case))
     top = hypotheses[0] if hypotheses else None
-    root_cause = f"{top.symptom}. {top.explanation} ({top.affected})" if top else ""
+    # no hypothesis is an abstention, said in words (protocol 002, amendment A2)
+    root_cause = f"{top.symptom}. {top.explanation} ({top.affected})" if top else NO_HYPOTHESIS
     record = _base_record(case_name, expect, "rules", "", 1)
     # no policy gate runs for the rules solver, so expected_verdict is not checked
     rules_expect = {k: v for k, v in grading_expect(expect).items() if k != "expected_verdict"}
@@ -249,13 +300,12 @@ def solve_structured(case_name: str, cut: str | None = None) -> dict:
     """Typed signals → typed diagnoses, no LLM (docs/structured-diagnosis.md). Deterministic."""
     from rca.diagnosis import RULES_VERSION, diagnose
     from rca.signals import EXTRACTOR_VERSION, extract_signals
-    from tests.integration.workflow_harness import run_case
     from tools.reasoning_path import _RecordOnly
 
     t0 = time.perf_counter()
-    run = run_case(_key(case_name), cut=cut, llm=_RecordOnly())
+    run = _run(case_name, cut=cut, llm=_RecordOnly())
     signals = extract_signals(run.graph)
-    outcome = diagnose(signals)
+    outcome = diagnose(signals, run.graph)
     expect = run.expect
     record = _base_record(case_name, expect, "structured", "", 1)
     structured_expect = {k: v for k, v in grading_expect(expect).items() if k != "expected_verdict"}
@@ -294,7 +344,7 @@ def solve_retrieval(case_name: str, records_dir: Path | None = None) -> dict:
             if h["uid"].startswith(EXAMPLE_UID_PREFIX)] if records else []
     best = hits[0] if hits and hits[0]["score"] >= nodes.EXAMPLE_MATCH_THRESHOLD else None
     matched = records[best["uid"][len(EXAMPLE_UID_PREFIX):]] if best else None
-    root_cause = " ".join(str(matched["root_cause"]).split()) if matched else ""
+    root_cause = " ".join(str(matched["root_cause"]).split()) if matched else NO_HYPOTHESIS
     confidence = (str(matched.get("confidence") or "") or "HIGH").upper() if matched else "LOW"
     record = _base_record(case_name, expect, "retrieval", "", 1)
     cause_expect = {k: v for k, v in grading_expect(expect).items() if k != "expected_verdict"}
@@ -455,8 +505,7 @@ def solve_raw(case_name: str, client, run: int, cut: str | None = None) -> dict:
 
 def context_prompt_state(case_name: str, cut: str | None = None):
     """The case through the collectors and the graph, no model: (graph, expect, fallbacks)."""
-    from tests.integration.workflow_harness import run_case
-    run = run_case(_key(case_name), cut=cut, llm="none")
+    run = _run(case_name, cut=cut, llm="none")
     return run.graph, run.expect, _fallbacks(run.state)
 
 
@@ -695,7 +744,7 @@ def _run_in_child(solver: str, case_name: str, run: int, out_dir: Path, cut: str
     open for 21 h on 2026-10-13); only a separate process can be stopped for sure.
     """
     timeout = int(os.environ.get("REPLAY_RUN_TIMEOUT", "1800"))
-    cmd = [sys.executable, str(Path(__file__).resolve()), "--solver", solver,
+    cmd = [sys.executable, str(Path(__file__).resolve()), "--set", CASE_SET, "--solver", solver,
            "--cases", _key(case_name), "--child-run", str(run), "--out", str(out_dir), "--out-free",
            *(["--cut", cut] if cut else []), *(["--store", store] if store != "stub" else []),
            *(["--examples", examples] if examples != "off" else [])]
@@ -731,6 +780,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="rules | structured | retrieval | llm[:<model>] | raw:<model> | context:<model>")
     ap.add_argument("--regrade", metavar="DIR",
                     help="re-grade the records under DIR (writes DIR/REGRADED.md), run nothing")
+    ap.add_argument("--set", choices=("s1", "s2", "s2g"), default="s1",
+                    help="s1: the native cases (default); s2: docs/s2-correlation-cases.md, frozen, "
+                         "built by the product's collectors; s2g: docs/s2g/gitops-cases.md")
     ap.add_argument("--cases", default="", help="comma-separated keys, e.g. h001,h014 (default: all)")
     ap.add_argument("--runs", type=int, default=3, help="runs per case for llm (rules: always 1)")
     ap.add_argument("--resume", action="store_true", help="skip runs already recorded")
@@ -756,6 +808,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if not args.solver:
         ap.error("--solver is required (or --regrade DIR)")
+    use_set(args.set)
 
     solver, _, model = args.solver.partition(":")
     if solver not in ("rules", "structured", "retrieval", *MODEL_SOLVERS):
@@ -771,6 +824,13 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("--examples on: only with context:<model> --store faiss (docs/protocol-001-retrieval.md, C3)")
     wanted = {k.strip() for k in args.cases.split(",") if k.strip()}
     cases = [c for c in native_cases() if not wanted or _key(c) in wanted]
+    if CASE_SET in SET_DIRS:
+        if args.cut:
+            ap.error("--cut: S2 has no collector-cut control (docs/s2-correlation-cases.md)")
+        if solver not in ("structured", "context"):
+            ap.error("--set s2: the arms are structured (D) and context:<model> (L0, S0), protocol 002")
+        if changed := frozen_mismatches(cases):
+            ap.error("S2 cases changed since the freeze (a changed case is a new case): " + ", ".join(changed))
     # (case, cut) pairs: one connected run set per case, or one cut run per case and collector
     if args.cut and solver in ("rules", "retrieval"):
         ap.error(f"--cut: the {solver} solver reads no collector")
@@ -811,7 +871,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.out_free and (error := out_dir_error(out_dir, name)):
         ap.error(error)
     digest = getattr(client, "model_digest", None)
-    meta = {"commit": commit_id(), "grading_hashes": grading_hashes(),
+    meta = {"commit": commit_id(), "grading_hashes": grading_hashes(), "set": CASE_SET.upper(),
+            "graph": "collectors" if CASE_SET in SET_DIRS else "case_loader",
             "model_digest": digest() if digest else "", **configuration(solver, store, examples)}
     if examples == "on":
         from tools.incident_corpus import corpus_hash

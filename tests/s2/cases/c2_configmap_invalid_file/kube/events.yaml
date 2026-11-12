@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: worker-node-02.nodenotschedulable.-83d60
+    namespace: default
+    uid: evt-default-worker-node-02-nodenotschedulable--83d60
+  type: Normal
+  reason: NodeNotSchedulable
+  message: 'Node worker-node-02 status is now: NodeNotSchedulable'
+  involvedObject:
+    kind: Node
+    name: worker-node-02
+    namespace: default
+  count: 1
+  firstTimestamp: '2026-10-14T02:00:00Z'
+  lastTimestamp: '2026-10-14T02:00:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: web.scalingreplicaset.-e10
+    namespace: shop
+    uid: evt-shop-web-scalingreplicaset--e10
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set web-9c8d7b6f5 to 2
+  involvedObject:
+    kind: Deployment
+    name: web
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T07:00:00Z'
+  lastTimestamp: '2026-10-20T07:00:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: search-api-6f9c8d7b4-ffafa.backoff.78
+    namespace: shop
+    uid: evt-shop-search-api-6f9c8d7b4-ffafa-backoff-78
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container search-api in pod search-api-6f9c8d7b4-ffafa
+  involvedObject:
+    kind: Pod
+    name: search-api-6f9c8d7b4-ffafa
+    namespace: shop
+  count: 20
+  firstTimestamp: '2026-10-20T08:02:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: search-api-6f9c8d7b4-019e9.backoff.78
+    namespace: shop
+    uid: evt-shop-search-api-6f9c8d7b4-019e9-backoff-78
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container search-api in pod search-api-6f9c8d7b4-019e9
+  involvedObject:
+    kind: Pod
+    name: search-api-6f9c8d7b4-019e9
+    namespace: shop
+  count: 20
+  firstTimestamp: '2026-10-20T08:02:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: web-9c8d7b6f5-4cb4b.backoff.78
+    namespace: shop
+    uid: evt-shop-web-9c8d7b6f5-4cb4b-backoff-78
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container web in pod web-9c8d7b6f5-4cb4b
+  involvedObject:
+    kind: Pod
+    name: web-9c8d7b6f5-4cb4b
+    namespace: shop
+  count: 20
+  firstTimestamp: '2026-10-20T08:02:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: web-9c8d7b6f5-4ea3a.backoff.78
+    namespace: shop
+    uid: evt-shop-web-9c8d7b6f5-4ea3a-backoff-78
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container web in pod web-9c8d7b6f5-4ea3a
+  involvedObject:
+    kind: Pod
+    name: web-9c8d7b6f5-4ea3a
+    namespace: shop
+  count: 20
+  firstTimestamp: '2026-10-20T08:02:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: kubelet

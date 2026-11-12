@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: CertificateList
+metadata: {}
+items:
+- apiVersion: cert-manager.io/v1
+  kind: Certificate
+  metadata:
+    name: storefront
+    namespace: shop
+    uid: 7758931d-9285-16e6-0d4b-25645c3ff019
+    generation: 1
+  spec:
+    secretName: storefront-tls
+    dnsNames:
+    - storefront.acme.example
+    issuerRef:
+      name: letsencrypt
+      kind: ClusterIssuer
+  status:
+    conditions:
+    - type: Ready
+      status: 'True'
+      reason: Ready
+      message: Certificate is up to date and has not expired
+      lastTransitionTime: '2026-11-02T08:30:00Z'
+      observedGeneration: 1
+    notAfter: '2027-01-30T09:00:00Z'
+    renewalTime: '2026-12-31T09:00:00Z'
+    revision: 4

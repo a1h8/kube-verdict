@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: EventList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: web.scalingreplicaset.-e10
+    namespace: shop
+    uid: evt-shop-web-scalingreplicaset--e10
+  type: Normal
+  reason: ScalingReplicaSet
+  message: Scaled up replica set web-9c8d7b6f5 to 2
+  involvedObject:
+    kind: Deployment
+    name: web
+    namespace: shop
+  count: 1
+  firstTimestamp: '2026-10-20T07:00:00Z'
+  lastTimestamp: '2026-10-20T07:00:00Z'
+  reportingComponent: deployment-controller
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: worker-node-02.nodenotschedulable.4b0
+    namespace: default
+    uid: evt-default-worker-node-02-nodenotschedulable-4b0
+  type: Normal
+  reason: NodeNotSchedulable
+  message: 'Node worker-node-02 status is now: NodeNotSchedulable'
+  involvedObject:
+    kind: Node
+    name: worker-node-02
+    namespace: default
+  count: 1
+  firstTimestamp: '2026-10-20T08:20:00Z'
+  lastTimestamp: '2026-10-20T08:20:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: cart-api-5d6f8c7b9-ce7b7.backoff.564
+    namespace: shop
+    uid: evt-shop-cart-api-5d6f8c7b9-ce7b7-backoff-564
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container cart-api in pod cart-api-5d6f8c7b9-ce7b7
+  involvedObject:
+    kind: Pod
+    name: cart-api-5d6f8c7b9-ce7b7
+    namespace: shop
+  count: 20
+  firstTimestamp: '2026-10-20T08:23:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: checkout-6d9f7c8b5-cc8c8.backoff.564
+    namespace: shop
+    uid: evt-shop-checkout-6d9f7c8b5-cc8c8-backoff-564
+  type: Warning
+  reason: BackOff
+  message: Back-off restarting failed container checkout in pod checkout-6d9f7c8b5-cc8c8
+  involvedObject:
+    kind: Pod
+    name: checkout-6d9f7c8b5-cc8c8
+    namespace: shop
+  count: 20
+  firstTimestamp: '2026-10-20T08:23:00Z'
+  lastTimestamp: '2026-10-20T08:58:00Z'
+  reportingComponent: kubelet
+- apiVersion: v1
+  kind: Event
+  metadata:
+    name: worker-node-02.nodeschedulable.834
+    namespace: default
+    uid: evt-default-worker-node-02-nodeschedulable-834
+  type: Normal
+  reason: NodeSchedulable
+  message: 'Node worker-node-02 status is now: NodeSchedulable'
+  involvedObject:
+    kind: Node
+    name: worker-node-02
+    namespace: default
+  count: 1
+  firstTimestamp: '2026-10-20T08:35:00Z'
+  lastTimestamp: '2026-10-20T08:35:00Z'
+  reportingComponent: kubelet

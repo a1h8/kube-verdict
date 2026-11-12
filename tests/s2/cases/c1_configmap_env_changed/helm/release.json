@@ -1,0 +1,4 @@
+{
+  "dbHost": "orders-db-v2.data.svc.cluster.local",
+  "region": "eu-west"
+}

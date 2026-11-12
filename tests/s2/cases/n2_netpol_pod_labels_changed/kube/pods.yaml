@@ -1,0 +1,651 @@
+apiVersion: v1
+kind: PodList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: checkout-api-6d9f7c8b5-32d2c
+    namespace: shop
+    uid: pod-shop-checkout-api-6d9f7c8b5-32d2c
+    labels:
+      app.kubernetes.io/name: checkout-api
+      app.kubernetes.io/instance: checkout-api
+      pod-template-hash: 6d9f7c8b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: checkout-api-6d9f7c8b5
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: checkout-api
+      image: ghcr.io/acme/checkout-api:1.9.2
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.1.32
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: checkout-api
+      image: ghcr.io/acme/checkout-api:1.9.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: checkout-api-6d9f7c8b5-34c1b
+    namespace: shop
+    uid: pod-shop-checkout-api-6d9f7c8b5-34c1b
+    labels:
+      app.kubernetes.io/name: checkout-api
+      app.kubernetes.io/instance: checkout-api
+      pod-template-hash: 6d9f7c8b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: checkout-api-6d9f7c8b5
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: checkout-api
+      image: ghcr.io/acme/checkout-api:1.9.2
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.2.32
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: checkout-api
+      image: ghcr.io/acme/checkout-api:1.9.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: checkout-api-6d9f7c8b5-36b0a
+    namespace: shop
+    uid: pod-shop-checkout-api-6d9f7c8b5-36b0a
+    labels:
+      app.kubernetes.io/name: checkout-api
+      app.kubernetes.io/instance: checkout-api
+      pod-template-hash: 6d9f7c8b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: checkout-api-6d9f7c8b5
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: checkout-api
+      image: ghcr.io/acme/checkout-api:1.9.2
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.3.32
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: checkout-api
+      image: ghcr.io/acme/checkout-api:1.9.2
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-7f8c9d6b4-ffafa
+    namespace: shop
+    uid: pod-shop-orders-api-7f8c9d6b4-ffafa
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 7f8c9d6b4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-7f8c9d6b4
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:3.0.0
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.1.30
+    conditions:
+    - type: Ready
+      status: 'False'
+    containerStatuses:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:3.0.0
+      ready: false
+      restartCount: 6
+      state:
+        waiting:
+          reason: CrashLoopBackOff
+          message: back-off 2m40s restarting failed container=orders-api pod=orders-api-7f8c9d6b4-ffafa
+      lastState:
+        terminated:
+          reason: Error
+          exitCode: 1
+          startedAt: '2026-10-20T08:25:00Z'
+          finishedAt: '2026-10-20T08:26:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-api-7f8c9d6b4-019e9
+    namespace: shop
+    uid: pod-shop-orders-api-7f8c9d6b4-019e9
+    labels:
+      app.kubernetes.io/name: orders-api
+      app.kubernetes.io/instance: orders-api
+      pod-template-hash: 7f8c9d6b4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-api-7f8c9d6b4
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:3.0.0
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.2.30
+    conditions:
+    - type: Ready
+      status: 'False'
+    containerStatuses:
+    - name: orders-api
+      image: ghcr.io/acme/orders-api:3.0.0
+      ready: false
+      restartCount: 6
+      state:
+        waiting:
+          reason: CrashLoopBackOff
+          message: back-off 2m40s restarting failed container=orders-api pod=orders-api-7f8c9d6b4-019e9
+      lastState:
+        terminated:
+          reason: Error
+          exitCode: 1
+          startedAt: '2026-10-20T08:25:00Z'
+          finishedAt: '2026-10-20T08:26:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: cart-api-5d6f8c7b9-cc8c8
+    namespace: shop
+    uid: pod-shop-cart-api-5d6f8c7b9-cc8c8
+    labels:
+      app.kubernetes.io/name: cart-api
+      app.kubernetes.io/instance: cart-api
+      pod-template-hash: 5d6f8c7b9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: cart-api-5d6f8c7b9
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.1
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.1.28
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.1
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: cart-api-5d6f8c7b9-ce7b7
+    namespace: shop
+    uid: pod-shop-cart-api-5d6f8c7b9-ce7b7
+    labels:
+      app.kubernetes.io/name: cart-api
+      app.kubernetes.io/instance: cart-api
+      pod-template-hash: 5d6f8c7b9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: cart-api-5d6f8c7b9
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.1
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.2.28
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: cart-api
+      image: ghcr.io/acme/cart-api:2.3.1
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: web-8c7b6d5f9-4cb4b
+    namespace: shop
+    uid: pod-shop-web-8c7b6d5f9-4cb4b
+    labels:
+      app.kubernetes.io/name: web
+      app.kubernetes.io/instance: web
+      pod-template-hash: 8c7b6d5f9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: web-8c7b6d5f9
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: web
+      image: ghcr.io/acme/web:4.2.0
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.1.23
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: web
+      image: ghcr.io/acme/web:4.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: web-8c7b6d5f9-4ea3a
+    namespace: shop
+    uid: pod-shop-web-8c7b6d5f9-4ea3a
+    labels:
+      app.kubernetes.io/name: web
+      app.kubernetes.io/instance: web
+      pod-template-hash: 8c7b6d5f9
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: web-8c7b6d5f9
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: web
+      image: ghcr.io/acme/web:4.2.0
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.2.23
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: web
+      image: ghcr.io/acme/web:4.2.0
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: payments-9d8c7f6b5-cc8c8
+    namespace: pay
+    uid: pod-pay-payments-9d8c7f6b5-cc8c8
+    labels:
+      app.kubernetes.io/name: payments
+      app.kubernetes.io/instance: payments
+      pod-template-hash: 9d8c7f6b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: payments-9d8c7f6b5
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: payments
+      image: ghcr.io/acme/payments:5.4.1
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.1.28
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: payments
+      image: ghcr.io/acme/payments:5.4.1
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:05:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: payments-9d8c7f6b5-ce7b7
+    namespace: pay
+    uid: pod-pay-payments-9d8c7f6b5-ce7b7
+    labels:
+      app.kubernetes.io/name: payments
+      app.kubernetes.io/instance: payments
+      pod-template-hash: 9d8c7f6b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: payments-9d8c7f6b5
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: payments
+      image: ghcr.io/acme/payments:5.4.1
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.2.28
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: payments
+      image: ghcr.io/acme/payments:5.4.1
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:06:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: payments-9d8c7f6b5-d06a6
+    namespace: pay
+    uid: pod-pay-payments-9d8c7f6b5-d06a6
+    labels:
+      app.kubernetes.io/name: payments
+      app.kubernetes.io/instance: payments
+      pod-template-hash: 9d8c7f6b5
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: payments-9d8c7f6b5
+      controller: true
+  spec:
+    nodeName: worker-node-03
+    containers:
+    - name: payments
+      image: ghcr.io/acme/payments:5.4.1
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.3.28
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: payments
+      image: ghcr.io/acme/payments:5.4.1
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-20T08:07:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: orders-db-6c7d8b9f4-e61e1
+    namespace: data
+    uid: pod-data-orders-db-6c7d8b9f4-e61e1
+    labels:
+      app.kubernetes.io/name: orders-db
+      app.kubernetes.io/instance: orders-db
+      pod-template-hash: 6c7d8b9f4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: orders-db-6c7d8b9f4
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: orders-db
+      image: ghcr.io/acme/orders-db:15.4
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.1.29
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: orders-db
+      image: ghcr.io/acme/orders-db:15.4
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: coredns-7db6d8ff4-b2faf
+    namespace: kube-system
+    uid: pod-kube-system-coredns-7db6d8ff4-b2faf
+    labels:
+      app.kubernetes.io/name: coredns
+      app.kubernetes.io/instance: coredns
+      pod-template-hash: 7db6d8ff4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: coredns-7db6d8ff4
+      controller: true
+  spec:
+    nodeName: worker-node-01
+    containers:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.1.27
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      ready: true
+      restartCount: 1
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState:
+        terminated:
+          reason: Error
+          exitCode: 1
+          startedAt: '2026-10-14T02:00:00Z'
+          finishedAt: '2026-10-19T06:00:00Z'
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: coredns-7db6d8ff4-b4e9e
+    namespace: kube-system
+    uid: pod-kube-system-coredns-7db6d8ff4-b4e9e
+    labels:
+      app.kubernetes.io/name: coredns
+      app.kubernetes.io/instance: coredns
+      pod-template-hash: 7db6d8ff4
+    ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: coredns-7db6d8ff4
+      controller: true
+  spec:
+    nodeName: worker-node-02
+    containers:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 512Mi
+  status:
+    phase: Running
+    podIP: 10.42.2.27
+    conditions:
+    - type: Ready
+      status: 'True'
+    containerStatuses:
+    - name: coredns
+      image: ghcr.io/acme/coredns:1.11.3
+      ready: true
+      restartCount: 0
+      state:
+        running:
+          startedAt: '2026-10-17T13:20:00Z'
+      lastState: {}

@@ -1,0 +1,69 @@
+# Declared anchors and variability (docs/anchors-and-relations.md § 2-3). The type is one of the fixed set in
+# ontology/spec_loader.py; variability is static, volatile, gitops-ignored or controller:<who>.
+version: 1
+anchors:
+  - id: quota.within-hard
+    kind: ResourceQuota
+    type: bound
+    params: {left: "status.used.{r}", right: "status.hard.{r}", aggregate: {over: pods-counted, by: root-owner}}
+    variability: volatile
+    sources:
+      - https://kubernetes.io/docs/concepts/policy/resource-quotas/
+
+  - id: limitrange.default-fits
+    kind: LimitRange
+    type: fits
+    params: {resource: "spec.limits[type=Container].default.{r}", evidence: "lastState.terminated.reason=OOMKilled"}
+    variability: static
+    sources:
+      - https://kubernetes.io/docs/concepts/policy/limit-range/#default-requests-and-limits
+
+  - id: pod.limits-injected-by-limitranger
+    kind: Pod
+    type: declared
+    params: {field: "spec.containers[].resources.limits", hop: LIMITS,
+             when: "the owner template declares no limit for the resource"}
+    variability: controller:limitranger
+    sources:
+      - https://kubernetes.io/docs/concepts/policy/limit-range/#default-requests-and-limits
+
+  - id: configmap.env-fresh
+    kind: ConfigMap
+    type: fresh
+    params: {through: CONFIGURES, written: "metadata.managedFields[].time", consumer_start: "status.startTime"}
+    variability: static
+    sources:
+      - https://kubernetes.io/docs/concepts/configuration/configmap/#configmaps-and-pods
+
+  - id: deployment.replicas-by-hpa
+    kind: Deployment
+    type: declared
+    params: {field: spec.replicas, hop: SCALES, when: "an HPA targets the Deployment"}
+    variability: controller:hpa
+    sources:
+      - https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+
+  # docs/s2g/gitops-cases.md, change 1: the reached manager's own field manager owns the limit that OOMKills the
+  # managed object's pods. Not in any definition: what a field manager writes, and for which object, is read in
+  # managedFields and ontology/spec/managers.yaml.
+  - id: gitops.applied-limit-fits
+    kind: Application
+    type: fits
+    params: {through: MANAGES, resource: "spec.template.spec.containers[].resources.limits.memory",
+             evidence: "lastState.terminated.reason=OOMKilled"}
+    variability: static
+    sources:
+      - https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/
+      - https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/
+
+  # docs/s2g/gitops-cases.md, change 2. The Application CRD (bundle, Argo CD v3.6.1) types the phase as a string with
+  # no enum, so the valid values are declared here. The only documentation that names them is the notification triggers
+  # page, in its `sync-operation-change` example: phase in ['Succeeded'], in ['Running'], in ['Error', 'Failed'].
+  - id: argocd.sync-phase-valid
+    kind: Application
+    type: valid
+    params: {field: status.operationState.phase, values: [Running, Succeeded],
+             message: status.operationState.message}
+    variability: volatile
+    sources:
+      - https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/triggers/

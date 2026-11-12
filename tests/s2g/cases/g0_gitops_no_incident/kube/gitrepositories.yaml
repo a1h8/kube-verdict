@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: GitRepositoryList
+metadata: {}
+items:
+- apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: flux-system
+    namespace: flux-system
+    uid: b2342245-7f4c-e1b6-0e5b-e9687075f8bd
+    generation: 1
+  spec:
+    interval: 1m
+    url: https://git.example.com/acme/deploy.git
+    ref:
+      branch: main
+  status:
+    observedGeneration: 1
+    conditions:
+    - type: Ready
+      status: 'True'
+      reason: Succeeded
+      message: stored artifact for revision 'main@sha1:b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5'
+      lastTransitionTime: '2026-11-02T08:50:00Z'
+      observedGeneration: 2
+    artifact:
+      path: gitrepository/flux-system/flux-system/b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5.tar.gz
+      url: http://source-controller.flux-system.svc/gitrepository/flux-system/b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5.tar.gz
+      revision: main@sha1:b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5
+      digest: sha256:3249c738b855b5db65669b7dfd51d21528829d590169744c4125ff603d5561c3
+      lastUpdateTime: '2026-11-02T08:50:00Z'

@@ -1,0 +1,50 @@
+[
+  {
+    "labels": {
+      "alertname": "CPUThrottlingHigh",
+      "severity": "info",
+      "namespace": "shop",
+      "pod": "search-api-6f9c8d7b4-ffafa",
+      "container": "search-api"
+    },
+    "annotations": {
+      "summary": "Processes experience elevated CPU throttling.",
+      "description": "29.1% throttling of CPU in namespace shop for container search-api."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-19T18:40:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "ContainerOOMKilled",
+      "severity": "warning",
+      "namespace": "shop",
+      "pod": "report-worker-7d9c8b6f5-4c645",
+      "container": "report-worker"
+    },
+    "annotations": {
+      "summary": "Container was OOMKilled.",
+      "description": "Container report-worker in pod shop/report-worker-7d9c8b6f5-4c645 was OOMKilled 2 times in the last hour."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T09:13:00Z",
+    "value": "1"
+  },
+  {
+    "labels": {
+      "alertname": "ContainerOOMKilled",
+      "severity": "warning",
+      "namespace": "shop",
+      "pod": "report-worker-7d9c8b6f5-4e534",
+      "container": "report-worker"
+    },
+    "annotations": {
+      "summary": "Container was OOMKilled.",
+      "description": "Container report-worker in pod shop/report-worker-7d9c8b6f5-4e534 was OOMKilled 2 times in the last hour."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T09:13:00Z",
+    "value": "1"
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "labels": {
+      "alertname": "CPUThrottlingHigh",
+      "severity": "info",
+      "namespace": "shop",
+      "pod": "search-api-6f9c8d7b4-ffafa",
+      "container": "search-api"
+    },
+    "annotations": {
+      "summary": "Processes experience elevated CPU throttling.",
+      "description": "29.1% throttling of CPU in namespace shop for container search-api."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-19T18:40:00Z",
+    "value": "1"
+  }
+]

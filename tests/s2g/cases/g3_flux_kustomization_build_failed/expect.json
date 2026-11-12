@@ -1,0 +1,45 @@
+{
+  "set": "S2-GitOps",
+  "spec": "docs/s2g/gitops-cases.md",
+  "sources": [
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/",
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/",
+    "https://fluxcd.io/flux/components/kustomize/kustomizations/",
+    "https://fluxcd.io/flux/components/helm/helmreleases/",
+    "ontology/spec/upstream/bundle (Argo CD v3.6.1, Flux helm v1.7.1, kustomize v1.10.1 CRDs)"
+  ],
+  "family": "gitops",
+  "namespace": "shop",
+  "release": "search",
+  "scenario": "the fix of search's ranking bug is in Git's new revision; Flux's Kustomization fails to build that revision, so the last applied one, with the bug, stays live",
+  "query": "why does search still return errors in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Kustomization/flux-system/apps",
+  "mechanism": "Ready=False BuildFailed on the new revision; lastAppliedRevision is the old one",
+  "pass_if": "names the Kustomization's failed build as why the fix is not applied",
+  "partial_if_only": [
+    "search has a ranking bug, without Flux"
+  ],
+  "chain": [
+    "search logs index out of range errors",
+    "Deployment/shop/search is listed in the Kustomization's inventory",
+    "Kustomization/flux-system/apps: Ready False BuildFailed, attempted the new revision, applied the old"
+  ],
+  "decoys": [
+    {
+      "object": "Kustomization/flux-system/infra",
+      "why_not": "Ready, applied the new revision"
+    },
+    {
+      "object": "GitRepository/flux-system/flux-system",
+      "why_not": "Ready, serves the new revision"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/search"
+  ],
+  "root_cause_concepts": [
+    "kustomization|flux|build",
+    "fail|buildfailed"
+  ]
+}

@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: ServiceList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: report-worker
+    namespace: shop
+    uid: svc-shop-report-worker
+  spec:
+    selector:
+      app.kubernetes.io/name: report-worker
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: notify-worker
+    namespace: shop
+    uid: svc-shop-notify-worker
+  spec:
+    selector:
+      app.kubernetes.io/name: notify-worker
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: cart-api
+    namespace: shop
+    uid: svc-shop-cart-api
+  spec:
+    selector:
+      app.kubernetes.io/name: cart-api
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: search-api
+    namespace: shop
+    uid: svc-shop-search-api
+  spec:
+    selector:
+      app.kubernetes.io/name: search-api
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: checkout-web
+    namespace: shop
+    uid: svc-shop-checkout-web
+  spec:
+    selector:
+      app.kubernetes.io/name: checkout-web
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: prometheus-server
+    namespace: monitoring
+    uid: svc-monitoring-prometheus-server
+  spec:
+    selector:
+      app.kubernetes.io/name: prometheus-server
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: alertmanager
+    namespace: monitoring
+    uid: svc-monitoring-alertmanager
+  spec:
+    selector:
+      app.kubernetes.io/name: alertmanager
+    ports:
+    - port: 80
+      targetPort: 8080
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: coredns
+    namespace: kube-system
+    uid: svc-kube-system-coredns
+  spec:
+    selector:
+      app.kubernetes.io/name: coredns
+    ports:
+    - port: 80
+      targetPort: 8080

@@ -38,6 +38,9 @@ class ContextWindow:
     anchor_fixes: list[str] = field(default_factory=list)    # helm commands to restore declared values
     helm: list[str] = field(default_factory=list)            # releases + charts
     related: list[str] = field(default_factory=list)         # BFS neighbourhood
+    # chains from the symptom to an abnormal object over verified relations (rca/correlation.py), outside the
+    # related slots: what a verified relation reaches does not compete with retrieval hits
+    chains: list[str] = field(default_factory=list)
     # OPA / Kyverno policy violations (populated by PolicyReportCollector)
     policy_violations: list[str] = field(default_factory=list)
 
@@ -64,6 +67,7 @@ class ContextWindow:
     def total_chunks(self) -> int:
         return (
             len(self.seeds)
+            + len(self.chains)
             + len(self.drift)
             + len(self.examples)
             + len(self.alerts)
@@ -89,6 +93,10 @@ class ContextWindow:
         if self.seeds:
             lines.append(f"### CRITICAL — Unhealthy resources ({len(self.seeds)})")
             lines.extend(f"  - {t}" for t in self.seeds)
+
+        if self.chains:
+            lines.append(f"### CORRELATED CHAINS — symptom to cause over verified relations ({len(self.chains)})")
+            lines.extend(f"  - {t}" for t in self.chains)
 
         if self.drift:
             lines.append(
@@ -338,6 +346,10 @@ class ContextBuilder:
         ctx.seed_entities = seeds
         ctx.seeds = [e.to_text() for e in seeds]
         seed_uids = {e.uid for e in seeds}
+
+        # --- Section 1a: correlated chains (rca/correlation.py, M4-min) -------
+        from rca.correlation import correlate
+        ctx.chains = [c.to_text() for c in correlate(self.graph, seeds)]
 
         # --- Section 1b: fix hints (manifest anchors + policy remediations) ----
         ctx.anchor_fixes = self._anchor_fix_hints(seeds) + _policy_fix_hints(self.graph)

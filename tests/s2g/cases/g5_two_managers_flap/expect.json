@@ -1,0 +1,45 @@
+{
+  "set": "S2-GitOps",
+  "spec": "docs/s2g/gitops-cases.md",
+  "sources": [
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/",
+    "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/",
+    "https://fluxcd.io/flux/components/kustomize/kustomizations/",
+    "https://fluxcd.io/flux/components/helm/helmreleases/",
+    "ontology/spec/upstream/bundle (Argo CD v3.6.1, Flux helm v1.7.1, kustomize v1.10.1 CRDs)"
+  ],
+  "family": "gitops",
+  "namespace": "shop",
+  "release": "api",
+  "scenario": "Deployment shop/api is in both Argo CD's Application platform and Flux's Kustomization apps, which reconcile its replicas to different values",
+  "query": "why does the replica count of api keep changing in shop",
+  "expected_outcome": "cause",
+  "cause_object": "Application/argocd/platform",
+  "cause_objects": [
+    "Application/argocd/platform",
+    "Kustomization/flux-system/apps"
+  ],
+  "mechanism": "two GitOps tools manage the same Deployment; each reconcile sets its own replica count",
+  "pass_if": "names both managers owning the Deployment",
+  "partial_if_only": [
+    "one of the two managers only"
+  ],
+  "chain": [
+    "api's ReplicaSet is scaled 3 to 5 and back every 5 minutes",
+    "Deployment/shop/api is in Application/argocd/platform's resources",
+    "and in Kustomization/flux-system/apps's inventory"
+  ],
+  "decoys": [
+    {
+      "object": "an HPA",
+      "why_not": "there is none on api"
+    }
+  ],
+  "affected_resources": [
+    "Deployment/shop/api"
+  ],
+  "root_cause_concepts": [
+    "argo|application",
+    "flux|kustomization"
+  ]
+}

@@ -1,0 +1,70 @@
+# The evidence for each hop of each S2-GitOps case (docs/s2g/gitops-cases.md), written with the builder.
+g1_argocd_selfheal_reverts_fix:
+- hop: billing-worker's pods are OOMKilled
+  file: kube/pods.yaml
+  contains: 'reason: OOMKilled'
+  join: the pods' ReplicaSet, then the Deployment, by ownerReferences
+- hop: the Deployment's memory limit is 256Mi, owned by argocd-controller
+  file: kube/deployments.yaml
+  contains: 'manager: argocd-controller'
+  join: argocd-controller is Argo CD's server-side apply manager
+- hop: the hand fix's ReplicaSet with 768Mi, scaled to 0
+  file: kube/replicasets.yaml
+  contains: 'memory: 768Mi'
+  join: the events of T0 and T0+2 min
+- hop: the Application lists the Deployment and self-heals
+  file: kube/applications.yaml
+  contains: 'selfHeal: true'
+  join: status.resources[] names Deployment billing-worker
+g2_argocd_sync_failed_invalid_resource:
+- hop: checkout exits on PAYMENT_TIMEOUT=30x
+  file: loki/streams.json
+  contains: value=\"30x\"
+  join: the env's configMapKeyRef, checkout-config
+- hop: the ConfigMap holds 30x, OutOfSync
+  file: kube/configmaps.yaml
+  contains: 'PAYMENT_TIMEOUT: 30x'
+  join: the Application's status.resources[] lists it OutOfSync
+- hop: the last sync failed on the Ingress
+  file: kube/applications.yaml
+  contains: one or more objects failed to apply
+  join: —
+g3_flux_kustomization_build_failed:
+- hop: search logs errors
+  file: loki/streams.json
+  contains: index out of range
+  join: the Deployment search
+- hop: search is in the Kustomization's inventory
+  file: kube/kustomizations.yaml
+  contains: shop_search_apps_Deployment
+  join: the inventory id
+- hop: the Kustomization failed its build
+  file: kube/kustomizations.yaml
+  contains: 'reason: BuildFailed'
+  join: lastAttemptedRevision differs from lastAppliedRevision
+g4_flux_helmrelease_upgrade_rolled_back:
+- hop: pricing runs 1.4.0
+  file: kube/deployments.yaml
+  contains: ghcr.io/acme/pricing:1.4.0
+  join: the HelmRelease's inventory
+- hop: the upgrade failed
+  file: kube/helmreleases.yaml
+  contains: 'reason: UpgradeFailed'
+  join: —
+- hop: and was rolled back
+  file: kube/helmreleases.yaml
+  contains: 'reason: RollbackSucceeded'
+  join: 'history: v5 failed, v6 deployed 1.4.0'
+g5_two_managers_flap:
+- hop: api's replicas alternate
+  file: kube/events.yaml
+  contains: from 5 to 3
+  join: the Deployment
+- hop: Argo CD lists it
+  file: kube/applications.yaml
+  contains: 'name: api'
+  join: status.resources[]
+- hop: Flux lists it
+  file: kube/kustomizations.yaml
+  contains: shop_api_apps_Deployment
+  join: status.inventory.entries[]

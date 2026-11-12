@@ -16,6 +16,7 @@ class RelationshipType(str, Enum):
     # Configuration
     MOUNTS_CONFIGMAP = "MOUNTS_CONFIGMAP"   # Pod → ConfigMap
     MOUNTS_SECRET = "MOUNTS_SECRET"         # Pod → Secret
+    CONFIGURES = "CONFIGURES"               # ConfigMap → Pod, read through envFrom / env.valueFrom (ontology/relations.py)
     USES_PVC = "USES_PVC"                   # Pod → PersistentVolumeClaim
     BINDS_PV = "BINDS_PV"                   # PersistentVolumeClaim → PersistentVolume
     USES_SERVICE_ACCOUNT = "USES_SERVICE_ACCOUNT"  # Pod → ServiceAccount
@@ -55,7 +56,9 @@ class RelationshipType(str, Enum):
     PROVISIONED_BY = "PROVISIONED_BY"  # PersistentVolumeClaim → StorageClass
 
     # Network
-    RESTRICTS = "RESTRICTS"        # NetworkPolicy → Namespace
+    RESTRICTS = "RESTRICTS"        # NetworkPolicy → Pod its podSelector selects (ontology/spec/relations.yaml)
+    ADMITS = "ADMITS"              # MutatingWebhook → Namespace its namespaceSelector matches
+    MANAGES = "MANAGES"            # GitOps manager (Argo CD Application, Flux Kustomization) → object in its inventory
 
 
 @dataclass(frozen=True)

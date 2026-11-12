@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shop-env
+  namespace: shop
+  uid: cm-shop-shop-env
+  annotations:
+    meta.helm.sh/release-name: platform-config
+    meta.helm.sh/release-namespace: shop
+data:
+  DB_HOST: orders-db-v2.data.svc.cluster.local
+  DB_PORT: '5432'
+  REGION: eu-west
+  LOG_LEVEL: info

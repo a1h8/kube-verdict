@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: NamespaceList
+metadata: {}
+items:
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: argocd
+    uid: 63c929bc-451e-2d62-9491-3a2f52bb20f0
+    labels:
+      kubernetes.io/metadata.name: argocd
+  status:
+    phase: Active
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: flux-system
+    uid: 6e15d820-12ff-a029-733e-a6a507625487
+    labels:
+      kubernetes.io/metadata.name: flux-system
+  status:
+    phase: Active
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: shop
+    uid: 7eb0dcca-10c8-948c-617e-c19b87eeac32
+    labels:
+      kubernetes.io/metadata.name: shop
+  status:
+    phase: Active
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: billing
+    uid: 1ab1fcee-f044-6114-7122-17b1c8c8a731
+    labels:
+      kubernetes.io/metadata.name: billing
+  status:
+    phase: Active
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: monitoring
+    uid: 21beb672-ced0-36a8-51fb-e3e1bd99258b
+    labels:
+      kubernetes.io/metadata.name: monitoring
+  status:
+    phase: Active
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: kube-system
+    uid: 040d869a-243c-6dbb-1386-a067e844978a
+    labels:
+      kubernetes.io/metadata.name: kube-system
+  status:
+    phase: Active

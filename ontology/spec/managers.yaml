@@ -1,0 +1,21 @@
+# Field managers and their role (docs/anchors-and-relations.md, amendment "what may change is observed live").
+# Manager names are not standardised: an entry is listed only when a source shows it. A manager that is not listed has
+# an unknown role, and a field it owns is never reported as a sure drift. The rest is filled from a live cluster.
+version: 1
+managers:
+  - name: kube-controller-manager
+    role: controller
+    sources:
+      - https://kubernetes.io/docs/reference/using-api/server-side-apply/
+  - name: kubectl
+    role: person
+    sources:
+      - https://kubernetes.io/docs/reference/using-api/server-side-apply/
+  # Argo CD's own documentation names it, Sync Options, "Client-Side Apply Migration": "Argo CD's server-side apply
+  # manager (`argocd-controller`)". It writes for its Application objects (for_kind). Client-side apply's name is not
+  # documented and is not listed.
+  - name: argocd-controller
+    role: release
+    for_kind: Application
+    sources:
+      - https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/

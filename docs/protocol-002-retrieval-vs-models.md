@@ -144,8 +144,36 @@ store, N, corpus hash and case hash; no real store read or written; temperature 
 
 ## Results
 
-Not run.
+- **S2, 2026-11-08 (exploratory, A3):** D, L₀ and S₀ only; `docs/s2-results.md`. Prediction 3 and the
+  decisions rest on arms not run yet (L₃, S₃, the controls) and on S3, so none is settled by this run.
+- S1 and S3: not run under this protocol.
 
 ## Amendments
 
-None.
+- **2026-11-06 — A1, how S2 is graded.** Approved before any S2 case or run. On S2 the primary measure is
+  whether an answer names the cause object (`kind/namespace/name`, written in the case before any run) and
+  its mechanism, judged by two graders not told which arm wrote each answer, with instructions written
+  before any run: two models from different providers, or one person and one model. Their agreement is
+  reported; a disagreement goes to a third reading and the case is reported as disputed. The keyword grader
+  (`tools/veracity.py`) stays as a secondary measure, so S2 can be set beside S1; the two are never pooled.
+  S1 keeps the keyword grader as primary. Why: block B showed the keyword grader too strict on a model's
+  cause in other words, and an external pass on 76 sampled answers judged 12 of 34 failed model answers
+  correct (`docs/s2-correlation-cases.md`).
+- **2026-11-06 — A2, cases with no incident.** Approved before any run of this protocol. On every set, an
+  answer to a case whose expected outcome is `no_incident` passes only when it states that there is no
+  incident and claims no fault; a LOW label and no forbidden keyword are no longer enough. Why: in block B
+  two answers that invented a paused Deployment passed h022 and h026 under the old rule. Block B's results
+  are not regraded; protocol 002's runs, S1 included, use the new rule, so their false alarms are not
+  comparable with block B's.
+- **2026-11-08 — A3, the volume of S2 and S3.** Written before any S2 or S3 run, as § Statistics requires. From
+  block B, at the case level (2 runs of 3), with the official grades: D against L₀ is discordant on 9 of 19 cases
+  for each model (ψ = 0.47); L₀ against C2 on 3 of 19 for mistral (ψ = 0.16) and 4 of 19 for qwen (ψ = 0.21).
+  The number of cases for a power of 0.8 against a 15-point difference, by the exact McNemar test at
+  α = 0.05/8 (the first Holm threshold of the eight primary comparisons, the most conservative reading, since this
+  section did not fix the α of the sizing): **280 cases** for D against L₀ or S₀, **120 cases** for the comparisons of
+  the search (L₃ or S₃ against L₀ or S₀). At α = 0.05 they would be about 180 and 80. Computed by `tools/protocol002_volume.py`, from the records. A set below these numbers is run
+  and reported as exploratory: intervals, no test. **S2, with 21 cases (14 with a cause), is exploratory by
+  construction:** its power against a 15-point difference is about 0.05. It says where each arm correlates or fails,
+  not whether one beats another. The shares come from S1, in sample: on cases the rules were not written on, the
+  difference between D and the models is likely smaller, which would change these numbers; they are recomputed from
+  S2's own results before S3 is sized, by a dated amendment.

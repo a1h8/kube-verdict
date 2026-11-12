@@ -1,0 +1,49 @@
+{
+  "answerable": null,
+  "case": "w2_webhook_fails_closed_expired_cert",
+  "case_hash": "9c33c1397c6c602165b6ce9badb1bcb08a214908587beac75fec25523776337b",
+  "commit": "a1da285d2440d3c441a391a49d96df1a1a9467d2",
+  "confidence": "LOW",
+  "config": "C0",
+  "corpus_hash": null,
+  "cut": null,
+  "diagnoses": [],
+  "examples": "off",
+  "expected_outcome": "cause",
+  "extractor_version": "signals/1",
+  "fallbacks": [],
+  "forbidden_matched": [],
+  "grading_hashes": {
+    "tests/veracity/synonyms.yaml": "2dcd90fa821cc3b3f4a197369a1a3bca25f011e95d4695459f97a08a5161eb70",
+    "tools/veracity.py": "cf01579c032b333ddf9b9e901e05bd0eba483ada3c02fb03b5a6ef58f918c857"
+  },
+  "graph": "collectors",
+  "invalid": [],
+  "matched_groups": [
+    []
+  ],
+  "matched_keywords": [],
+  "model": "",
+  "model_digest": "",
+  "outcome": "no_incident",
+  "pre_llm_confidence_score": null,
+  "prompt": "v6",
+  "reason": "cause concept(s) not named: certificate|cert|tls|x509, expired|expir",
+  "root_cause": "No incident: no fault signal in the evidence.",
+  "rules_version": "rules/5",
+  "run": 1,
+  "set": "S2",
+  "signal_kinds": [],
+  "signals_mode": null,
+  "solver": "structured",
+  "started_at": "2026-11-08T03:33:33.074015+00:00",
+  "store": "stub",
+  "tier": "S2",
+  "unclassified": {
+    "k8s_event": 3,
+    "prometheus": 1
+  },
+  "veracity": "FAIL",
+  "verdict": null,
+  "wall_s": 0.64
+}

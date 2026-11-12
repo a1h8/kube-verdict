@@ -1,0 +1,41 @@
+# Where the definitions the product reads are published (docs/schema-registry.md § 1, source 3).
+# tools/fetch_specs.py reads this file, lists each directory through the GitHub API (no file name is guessed), keeps
+# the files that match, and writes a bundle with its lock. `tag: latest` is resolved once, at fetch, to the latest
+# release's tag, and the lock records the tag it used.
+version: 1
+sources:
+  - name: kubernetes
+    repo: kubernetes/kubernetes
+    tag: v1.35.5            # the minor version of the local cluster (docs/live-k3s.md: K3s v1.35.5+k3s1)
+    dir: api/openapi-spec/v3
+    match: "*.json"
+    format: openapi-v3
+  - name: argo-cd
+    repo: argoproj/argo-cd
+    tag: latest
+    dir: manifests/crds
+    match: "*.yaml"
+    format: crd
+  - name: flux-kustomize-controller
+    repo: fluxcd/kustomize-controller
+    tag: latest
+    dir: config/crd/bases
+    match: "*.yaml"
+    format: crd
+  - name: flux-helm-controller
+    repo: fluxcd/helm-controller
+    tag: latest
+    dir: config/crd/bases
+    match: "*.yaml"
+    format: crd
+  - name: flux-source-controller
+    repo: fluxcd/source-controller
+    tag: latest
+    dir: config/crd/bases
+    match: "*.yaml"
+    format: crd
+  - name: cert-manager
+    repo: cert-manager/cert-manager
+    tag: latest
+    asset: cert-manager.crds.yaml   # a release asset, not a repository directory
+    format: crd

@@ -1,0 +1,37 @@
+{
+  "set": "S2",
+  "family": "netpol",
+  "namespace": "shop",
+  "sources": [
+    "https://kubernetes.io/docs/concepts/services-networking/network-policies/",
+    "prometheus-operator/runbooks@a685d14 KubePodNotReady",
+    "prometheus-operator/runbooks@a685d14 KubePodCrashLooping"
+  ],
+  "spec": "docs/s2/family-netpol.md",
+  "release": "orders-api",
+  "scenario": "No incident: the same objects as n1 and n2, labels that match",
+  "query": "is something wrong in shop",
+  "expected_outcome": "no_incident",
+  "cause_object": null,
+  "decoys": [
+    {
+      "object": "Deployment/pay/payments",
+      "why_not": "rolled out 20 min ago, healthy"
+    },
+    {
+      "object": "Pod/data/orders-db (too many clients)",
+      "why_not": "old, resolved"
+    },
+    {
+      "object": "Pod/kube-system/coredns (old restart)",
+      "why_not": "resolved 26 h before; DNS resolves in the logs"
+    },
+    {
+      "object": "NetworkPolicy/shop/allow-egress-all",
+      "why_not": "allows every egress, so it blocks nothing"
+    }
+  ],
+  "affected_resources": [],
+  "root_cause_contains": [],
+  "notes": "Passes only on an explicit no-incident answer (protocol 002, A2)."
+}

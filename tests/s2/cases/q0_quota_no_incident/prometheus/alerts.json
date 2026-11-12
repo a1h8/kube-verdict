@@ -1,0 +1,18 @@
+[
+  {
+    "labels": {
+      "alertname": "CPUThrottlingHigh",
+      "severity": "info",
+      "namespace": "monitoring",
+      "pod": "prometheus-server-5b6c7d8e9-05b07",
+      "container": "prometheus-server"
+    },
+    "annotations": {
+      "summary": "Processes experience elevated CPU throttling.",
+      "description": "31.2% throttling of CPU in namespace monitoring for container prometheus-server."
+    },
+    "state": "firing",
+    "activeAt": "2026-10-20T03:00:00Z",
+    "value": "1"
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "frozen_on": "2026-11-10",
+  "cases": {
+    "g0_gitops_no_incident": "7aeb2cc08f2f206dac485a4499e82182b2b1d069d3f5b40940a010d074213be1",
+    "g1_argocd_selfheal_reverts_fix": "6d7e78d824a1b1a98d29493a8b9c3cc697f140b5e0ad1c9c8e46567ae267667f",
+    "g2_argocd_sync_failed_invalid_resource": "b640f13a90009b2e2081bdaadad50d736d84f3c01e48e9f3e43a7e71d2a02c2e",
+    "g3_flux_kustomization_build_failed": "902fb7db8ea0054dfff452ffbb1316a0bdfbc0051ad0f54a22504e254fd7a0d8",
+    "g4_flux_helmrelease_upgrade_rolled_back": "a472631a9ed293f19c766362af0d3aff4a5e0a046be4bbe48e36570fbfd983af",
+    "g5_two_managers_flap": "15af445f52ceee1f22099840af32cad494b260436ddfc1c605a1b1b8419b4cbc"
+  }
+}
