@@ -227,3 +227,146 @@ before it passed: the typed Deployment's raw object is in the client's snake_cas
 not read; fixed by reading both spellings, as the rest of the engine does. 6 tests on fresh fixtures, 4 mutants killed
 (the relation, the manager's kind, the OOMKill, the pods' depth). `spec_paths` reads a `fits` anchor's paths on the
 hop's target kind; with `*`, the path is listed as unchecked.
+
+## Change 2 (g2), rule written 2026-11-11 before its code
+
+**What is missing, two things.**
+1. *Nothing judges the Application.* Its last sync failed (`status.operationState.phase: Failed`, with the invalid
+   Ingress in `operationState.message`), but no anchor reads that field.
+2. *Even judged, it would not come first.* `rca/correlation.py` walks on past an anchored object and sorts the chains
+   by length. The Application is reached from the ConfigMap over `MANAGES`, so its chain is the ConfigMap's chain
+   plus one hop, and the ConfigMap, a listed decoy, stays first. Under the first-diagnosis rule of change 1, the anchor
+   alone leaves g2 failing.
+
+**What the definitions give.** Read from the bundle's Application CRD (Argo CD v3.6.1), not from memory:
+`status.operationState.phase` and `status.health.status` are both `type: string`, **no `enum`**. A `valid` anchor
+would normally come from a schema enum (`docs/anchors-and-relations.md`, amendment of 2026-11-09, origin 1). Here it cannot, so the values
+are declared by hand, as the directive allows for what a definition does not contain, with their source: Argo CD's
+*notification triggers* page names `Running` (`on-sync-running`), `Succeeded` (`on-sync-succeeded`), and `Error`,
+`Failed` (`on-sync-failed`). Nothing else documents the phase. `health.status` is not used: g1's Application is
+`Degraded` because of the OOMKills, so health does not separate a failed sync from a failing workload.
+
+**The change, as data, one generic evaluator, and one ordering rule:**
+- `ontology/spec/anchors.yaml`: `argocd.sync-phase-valid`, kind `Application`, type `valid`, params
+  `field: status.operationState.phase`, `values: [Running, Succeeded]`, `message: status.operationState.message`;
+  variability `controller:argocd` (corrected below: `volatile`); source the triggers page. A phase outside the list fires; an absent phase does not
+  (no claim without the field).
+- `ontology/anchors.py`: the `valid` evaluator, generic: read `field` on the reached object; if present and not in
+  `values`, the mechanism is `<field>=<value>, not one of <values>`, followed by `message` when that path has a value.
+  No kind or group in the code. `spec_paths` checks `field` and `message` against the Application CRD.
+- `rca/correlation.py`, **ordering**: a chain whose hops pass through another chain's cause object is listed before
+  that chain (its cause is upstream: it explains why the other cause stays). Otherwise the order is unchanged
+  (length, then name). No kind in the rule.
+
+**Pass rule:** unchanged from change 1 (the first diagnosis names the cause).
+
+**Predictions:**
+- g2 passes: first diagnosis `Application/argocd/checkout`, the mechanism quoting the Ingress `Unsupported value`.
+  The ConfigMap's chain stays in the report, second.
+- g0, g1, g3, g4, g5 unchanged. g0 and g1's Applications are `Succeeded` or have no phase; g3 and g4 have no
+  Application; g5's is `Succeeded`.
+- S1 19/19 and S2 unchanged: no S1 or S2 case has an Application, so the anchor cannot fire. The **ordering rule** can
+  touch them, though: the prediction is that no S2 chain passes through another chain's cause, so S2's four named cases
+  stay first. Any S2 or S1 case whose first diagnosis changes is listed, named or not.
+
+**Not kept if:** g2 does not pass; any guard moves (S1 below 19/19, an S2 named case no longer first, g0 not
+`no_incident`, g1 no longer first); or the ordering rule changes an S2 first diagnosis for the worse. A change of the
+ordering rule that helps nowhere but g2 is reported as such.
+
+**To confirm live:** whether Argo CD writes `Error` or `Failed` for this failure (both are outside the valid list, so
+the anchor fires on either); whether a phase not on the triggers page (e.g. `Terminating`) exists and would be a false
+alarm.
+
+*Correction, 2026-11-11, before the measurement, on reading the page.* The values are right, the attribution was not.
+The catalog's triggers (`on-sync-running`, `on-sync-succeeded`, `on-sync-failed`) are listed there without their
+`when` expressions. The phase values are named on the *triggers* page
+(`operator-manual/notifications/triggers/`), in its `sync-operation-change` example: `phase in ['Succeeded']`,
+`in ['Running']`, `in ['Error', 'Failed']`; `on-deployed` also reads `phase in ['Succeeded']`. Neither page names
+another phase (no `Terminating`). The anchor cites the triggers page.
+The variability is `volatile`, not `controller:argocd`: the loader requires a `controller:` variability to name the
+hop to its controller, and here Argo CD writes the status of its own object; a status field that changes with every
+sync is `volatile` in the fixed set.
+
+**Change 2, result (2026-11-11), not yet kept.** First diagnoses compared case by case with a run just before the
+change (S1, S2, S2-GitOps):
+- g2 is named first: `Application/argocd/checkout`, "status.operationState.phase=Failed, not one of ['Running',
+  'Succeeded']: one or more objects failed to apply, reason: Ingress.networking.k8s.io "checkout" is invalid: …
+  Unsupported value: "Prefixx" …". The ConfigMap's chain is second.
+- No other first diagnosis moved: S1 (19 cases), S2 (the same four named first), g0, g1, g3–g5.
+
+**Two predictions were wrong, and the pass is not earned by the mechanism the rule gave:**
+1. *"The anchor alone leaves g2 failing" is refuted.* With the ordering rule switched off, g2 still has the
+   Application first. Its chain does not go through the ConfigMap: the walk reaches the Application in **one hop from
+   the Deployment** (`Deployment/shop/checkout <-MANAGES- Application/argocd/checkout`), and the ConfigMap's chain is one
+   hop too (`Pod <-CONFIGURES- ConfigMap`). The baseline's reading "the Application is one hop further than the
+   ConfigMap" was wrong.
+2. *The ordering rule does nothing.* No chain in S1, S2 or S2-GitOps passes through another chain's cause, g2 included.
+   With two chains of equal length, the order is the sort's second key, **the cause's name**: `Application/…` sorts
+   before `ConfigMap/…`. g2 passes on the alphabetical order of the kinds. That is not a mechanism; a decoy whose kind
+   sorts before `Application` would take first place.
+
+Observed while looking, not measured: the graph holds `Application/argocd/checkout MANAGES ConfigMap/shop/checkout-config`.
+A tie-break that reads the graph (when one chain's cause has a typed relation to another chain's cause, it is upstream)
+would put the Application first for a reason. It would be a new rule, written before its own measurement.
+
+## Change 2b: the engine's spec, points 4 and 5, rule written 2026-11-11 before its code
+
+Decided with the user after change 2's result: the ordering rule of change 2 is withdrawn (it changed no case), and
+the tie is broken by what `docs/correlation-engine.md` § 4 already specified and the code never did:
+- **point 4**, "the cause is the farthest abnormal object of the chain";
+- **point 5**, chains ranked by score, then length, then fqn.
+
+**What the code does today.** `rca/correlation.py` records a chain for every abnormal object the walk reaches, keyed by
+that object, so an abnormal object part-way up a path is reported as a cause of its own. Every chain gets the same
+score (`CHAIN_SCORE` in `rca/diagnosis.py`); ranking is length, then name.
+
+**The change.**
+- *Point 4.* A chain is a path from a symptom as far as the walk goes (`MAX_HOPS` unchanged). Its cause is the
+  **farthest** abnormal object on it; an abnormal object nearer the symptom stays on the chain as a hop, its mechanism
+  appended to that hop's evidence, and is no longer a cause of its own **on that path**. It remains a cause if some
+  other path from a symptom has it as its farthest abnormal object. Per cause, the shortest chain is kept, as today.
+- *Point 5, the part with inputs.* A chain's score is 0.5 × the product of its hops' edge `confidence` (each edge
+  carries one, `ontology/relations.py`). Ranking: score, then length, then fqn. **Not implemented, said here:** "+ 0.15
+  per hop confirmed by an independent source" and "− 0.3 per contradiction". No hop carries a second source, and
+  nothing marks a hop's target as healthy now; both need inputs the graph does not have. Not invented.
+- The chain's score orders the chains only. `Diagnosis.score` stays `CHAIN_SCORE`, so nothing downstream (the gate,
+  `REPORT_MIN`) moves.
+
+**Control that can fail** (unit test, fresh fixtures, not a frozen case): `Pod <-CONFIGURES- X <-MANAGES- Application`,
+with X abnormal and a kind that sorts before `Application` (`AAAConfig`, a generic entity with a `fresh`-like anchor
+declared for the test). Today X is a 1-hop chain and comes first. After the change, the Application is the only cause
+on that path, with X as a hop. A test that passes on the code of change 2 is no control; this one must fail on it.
+
+**Predictions.**
+- g2: first diagnosis `Application/argocd/checkout`, now for point 4's reason: the path `Pod <-CONFIGURES- ConfigMap
+  <-MANAGES- Application` makes the ConfigMap a hop. **The ConfigMap is no longer a cause in the report**: its only
+  path from a symptom continues to the Application. It still shows in that path's hops.
+- g1: unchanged, first `Application/argocd/billing`.
+- g0, g3, g4, g5: unchanged.
+- S1 19/19. S2: the four named cases stay first. Not certain: point 4 changes every case where an abnormal object
+  lies upstream of another one; S2 holds chains through LimitRanges, quotas and ConfigMaps, and the scores now differ
+  by edge confidence. Every first diagnosis that moves is listed.
+
+**Kept only if:** the control fails on change 2's code and passes after; g2 passes; no guard moves (S1 19/19, S2's
+four still first, g0 `no_incident`, g1 first). Otherwise not kept, and the result is written anyway.
+
+**Change 2b, result (2026-11-12).** First diagnoses compared case by case with the run made before change 2:
+- g2 is named first, `Application/argocd/checkout`, and is now the only chain: the ConfigMap is a hop of a path whose
+  farthest abnormal object is the Application, and no path from a symptom ends at it.
+- No other first diagnosis moved: S1 (19 cases, `make ci` 3 625 passed), S2 (the same four named first), g0
+  (`no_incident`), g1, g3, g4, g5.
+- **The control:** the fresh fixture `Pod <-CONFIGURES- AAAConfig <-MANAGES- Application` fails on the code before
+  the change (4 of 5 tests; the fifth, a nearer object that stays the cause when nothing abnormal is above it, holds
+  on both, as it should) and passes after. On g2 itself, with the name tie-break reversed, the Application stays first.
+- **One prediction wrong in detail:** "the ConfigMap still shows in that path's hops". Per cause, the shortest chain
+  is kept, and the Application's shortest is the one-hop path from the Deployment. The ConfigMap that holds the bad
+  value is no longer in the report at all. The answer is right; it says less. Keeping every intermediate abnormal
+  object of a cause's paths is a possible later change, with its own rule.
+- Tests: 5 for the walk and the rank, 4 for the `valid` evaluator; 7 mutants killed (nearest cause instead of
+  farthest; no mechanism on the hop; score without confidence; rank without score; a chain emitted at every prefix;
+  an absent field that fires; no quoted message). The S2-GitOps guard's floor is g1 and g2.
+- **Point 5, still open:** the independent-source bonus (+0.15) is the place of hybrid retrieval in the engine
+  (`docs/r2-heterogeneous-retrieval.md` § Roles: retrieval proposes, the engine verifies). It is change 3, spec first,
+  measured on R2: S2-GitOps has no document corpus and cannot test it.
+
+By the rule, kept.

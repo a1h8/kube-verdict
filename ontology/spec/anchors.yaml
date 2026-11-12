@@ -55,3 +55,15 @@ anchors:
     sources:
       - https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/
       - https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/
+
+  # docs/s2g/gitops-cases.md, change 2. The Application CRD (bundle, Argo CD v3.6.1) types the phase as a string with
+  # no enum, so the valid values are declared here. The only documentation that names them is the notification triggers
+  # page, in its `sync-operation-change` example: phase in ['Succeeded'], in ['Running'], in ['Error', 'Failed'].
+  - id: argocd.sync-phase-valid
+    kind: Application
+    type: valid
+    params: {field: status.operationState.phase, values: [Running, Succeeded],
+             message: status.operationState.message}
+    variability: volatile
+    sources:
+      - https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/triggers/

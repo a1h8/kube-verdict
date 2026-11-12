@@ -1,11 +1,12 @@
 """S2-GitOps guard (docs/s2g/gitops-cases.md): what D names may grow, never shrink; g0 stays no_incident.
-Floors: the baseline of 2026-11-10 (engine 1b418bd) named none; change 1 (applied-limit-fits) names g1.
+Floors: the baseline of 2026-11-10 (engine 1b418bd) named none; change 1 (applied-limit-fits) names g1; change 2b
+(sync-phase anchor, farthest cause, score) names g2.
 A case is named when the first diagnosis' location is the cause (the rule sharpened with change 1)."""
 import json
 
 import pytest
 
-D_FLOOR = {"g1_argocd_selfheal_reverts_fix"}
+D_FLOOR = {"g1_argocd_selfheal_reverts_fix", "g2_argocd_sync_failed_invalid_resource"}
 NO_INCIDENT_OUTCOMES = {"g0_gitops_no_incident": "no_incident"}
 
 

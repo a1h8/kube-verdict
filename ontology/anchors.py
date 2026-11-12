@@ -219,7 +219,18 @@ def _bound(graph, node, anchor, edge, came_from):
     return None
 
 
-EVALUATORS = {"bound": _bound, "fits": _fits, "fresh": _fresh}
+def _valid(graph, node, anchor, edge, came_from):
+    """The reached object's ``field`` is outside the declared ``values``; an absent field makes no claim. When the
+    anchor names a ``message`` path with a value, it is quoted as the evidence."""
+    p = anchor["params"]
+    value = _get(node.raw or {}, *p["field"].split("."))
+    if value is None or str(value) in {str(v) for v in p["values"]}:
+        return None
+    msg = _get(node.raw or {}, *p["message"].split(".")) if p.get("message") else None
+    return f"{p['field']}={value}, not one of {list(p['values'])}" + (f": {msg}" if msg else ""), node
+
+
+EVALUATORS = {"bound": _bound, "fits": _fits, "fresh": _fresh, "valid": _valid}
 
 
 def _by_conventions(node: K8sEntity, edge) -> tuple[str, K8sEntity] | None:

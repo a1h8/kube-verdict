@@ -32,6 +32,7 @@ class Chain:
     cause: str
     mechanism: str
     hops: list[Hop] = field(default_factory=list)
+    score: float = 0.5
 
     def to_text(self) -> str:
         path = " ; ".join(f"{h.dst} <-{h.rel}- {h.src} ({h.evidence})" for h in self.hops)
@@ -54,31 +55,61 @@ def _starts(graph: OntologyGraph, seed: K8sEntity) -> list[K8sEntity]:
     return [e for e in out if e is not None]
 
 
+def _chain(start: K8sEntity, hops: list[Hop], confs: list[float],
+           found: list[tuple[int, str, K8sEntity]]) -> Chain:
+    """The chain of one path: its cause is the farthest abnormal object on it (docs/correlation-engine.md § 4, point 4);
+    a nearer abnormal object stays as a hop, its mechanism added to that hop's evidence."""
+    at, mechanism, cause = found[-1]
+    kept = [Hop(h.src, h.rel, h.dst, h.evidence) for h in hops[:at + 1]]
+    for i, m, _ in found[:-1]:
+        kept[i].evidence = f"{kept[i].evidence}; abnormal: {m}"
+    if _fqn(cause) != kept[-1].src:
+        kept.append(Hop(_fqn(cause), "FILLS", kept[-1].src, mechanism))
+    score = 0.5
+    for c in confs[:at + 1]:
+        score *= c
+    return Chain(_fqn(start), _fqn(cause), mechanism, kept, score)
+
+
+def rank(chains: list[Chain]) -> list[Chain]:
+    """By score, then length (the shortest first), then fqn (point 5)."""
+    return sorted(chains, key=lambda c: (-c.score, len(c.hops), c.cause))
+
+
 def correlate(graph: OntologyGraph, seeds: list[K8sEntity] | None = None) -> list[Chain]:
+    """Walk back from each symptom over the typed relations, as far as ``MAX_HOPS``. Each path that reaches an abnormal
+    object gives a chain whose cause is the farthest one on it; per cause, the shortest chain is kept. A chain's score
+    is 0.5 x the product of its edges' confidence. Not implemented, for lack of inputs: the independent-source bonus
+    and the contradiction penalty of point 5 (docs/s2g/gitops-cases.md, change 2b)."""
     from dedup.bfs import find_unhealthy
     chains: dict[str, Chain] = {}
+
+    def keep(ch: Chain) -> None:
+        if ch.cause not in chains or len(ch.hops) < len(chains[ch.cause].hops):
+            chains[ch.cause] = ch
+
     for seed in seeds if seeds is not None else find_unhealthy(graph):
         for start in _starts(graph, seed):
-            stack: list[tuple[K8sEntity, list[Hop], set[str]]] = [(start, [], {start.uid})]
+            stack: list[tuple[K8sEntity, list[Hop], list[float], list[tuple[int, str, K8sEntity]], set[str]]] = [
+                (start, [], [], [], {start.uid})]
             while stack:
-                node, hops, seen = stack.pop()
-                if len(hops) >= MAX_HOPS:
-                    continue
-                for edge in graph._radj.get(node.uid, []):
-                    if edge.rel_type not in BACK or edge.source_uid in seen:
-                        continue
-                    up = graph.get(edge.source_uid)
-                    if up is None:
-                        continue
-                    path = hops + [Hop(_fqn(up), edge.rel_type.value, _fqn(node), (edge.metadata or {}).get(
-                        "evidence", (edge.metadata or {}).get("method", "")))]
-                    found = evaluate(graph, up, edge, node)
-                    if found:
-                        mechanism, cause = found
-                        if cause is not up:
-                            path = path + [Hop(_fqn(cause), "FILLS", _fqn(up), mechanism)]
-                        key = _fqn(cause)
-                        if key not in chains or len(path) < len(chains[key].hops):
-                            chains[key] = Chain(_fqn(start), key, mechanism, path)
-                    stack.append((up, path, seen | {up.uid}))
-    return sorted(chains.values(), key=lambda c: (len(c.hops), c.cause))
+                node, hops, confs, found, seen = stack.pop()
+                extended = False
+                if len(hops) < MAX_HOPS:
+                    for edge in graph._radj.get(node.uid, []):
+                        if edge.rel_type not in BACK or edge.source_uid in seen:
+                            continue
+                        up = graph.get(edge.source_uid)
+                        if up is None:
+                            continue
+                        meta = edge.metadata or {}
+                        path = hops + [Hop(_fqn(up), edge.rel_type.value, _fqn(node),
+                                           meta.get("evidence", meta.get("method", "")))]
+                        conf = 1.0 if meta.get("confidence") is None else float(meta["confidence"])
+                        hit = evaluate(graph, up, edge, node)
+                        marks = found + [(len(path) - 1, hit[0], hit[1])] if hit else found
+                        stack.append((up, path, confs + [conf], marks, seen | {up.uid}))
+                        extended = True
+                if not extended and found:
+                    keep(_chain(start, hops, confs, found))
+    return rank(list(chains.values()))
